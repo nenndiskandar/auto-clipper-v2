@@ -4,6 +4,45 @@
 
 Transform long-form YouTube videos (podcasts, interviews, vlogs) into engaging short-form content for TikTok, Instagram Reels, and YouTube Shorts — all with a single command.
 
+## 🖥️ Desktop App (Recommended)
+
+Download the portable desktop app — no Python or FFmpeg installation required!
+
+### Quick Start
+
+1. Download `AutoClipper-v1.0.zip` from [Releases](../../releases)
+2. Extract to any folder
+3. Run `AutoClipper.exe`
+4. Enter your OpenAI API key and click "Validate"
+5. Paste YouTube URL, set number of clips, and click "Start Processing"
+
+### Desktop App Features
+
+- ✅ **No installation required** — portable single folder
+- ✅ **Simple GUI** — just paste URL and click process
+- ✅ **API key validation** — instant feedback if key is valid
+- ✅ **Real-time progress** — download percentage, processing status
+- ✅ **Token usage tracking** — see GPT tokens, Whisper minutes, TTS chars used
+- ✅ **Cost estimation** — estimated API cost per session
+
+### Desktop App Contents
+
+```
+AutoClipper/
+├── AutoClipper.exe     # Main application
+├── ffmpeg/
+│   └── ffmpeg.exe      # Bundled FFmpeg
+├── yt-dlp.exe          # Bundled yt-dlp
+├── output/             # Output clips folder
+└── config.json         # Saved settings (auto-created)
+```
+
+---
+
+## 💻 CLI Version
+
+For advanced users who prefer command line or want to customize the pipeline.
+
 ## ✨ Features
 
 - **🎥 Auto Download** - Downloads YouTube videos with Indonesian subtitles using yt-dlp
@@ -73,8 +112,9 @@ openai>=1.0.0
 python-dotenv>=1.0.0
 opencv-python>=4.8.0
 numpy>=1.24.0
-openai-whisper>=20231117
 ```
+
+> **Note:** The desktop app uses OpenAI Whisper API instead of local Whisper model, so `openai-whisper` is not required for the desktop version.
 
 ### API Keys
 
@@ -335,7 +375,22 @@ Position: Lower third (350px from bottom)
 
 ## 🐛 Troubleshooting
 
-### Common Issues
+### Desktop App Issues
+
+**1. "FFmpeg not found" or "yt-dlp not found"**
+- Make sure `ffmpeg/ffmpeg.exe` and `yt-dlp.exe` are in the same folder as `AutoClipper.exe`
+
+**2. "API key tidak valid"**
+- Double-check your OpenAI API key
+- Ensure you have API credits available
+- Check internet connection
+
+**3. App won't start / crashes**
+- Try running as Administrator
+- Check if antivirus is blocking the app (add exception)
+- Make sure you extracted all files from the zip
+
+### CLI Version Issues
 
 **1. "No Indonesian subtitle found"**
 - The video might not have auto-generated Indonesian subtitles
@@ -369,20 +424,86 @@ Position: Lower third (350px from bottom)
 
 ## 📊 API Usage & Costs
 
-Estimated OpenAI API costs per video:
+Estimated OpenAI API costs per video (5 clips):
 
 | Feature | Model | Est. Cost |
 |---------|-------|-----------|
-| Highlight Detection | GPT-4 | ~$0.10-0.30 |
-| Hook Text Generation | GPT-4o-mini | ~$0.01 |
-| SEO Metadata | GPT-4o-mini | ~$0.01/clip |
-| TTS Voiceover | TTS-1 | ~$0.015/clip |
+| Highlight Detection | GPT-4.1 | ~$0.05-0.15 |
+| TTS Voiceover | TTS-1 | ~$0.01/clip |
+| Captions | Whisper API | ~$0.01/clip |
 
-**Total estimate:** ~$0.15-0.40 per video (5 clips)
+**Total estimate:** ~$0.10-0.25 per video (5 clips)
+
+The desktop app shows real-time token usage and cost estimation during processing.
 
 ## 🤝 Contributing
 
 Contributions are welcome! Kami sangat menghargai kontribusi dari siapapun.
+
+### 🔨 Building Desktop App from Source
+
+Untuk developer yang ingin build .exe sendiri:
+
+#### Prerequisites
+
+```bash
+# Install Python dependencies
+cd desktop-app
+pip install -r requirements.txt
+pip install pyinstaller
+```
+
+#### Build Steps
+
+```bash
+# 1. Build exe dengan PyInstaller
+cd desktop-app
+pyinstaller build.spec
+
+# 2. Output akan ada di: desktop-app/dist/AutoClipper.exe
+```
+
+#### Bundle External Dependencies
+
+Setelah build, download dan copy file berikut ke folder `dist/`:
+
+```
+dist/
+├── AutoClipper.exe          # Hasil build
+├── ffmpeg/
+│   ├── ffmpeg.exe           # Download dari https://www.gyan.dev/ffmpeg/builds/
+│   └── ffprobe.exe          # (pilih ffmpeg-release-essentials.zip)
+└── yt-dlp.exe               # Download dari https://github.com/yt-dlp/yt-dlp/releases
+```
+
+#### Download Links
+
+| File | Download |
+|------|----------|
+| FFmpeg | [ffmpeg-release-essentials.zip](https://www.gyan.dev/ffmpeg/builds/) |
+| yt-dlp | [yt-dlp.exe](https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe) |
+
+#### Final Package Size
+
+```
+AutoClipper.exe     ~50MB
+ffmpeg/             ~80MB
+yt-dlp.exe          ~10MB
+─────────────────────────
+Total:              ~140MB
+```
+
+#### Testing Build
+
+```bash
+# Test dari source (development)
+python desktop-app/app.py
+
+# Test built exe
+desktop-app/dist/AutoClipper.exe
+```
+
+---
 
 ### Quick Start untuk Kontributor
 

@@ -11,6 +11,7 @@
 *.env
 secrets.json
 config.local.json
+desktop-app/config.json
 
 # ============================================
 # Python
