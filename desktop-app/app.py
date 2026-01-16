@@ -17,14 +17,20 @@ from openai import OpenAI
 from PIL import Image, ImageTk
 
 if getattr(sys, 'frozen', False):
+    # Running as compiled exe
     APP_DIR = Path(sys.executable).parent
+    # For bundled resources, use sys._MEIPASS
+    BUNDLE_DIR = Path(sys._MEIPASS) if hasattr(sys, '_MEIPASS') else APP_DIR
 else:
+    # Running as script
     APP_DIR = Path(__file__).parent
+    BUNDLE_DIR = APP_DIR
 
 CONFIG_FILE = APP_DIR / "config.json"
 OUTPUT_DIR = APP_DIR / "output"
-ASSETS_DIR = APP_DIR / "assets"
+ASSETS_DIR = BUNDLE_DIR / "assets"
 ICON_PATH = ASSETS_DIR / "icon.png"
+ICON_ICO_PATH = ASSETS_DIR / "icon.ico"
 
 
 def get_ffmpeg_path():
@@ -311,20 +317,23 @@ class YTShortClipperApp(ctk.CTk):
     
     def set_app_icon(self):
         """Set window icon"""
-        if not ICON_PATH.exists():
-            return
         try:
             if sys.platform == "win32":
-                ico_path = ASSETS_DIR / "icon.ico"
-                if not ico_path.exists():
+                # Use .ico file directly on Windows
+                if ICON_ICO_PATH.exists():
+                    self.iconbitmap(str(ICON_ICO_PATH))
+                elif ICON_PATH.exists():
+                    # Convert PNG to ICO if needed
                     img = Image.open(ICON_PATH)
-                    img.save(str(ico_path), format='ICO', sizes=[(16, 16), (32, 32), (48, 48)])
-                self.iconbitmap(str(ico_path))
+                    ico_path = ASSETS_DIR / "icon.ico"
+                    img.save(str(ico_path), format='ICO', sizes=[(16, 16), (32, 32), (48, 48), (256, 256)])
+                    self.iconbitmap(str(ico_path))
             else:
-                icon_img = Image.open(ICON_PATH)
-                photo = ImageTk.PhotoImage(icon_img)
-                self.iconphoto(True, photo)
-                self._icon_photo = photo
+                if ICON_PATH.exists():
+                    icon_img = Image.open(ICON_PATH)
+                    photo = ImageTk.PhotoImage(icon_img)
+                    self.iconphoto(True, photo)
+                    self._icon_photo = photo
         except Exception as e:
             print(f"Icon error: {e}")
     
