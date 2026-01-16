@@ -1,15 +1,15 @@
 # Contributing to YT-Short-Clipper
 
-Terima kasih sudah tertarik untuk berkontribusi! 🎉
+Thank you for your interest in contributing! 🎉
 
-Dokumen ini berisi panduan lengkap bagaimana cara berkontribusi ke project ini, baik untuk pemula maupun yang sudah berpengalaman.
+This document contains a complete guide on how to contribute to this project, for both beginners and experienced developers.
 
-## 📋 Daftar Isi
+## 📋 Table of Contents
 
-- [Cara Kerja Open Source](#cara-kerja-open-source)
-- [Persiapan Awal](#persiapan-awal)
-- [Workflow Kontribusi](#workflow-kontribusi)
-- [Jenis Kontribusi](#jenis-kontribusi)
+- [How Open Source Works](#how-open-source-works)
+- [Initial Setup](#initial-setup)
+- [Contribution Workflow](#contribution-workflow)
+- [Types of Contributions](#types-of-contributions)
 - [Code Style Guide](#code-style-guide)
 - [Commit Message Convention](#commit-message-convention)
 - [Pull Request Process](#pull-request-process)
@@ -17,47 +17,47 @@ Dokumen ini berisi panduan lengkap bagaimana cara berkontribusi ke project ini, 
 
 ---
 
-## 🌟 Cara Kerja Open Source
+## 🌟 How Open Source Works
 
-Sebelum mulai, pahami dulu konsep dasar open source di GitHub:
+Before starting, understand the basic concepts of open source on GitHub:
 
-### Istilah Penting
+### Important Terms
 
-| Istilah | Penjelasan |
-|---------|------------|
-| **Repository (Repo)** | Folder project yang disimpan di GitHub |
-| **Fork** | Salinan repo ke akun GitHub kamu sendiri |
-| **Clone** | Download repo ke komputer lokal |
-| **Branch** | "Cabang" terpisah untuk mengerjakan fitur tanpa mengganggu kode utama |
-| **Commit** | Menyimpan perubahan dengan pesan deskriptif |
-| **Push** | Upload perubahan dari lokal ke GitHub |
-| **Pull Request (PR)** | Permintaan untuk menggabungkan perubahan kamu ke repo utama |
-| **Merge** | Menggabungkan perubahan dari PR ke kode utama |
-| **Issue** | Laporan bug atau request fitur |
+| Term | Explanation |
+|------|-------------|
+| **Repository (Repo)** | Project folder stored on GitHub |
+| **Fork** | Copy of a repo to your own GitHub account |
+| **Clone** | Download repo to your local computer |
+| **Branch** | Separate "branch" to work on features without affecting main code |
+| **Commit** | Save changes with a descriptive message |
+| **Push** | Upload changes from local to GitHub |
+| **Pull Request (PR)** | Request to merge your changes into the main repo |
+| **Merge** | Combine changes from PR into main code |
+| **Issue** | Bug report or feature request |
 
-### Alur Kontribusi (Simplified)
+### Contribution Flow (Simplified)
 
 ```
-1. Fork repo ──▶ 2. Clone ke lokal ──▶ 3. Buat branch baru
+1. Fork repo ──▶ 2. Clone locally ──▶ 3. Create new branch
                                               │
                                               ▼
-6. Buat Pull Request ◀── 5. Push ke GitHub ◀── 4. Edit & Commit
+6. Create Pull Request ◀── 5. Push to GitHub ◀── 4. Edit & Commit
                                               
-7. Review & Diskusi ──▶ 8. Merge! 🎉
+7. Review & Discussion ──▶ 8. Merge! 🎉
 ```
 
 ---
 
-## 🛠️ Persiapan Awal
+## 🛠️ Initial Setup
 
 ### 1. Install Git
 
 **Windows:**
 ```powershell
-# Menggunakan winget
+# Using winget
 winget install Git.Git
 
-# Atau download dari https://git-scm.com/download/win
+# Or download from https://git-scm.com/download/win
 ```
 
 **macOS:**
@@ -70,32 +70,32 @@ brew install git
 sudo apt install git
 ```
 
-### 2. Konfigurasi Git
+### 2. Configure Git
 
 ```bash
-# Set nama dan email (akan muncul di commit)
-git config --global user.name "Nama Kamu"
+# Set name and email (will appear in commits)
+git config --global user.name "Your Name"
 git config --global user.email "email@example.com"
 
-# Verifikasi
+# Verify
 git config --list
 ```
 
-### 3. Buat Akun GitHub
+### 3. Create GitHub Account
 
-1. Buka [github.com](https://github.com)
-2. Klik "Sign up"
-3. Ikuti proses registrasi
+1. Go to [github.com](https://github.com)
+2. Click "Sign up"
+3. Follow the registration process
 
 ### 4. Setup SSH Key (Recommended)
 
-SSH key memungkinkan push/pull tanpa input password berulang.
+SSH key allows push/pull without repeated password input.
 
 ```bash
 # Generate SSH key
 ssh-keygen -t ed25519 -C "email@example.com"
 
-# Tekan Enter untuk semua prompt (gunakan default)
+# Press Enter for all prompts (use defaults)
 
 # Copy SSH key
 # Windows:
@@ -108,170 +108,170 @@ pbcopy < ~/.ssh/id_ed25519.pub
 cat ~/.ssh/id_ed25519.pub
 ```
 
-Lalu tambahkan ke GitHub:
-1. Buka GitHub → Settings → SSH and GPG keys
-2. Klik "New SSH key"
-3. Paste key dan save
+Then add to GitHub:
+1. Go to GitHub → Settings → SSH and GPG keys
+2. Click "New SSH key"
+3. Paste key and save
 
 ---
 
-## 🔄 Workflow Kontribusi
+## 🔄 Contribution Workflow
 
 ### Step 1: Fork Repository
 
-1. Buka halaman repo: `https://github.com/OWNER/yt-short-clipper`
-2. Klik tombol **"Fork"** di kanan atas
-3. Pilih akun kamu sebagai destinasi
-4. Tunggu proses fork selesai
+1. Go to repo page: `https://github.com/jipraks/yt-short-clipper`
+2. Click the **"Fork"** button in the top right
+3. Select your account as destination
+4. Wait for fork process to complete
 
-Sekarang kamu punya salinan repo di `https://github.com/USERNAME-KAMU/yt-short-clipper`
+Now you have a copy at `https://github.com/YOUR-USERNAME/yt-short-clipper`
 
-### Step 2: Clone ke Komputer Lokal
+### Step 2: Clone to Local Computer
 
 ```bash
-# Clone repo fork kamu (bukan repo original!)
-git clone https://github.com/USERNAME-KAMU/yt-short-clipper.git
+# Clone YOUR fork (not the original repo!)
+git clone https://github.com/YOUR-USERNAME/yt-short-clipper.git
 
-# Masuk ke folder project
+# Enter project folder
 cd yt-short-clipper
 
-# Tambahkan remote "upstream" (repo original)
-git remote add upstream https://github.com/OWNER/yt-short-clipper.git
+# Add "upstream" remote (original repo)
+git remote add upstream https://github.com/jipraks/yt-short-clipper.git
 
-# Verifikasi remote
+# Verify remotes
 git remote -v
 # Output:
-# origin    https://github.com/USERNAME-KAMU/yt-short-clipper.git (fetch)
-# origin    https://github.com/USERNAME-KAMU/yt-short-clipper.git (push)
-# upstream  https://github.com/OWNER/yt-short-clipper.git (fetch)
-# upstream  https://github.com/OWNER/yt-short-clipper.git (push)
+# origin    https://github.com/YOUR-USERNAME/yt-short-clipper.git (fetch)
+# origin    https://github.com/YOUR-USERNAME/yt-short-clipper.git (push)
+# upstream  https://github.com/jipraks/yt-short-clipper.git (fetch)
+# upstream  https://github.com/jipraks/yt-short-clipper.git (push)
 ```
 
-### Step 3: Sync dengan Upstream (Penting!)
+### Step 3: Sync with Upstream (Important!)
 
-Sebelum mulai kerja, pastikan kode kamu up-to-date:
+Before starting work, make sure your code is up-to-date:
 
 ```bash
-# Ambil update terbaru dari repo original
+# Fetch latest updates from original repo
 git fetch upstream
 
-# Pindah ke branch main
+# Switch to main branch
 git checkout main
 
-# Merge update ke lokal
+# Merge updates to local
 git merge upstream/main
 
-# Push ke fork kamu
+# Push to your fork
 git push origin main
 ```
 
-### Step 4: Buat Branch Baru
+### Step 4: Create New Branch
 
-**JANGAN langsung edit di branch `main`!** Selalu buat branch baru.
+**DON'T edit directly on `main` branch!** Always create a new branch.
 
 ```bash
-# Format: tipe/deskripsi-singkat
+# Format: type/short-description
 git checkout -b feature/auto-translate-caption
-# atau
+# or
 git checkout -b fix/face-detection-error
-# atau
+# or
 git checkout -b docs/update-readme
 ```
 
-### Step 5: Lakukan Perubahan
+### Step 5: Make Changes
 
-Edit file sesuai kebutuhan menggunakan editor favorit kamu.
+Edit files as needed using your favorite editor.
 
 ```bash
-# Cek status perubahan
+# Check change status
 git status
 
-# Lihat detail perubahan
+# View change details
 git diff
 ```
 
-### Step 6: Commit Perubahan
+### Step 6: Commit Changes
 
 ```bash
-# Tambahkan file yang diubah ke staging
-git add nama_file.py
-# atau tambahkan semua file
+# Add changed files to staging
+git add filename.py
+# or add all files
 git add .
 
-# Commit dengan pesan deskriptif
+# Commit with descriptive message
 git commit -m "feat: add auto-translate for captions"
 ```
 
-### Step 7: Push ke GitHub
+### Step 7: Push to GitHub
 
 ```bash
-# Push branch ke fork kamu
+# Push branch to your fork
 git push origin feature/auto-translate-caption
 ```
 
-### Step 8: Buat Pull Request
+### Step 8: Create Pull Request
 
-1. Buka repo fork kamu di GitHub
-2. Akan muncul banner "Compare & pull request" - klik itu
-3. Atau klik tab "Pull requests" → "New pull request"
-4. Pastikan:
-   - **base repository**: repo original
+1. Open your fork repo on GitHub
+2. A banner "Compare & pull request" will appear - click it
+3. Or click "Pull requests" tab → "New pull request"
+4. Make sure:
+   - **base repository**: original repo
    - **base**: main
-   - **head repository**: fork kamu
-   - **compare**: branch kamu
-5. Isi judul dan deskripsi PR
-6. Klik "Create pull request"
+   - **head repository**: your fork
+   - **compare**: your branch
+5. Fill in PR title and description
+6. Click "Create pull request"
 
 ### Step 9: Respond to Review
 
-Maintainer mungkin akan memberikan feedback. Untuk update PR:
+Maintainers may provide feedback. To update PR:
 
 ```bash
-# Lakukan perubahan sesuai feedback
+# Make changes according to feedback
 git add .
 git commit -m "fix: address review feedback"
 git push origin feature/auto-translate-caption
 ```
 
-PR akan otomatis terupdate.
+PR will automatically update.
 
 ---
 
-## 📝 Jenis Kontribusi
+## 📝 Types of Contributions
 
-### 🐛 Melaporkan Bug
+### 🐛 Reporting Bugs
 
-1. Buka tab **Issues** di repo
-2. Klik **"New issue"**
-3. Pilih template "Bug Report"
-4. Isi dengan detail:
-   - Deskripsi bug
-   - Langkah untuk reproduce
+1. Open **Issues** tab in repo
+2. Click **"New issue"**
+3. Select "Bug Report" template
+4. Fill in details:
+   - Bug description
+   - Steps to reproduce
    - Expected vs actual behavior
-   - Screenshot/log jika ada
-   - Environment (OS, Python version, dll)
+   - Screenshots/logs if available
+   - Environment (OS, Python version, etc.)
 
-### 💡 Request Fitur
+### 💡 Feature Requests
 
-1. Buka tab **Issues**
-2. Klik **"New issue"**
-3. Pilih template "Feature Request"
-4. Jelaskan:
-   - Fitur yang diinginkan
-   - Use case / alasan
-   - Contoh implementasi (jika ada ide)
+1. Open **Issues** tab
+2. Click **"New issue"**
+3. Select "Feature Request" template
+4. Explain:
+   - Desired feature
+   - Use case / reason
+   - Implementation example (if you have ideas)
 
 ### 📖 Improve Documentation
 
-- Fix typo
-- Tambah contoh penggunaan
-- Terjemahkan ke bahasa lain
-- Tambah screenshot/diagram
+- Fix typos
+- Add usage examples
+- Translate to other languages
+- Add screenshots/diagrams
 
 ### 🔧 Code Contribution
 
-- Fix bug
-- Implement fitur baru
+- Fix bugs
+- Implement new features
 - Improve performance
 - Refactor code
 - Add tests
@@ -282,7 +282,7 @@ PR akan otomatis terupdate.
 
 ### Python Style
 
-Ikuti [PEP 8](https://pep8.org/) dengan beberapa tambahan:
+Follow [PEP 8](https://pep8.org/) with some additions:
 
 ```python
 # ✅ Good
@@ -353,7 +353,7 @@ from video_clipper import clip_video
 
 ## 📨 Commit Message Convention
 
-Gunakan format [Conventional Commits](https://www.conventionalcommits.org/):
+Use [Conventional Commits](https://www.conventionalcommits.org/) format:
 
 ```
 <type>: <description>
@@ -365,30 +365,30 @@ Gunakan format [Conventional Commits](https://www.conventionalcommits.org/):
 
 ### Types
 
-| Type | Penggunaan |
-|------|------------|
-| `feat` | Fitur baru |
+| Type | Usage |
+|------|-------|
+| `feat` | New feature |
 | `fix` | Bug fix |
-| `docs` | Perubahan dokumentasi |
-| `style` | Formatting, tidak mengubah logic |
-| `refactor` | Refactor code tanpa ubah behavior |
+| `docs` | Documentation changes |
+| `style` | Formatting, no logic changes |
+| `refactor` | Code refactor without behavior change |
 | `perf` | Performance improvement |
-| `test` | Menambah/memperbaiki test |
+| `test` | Adding/fixing tests |
 | `chore` | Maintenance tasks |
 
-### Contoh
+### Examples
 
 ```bash
-# Fitur baru
+# New feature
 git commit -m "feat: add support for English subtitles"
 
 # Bug fix
 git commit -m "fix: resolve face detection crash on low-res videos"
 
-# Dokumentasi
+# Documentation
 git commit -m "docs: add installation guide for Ubuntu"
 
-# Dengan body untuk penjelasan detail
+# With body for detailed explanation
 git commit -m "feat: implement multi-speaker detection
 
 - Add support for detecting up to 4 speakers
@@ -408,7 +408,7 @@ Closes #42"
 <type>: <short description>
 ```
 
-Contoh:
+Examples:
 - `feat: add auto-translate for captions`
 - `fix: resolve memory leak in portrait converter`
 - `docs: improve installation instructions`
@@ -417,7 +417,7 @@ Contoh:
 
 ```markdown
 ## Description
-Jelaskan perubahan yang kamu buat.
+Explain the changes you made.
 
 ## Type of Change
 - [ ] Bug fix
@@ -427,7 +427,7 @@ Jelaskan perubahan yang kamu buat.
 - [ ] Code refactoring
 
 ## How Has This Been Tested?
-Jelaskan bagaimana kamu test perubahan ini.
+Explain how you tested these changes.
 
 ## Checklist
 - [ ] Code follows project style guidelines
@@ -437,7 +437,7 @@ Jelaskan bagaimana kamu test perubahan ini.
 - [ ] No new warnings generated
 
 ## Screenshots (if applicable)
-Tambahkan screenshot jika ada perubahan UI/output.
+Add screenshots if there are UI/output changes.
 
 ## Related Issues
 Closes #(issue number)
@@ -447,38 +447,38 @@ Closes #(issue number)
 
 ## ✅ Review Process
 
-Setelah PR dibuat:
+After PR is created:
 
-1. **Automated Checks** - CI/CD akan run (jika ada)
-2. **Maintainer Review** - Maintainer akan review code
-3. **Feedback** - Mungkin ada request perubahan
-4. **Approval** - Setelah approved, PR akan di-merge
-5. **Celebration** - Kontribusi kamu sudah masuk! 🎉
+1. **Automated Checks** - CI/CD will run (if configured)
+2. **Maintainer Review** - Maintainer will review code
+3. **Feedback** - There may be change requests
+4. **Approval** - After approval, PR will be merged
+5. **Celebration** - Your contribution is in! 🎉
 
-### Tips untuk Review Cepat
+### Tips for Quick Review
 
-- PR kecil lebih cepat di-review daripada PR besar
-- Satu PR = satu fitur/fix
-- Tulis deskripsi yang jelas
-- Respond feedback dengan cepat
+- Small PRs are reviewed faster than large PRs
+- One PR = one feature/fix
+- Write clear descriptions
+- Respond to feedback quickly
 
 ---
 
-## ❓ Butuh Bantuan?
+## ❓ Need Help?
 
-- Buka **Issue** dengan label `question`
-- Diskusi di **Discussions** tab (jika enabled)
-- Mention maintainer di PR/Issue
+- Open an **Issue** with `question` label
+- Discuss in **Discussions** tab (if enabled)
+- Mention maintainer in PR/Issue
 
 ---
 
 ## 🙏 Code of Conduct
 
-- Be respectful dan inclusive
+- Be respectful and inclusive
 - Constructive feedback only
 - Help others learn
-- No harassment atau discrimination
+- No harassment or discrimination
 
 ---
 
-Terima kasih sudah berkontribusi! Setiap kontribusi, sekecil apapun, sangat berarti. 💪
+Thank you for contributing! Every contribution, no matter how small, is greatly appreciated. 💪
