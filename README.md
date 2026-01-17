@@ -24,6 +24,62 @@ Download the portable desktop app — no Python or FFmpeg installation required!
 - ✅ **Real-time progress** — download percentage, processing status
 - ✅ **Token usage tracking** — see GPT tokens, Whisper minutes, TTS chars used
 - ✅ **Cost estimation** — estimated API cost per session
+- ✅ **YouTube Upload** — direct upload to YouTube with SEO-optimized titles & descriptions
+
+### YouTube Upload Setup (Optional)
+
+To enable direct YouTube upload from the app, you need to set up Google Cloud credentials:
+
+#### Step 1: Create Google Cloud Project
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Click "Select a project" → "New Project"
+3. Name it "YT Short Clipper" → Click "Create"
+
+#### Step 2: Enable YouTube Data API
+
+1. In sidebar, click "APIs & Services" → "Library"
+2. Search for "YouTube Data API v3"
+3. Click on it → Click "Enable"
+
+#### Step 3: Configure OAuth Consent Screen
+
+1. Go to "APIs & Services" → "OAuth consent screen"
+2. Select "External" → Click "Create"
+3. Fill in required fields:
+   - **App name:** YT Short Clipper
+   - **User support email:** Your email
+   - **Developer contact:** Your email
+4. Click "Save and Continue"
+5. On Scopes page, click "Add or Remove Scopes"
+6. Find and select: `https://www.googleapis.com/auth/youtube.upload`
+7. Click "Save and Continue"
+8. On Test Users page, click "Add Users"
+9. Add your Google/YouTube email address
+10. Click "Save and Continue"
+
+#### Step 4: Create OAuth Credentials
+
+1. Go to "APIs & Services" → "Credentials"
+2. Click "Create Credentials" → "OAuth client ID"
+3. Application type: **Desktop app**
+4. Name: "YT Short Clipper Desktop"
+5. Click "Create"
+6. Click "Download JSON"
+7. Rename the downloaded file to `client_secret.json`
+8. Place it in the same folder as `AutoClipper.exe`
+
+#### Step 5: Connect YouTube in App
+
+1. Open YT Short Clipper app
+2. Go to Settings (⚙️ button)
+3. Click "Connect YouTube"
+4. A browser window will open for Google login
+5. Select your YouTube channel account
+6. Grant permission to upload videos
+7. Done! You can now upload directly from the Results page
+
+> **Note:** Your app will be in "Testing" mode, which limits to 100 users. This is fine for personal use. For public distribution, you'd need to submit for Google verification.
 
 ### Desktop App Contents
 

@@ -284,10 +284,12 @@ Return HANYA JSON array, tanpa text lain."""
         if self.is_cancelled():
             return
         
-        # Create output folder
-        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S") + f"{index:02d}"
+        # Create output folder with unique timestamp per clip
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S") + f"-{index:02d}"
         clip_dir = self.output_dir / timestamp
         clip_dir.mkdir(parents=True, exist_ok=True)
+        
+        self.log(f"  Output folder: {clip_dir}")
         
         start = highlight["start_time"].replace(",", ".")
         end = highlight["end_time"].replace(",", ".")
@@ -334,6 +336,11 @@ Return HANYA JSON array, tanpa text lain."""
         hooked_file = clip_dir / "temp_hooked.mp4"
         hook_text = highlight.get("hook_text", highlight["title"])
         hook_duration = self.add_hook(str(portrait_file), hook_text, str(hooked_file))
+        
+        # Verify hooked file was created
+        if not hooked_file.exists():
+            raise Exception(f"Failed to create hooked video: {hooked_file}")
+        
         self.log(f"  ✓ Added hook ({hook_duration:.1f}s)")
         
         # Step 4: Add captions (100%)
@@ -342,15 +349,34 @@ Return HANYA JSON array, tanpa text lain."""
         clip_progress("Adding captions...", 3)
         final_file = clip_dir / "master.mp4"
         self.add_captions_api(str(hooked_file), str(final_file), str(portrait_file), hook_duration)
+        
+        # Verify final file was created
+        if not final_file.exists():
+            raise Exception(f"Failed to create final video: {final_file}")
+        
         self.log("  ✓ Added captions")
         
         # Mark complete
         clip_progress("Done", 4)
         
         # Cleanup temp files
-        landscape_file.unlink(missing_ok=True)
-        portrait_file.unlink(missing_ok=True)
-        hooked_file.unlink(missing_ok=True)
+        try:
+            if landscape_file.exists():
+                landscape_file.unlink()
+        except Exception as e:
+            self.log(f"  Warning: Could not delete {landscape_file.name}: {e}")
+        
+        try:
+            if portrait_file.exists():
+                portrait_file.unlink()
+        except Exception as e:
+            self.log(f"  Warning: Could not delete {portrait_file.name}: {e}")
+        
+        try:
+            if hooked_file.exists():
+                hooked_file.unlink()
+        except Exception as e:
+            self.log(f"  Warning: Could not delete {hooked_file.name}: {e}")
         
         # Save metadata
         metadata = {
@@ -609,7 +635,13 @@ Return HANYA JSON array, tanpa text lain."""
             "-t", str(hook_duration),
             hook_video
         ]
-        subprocess.run(cmd, capture_output=True, creationflags=SUBPROCESS_FLAGS)
+        result = subprocess.run(cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
+        
+        if result.returncode != 0:
+            error_lines = result.stderr.split('\n') if result.stderr else []
+            actual_errors = [line for line in error_lines if 'error' in line.lower()]
+            error_msg = '\n'.join(actual_errors[-3:]) if actual_errors else "Unknown error"
+            raise Exception(f"Failed to create hook video: {error_msg}")
         
         # Step 2: Re-encode main video to EXACT same format (critical for concat)
         main_reencoded = tempfile.NamedTemporaryFile(suffix='.mp4', delete=False).name
@@ -628,7 +660,13 @@ Return HANYA JSON array, tanpa text lain."""
             "-ac", "2",
             main_reencoded
         ]
-        subprocess.run(cmd, capture_output=True, creationflags=SUBPROCESS_FLAGS)
+        result = subprocess.run(cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
+        
+        if result.returncode != 0:
+            error_lines = result.stderr.split('\n') if result.stderr else []
+            actual_errors = [line for line in error_lines if 'error' in line.lower()]
+            error_msg = '\n'.join(actual_errors[-3:]) if actual_errors else "Unknown error"
+            raise Exception(f"Failed to re-encode main video: {error_msg}")
         
         # Step 3: Concatenate using concat demuxer (more reliable than filter_complex)
         concat_list = tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False).name
@@ -648,6 +686,14 @@ Return HANYA JSON array, tanpa text lain."""
         
         # If concat demuxer fails, try filter_complex as fallback
         if result.returncode != 0:
+            # Extract actual error message (skip ffmpeg version info)
+            error_lines = result.stderr.split('\n') if result.stderr else []
+            actual_errors = [line for line in error_lines if 'error' in line.lower() or 'invalid' in line.lower() or 'failed' in line.lower()]
+            error_summary = '\n'.join(actual_errors[-3:]) if actual_errors else "Unknown concat error"
+            
+            self.log(f"  Concat demuxer failed: {error_summary[:100]}")
+            self.log(f"  Trying filter_complex fallback...")
+            
             cmd = [
                 self.ffmpeg_path, "-y",
                 "-i", hook_video,
@@ -663,13 +709,39 @@ Return HANYA JSON array, tanpa text lain."""
                 "-b:a", "192k",
                 output_path
             ]
-            subprocess.run(cmd, capture_output=True, creationflags=SUBPROCESS_FLAGS)
+            result = subprocess.run(cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
+            
+            if result.returncode != 0:
+                # Extract actual error, not version info
+                error_lines = result.stderr.split('\n') if result.stderr else []
+                actual_errors = [line for line in error_lines if 'error' in line.lower() or 'invalid' in line.lower() or 'failed' in line.lower()]
+                error_msg = '\n'.join(actual_errors[-3:]) if actual_errors else result.stderr[-200:] if result.stderr else "Unknown error"
+                raise Exception(f"Failed to concatenate hook video: {error_msg}")
         
         # Cleanup
-        os.unlink(tts_file)
-        os.unlink(hook_video)
-        os.unlink(main_reencoded)
-        os.unlink(concat_list)
+        try:
+            os.unlink(tts_file)
+        except Exception as e:
+            pass  # Ignore cleanup errors
+        
+        try:
+            os.unlink(hook_video)
+        except Exception as e:
+            pass
+        
+        try:
+            os.unlink(main_reencoded)
+        except Exception as e:
+            pass
+        
+        try:
+            os.unlink(concat_list)
+        except Exception as e:
+            pass
+        
+        # Verify output was created
+        if not os.path.exists(output_path):
+            raise Exception(f"Failed to create hook video at {output_path}")
         
         return hook_duration
     

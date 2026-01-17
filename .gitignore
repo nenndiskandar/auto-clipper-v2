@@ -12,6 +12,8 @@
 secrets.json
 config.local.json
 desktop-app/config.json
+desktop-app/client_secret.json
+desktop-app/youtube_credentials.json
 
 # ============================================
 # Python

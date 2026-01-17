@@ -26,6 +26,14 @@ else:
     APP_DIR = Path(__file__).parent
     BUNDLE_DIR = APP_DIR
 
+# Enable console logging when running from terminal (not frozen)
+DEBUG_MODE = not getattr(sys, 'frozen', False)
+
+def debug_log(msg):
+    """Log to console only in debug mode (running from terminal)"""
+    if DEBUG_MODE:
+        print(f"[DEBUG] {msg}")
+
 CONFIG_FILE = APP_DIR / "config.json"
 OUTPUT_DIR = APP_DIR / "output"
 ASSETS_DIR = BUNDLE_DIR / "assets"
@@ -1595,13 +1603,19 @@ class YTShortClipperApp(ctk.CTk):
     def run_processing(self, url, num_clips, output_dir, model):
         try:
             from clipper_core import AutoClipperCore
+            
+            # Wrapper for log callback that also logs to console in debug mode
+            def log_with_debug(msg):
+                debug_log(msg)
+                self.after(0, lambda: self.update_status(msg))
+            
             core = AutoClipperCore(
                 client=self.client,
                 ffmpeg_path=get_ffmpeg_path(),
                 ytdlp_path=get_ytdlp_path(),
                 output_dir=output_dir,
                 model=model,
-                log_callback=lambda m: self.after(0, lambda: self.update_status(m)),
+                log_callback=log_with_debug,
                 progress_callback=lambda s, p: self.after(0, lambda: self.update_progress(s, p)),
                 token_callback=lambda a, b, c, d: self.after(0, lambda: self.update_tokens(a, b, c, d)),
                 cancel_check=lambda: self.cancelled
@@ -1611,6 +1625,7 @@ class YTShortClipperApp(ctk.CTk):
                 self.after(0, self.on_complete)
         except Exception as e:
             error_msg = str(e)
+            debug_log(f"ERROR: {error_msg}")
             if self.cancelled or "cancel" in error_msg.lower():
                 self.after(0, self.on_cancelled)
             else:
