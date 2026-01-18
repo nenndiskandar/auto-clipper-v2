@@ -73,8 +73,22 @@ class ConfigManager:
     def load(self):
         if CONFIG_FILE.exists():
             with open(CONFIG_FILE, "r") as f:
-                return json.load(f)
-        return {"api_key": "", "base_url": "https://api.openai.com/v1", "model": "gpt-4.1", "output_dir": str(OUTPUT_DIR)}
+                config = json.load(f)
+                # Add default system_prompt if not exists
+                if "system_prompt" not in config:
+                    from clipper_core import AutoClipperCore
+                    config["system_prompt"] = AutoClipperCore.get_default_prompt()
+                return config
+        
+        # Default config with system prompt
+        from clipper_core import AutoClipperCore
+        return {
+            "api_key": "", 
+            "base_url": "https://api.openai.com/v1", 
+            "model": "gpt-4.1", 
+            "output_dir": str(OUTPUT_DIR),
+            "system_prompt": AutoClipperCore.get_default_prompt()
+        }
 
     def save(self):
         with open(CONFIG_FILE, "w") as f:
@@ -481,25 +495,29 @@ class SettingsPage(ctk.CTkFrame):
     def create_openai_tab(self):
         main = self.tabview.tab("OpenAI API")
         
-        ctk.CTkLabel(main, text="Base URL", anchor="w").pack(fill="x", pady=(10, 0))
-        self.url_entry = ctk.CTkEntry(main, placeholder_text="https://api.openai.com/v1")
+        # Scrollable frame for all content
+        scroll = ctk.CTkScrollableFrame(main)
+        scroll.pack(fill="both", expand=True, padx=5, pady=5)
+        
+        ctk.CTkLabel(scroll, text="Base URL", anchor="w").pack(fill="x", pady=(10, 0))
+        self.url_entry = ctk.CTkEntry(scroll, placeholder_text="https://api.openai.com/v1")
         self.url_entry.pack(fill="x", pady=(5, 15))
         
-        key_frame = ctk.CTkFrame(main, fg_color="transparent")
+        key_frame = ctk.CTkFrame(scroll, fg_color="transparent")
         key_frame.pack(fill="x")
         ctk.CTkLabel(key_frame, text="API Key", anchor="w").pack(side="left")
         self.key_status = ctk.CTkLabel(key_frame, text="", font=ctk.CTkFont(size=11))
         self.key_status.pack(side="right")
         
-        key_input = ctk.CTkFrame(main, fg_color="transparent")
+        key_input = ctk.CTkFrame(scroll, fg_color="transparent")
         key_input.pack(fill="x", pady=(5, 15))
         self.key_entry = ctk.CTkEntry(key_input, placeholder_text="sk-...", show="•")
         self.key_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
         self.validate_btn = ctk.CTkButton(key_input, text="Validate", width=80, command=self.validate_key)
         self.validate_btn.pack(side="right")
         
-        ctk.CTkLabel(main, text="Model", anchor="w").pack(fill="x")
-        model_frame = ctk.CTkFrame(main, fg_color="transparent")
+        ctk.CTkLabel(scroll, text="Model", anchor="w").pack(fill="x")
+        model_frame = ctk.CTkFrame(scroll, fg_color="transparent")
         model_frame.pack(fill="x", pady=(5, 20))
         self.model_var = ctk.StringVar(value="Select model...")
         self.model_btn = ctk.CTkButton(model_frame, textvariable=self.model_var, anchor="w",
@@ -509,7 +527,31 @@ class SettingsPage(ctk.CTkFrame):
         self.model_count = ctk.CTkLabel(model_frame, text="", text_color="gray", font=ctk.CTkFont(size=11))
         self.model_count.pack(side="right")
         
-        ctk.CTkButton(main, text="💾 Save Settings", height=40, command=self.save_settings).pack(fill="x", pady=(10, 0))
+        # System Prompt section
+        ctk.CTkLabel(scroll, text="System Prompt", anchor="w", font=ctk.CTkFont(size=14, weight="bold")).pack(fill="x", pady=(20, 5))
+        ctk.CTkLabel(scroll, text="Prompt untuk AI saat mencari highlight. Gunakan {num_clips}, {video_context}, {transcript} sebagai placeholder.", 
+            anchor="w", font=ctk.CTkFont(size=11), text_color="gray", wraplength=450).pack(fill="x", pady=(0, 5))
+        
+        prompt_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        prompt_frame.pack(fill="x", pady=(5, 10))
+        
+        self.prompt_text = ctk.CTkTextbox(prompt_frame, height=200, wrap="word")
+        self.prompt_text.pack(fill="both", expand=True)
+        
+        # Buttons for prompt
+        prompt_btn_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        prompt_btn_frame.pack(fill="x", pady=(5, 15))
+        
+        ctk.CTkButton(prompt_btn_frame, text="🔄 Reset to Default", width=150, fg_color="gray",
+            command=self.reset_prompt).pack(side="left", padx=(0, 5))
+        
+        self.prompt_char_count = ctk.CTkLabel(prompt_btn_frame, text="0 chars", text_color="gray", font=ctk.CTkFont(size=11))
+        self.prompt_char_count.pack(side="right")
+        
+        # Bind text change to update char count
+        self.prompt_text.bind("<KeyRelease>", self.update_prompt_char_count)
+        
+        ctk.CTkButton(scroll, text="💾 Save Settings", height=40, command=self.save_settings).pack(fill="x", pady=(10, 0))
     
     def create_output_tab(self):
         main = self.tabview.tab("Output")
@@ -740,6 +782,14 @@ and YouTube Shorts."""
         self.key_entry.insert(0, self.config.get("api_key", ""))
         self.model_var.set(self.config.get("model", "gpt-4.1"))
         self.output_var.set(self.config.get("output_dir", str(OUTPUT_DIR)) or str(OUTPUT_DIR))
+        
+        # Load system prompt
+        from clipper_core import AutoClipperCore
+        system_prompt = self.config.get("system_prompt", AutoClipperCore.get_default_prompt())
+        self.prompt_text.delete("1.0", "end")
+        self.prompt_text.insert("1.0", system_prompt)
+        self.update_prompt_char_count()
+        
         if self.config.get("api_key"):
             self.validate_key()
     
@@ -790,10 +840,21 @@ and YouTube Shorts."""
         base_url = self.url_entry.get().strip() or "https://api.openai.com/v1"
         model = self.model_var.get()
         output_dir = self.output_var.get().strip() or str(OUTPUT_DIR)
+        system_prompt = self.prompt_text.get("1.0", "end-1c").strip()
         
         if not api_key or model == "Select model...":
             messagebox.showerror("Error", "Fill all fields")
             return
+        
+        if not system_prompt:
+            messagebox.showerror("Error", "System prompt cannot be empty")
+            return
+        
+        # Validate placeholders
+        required_placeholders = ["{num_clips}", "{video_context}", "{transcript}"]
+        missing = [p for p in required_placeholders if p not in system_prompt]
+        if missing:
+            messagebox.showwarning("Warning", f"System prompt missing placeholders: {', '.join(missing)}\n\nPrompt might not work correctly.")
         
         # Create output folder if not exists
         Path(output_dir).mkdir(parents=True, exist_ok=True)
@@ -802,8 +863,24 @@ and YouTube Shorts."""
         self.config.set("base_url", base_url)
         self.config.set("model", model)
         self.config.set("output_dir", output_dir)
+        self.config.set("system_prompt", system_prompt)
         self.on_save(api_key, base_url, model)
         self.on_back()
+    
+    def reset_prompt(self):
+        """Reset system prompt to default"""
+        if messagebox.askyesno("Reset Prompt", "Reset system prompt to default?"):
+            from clipper_core import AutoClipperCore
+            default_prompt = AutoClipperCore.get_default_prompt()
+            self.prompt_text.delete("1.0", "end")
+            self.prompt_text.insert("1.0", default_prompt)
+            self.update_prompt_char_count()
+    
+    def update_prompt_char_count(self, event=None):
+        """Update character count for system prompt"""
+        text = self.prompt_text.get("1.0", "end-1c")
+        char_count = len(text)
+        self.prompt_char_count.configure(text=f"{char_count} chars")
 
 
 class ProgressStep(ctk.CTkFrame):
@@ -828,26 +905,42 @@ class ProgressStep(ctk.CTkFrame):
         self.status_label = ctk.CTkLabel(text_frame, text="Waiting...", font=ctk.CTkFont(size=11), 
             text_color="gray", anchor="w")
         self.status_label.pack(fill="x")
+        
+        # Progress bar (hidden by default)
+        self.progress_bar = ctk.CTkProgressBar(text_frame, height=8)
+        self.progress_bar.set(0)
+        self.progress_bar.pack_forget()  # Hidden initially
 
-    def set_active(self, status_text: str = "Processing..."):
+    def set_active(self, status_text: str = "Processing...", progress: float = None):
         self.status = "active"
         self.indicator.configure(fg_color=("#3498db", "#2980b9"), text="●")
         self.status_label.configure(text=status_text, text_color=("#3498db", "#5dade2"))
+        
+        # Always show progress bar when active, default to 0 if no progress provided
+        if progress is None:
+            progress = 0.0
+        
+        self.progress_bar.pack(fill="x", pady=(3, 0))
+        self.progress_bar.set(progress)
     
     def set_done(self, status_text: str = "Complete"):
         self.status = "done"
         self.indicator.configure(fg_color=("#27ae60", "#1e8449"), text="✓")
         self.status_label.configure(text=status_text, text_color=("#27ae60", "#2ecc71"))
+        self.progress_bar.pack_forget()  # Hide progress bar when done
     
     def set_error(self, status_text: str = "Failed"):
         self.status = "error"
         self.indicator.configure(fg_color=("#e74c3c", "#c0392b"), text="✗")
         self.status_label.configure(text=status_text, text_color=("#e74c3c", "#ec7063"))
+        self.progress_bar.pack_forget()  # Hide progress bar on error
     
     def reset(self):
         self.status = "pending"
         self.indicator.configure(fg_color=("gray70", "gray30"), text=str(self.step_num))
         self.status_label.configure(text="Waiting...", text_color="gray")
+        self.progress_bar.pack_forget()
+        self.progress_bar.set(0)
 
 
 class YTShortClipperApp(ctk.CTk):
@@ -864,7 +957,7 @@ class YTShortClipperApp(ctk.CTk):
         self.youtube_channel = None
         
         self.title("YT Short Clipper")
-        self.geometry("550x720")
+        self.geometry("550x780")
         self.resizable(False, False)
         
         ctk.set_appearance_mode("dark")
@@ -920,6 +1013,29 @@ class YTShortClipperApp(ctk.CTk):
         # Refresh browse list when showing browse page
         if name == "browse":
             self.refresh_browse_list()
+        
+        # Reset home page state when returning to home
+        if name == "home":
+            self.reset_home_page()
+    
+    def reset_home_page(self):
+        """Reset home page to initial state"""
+        # Clear URL input
+        self.url_var.set("")
+        
+        # Reset thumbnail
+        self.thumb_label.configure(image=None, text="📺 Video thumbnail will appear here")
+        self.current_thumbnail = None
+        
+        # Reset clips input to default
+        self.clips_var.set("5")
+        
+        # Reset checkboxes to default (both checked)
+        self.caption_var.set(True)
+        self.hook_var.set(True)
+        
+        # Disable start button
+        self.start_btn.configure(state="disabled", fg_color="gray")
 
     def create_home_page(self):
         page = ctk.CTkFrame(self.container)
@@ -1001,11 +1117,40 @@ class YTShortClipperApp(ctk.CTk):
         
         # Clips input
         clips_frame = ctk.CTkFrame(main, fg_color="transparent")
-        clips_frame.pack(fill="x", padx=15, pady=(0, 20))
+        clips_frame.pack(fill="x", padx=15, pady=(0, 10))
         ctk.CTkLabel(clips_frame, text="Jumlah Clips:", font=ctk.CTkFont(size=13)).pack(side="left")
         self.clips_var = ctk.StringVar(value="5")
         ctk.CTkEntry(clips_frame, textvariable=self.clips_var, width=60, height=35).pack(side="left", padx=10)
         ctk.CTkLabel(clips_frame, text="(1-10)", text_color="gray").pack(side="left")
+        
+        # Options frame
+        options_frame = ctk.CTkFrame(main, fg_color=("gray90", "gray17"), corner_radius=10)
+        options_frame.pack(fill="x", padx=15, pady=(0, 15))
+        
+        ctk.CTkLabel(options_frame, text="Video Options", font=ctk.CTkFont(size=12, weight="bold"), 
+            anchor="w").pack(fill="x", padx=12, pady=(10, 5))
+        
+        # Caption checkbox
+        self.caption_var = ctk.BooleanVar(value=True)
+        caption_check = ctk.CTkCheckBox(options_frame, text="Add Captions", variable=self.caption_var,
+            font=ctk.CTkFont(size=12))
+        caption_check.pack(anchor="w", padx=12, pady=(5, 2))
+        
+        caption_info = ctk.CTkLabel(options_frame, 
+            text="⚠️ Uses Whisper API (~$0.006/minute of audio)", 
+            font=ctk.CTkFont(size=10), text_color="orange", anchor="w")
+        caption_info.pack(anchor="w", padx=30, pady=(0, 8))
+        
+        # Hook checkbox
+        self.hook_var = ctk.BooleanVar(value=True)
+        hook_check = ctk.CTkCheckBox(options_frame, text="Add Hook", variable=self.hook_var,
+            font=ctk.CTkFont(size=12))
+        hook_check.pack(anchor="w", padx=12, pady=(5, 2))
+        
+        hook_info = ctk.CTkLabel(options_frame, 
+            text="⚠️ Uses TTS API (~$0.015/1K characters)", 
+            font=ctk.CTkFont(size=10), text_color="orange", anchor="w")
+        hook_info.pack(anchor="w", padx=30, pady=(0, 10))
         
         # Buttons
         btn_frame = ctk.CTkFrame(main, fg_color="transparent")
@@ -1096,8 +1241,8 @@ class YTShortClipperApp(ctk.CTk):
         self.open_btn = ctk.CTkButton(row2, text="📂 Open Output", height=45, state="disabled", command=self.open_output)
         self.open_btn.pack(side="left", fill="x", expand=True, padx=(0, 5))
         
-        self.results_btn = ctk.CTkButton(row2, text="📋 View Results", height=45, state="disabled", 
-            fg_color="#27ae60", hover_color="#2ecc71", command=self.show_results)
+        self.results_btn = ctk.CTkButton(row2, text="📂 Browse Videos", height=45, state="disabled", 
+            fg_color="#27ae60", hover_color="#2ecc71", command=self.show_browse_after_complete)
         self.results_btn.pack(side="left", fill="x", expand=True, padx=(5, 0))
     
     def create_results_page(self):
@@ -1577,6 +1722,10 @@ class YTShortClipperApp(ctk.CTk):
             messagebox.showerror("Error", "Clips must be 1-10!")
             return
         
+        # Get options
+        add_captions = self.caption_var.get()
+        add_hook = self.hook_var.get()
+        
         # Reset UI
         self.processing = True
         self.cancelled = False
@@ -1598,9 +1747,9 @@ class YTShortClipperApp(ctk.CTk):
         output_dir = self.config.get("output_dir", str(OUTPUT_DIR))
         model = self.config.get("model", "gpt-4.1")
         
-        threading.Thread(target=self.run_processing, args=(url, num_clips, output_dir, model), daemon=True).start()
+        threading.Thread(target=self.run_processing, args=(url, num_clips, output_dir, model, add_captions, add_hook), daemon=True).start()
     
-    def run_processing(self, url, num_clips, output_dir, model):
+    def run_processing(self, url, num_clips, output_dir, model, add_captions, add_hook):
         try:
             from clipper_core import AutoClipperCore
             
@@ -1609,18 +1758,22 @@ class YTShortClipperApp(ctk.CTk):
                 debug_log(msg)
                 self.after(0, lambda: self.update_status(msg))
             
+            # Get system prompt from config
+            system_prompt = self.config.get("system_prompt", None)
+            
             core = AutoClipperCore(
                 client=self.client,
                 ffmpeg_path=get_ffmpeg_path(),
                 ytdlp_path=get_ytdlp_path(),
                 output_dir=output_dir,
                 model=model,
+                system_prompt=system_prompt,
                 log_callback=log_with_debug,
                 progress_callback=lambda s, p: self.after(0, lambda: self.update_progress(s, p)),
                 token_callback=lambda a, b, c, d: self.after(0, lambda: self.update_tokens(a, b, c, d)),
                 cancel_check=lambda: self.cancelled
             )
-            core.process(url, num_clips)
+            core.process(url, num_clips, add_captions=add_captions, add_hook=add_hook)
             if not self.cancelled:
                 self.after(0, self.on_complete)
         except Exception as e:
@@ -1635,58 +1788,80 @@ class YTShortClipperApp(ctk.CTk):
         self.status_label.configure(text=msg)
     
     def update_progress(self, status, progress):
+        print(f"[DEBUG] update_progress called: status='{status}', progress={progress}")
         self.status_label.configure(text=status)
         
         # Update step indicators based on status text
         status_lower = status.lower()
         
+        # Parse progress percentage from status if available
+        # Try multiple formats: (51%) or 51.2% or 51%
+        progress_match = re.search(r'\((\d+(?:\.\d+)?)%\)|(\d+(?:\.\d+)?)%', status)
+        if progress_match:
+            # Get the first non-None group
+            step_progress = float(progress_match.group(1) or progress_match.group(2)) / 100
+        else:
+            step_progress = None
+        
+        print(f"[DEBUG] Parsed step_progress: {step_progress}")
+        
         if "download" in status_lower:
-            self.steps[0].set_active(status)
+            if step_progress is None:
+                step_progress = 0.0
+            self.steps[0].set_active(status, step_progress)
             self.steps[1].reset()
             self.steps[2].reset()
             self.steps[3].reset()
         elif "highlight" in status_lower or "finding" in status_lower:
             self.steps[0].set_done("Downloaded")
-            self.steps[1].set_active(status)
+            self.steps[1].set_active(status, step_progress)
             self.steps[2].reset()
             self.steps[3].reset()
         elif "clip" in status_lower:
             self.steps[0].set_done("Downloaded")
             self.steps[1].set_done("Found highlights")
             
-            # Parse clip progress: "Clip 2/5: Adding captions..."
-            # Show detailed sub-step in step 3
+            # Parse clip progress and sub-step progress
             if "cutting" in status_lower:
-                self.steps[2].set_active(f"{status} (25%)")
+                # Show progress bar even if no percentage yet
+                if step_progress is None:
+                    step_progress = 0.0
+                self.steps[2].set_active(status, step_progress)
                 self.steps[3].reset()
-            elif "portrait" in status_lower:
-                self.steps[2].set_active(f"{status} (50%)")
+            elif "portrait" in status_lower or "converting" in status_lower:
+                if step_progress is None:
+                    step_progress = 0.0
+                self.steps[2].set_active(status, step_progress)
                 self.steps[3].reset()
             elif "hook" in status_lower:
-                self.steps[2].set_active(f"{status} (75%)")
+                if step_progress is None:
+                    step_progress = 0.0
+                self.steps[2].set_active(status, step_progress)
                 self.steps[3].reset()
             elif "caption" in status_lower:
-                self.steps[2].set_active(f"{status} (90%)")
-                self.steps[3].set_active("Adding captions...")
+                if step_progress is None:
+                    step_progress = 0.0
+                # Only show progress in step 3 (Creating clips), not step 4
+                self.steps[2].set_active(status, step_progress)
+                self.steps[3].reset()
             elif "done" in status_lower:
                 # Extract clip number to show progress
-                import re
                 match = re.search(r'Clip (\d+)/(\d+)', status)
                 if match:
                     current, total = int(match.group(1)), int(match.group(2))
-                    percent = int(100 * current / total)
-                    self.steps[2].set_active(f"Clip {current}/{total} complete ({percent}%)")
+                    percent = current / total
+                    self.steps[2].set_active(f"Clip {current}/{total} complete", percent)
                 else:
-                    self.steps[2].set_active(status)
+                    self.steps[2].set_active(status, step_progress)
                 self.steps[3].reset()
             else:
-                self.steps[2].set_active(status)
+                self.steps[2].set_active(status, step_progress)
                 self.steps[3].reset()
         elif "clean" in status_lower:
             self.steps[0].set_done("Downloaded")
             self.steps[1].set_done("Found highlights")
             self.steps[2].set_done("All clips created")
-            self.steps[3].set_active("Cleaning up...")
+            self.steps[3].set_active("Cleaning up...", step_progress)
         elif "complete" in status_lower:
             for step in self.steps:
                 step.set_done("Complete")
@@ -1754,6 +1929,11 @@ class YTShortClipperApp(ctk.CTk):
                     })
                 except:
                     pass
+    
+    def show_browse_after_complete(self):
+        """Show browse page after processing complete"""
+        self.show_page("browse")
+        self.refresh_browse_list()
     
     def show_results(self):
         """Show results page with clip list"""

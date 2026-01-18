@@ -31,6 +31,7 @@ class AutoClipperCore:
         ytdlp_path: str = "yt-dlp",
         output_dir: str = "output",
         model: str = "gpt-4.1",
+        system_prompt: str = None,
         log_callback=None,
         progress_callback=None,
         token_callback=None,
@@ -41,6 +42,7 @@ class AutoClipperCore:
         self.ytdlp_path = ytdlp_path
         self.output_dir = Path(output_dir)
         self.model = model
+        self.system_prompt = system_prompt or self.get_default_prompt()
         self.log = log_callback or print
         self.set_progress = progress_callback or (lambda s, p: None)
         self.report_tokens = token_callback or (lambda gi, go, w, t: None)
@@ -50,7 +52,47 @@ class AutoClipperCore:
         self.temp_dir = self.output_dir / "_temp"
         self.temp_dir.mkdir(parents=True, exist_ok=True)
     
-    def process(self, url: str, num_clips: int = 5):
+    @staticmethod
+    def get_default_prompt():
+        """Get default system prompt for highlight detection"""
+        return """Kamu adalah editor video profesional untuk konten PODCAST. Dari transcript video berikut, pilih {num_clips} segment yang paling menarik untuk dijadikan short-form content (TikTok/Reels/Shorts).
+
+{video_context}
+
+Kriteria segment yang bagus:
+- Ada punchline atau momen lucu
+- Ada insight atau informasi menarik  
+- Ada momen emosional atau dramatis
+- Ada quote yang memorable
+- Cerita atau topik yang lengkap (ada awal, tengah, akhir)
+
+⚠️ ATURAN DURASI - SANGAT PENTING:
+- Setiap clip WAJIB berdurasi MINIMAL 60 detik dan MAKSIMAL 120 detik
+- TARGET durasi ideal: 90 detik (1.5 menit)
+
+⚠️ HOOK TEXT:
+Untuk setiap segment, buat juga "hook_text" yang akan ditampilkan di awal video sebagai teaser.
+- Maksimal 15 kata, singkat dan catchy
+- Bahasa Indonesia casual/gaul
+- JANGAN pakai emoji
+
+Transcript:
+{transcript}
+
+Return dalam format JSON array:
+[
+  {{
+    "start_time": "00:01:23,000",
+    "end_time": "00:02:15,000", 
+    "title": "Judul singkat",
+    "reason": "Alasan kenapa menarik",
+    "hook_text": "Teks hook yang catchy"
+  }}
+]
+
+Return HANYA JSON array, tanpa text lain."""
+    
+    def process(self, url: str, num_clips: int = 5, add_captions: bool = True, add_hook: bool = True):
         """Main processing pipeline"""
         
         # Step 1: Download video
@@ -79,7 +121,7 @@ class AutoClipperCore:
         for i, highlight in enumerate(highlights, 1):
             if self.is_cancelled():
                 return
-            self.process_clip(video_path, highlight, i, total_clips)
+            self.process_clip(video_path, highlight, i, total_clips, add_captions=add_captions, add_hook=add_hook)
         
         # Cleanup
         self.set_progress("Cleaning up...", 0.95)
@@ -204,47 +246,17 @@ class AutoClipperCore:
         
         video_context = ""
         if video_info:
-            video_context = f"""
-INFO VIDEO:
+            video_context = f"""INFO VIDEO:
 - Judul: {video_info.get('title', 'Unknown')}
 - Channel: {video_info.get('channel', 'Unknown')}
-- Deskripsi: {video_info.get('description', '')[:500]}
-"""
+- Deskripsi: {video_info.get('description', '')[:500]}"""
         
-        prompt = f"""Kamu adalah editor video profesional untuk konten PODCAST. Dari transcript video berikut, pilih {request_clips} segment yang paling menarik untuk dijadikan short-form content (TikTok/Reels/Shorts).
-{video_context}
-Kriteria segment yang bagus:
-- Ada punchline atau momen lucu
-- Ada insight atau informasi menarik  
-- Ada momen emosional atau dramatis
-- Ada quote yang memorable
-- Cerita atau topik yang lengkap (ada awal, tengah, akhir)
-
-⚠️ ATURAN DURASI - SANGAT PENTING:
-- Setiap clip WAJIB berdurasi MINIMAL 60 detik dan MAKSIMAL 120 detik
-- TARGET durasi ideal: 90 detik (1.5 menit)
-
-⚠️ HOOK TEXT:
-Untuk setiap segment, buat juga "hook_text" yang akan ditampilkan di awal video sebagai teaser.
-- Maksimal 15 kata, singkat dan catchy
-- Bahasa Indonesia casual/gaul
-- JANGAN pakai emoji
-
-Transcript:
-{transcript}
-
-Return dalam format JSON array:
-[
-  {{
-    "start_time": "00:01:23,000",
-    "end_time": "00:02:15,000", 
-    "title": "Judul singkat",
-    "reason": "Alasan kenapa menarik",
-    "hook_text": "Teks hook yang catchy"
-  }}
-]
-
-Return HANYA JSON array, tanpa text lain."""
+        # Format the prompt with variables
+        prompt = self.system_prompt.format(
+            num_clips=request_clips,
+            video_context=video_context,
+            transcript=transcript
+        )
 
         response = self.client.chat.completions.create(
             model=self.model,
@@ -277,8 +289,8 @@ Return HANYA JSON array, tanpa text lain."""
         
         return valid[:num_clips]
     
-    def process_clip(self, video_path: str, highlight: dict, index: int, total_clips: int = 1):
-        """Process a single clip: cut, portrait, hook, captions"""
+    def process_clip(self, video_path: str, highlight: dict, index: int, total_clips: int = 1, add_captions: bool = True, add_hook: bool = True):
+        """Process a single clip: cut, portrait, hook (optional), captions (optional)"""
         
         # Check cancel before starting
         if self.is_cancelled():
@@ -296,68 +308,118 @@ Return HANYA JSON array, tanpa text lain."""
         
         self.log(f"\n[Clip {index}] {highlight['title']}")
         
-        # Helper to report sub-progress
-        def clip_progress(step_name: str, step_num: int, total_steps: int = 4):
+        # Calculate total steps based on options
+        total_steps = 2  # Cut + Portrait (always)
+        if add_hook:
+            total_steps += 1
+        if add_captions:
+            total_steps += 1
+        
+        # Helper to report sub-progress with percentage
+        def clip_progress(step_name: str, step_num: int, sub_progress: float = 0):
             # Calculate overall progress: base (30%) + clip progress (60%)
             clip_base = 0.3 + (0.6 * (index - 1) / total_clips)
             clip_portion = 0.6 / total_clips
-            step_progress = clip_portion * (step_num / total_steps)
+            step_progress = clip_portion * ((step_num + sub_progress) / total_steps)
             overall = clip_base + step_progress
-            self.set_progress(f"Clip {index}/{total_clips}: {step_name}", overall)
+            
+            # Format with percentage
+            percent = int(sub_progress * 100)
+            if percent > 0:
+                status = f"Clip {index}/{total_clips}: {step_name} ({percent}%)"
+            else:
+                status = f"Clip {index}/{total_clips}: {step_name}"
+            
+            print(f"[DEBUG] clip_progress: {status} (overall: {overall*100:.1f}%)")
+            self.set_progress(status, overall)
         
-        # Step 1: Cut video (25%)
+        current_step = 0
+        
+        # Step 1: Cut video with progress tracking
         if self.is_cancelled():
             return
-        clip_progress("Cutting video...", 0)
+        clip_progress("Cutting video...", current_step, 0)
         landscape_file = clip_dir / "temp_landscape.mp4"
+        
+        # Get video duration for progress calculation
+        duration = self.parse_timestamp(end) - self.parse_timestamp(start)
+        
         cmd = [
             self.ffmpeg_path, "-y",
             "-i", video_path,
             "-ss", start, "-to", end,
             "-c:v", "libx264", "-preset", "fast", "-crf", "18",
             "-c:a", "aac", "-b:a", "192k",
+            "-progress", "pipe:1",  # Enable progress output
             str(landscape_file)
         ]
-        subprocess.run(cmd, capture_output=True, creationflags=SUBPROCESS_FLAGS)
+        
+        self.run_ffmpeg_with_progress(cmd, duration, 
+            lambda p: clip_progress("Cutting video...", current_step, p))
+        
         self.log("  ✓ Cut video")
+        current_step += 1
         
-        # Step 2: Convert to portrait (50%)
+        # Step 2: Convert to portrait with progress
         if self.is_cancelled():
             return
-        clip_progress("Converting to portrait...", 1)
+        clip_progress("Converting to portrait...", current_step, 0)
         portrait_file = clip_dir / "temp_portrait.mp4"
-        self.convert_to_portrait(str(landscape_file), str(portrait_file))
+        self.convert_to_portrait_with_progress(str(landscape_file), str(portrait_file), 
+            lambda p: clip_progress("Converting to portrait...", current_step, p))
         self.log("  ✓ Portrait conversion")
+        current_step += 1
         
-        # Step 3: Add hook (75%)
-        if self.is_cancelled():
-            return
-        clip_progress("Adding hook...", 2)
-        hooked_file = clip_dir / "temp_hooked.mp4"
-        hook_text = highlight.get("hook_text", highlight["title"])
-        hook_duration = self.add_hook(str(portrait_file), hook_text, str(hooked_file))
+        # Track which file is the current output
+        current_output = portrait_file
+        hook_duration = 0
         
-        # Verify hooked file was created
-        if not hooked_file.exists():
-            raise Exception(f"Failed to create hooked video: {hooked_file}")
+        # Step 3: Add hook (optional)
+        if add_hook:
+            if self.is_cancelled():
+                return
+            clip_progress("Adding hook...", current_step, 0)
+            hooked_file = clip_dir / "temp_hooked.mp4"
+            hook_text = highlight.get("hook_text", highlight["title"])
+            hook_duration = self.add_hook_with_progress(str(current_output), hook_text, str(hooked_file),
+                lambda p: clip_progress("Adding hook...", current_step, p))
+            
+            # Verify hooked file was created
+            if not hooked_file.exists():
+                raise Exception(f"Failed to create hooked video: {hooked_file}")
+            
+            self.log(f"  ✓ Added hook ({hook_duration:.1f}s)")
+            current_output = hooked_file
+            current_step += 1
+        else:
+            self.log("  ⊘ Skipped hook (disabled)")
         
-        self.log(f"  ✓ Added hook ({hook_duration:.1f}s)")
-        
-        # Step 4: Add captions (100%)
-        if self.is_cancelled():
-            return
-        clip_progress("Adding captions...", 3)
+        # Step 4: Add captions (optional)
         final_file = clip_dir / "master.mp4"
-        self.add_captions_api(str(hooked_file), str(final_file), str(portrait_file), hook_duration)
-        
-        # Verify final file was created
-        if not final_file.exists():
-            raise Exception(f"Failed to create final video: {final_file}")
-        
-        self.log("  ✓ Added captions")
+        if add_captions:
+            if self.is_cancelled():
+                return
+            clip_progress("Adding captions...", current_step, 0)
+            
+            # Use portrait_file (without hook) as audio source for transcription
+            audio_source = str(portrait_file) if add_hook else None
+            self.add_captions_api_with_progress(str(current_output), str(final_file), audio_source, hook_duration,
+                lambda p: clip_progress("Adding captions...", current_step, p))
+            
+            # Verify final file was created
+            if not final_file.exists():
+                raise Exception(f"Failed to create final video: {final_file}")
+            
+            self.log("  ✓ Added captions")
+            current_step += 1
+        else:
+            # No captions, just copy current output to final
+            import shutil
+            shutil.copy(str(current_output), str(final_file))
+            self.log("  ⊘ Skipped captions (disabled)")
         
         # Mark complete
-        clip_progress("Done", 4)
+        clip_progress("Done", total_steps, 0)
         
         # Cleanup temp files
         try:
@@ -372,19 +434,23 @@ Return HANYA JSON array, tanpa text lain."""
         except Exception as e:
             self.log(f"  Warning: Could not delete {portrait_file.name}: {e}")
         
-        try:
-            if hooked_file.exists():
-                hooked_file.unlink()
-        except Exception as e:
-            self.log(f"  Warning: Could not delete {hooked_file.name}: {e}")
+        if add_hook:
+            try:
+                hooked_file = clip_dir / "temp_hooked.mp4"
+                if hooked_file.exists():
+                    hooked_file.unlink()
+            except Exception as e:
+                self.log(f"  Warning: Could not delete temp_hooked.mp4: {e}")
         
         # Save metadata
         metadata = {
             "title": highlight["title"],
-            "hook_text": hook_text,
+            "hook_text": highlight.get("hook_text", highlight["title"]),
             "start_time": highlight["start_time"],
             "end_time": highlight["end_time"],
             "duration_seconds": highlight["duration_seconds"],
+            "has_hook": add_hook,
+            "has_captions": add_captions,
         }
         
         with open(clip_dir / "data.json", "w", encoding="utf-8") as f:
@@ -940,3 +1006,456 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         import shutil
         if self.temp_dir.exists():
             shutil.rmtree(self.temp_dir, ignore_errors=True)
+    
+    def run_ffmpeg_with_progress(self, cmd: list, duration: float, progress_callback):
+        """Run ffmpeg command and parse progress"""
+        print(f"[DEBUG] Running ffmpeg command: {' '.join(cmd[:5])}...")
+        print(f"[DEBUG] Expected duration: {duration}s")
+        
+        # Just run ffmpeg normally without progress parsing for now
+        # Progress parsing from ffmpeg is complex due to carriage returns
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            creationflags=SUBPROCESS_FLAGS
+        )
+        
+        # Set to 100% when done
+        progress_callback(1.0)
+        print(f"[DEBUG] FFmpeg completed with return code: {result.returncode}")
+        
+        if result.returncode != 0:
+            print(f"[FFMPEG ERROR] {result.stderr}")
+            raise Exception("FFmpeg process failed")
+    
+    def convert_to_portrait_with_progress(self, input_path: str, output_path: str, progress_callback):
+        """Convert landscape to 9:16 portrait with speaker tracking and progress"""
+        
+        print("[DEBUG] Starting portrait conversion...")
+        
+        cap = cv2.VideoCapture(input_path)
+        orig_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        orig_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        
+        print(f"[DEBUG] Video: {orig_w}x{orig_h}, {fps}fps, {total_frames} frames")
+        
+        # Calculate crop dimensions
+        target_ratio = 9 / 16
+        crop_w = int(orig_h * target_ratio)
+        crop_h = orig_h
+        out_w, out_h = 1080, 1920
+        
+        # Face detector
+        face_cascade = cv2.CascadeClassifier(
+            cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+        )
+        
+        # First pass: analyze frames (0-40%)
+        print("[DEBUG] Pass 1: Analyzing frames...")
+        crop_positions = []
+        current_target = orig_w / 2
+        frame_count = 0
+        
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            faces = face_cascade.detectMultiScale(gray, 1.1, 5, minSize=(50, 50))
+            
+            if len(faces) > 0:
+                # Find largest face
+                largest = max(faces, key=lambda f: f[2] * f[3])
+                current_target = largest[0] + largest[2] / 2
+            
+            crop_x = int(current_target - crop_w / 2)
+            crop_x = max(0, min(crop_x, orig_w - crop_w))
+            crop_positions.append(crop_x)
+            
+            frame_count += 1
+            if frame_count % 30 == 0:  # Update every 30 frames
+                progress = (frame_count / total_frames) * 0.4  # 0-40%
+                progress_callback(progress)
+        
+        print(f"[DEBUG] Analyzed {frame_count} frames")
+        
+        # Stabilize positions
+        crop_positions = self.stabilize_positions(crop_positions)
+        progress_callback(0.45)
+        
+        # Second pass: create video (45-85%)
+        print("[DEBUG] Pass 2: Creating portrait video...")
+        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+        temp_video = tempfile.NamedTemporaryFile(suffix='.mp4', delete=False).name
+        
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        out = cv2.VideoWriter(temp_video, fourcc, fps, (out_w, out_h))
+        
+        frame_idx = 0
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            
+            crop_x = crop_positions[frame_idx] if frame_idx < len(crop_positions) else crop_positions[-1]
+            cropped = frame[0:crop_h, crop_x:crop_x+crop_w]
+            resized = cv2.resize(cropped, (out_w, out_h), interpolation=cv2.INTER_LANCZOS4)
+            out.write(resized)
+            frame_idx += 1
+            
+            if frame_idx % 30 == 0:  # Update every 30 frames
+                progress = 0.45 + (frame_idx / total_frames) * 0.4  # 45-85%
+                progress_callback(progress)
+        
+        cap.release()
+        out.release()
+        
+        print(f"[DEBUG] Created {frame_idx} frames")
+        progress_callback(0.85)
+        
+        # Merge with audio (85-100%)
+        print("[DEBUG] Pass 3: Merging audio...")
+        duration = total_frames / fps if fps > 0 else 60
+        cmd = [
+            self.ffmpeg_path, "-y",
+            "-i", temp_video,
+            "-i", input_path,
+            "-c:v", "libx264", "-preset", "fast", "-crf", "18",
+            "-c:a", "aac", "-b:a", "192k",
+            "-map", "0:v:0", "-map", "1:a:0",
+            "-shortest",
+            output_path
+        ]
+        
+        # Run without progress parsing for audio merge (quick operation)
+        print("[DEBUG] Running audio merge...")
+        result = subprocess.run(cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
+        
+        if result.returncode != 0:
+            print(f"[FFMPEG ERROR] {result.stderr}")
+            raise Exception("Audio merge failed")
+        
+        progress_callback(1.0)
+        print("[DEBUG] Portrait conversion complete")
+        
+        os.unlink(temp_video)
+    
+    def add_hook_with_progress(self, input_path: str, hook_text: str, output_path: str, progress_callback) -> float:
+        """Add hook scene at the beginning with progress tracking"""
+        
+        # Report TTS character usage
+        self.report_tokens(0, 0, 0, len(hook_text))
+        
+        # Generate TTS audio (10% progress)
+        progress_callback(0.1)
+        tts_response = self.client.audio.speech.create(
+            model="tts-1",
+            voice="nova",
+            input=hook_text,
+            speed=1.0
+        )
+        
+        tts_file = tempfile.NamedTemporaryFile(suffix='.mp3', delete=False).name
+        with open(tts_file, 'wb') as f:
+            f.write(tts_response.content)
+        
+        progress_callback(0.2)
+        
+        # Get TTS duration using ffprobe
+        probe_cmd = [
+            self.ffmpeg_path, "-i", tts_file,
+            "-f", "null", "-"
+        ]
+        result = subprocess.run(probe_cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
+        duration_match = re.search(r"Duration: (\d+):(\d+):(\d+\.\d+)", result.stderr)
+        
+        if duration_match:
+            h, m, s = duration_match.groups()
+            hook_duration = int(h) * 3600 + int(m) * 60 + float(s) + 0.5
+        else:
+            hook_duration = 3.0
+        
+        # Format hook text
+        hook_upper = hook_text.upper()
+        words = hook_upper.split()
+        
+        lines = []
+        current_line = []
+        for word in words:
+            current_line.append(word)
+            if len(current_line) >= 3:
+                lines.append(' '.join(current_line))
+                current_line = []
+        if current_line:
+            lines.append(' '.join(current_line))
+        
+        # Get input video info
+        probe_cmd = [self.ffmpeg_path, "-i", input_path]
+        result = subprocess.run(probe_cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
+        
+        fps_match = re.search(r'(\d+(?:\.\d+)?)\s*fps', result.stderr)
+        fps = float(fps_match.group(1)) if fps_match else 30
+        
+        res_match = re.search(r'(\d{3,4})x(\d{3,4})', result.stderr)
+        if res_match:
+            width, height = int(res_match.group(1)), int(res_match.group(2))
+        else:
+            width, height = 1080, 1920
+        
+        progress_callback(0.3)
+        
+        # Create hook video
+        hook_video = tempfile.NamedTemporaryFile(suffix='.mp4', delete=False).name
+        
+        drawtext_filters = []
+        line_height = 85
+        font_size = 58
+        total_text_height = len(lines) * line_height
+        start_y = (height // 3) - (total_text_height // 2)
+        
+        for i, line in enumerate(lines):
+            escaped_line = line.replace("'", "'\\''").replace(":", "\\:").replace("\\", "\\\\")
+            y_pos = start_y + (i * line_height)
+            
+            drawtext_filters.append(
+                f"drawtext=text='{escaped_line}':"
+                f"fontfile='C\\:/Windows/Fonts/arialbd.ttf':"
+                f"fontsize={font_size}:"
+                f"fontcolor=#FFD700:"
+                f"box=1:"
+                f"boxcolor=white@0.95:"
+                f"boxborderw=12:"
+                f"x=(w-text_w)/2:"
+                f"y={y_pos}"
+            )
+        
+        filter_chain = ",".join(drawtext_filters)
+        
+        cmd = [
+            self.ffmpeg_path, "-y",
+            "-i", input_path,
+            "-i", tts_file,
+            "-filter_complex",
+            f"[0:v]trim=0:0.04,loop=loop=-1:size=1:start=0,setpts=N/{fps}/TB,{filter_chain},trim=0:{hook_duration},setpts=PTS-STARTPTS[v];"
+            f"[1:a]aresample=44100,apad=whole_dur={hook_duration}[a]",
+            "-map", "[v]",
+            "-map", "[a]",
+            "-c:v", "libx264",
+            "-preset", "fast",
+            "-crf", "18",
+            "-r", str(fps),
+            "-s", f"{width}x{height}",
+            "-pix_fmt", "yuv420p",
+            "-c:a", "aac",
+            "-b:a", "192k",
+            "-ar", "44100",
+            "-ac", "2",
+            "-t", str(hook_duration),
+            "-progress", "pipe:1",
+            hook_video
+        ]
+        
+        # Hook creation is 30-60%
+        self.run_ffmpeg_with_progress(cmd, hook_duration, 
+            lambda p: progress_callback(0.3 + p * 0.3))
+        
+        # Re-encode main video (60-80%)
+        progress_callback(0.6)
+        main_reencoded = tempfile.NamedTemporaryFile(suffix='.mp4', delete=False).name
+        
+        # Get main video duration
+        probe_cmd = [self.ffmpeg_path, "-i", input_path, "-f", "null", "-"]
+        result = subprocess.run(probe_cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
+        duration_match = re.search(r"Duration: (\d+):(\d+):(\d+\.\d+)", result.stderr)
+        main_duration = 60
+        if duration_match:
+            h, m, s = duration_match.groups()
+            main_duration = int(h) * 3600 + int(m) * 60 + float(s)
+        
+        cmd = [
+            self.ffmpeg_path, "-y",
+            "-i", input_path,
+            "-c:v", "libx264",
+            "-preset", "fast",
+            "-crf", "18",
+            "-r", str(fps),
+            "-s", f"{width}x{height}",
+            "-pix_fmt", "yuv420p",
+            "-c:a", "aac",
+            "-b:a", "192k",
+            "-ar", "44100",
+            "-ac", "2",
+            "-progress", "pipe:1",
+            main_reencoded
+        ]
+        
+        self.run_ffmpeg_with_progress(cmd, main_duration,
+            lambda p: progress_callback(0.6 + p * 0.2))
+        
+        # Concatenate (80-100%)
+        progress_callback(0.8)
+        concat_list = tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False).name
+        with open(concat_list, 'w') as f:
+            f.write(f"file '{hook_video.replace(chr(92), '/')}'\n")
+            f.write(f"file '{main_reencoded.replace(chr(92), '/')}'\n")
+        
+        cmd = [
+            self.ffmpeg_path, "-y",
+            "-f", "concat",
+            "-safe", "0",
+            "-i", concat_list,
+            "-c", "copy",
+            output_path
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
+        
+        if result.returncode != 0:
+            # Fallback to filter_complex
+            cmd = [
+                self.ffmpeg_path, "-y",
+                "-i", hook_video,
+                "-i", main_reencoded,
+                "-filter_complex",
+                "[0:v:0][0:a:0][1:v:0][1:a:0]concat=n=2:v=1:a=1[outv][outa]",
+                "-map", "[outv]",
+                "-map", "[outa]",
+                "-c:v", "libx264",
+                "-preset", "fast",
+                "-crf", "18",
+                "-c:a", "aac",
+                "-b:a", "192k",
+                "-progress", "pipe:1",
+                output_path
+            ]
+            total_duration = hook_duration + main_duration
+            self.run_ffmpeg_with_progress(cmd, total_duration,
+                lambda p: progress_callback(0.8 + p * 0.2))
+        else:
+            progress_callback(1.0)
+        
+        # Cleanup
+        try:
+            os.unlink(tts_file)
+            os.unlink(hook_video)
+            os.unlink(main_reencoded)
+            os.unlink(concat_list)
+        except:
+            pass
+        
+        return hook_duration
+    
+    def add_captions_api_with_progress(self, input_path: str, output_path: str, audio_source: str = None, time_offset: float = 0, progress_callback=None):
+        """Add CapCut-style captions using OpenAI Whisper API with progress"""
+        
+        if progress_callback:
+            progress_callback(0.1)
+        
+        # Use audio_source if provided, otherwise use input_path
+        transcribe_source = audio_source if audio_source else input_path
+        
+        # Extract audio from video
+        audio_file = tempfile.NamedTemporaryFile(suffix='.wav', delete=False).name
+        cmd = [
+            self.ffmpeg_path, "-y",
+            "-i", transcribe_source,
+            "-vn",
+            "-acodec", "pcm_s16le",
+            "-ar", "16000",
+            "-ac", "1",
+            audio_file
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
+        
+        if result.returncode != 0:
+            self.log(f"  Warning: Audio extraction failed")
+            import shutil
+            shutil.copy(input_path, output_path)
+            return
+        
+        if progress_callback:
+            progress_callback(0.2)
+        
+        # Check if audio file exists
+        if not os.path.exists(audio_file) or os.path.getsize(audio_file) < 1000:
+            self.log(f"  Warning: Audio file too small or missing")
+            import shutil
+            shutil.copy(input_path, output_path)
+            if os.path.exists(audio_file):
+                os.unlink(audio_file)
+            return
+        
+        # Get audio duration for token reporting
+        probe_cmd = [self.ffmpeg_path, "-i", audio_file, "-f", "null", "-"]
+        result = subprocess.run(probe_cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
+        duration_match = re.search(r"Duration: (\d+):(\d+):(\d+\.\d+)", result.stderr)
+        audio_duration = 0
+        if duration_match:
+            h, m, s = duration_match.groups()
+            audio_duration = int(h) * 3600 + int(m) * 60 + float(s)
+            self.report_tokens(0, 0, audio_duration, 0)
+        
+        if progress_callback:
+            progress_callback(0.3)
+        
+        # Transcribe using OpenAI Whisper API
+        try:
+            with open(audio_file, "rb") as f:
+                transcript = self.client.audio.transcriptions.create(
+                    model="whisper-1",
+                    file=f,
+                    language="id",
+                    response_format="verbose_json",
+                    timestamp_granularities=["word"]
+                )
+        except Exception as e:
+            self.log(f"  Warning: Whisper API error: {e}")
+            import shutil
+            shutil.copy(input_path, output_path)
+            os.unlink(audio_file)
+            return
+        
+        os.unlink(audio_file)
+        
+        if progress_callback:
+            progress_callback(0.5)
+        
+        # Create ASS subtitle file
+        ass_file = tempfile.NamedTemporaryFile(mode='w', suffix='.ass', delete=False, encoding='utf-8').name
+        self.create_ass_subtitle_capcut(transcript, ass_file, time_offset)
+        
+        if progress_callback:
+            progress_callback(0.6)
+        
+        # Burn subtitles into video
+        ass_path_escaped = ass_file.replace('\\', '/').replace(':', '\\:')
+        
+        # Get video duration for progress
+        probe_cmd = [self.ffmpeg_path, "-i", input_path, "-f", "null", "-"]
+        result = subprocess.run(probe_cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
+        duration_match = re.search(r"Duration: (\d+):(\d+):(\d+\.\d+)", result.stderr)
+        video_duration = 60
+        if duration_match:
+            h, m, s = duration_match.groups()
+            video_duration = int(h) * 3600 + int(m) * 60 + float(s)
+        
+        cmd = [
+            self.ffmpeg_path, "-y",
+            "-i", input_path,
+            "-vf", f"ass='{ass_path_escaped}'",
+            "-c:v", "libx264",
+            "-preset", "fast",
+            "-crf", "18",
+            "-c:a", "copy",
+            "-progress", "pipe:1",
+            output_path
+        ]
+        
+        # Caption burn is 60-100%
+        self.run_ffmpeg_with_progress(cmd, video_duration,
+            lambda p: progress_callback(0.6 + p * 0.4) if progress_callback else None)
+        
+        os.unlink(ass_file)

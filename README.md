@@ -25,6 +25,8 @@ Download the portable desktop app — no Python or FFmpeg installation required!
 - ✅ **Token usage tracking** — see GPT tokens, Whisper minutes, TTS chars used
 - ✅ **Cost estimation** — estimated API cost per session
 - ✅ **YouTube Upload** — direct upload to YouTube with SEO-optimized titles & descriptions
+- ✅ **Custom AI Prompts** — customize how AI selects highlights (see [SYSTEM_PROMPT.md](desktop-app/SYSTEM_PROMPT.md))
+- ✅ **Debug Mode** — console logging when running from terminal (`python app.py`)
 
 ### YouTube Upload Setup (Optional)
 
