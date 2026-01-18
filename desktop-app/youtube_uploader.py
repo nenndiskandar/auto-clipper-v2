@@ -274,7 +274,7 @@ class YouTubeUploader:
             }
 
 
-def generate_seo_metadata(client, clip_title: str, hook_text: str, model: str = "gpt-4.1") -> dict:
+def generate_seo_metadata(client, clip_title: str, hook_text: str, model: str = "gpt-4.1", temperature: float = 1.0) -> dict:
     """
     Generate SEO-optimized title and description using GPT
     
@@ -317,7 +317,7 @@ Return HANYA JSON, tanpa text lain."""
         response = client.chat.completions.create(
             model=model,
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.7
+            temperature=temperature
         )
         
         result = response.choices[0].message.content.strip()

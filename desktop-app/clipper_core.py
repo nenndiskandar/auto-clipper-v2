@@ -31,6 +31,8 @@ class AutoClipperCore:
         ytdlp_path: str = "yt-dlp",
         output_dir: str = "output",
         model: str = "gpt-4.1",
+        tts_model: str = "tts-1",
+        temperature: float = 1.0,
         system_prompt: str = None,
         log_callback=None,
         progress_callback=None,
@@ -42,6 +44,8 @@ class AutoClipperCore:
         self.ytdlp_path = ytdlp_path
         self.output_dir = Path(output_dir)
         self.model = model
+        self.tts_model = tts_model
+        self.temperature = temperature
         self.system_prompt = system_prompt or self.get_default_prompt()
         self.log = log_callback or print
         self.set_progress = progress_callback or (lambda s, p: None)
@@ -261,7 +265,7 @@ Return HANYA JSON array, tanpa text lain."""
         response = self.client.chat.completions.create(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
+            temperature=self.temperature,
         )
         
         # Report token usage (input and output separately)
@@ -592,7 +596,7 @@ Return HANYA JSON array, tanpa text lain."""
         
         # Generate TTS audio
         tts_response = self.client.audio.speech.create(
-            model="tts-1",
+            model=self.tts_model,
             voice="nova",
             input=hook_text,
             speed=1.0
@@ -1153,7 +1157,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         # Generate TTS audio (10% progress)
         progress_callback(0.1)
         tts_response = self.client.audio.speech.create(
-            model="tts-1",
+            model=self.tts_model,
             voice="nova",
             input=hook_text,
             speed=1.0

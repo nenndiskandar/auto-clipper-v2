@@ -78,6 +78,12 @@ class ConfigManager:
                 if "system_prompt" not in config:
                     from clipper_core import AutoClipperCore
                     config["system_prompt"] = AutoClipperCore.get_default_prompt()
+                # Add default temperature if not exists
+                if "temperature" not in config:
+                    config["temperature"] = 1.0
+                # Add default tts_model if not exists
+                if "tts_model" not in config:
+                    config["tts_model"] = "tts-1"
                 return config
         
         # Default config with system prompt
@@ -86,6 +92,8 @@ class ConfigManager:
             "api_key": "", 
             "base_url": "https://api.openai.com/v1", 
             "model": "gpt-4.1", 
+            "tts_model": "tts-1",
+            "temperature": 1.0,
             "output_dir": str(OUTPUT_DIR),
             "system_prompt": AutoClipperCore.get_default_prompt()
         }
@@ -154,11 +162,12 @@ class SearchableModelDropdown(ctk.CTkToplevel):
 class YouTubeUploadDialog(ctk.CTkToplevel):
     """Dialog for uploading video to YouTube with SEO metadata"""
     
-    def __init__(self, parent, clip: dict, openai_client, model: str):
+    def __init__(self, parent, clip: dict, openai_client, model: str, temperature: float = 1.0):
         super().__init__(parent)
         self.clip = clip
         self.openai_client = openai_client
         self.model = model
+        self.temperature = temperature
         self.uploading = False
         
         self.title("Upload to YouTube")
@@ -305,7 +314,8 @@ class YouTubeUploadDialog(ctk.CTkToplevel):
                     self.openai_client,
                     self.clip['title'],
                     self.clip['hook_text'],
-                    self.model
+                    self.model,
+                    self.temperature
                 )
                 self.after(0, lambda: self.set_metadata(metadata))
             except Exception as e:
@@ -526,6 +536,30 @@ class SettingsPage(ctk.CTkFrame):
         self.model_btn.pack(side="left", fill="x", expand=True, padx=(0, 10))
         self.model_count = ctk.CTkLabel(model_frame, text="", text_color="gray", font=ctk.CTkFont(size=11))
         self.model_count.pack(side="right")
+        
+        # Temperature setting
+        ctk.CTkLabel(scroll, text="Temperature", anchor="w").pack(fill="x", pady=(0, 0))
+        ctk.CTkLabel(scroll, text="Kontrol kreativitas AI (0.0 = konsisten, 2.0 = kreatif). Beberapa model hanya support nilai tertentu.", 
+            anchor="w", font=ctk.CTkFont(size=11), text_color="gray", wraplength=450).pack(fill="x", pady=(0, 5))
+        
+        temp_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        temp_frame.pack(fill="x", pady=(5, 20))
+        
+        self.temp_var = ctk.DoubleVar(value=1.0)
+        self.temp_slider = ctk.CTkSlider(temp_frame, from_=0.0, to=2.0, variable=self.temp_var, 
+            command=self.update_temp_label, number_of_steps=20)
+        self.temp_slider.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        
+        self.temp_label = ctk.CTkLabel(temp_frame, text="1.0", width=40, anchor="e")
+        self.temp_label.pack(side="right")
+        
+        # TTS Model setting
+        ctk.CTkLabel(scroll, text="TTS Model (Text-to-Speech)", anchor="w").pack(fill="x", pady=(0, 0))
+        ctk.CTkLabel(scroll, text="Model untuk generate audio hook. Contoh: tts-1, tts-1-hd (OpenAI) atau model lain sesuai provider.", 
+            anchor="w", font=ctk.CTkFont(size=11), text_color="gray", wraplength=450).pack(fill="x", pady=(0, 5))
+        
+        self.tts_model_entry = ctk.CTkEntry(scroll, placeholder_text="tts-1")
+        self.tts_model_entry.pack(fill="x", pady=(5, 20))
         
         # System Prompt section
         ctk.CTkLabel(scroll, text="System Prompt", anchor="w", font=ctk.CTkFont(size=14, weight="bold")).pack(fill="x", pady=(20, 5))
@@ -783,6 +817,15 @@ and YouTube Shorts."""
         self.model_var.set(self.config.get("model", "gpt-4.1"))
         self.output_var.set(self.config.get("output_dir", str(OUTPUT_DIR)) or str(OUTPUT_DIR))
         
+        # Load temperature
+        temperature = self.config.get("temperature", 1.0)
+        self.temp_var.set(temperature)
+        self.update_temp_label(temperature)
+        
+        # Load TTS model
+        tts_model = self.config.get("tts_model", "tts-1")
+        self.tts_model_entry.insert(0, tts_model)
+        
         # Load system prompt
         from clipper_core import AutoClipperCore
         system_prompt = self.config.get("system_prompt", AutoClipperCore.get_default_prompt())
@@ -863,6 +906,8 @@ and YouTube Shorts."""
         self.config.set("base_url", base_url)
         self.config.set("model", model)
         self.config.set("output_dir", output_dir)
+        self.config.set("temperature", self.temp_var.get())
+        self.config.set("tts_model", self.tts_model_entry.get().strip() or "tts-1")
         self.config.set("system_prompt", system_prompt)
         self.on_save(api_key, base_url, model)
         self.on_back()
@@ -881,6 +926,10 @@ and YouTube Shorts."""
         text = self.prompt_text.get("1.0", "end-1c")
         char_count = len(text)
         self.prompt_char_count.configure(text=f"{char_count} chars")
+    
+    def update_temp_label(self, value):
+        """Update temperature label"""
+        self.temp_label.configure(text=f"{float(value):.1f}")
 
 
 class ProgressStep(ctk.CTkFrame):
@@ -1598,7 +1647,7 @@ class YTShortClipperApp(ctk.CTk):
         }
         
         # Open YouTube upload dialog
-        YouTubeUploadDialog(self, clip_data, self.client, self.config.get("model", "gpt-4.1"))
+        YouTubeUploadDialog(self, clip_data, self.client, self.config.get("model", "gpt-4.1"), self.config.get("temperature", 1.0))
     
     def open_selected_folder(self):
         """Open the selected video's folder"""
@@ -1760,6 +1809,8 @@ class YTShortClipperApp(ctk.CTk):
             
             # Get system prompt from config
             system_prompt = self.config.get("system_prompt", None)
+            temperature = self.config.get("temperature", 1.0)
+            tts_model = self.config.get("tts_model", "tts-1")
             
             core = AutoClipperCore(
                 client=self.client,
@@ -1767,6 +1818,8 @@ class YTShortClipperApp(ctk.CTk):
                 ytdlp_path=get_ytdlp_path(),
                 output_dir=output_dir,
                 model=model,
+                tts_model=tts_model,
+                temperature=temperature,
                 system_prompt=system_prompt,
                 log_callback=log_with_debug,
                 progress_callback=lambda s, p: self.after(0, lambda: self.update_progress(s, p)),
@@ -2002,7 +2055,7 @@ class YTShortClipperApp(ctk.CTk):
                 return
             
             # Open upload dialog
-            YouTubeUploadDialog(self, clip, self.client, self.config.get("model", "gpt-4.1"))
+            YouTubeUploadDialog(self, clip, self.client, self.config.get("model", "gpt-4.1"), self.config.get("temperature", 1.0))
             
         except ImportError:
             messagebox.showerror("Error", "YouTube upload module not available.\nInstall: pip install google-api-python-client google-auth-oauthlib")
