@@ -171,6 +171,10 @@ cython_debug/
 !assets/*.png
 !assets/*.jpg
 
+# User watermarks (copied from user selection)
+assets/watermarks/*
+!assets/watermarks/.gitkeep
+
 # Subtitle files
 *.srt
 *.vtt

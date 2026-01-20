@@ -29,6 +29,16 @@ class ConfigManager:
                 # Add default tts_model if not exists
                 if "tts_model" not in config:
                     config["tts_model"] = "tts-1"
+                # Add default watermark settings if not exists
+                if "watermark" not in config:
+                    config["watermark"] = {
+                        "enabled": False,
+                        "image_path": "",
+                        "position_x": 0.85,  # 0-1 (percentage from left)
+                        "position_y": 0.05,  # 0-1 (percentage from top)
+                        "opacity": 0.8,      # 0-1
+                        "scale": 0.15        # 0-1 (percentage of video width)
+                    }
                 return config
         
         # Default config with system prompt
@@ -40,7 +50,15 @@ class ConfigManager:
             "tts_model": "tts-1",
             "temperature": 1.0,
             "output_dir": str(self.output_dir),
-            "system_prompt": AutoClipperCore.get_default_prompt()
+            "system_prompt": AutoClipperCore.get_default_prompt(),
+            "watermark": {
+                "enabled": False,
+                "image_path": "",
+                "position_x": 0.85,
+                "position_y": 0.05,
+                "opacity": 0.8,
+                "scale": 0.15
+            }
         }
 
     def save(self):

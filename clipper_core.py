@@ -34,6 +34,7 @@ class AutoClipperCore:
         tts_model: str = "tts-1",
         temperature: float = 1.0,
         system_prompt: str = None,
+        watermark_settings: dict = None,
         log_callback=None,
         progress_callback=None,
         token_callback=None,
@@ -47,6 +48,7 @@ class AutoClipperCore:
         self.tts_model = tts_model
         self.temperature = temperature
         self.system_prompt = system_prompt or self.get_default_prompt()
+        self.watermark_settings = watermark_settings or {"enabled": False}
         self.log = log_callback or print
         self.set_progress = progress_callback or (lambda s, p: None)
         self.report_tokens = token_callback or (lambda gi, go, w, t: None)
@@ -407,20 +409,64 @@ Return HANYA JSON array, tanpa text lain."""
             
             # Use portrait_file (without hook) as audio source for transcription
             audio_source = str(portrait_file) if add_hook else None
-            self.add_captions_api_with_progress(str(current_output), str(final_file), audio_source, hook_duration,
-                lambda p: clip_progress("Adding captions...", current_step, p))
             
-            # Verify final file was created
-            if not final_file.exists():
-                raise Exception(f"Failed to create final video: {final_file}")
+            # If watermark enabled, add captions to temp file first
+            if self.watermark_settings.get("enabled"):
+                temp_captioned = clip_dir / "temp_captioned.mp4"
+                self.add_captions_api_with_progress(str(current_output), str(temp_captioned), audio_source, hook_duration,
+                    lambda p: clip_progress("Adding captions...", current_step, p))
+                
+                if not temp_captioned.exists():
+                    raise Exception(f"Failed to create captioned video: {temp_captioned}")
+                
+                current_output = temp_captioned
+            else:
+                # No watermark, captions go directly to final
+                self.add_captions_api_with_progress(str(current_output), str(final_file), audio_source, hook_duration,
+                    lambda p: clip_progress("Adding captions...", current_step, p))
+                
+                if not final_file.exists():
+                    raise Exception(f"Failed to create final video: {final_file}")
             
             self.log("  ✓ Added captions")
             current_step += 1
         else:
-            # No captions, just copy current output to final
+            self.log("  ⊘ Skipped captions (disabled)")
+        
+        # Step 5: Add watermark (if enabled)
+        if self.watermark_settings.get("enabled"):
+            if self.is_cancelled():
+                return
+            
+            # Check if we need to add watermark step to progress
+            if not add_captions:
+                # Watermark is a new step
+                total_steps += 1
+            
+            clip_progress("Adding watermark...", current_step, 0)
+            
+            # Apply watermark to current output
+            self.add_watermark_with_progress(str(current_output), str(final_file),
+                lambda p: clip_progress("Adding watermark...", current_step, p))
+            
+            if not final_file.exists():
+                raise Exception(f"Failed to create final video with watermark: {final_file}")
+            
+            self.log("  ✓ Added watermark")
+            current_step += 1
+            
+            # Cleanup temp captioned file if exists
+            if add_captions:
+                try:
+                    temp_captioned = clip_dir / "temp_captioned.mp4"
+                    if temp_captioned.exists():
+                        temp_captioned.unlink()
+                except Exception as e:
+                    self.log(f"  Warning: Could not delete temp_captioned.mp4: {e}")
+        elif not add_captions:
+            # No captions and no watermark, just copy current output to final
             import shutil
             shutil.copy(str(current_output), str(final_file))
-            self.log("  ⊘ Skipped captions (disabled)")
         
         # Mark complete
         clip_progress("Done", total_steps, 0)
@@ -455,6 +501,7 @@ Return HANYA JSON array, tanpa text lain."""
             "duration_seconds": highlight["duration_seconds"],
             "has_hook": add_hook,
             "has_captions": add_captions,
+            "has_watermark": self.watermark_settings.get("enabled", False),
         }
         
         with open(clip_dir / "data.json", "w", encoding="utf-8") as f:
@@ -1463,3 +1510,83 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             lambda p: progress_callback(0.6 + p * 0.4) if progress_callback else None)
         
         os.unlink(ass_file)
+
+    def add_watermark_with_progress(self, input_path: str, output_path: str, progress_callback):
+        """Add watermark overlay to video with progress tracking"""
+        
+        watermark_path = self.watermark_settings.get("image_path", "")
+        if not watermark_path or not Path(watermark_path).exists():
+            self.log("  Warning: Watermark image not found, skipping")
+            import shutil
+            shutil.copy(input_path, output_path)
+            return
+        
+        progress_callback(0.1)
+        
+        # Get video dimensions
+        probe_cmd = [self.ffmpeg_path, "-i", input_path]
+        result = subprocess.run(probe_cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
+        
+        res_match = re.search(r'(\d{3,4})x(\d{3,4})', result.stderr)
+        if res_match:
+            video_width, video_height = int(res_match.group(1)), int(res_match.group(2))
+        else:
+            video_width, video_height = 1080, 1920
+        
+        progress_callback(0.2)
+        
+        # Calculate watermark size and position
+        scale = self.watermark_settings.get("scale", 0.15)
+        pos_x = self.watermark_settings.get("position_x", 0.85)
+        pos_y = self.watermark_settings.get("position_y", 0.05)
+        opacity = self.watermark_settings.get("opacity", 0.8)
+        
+        # Calculate watermark width in pixels
+        watermark_width = int(video_width * scale)
+        
+        # Calculate position in pixels
+        x_pixels = int(pos_x * video_width)
+        y_pixels = int(pos_y * video_height)
+        
+        # Escape watermark path for FFmpeg (Windows paths)
+        watermark_escaped = watermark_path.replace('\\', '/').replace(':', '\\:')
+        
+        # Build FFmpeg overlay filter with proper opacity control
+        # Scale watermark, apply opacity via colorchannelmixer, then overlay
+        filter_complex = (
+            f"[1:v]scale={watermark_width}:-1,format=rgba,"
+            f"colorchannelmixer=aa={opacity}[wm];"
+            f"[0:v][wm]overlay={x_pixels}:{y_pixels}"
+        )
+        
+        progress_callback(0.3)
+        
+        # Get video duration for progress
+        duration_match = re.search(r"Duration: (\d+):(\d+):(\d+\.\d+)", result.stderr)
+        video_duration = 60
+        if duration_match:
+            h, m, s = duration_match.groups()
+            video_duration = int(h) * 3600 + int(m) * 60 + float(s)
+        
+        # Apply watermark
+        cmd = [
+            self.ffmpeg_path, "-y",
+            "-i", input_path,
+            "-i", watermark_path,
+            "-filter_complex", filter_complex,
+            "-c:v", "libx264",
+            "-preset", "fast",
+            "-crf", "18",
+            "-pix_fmt", "yuv420p",  # Ensure compatibility
+            "-c:a", "copy",
+            "-movflags", "+faststart",  # Enable streaming
+            "-progress", "pipe:1",
+            output_path
+        ]
+        
+        # Watermark application is 30-100%
+        self.run_ffmpeg_with_progress(cmd, video_duration,
+            lambda p: progress_callback(0.3 + p * 0.7))
+        
+        if not Path(output_path).exists():
+            raise Exception("Failed to apply watermark")

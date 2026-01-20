@@ -55,11 +55,13 @@ class SettingsPage(ctk.CTkFrame):
         
         self.tabview.add("OpenAI API")
         self.tabview.add("Output")
+        self.tabview.add("Watermark")
         self.tabview.add("YouTube")
         self.tabview.add("About")
         
         self.create_openai_tab()
         self.create_output_tab()
+        self.create_watermark_tab()
         self.create_youtube_tab()
         self.create_about_tab()
     
@@ -169,6 +171,261 @@ class SettingsPage(ctk.CTkFrame):
             command=lambda: self.open_folder(self.output_var.get())).pack(fill="x", pady=(0, 15))
         
         ctk.CTkButton(main, text="Save Settings", height=40, command=self.save_settings).pack(fill="x", pady=(10, 0))
+    
+    def create_watermark_tab(self):
+        """Create watermark settings tab"""
+        main = self.tabview.tab("Watermark")
+        
+        # Scrollable frame
+        scroll = ctk.CTkScrollableFrame(main)
+        scroll.pack(fill="both", expand=True, padx=5, pady=5)
+        
+        # Enable watermark toggle
+        self.watermark_enabled = ctk.BooleanVar(value=False)
+        enable_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        enable_frame.pack(fill="x", pady=(10, 15))
+        
+        ctk.CTkSwitch(enable_frame, text="Enable Watermark", variable=self.watermark_enabled,
+            font=ctk.CTkFont(size=14, weight="bold"), command=self.toggle_watermark).pack(side="left")
+        
+        # Watermark settings container
+        self.watermark_settings_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        self.watermark_settings_frame.pack(fill="both", expand=True)
+        
+        # Image selection
+        ctk.CTkLabel(self.watermark_settings_frame, text="Watermark Image", anchor="w", 
+            font=ctk.CTkFont(size=13, weight="bold")).pack(fill="x", pady=(5, 5))
+        
+        image_frame = ctk.CTkFrame(self.watermark_settings_frame, fg_color="transparent")
+        image_frame.pack(fill="x", pady=(5, 15))
+        
+        self.watermark_path_var = ctk.StringVar(value="")
+        self.watermark_path_entry = ctk.CTkEntry(image_frame, textvariable=self.watermark_path_var, 
+            placeholder_text="Select PNG image...")
+        self.watermark_path_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        ctk.CTkButton(image_frame, text="Browse", width=100, command=self.browse_watermark).pack(side="right")
+        
+        # Position simulator
+        ctk.CTkLabel(self.watermark_settings_frame, text="Position", anchor="w", 
+            font=ctk.CTkFont(size=13, weight="bold")).pack(fill="x", pady=(10, 5))
+        ctk.CTkLabel(self.watermark_settings_frame, text="Drag the watermark to position it on the video", 
+            anchor="w", font=ctk.CTkFont(size=11), text_color="gray").pack(fill="x", pady=(0, 10))
+        
+        # Canvas for 9:16 simulator
+        self.canvas_frame = ctk.CTkFrame(self.watermark_settings_frame, fg_color=("gray85", "gray20"))
+        self.canvas_frame.pack(fill="x", pady=(5, 15))
+        
+        import tkinter as tk
+        self.canvas = tk.Canvas(self.canvas_frame, width=270, height=480, bg="#1a1a1a", 
+            highlightthickness=1, highlightbackground="gray")
+        self.canvas.pack(padx=10, pady=10)
+        
+        # Draw 9:16 frame
+        self.canvas.create_rectangle(0, 0, 270, 480, outline="gray", width=2)
+        self.canvas.create_text(135, 240, text="9:16 Video Preview", fill="gray50", 
+            font=("Arial", 12))
+        
+        # Watermark placeholder
+        self.watermark_item = None
+        self.watermark_x = ctk.DoubleVar(value=0.85)
+        self.watermark_y = ctk.DoubleVar(value=0.05)
+        
+        # Bind drag events
+        self.canvas.bind("<Button-1>", self.on_watermark_click)
+        self.canvas.bind("<B1-Motion>", self.on_watermark_drag)
+        
+        # Opacity slider
+        ctk.CTkLabel(self.watermark_settings_frame, text="Opacity", anchor="w", 
+            font=ctk.CTkFont(size=13, weight="bold")).pack(fill="x", pady=(10, 5))
+        
+        opacity_frame = ctk.CTkFrame(self.watermark_settings_frame, fg_color="transparent")
+        opacity_frame.pack(fill="x", pady=(5, 15))
+        
+        self.watermark_opacity = ctk.DoubleVar(value=0.8)
+        opacity_slider = ctk.CTkSlider(opacity_frame, from_=0.0, to=1.0, variable=self.watermark_opacity,
+            command=self.update_watermark_preview, number_of_steps=20)
+        opacity_slider.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        
+        self.opacity_label = ctk.CTkLabel(opacity_frame, text="80%", width=50, anchor="e")
+        self.opacity_label.pack(side="right")
+        
+        # Scale slider
+        ctk.CTkLabel(self.watermark_settings_frame, text="Size", anchor="w", 
+            font=ctk.CTkFont(size=13, weight="bold")).pack(fill="x", pady=(10, 5))
+        
+        scale_frame = ctk.CTkFrame(self.watermark_settings_frame, fg_color="transparent")
+        scale_frame.pack(fill="x", pady=(5, 15))
+        
+        self.watermark_scale = ctk.DoubleVar(value=0.15)
+        scale_slider = ctk.CTkSlider(scale_frame, from_=0.05, to=0.5, variable=self.watermark_scale,
+            command=self.update_watermark_preview, number_of_steps=45)
+        scale_slider.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        
+        self.scale_label = ctk.CTkLabel(scale_frame, text="15%", width=50, anchor="e")
+        self.scale_label.pack(side="right")
+        
+        # Save button
+        ctk.CTkButton(scroll, text="Save Settings", height=40, command=self.save_settings).pack(fill="x", pady=(10, 0))
+        
+        # Initially disable watermark settings
+        self.toggle_watermark()
+    
+    def toggle_watermark(self):
+        """Toggle watermark settings visibility"""
+        if self.watermark_enabled.get():
+            # Enable all child widgets recursively
+            self._set_children_state(self.watermark_settings_frame, "normal")
+        else:
+            # Disable all child widgets recursively
+            self._set_children_state(self.watermark_settings_frame, "disabled")
+    
+    def _set_children_state(self, widget, state):
+        """Recursively set state for all children widgets"""
+        for child in widget.winfo_children():
+            widget_type = child.winfo_class()
+            
+            # Skip frames and labels (they don't have state)
+            if widget_type in ('Frame', 'Label', 'Canvas'):
+                # Recursively process children of frames
+                if widget_type == 'Frame':
+                    self._set_children_state(child, state)
+                continue
+            
+            # Try to set state for widgets that support it
+            try:
+                if hasattr(child, 'configure'):
+                    child.configure(state=state)
+            except Exception:
+                # If widget doesn't support state, try its children
+                try:
+                    self._set_children_state(child, state)
+                except:
+                    pass
+    
+    def browse_watermark(self):
+        """Browse for watermark image and copy to app folder"""
+        from tkinter import filedialog
+        import shutil
+        
+        file_path = filedialog.askopenfilename(
+            title="Select Watermark Image",
+            filetypes=[("PNG Images", "*.png"), ("All Images", "*.png *.jpg *.jpeg")]
+        )
+        if file_path:
+            try:
+                # Create watermarks folder if not exists
+                watermarks_dir = Path("assets/watermarks")
+                watermarks_dir.mkdir(parents=True, exist_ok=True)
+                
+                # Generate unique filename
+                original_name = Path(file_path).stem
+                extension = Path(file_path).suffix
+                dest_filename = f"watermark_{original_name}{extension}"
+                dest_path = watermarks_dir / dest_filename
+                
+                # If file already exists, add number suffix
+                counter = 1
+                while dest_path.exists():
+                    dest_filename = f"watermark_{original_name}_{counter}{extension}"
+                    dest_path = watermarks_dir / dest_filename
+                    counter += 1
+                
+                # Copy file to app folder
+                shutil.copy2(file_path, dest_path)
+                
+                # Save the new path
+                self.watermark_path_var.set(str(dest_path))
+                self.update_watermark_preview()
+                
+                self.log(f"Watermark copied to: {dest_path}")
+                
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to copy watermark: {str(e)}")
+    
+    def log(self, message: str):
+        """Log message (helper method)"""
+        print(message)
+    
+    def update_watermark_preview(self, *args):
+        """Update watermark preview on canvas"""
+        # Update labels
+        opacity_percent = int(self.watermark_opacity.get() * 100)
+        self.opacity_label.configure(text=f"{opacity_percent}%")
+        
+        scale_percent = int(self.watermark_scale.get() * 100)
+        self.scale_label.configure(text=f"{scale_percent}%")
+        
+        # Update canvas preview
+        if self.watermark_item:
+            self.canvas.delete(self.watermark_item)
+            self.watermark_item = None
+        
+        watermark_path = self.watermark_path_var.get()
+        if not watermark_path or not Path(watermark_path).exists():
+            return
+        
+        try:
+            from PIL import Image, ImageTk
+            
+            # Load and resize watermark
+            img = Image.open(watermark_path)
+            
+            # Calculate size based on scale (relative to canvas width)
+            canvas_width = 270
+            watermark_width = int(canvas_width * self.watermark_scale.get())
+            aspect_ratio = img.height / img.width
+            watermark_height = int(watermark_width * aspect_ratio)
+            
+            img = img.resize((watermark_width, watermark_height), Image.Resampling.LANCZOS)
+            
+            # Apply opacity
+            if img.mode != 'RGBA':
+                img = img.convert('RGBA')
+            
+            alpha = img.split()[3]
+            alpha = alpha.point(lambda p: int(p * self.watermark_opacity.get()))
+            img.putalpha(alpha)
+            
+            # Keep reference to prevent garbage collection
+            self.watermark_photo = ImageTk.PhotoImage(img)
+            
+            # Calculate position
+            x = int(self.watermark_x.get() * 270)
+            y = int(self.watermark_y.get() * 480)
+            
+            # Draw on canvas
+            self.watermark_item = self.canvas.create_image(x, y, image=self.watermark_photo, anchor="nw")
+            
+        except Exception as e:
+            print(f"Error loading watermark preview: {e}")
+    
+    def on_watermark_click(self, event):
+        """Handle watermark click"""
+        if not self.watermark_item:
+            return
+        
+        # Check if click is on watermark
+        bbox = self.canvas.bbox(self.watermark_item)
+        if bbox and bbox[0] <= event.x <= bbox[2] and bbox[1] <= event.y <= bbox[3]:
+            self.dragging = True
+            self.drag_offset_x = event.x - bbox[0]
+            self.drag_offset_y = event.y - bbox[1]
+    
+    def on_watermark_drag(self, event):
+        """Handle watermark drag"""
+        if not hasattr(self, 'dragging') or not self.dragging:
+            return
+        
+        # Calculate new position (constrained to canvas)
+        new_x = max(0, min(event.x - self.drag_offset_x, 270 - 50))
+        new_y = max(0, min(event.y - self.drag_offset_y, 480 - 50))
+        
+        # Update position variables (as percentage)
+        self.watermark_x.set(new_x / 270)
+        self.watermark_y.set(new_y / 480)
+        
+        # Redraw
+        self.update_watermark_preview()
     
     def create_youtube_tab(self):
         """Create YouTube settings tab"""
@@ -400,6 +657,17 @@ and YouTube Shorts."""
         tts_model = self.config.get("tts_model", "tts-1")
         self.tts_model_entry.insert(0, tts_model)
         
+        # Load watermark settings
+        watermark = self.config.get("watermark", {})
+        self.watermark_enabled.set(watermark.get("enabled", False))
+        self.watermark_path_var.set(watermark.get("image_path", ""))
+        self.watermark_x.set(watermark.get("position_x", 0.85))
+        self.watermark_y.set(watermark.get("position_y", 0.05))
+        self.watermark_opacity.set(watermark.get("opacity", 0.8))
+        self.watermark_scale.set(watermark.get("scale", 0.15))
+        self.toggle_watermark()
+        self.update_watermark_preview()
+        
         # Load system prompt
         from clipper_core import AutoClipperCore
         system_prompt = self.config.get("system_prompt", AutoClipperCore.get_default_prompt())
@@ -489,6 +757,18 @@ and YouTube Shorts."""
         self.config.set("temperature", self.temp_var.get())
         self.config.set("tts_model", self.tts_model_entry.get().strip() or "tts-1")
         self.config.set("system_prompt", system_prompt)
+        
+        # Save watermark settings
+        watermark_settings = {
+            "enabled": self.watermark_enabled.get(),
+            "image_path": self.watermark_path_var.get(),
+            "position_x": self.watermark_x.get(),
+            "position_y": self.watermark_y.get(),
+            "opacity": self.watermark_opacity.get(),
+            "scale": self.watermark_scale.get()
+        }
+        self.config.set("watermark", watermark_settings)
+        
         self.on_save(api_key, base_url, model)
         self.on_back()
     

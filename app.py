@@ -132,9 +132,16 @@ class YTShortClipperApp(ctk.CTk):
         # Clear URL input
         self.url_var.set("")
         
-        # Reset thumbnail
-        self.thumb_label.configure(image=None, text="📺 Video thumbnail will appear here")
+        # Reset thumbnail - use try-except to handle image reference issues
         self.current_thumbnail = None
+        try:
+            self.thumb_label.configure(image=None)
+        except:
+            pass
+        try:
+            self.thumb_label.configure(text="📺 Video thumbnail will appear here")
+        except:
+            pass
         
         # Reset clips input to default
         self.clips_var.set("5")
@@ -420,8 +427,15 @@ class YTShortClipperApp(ctk.CTk):
         if video_id:
             self.load_thumbnail(video_id)
         else:
-            self.thumb_label.configure(image=None, text="📺 Video thumbnail will appear here")
             self.current_thumbnail = None
+            try:
+                self.thumb_label.configure(image=None)
+            except:
+                pass
+            try:
+                self.thumb_label.configure(text="📺 Video thumbnail will appear here")
+            except:
+                pass
             # Disable start button when URL is invalid
             self.start_btn.configure(state="disabled", fg_color="gray")
     
@@ -442,20 +456,44 @@ class YTShortClipperApp(ctk.CTk):
                 self.after(0, lambda: self.show_thumbnail(img))
             except:
                 self.after(0, lambda: self.on_thumbnail_error())
-        self.thumb_label.configure(text="Loading...")
+        
+        # Clear image first before setting text - use try-except
+        self.current_thumbnail = None
+        try:
+            self.thumb_label.configure(image=None)
+        except:
+            pass
+        try:
+            self.thumb_label.configure(text="Loading...")
+        except:
+            pass
         self.start_btn.configure(state="disabled", fg_color="gray")
         threading.Thread(target=fetch, daemon=True).start()
     
     def on_thumbnail_error(self):
-        self.thumb_label.configure(text="⚠️ Could not load thumbnail")
+        # Clear image first before setting text - use try-except
+        self.current_thumbnail = None
+        try:
+            self.thumb_label.configure(image=None)
+        except:
+            pass
+        try:
+            self.thumb_label.configure(text="⚠️ Could not load thumbnail")
+        except:
+            pass
         self.start_btn.configure(state="disabled", fg_color="gray")
     
     def show_thumbnail(self, img):
-        ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=img.size)
-        self.current_thumbnail = ctk_img
-        self.thumb_label.configure(image=ctk_img, text="")
-        # Enable start button when thumbnail loads successfully
-        self.start_btn.configure(state="normal", fg_color=("#3B8ED0", "#1F6AA5"))
+        try:
+            ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=img.size)
+            self.current_thumbnail = ctk_img
+            self.thumb_label.configure(image=ctk_img, text="")
+            # Enable start button when thumbnail loads successfully
+            self.start_btn.configure(state="normal", fg_color=("#3B8ED0", "#1F6AA5"))
+        except Exception as e:
+            debug_log(f"Error showing thumbnail: {e}")
+            # If thumbnail fails, just enable the button anyway
+            self.start_btn.configure(state="normal", fg_color=("#3B8ED0", "#1F6AA5"))
 
     def start_processing(self):
         if not self.client:
@@ -505,6 +543,7 @@ class YTShortClipperApp(ctk.CTk):
             system_prompt = self.config.get("system_prompt", None)
             temperature = self.config.get("temperature", 1.0)
             tts_model = self.config.get("tts_model", "tts-1")
+            watermark_settings = self.config.get("watermark", {"enabled": False})
             
             core = AutoClipperCore(
                 client=self.client,
@@ -515,6 +554,7 @@ class YTShortClipperApp(ctk.CTk):
                 tts_model=tts_model,
                 temperature=temperature,
                 system_prompt=system_prompt,
+                watermark_settings=watermark_settings,
                 log_callback=log_with_debug,
                 progress_callback=lambda s, p: self.after(0, lambda: self.update_progress(s, p)),
                 token_callback=lambda a, b, c, d: self.after(0, lambda: self.update_tokens(a, b, c, d)),
