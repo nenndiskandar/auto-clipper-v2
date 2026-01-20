@@ -16,6 +16,9 @@ from tkinter import filedialog, messagebox
 from openai import OpenAI
 from PIL import Image, ImageTk
 
+# Import version info
+from version import __version__, UPDATE_CHECK_URL
+
 # Import utilities
 from utils.helpers import get_app_dir, get_bundle_dir, get_ffmpeg_path, get_ytdlp_path, extract_video_id
 from utils.logger import debug_log
@@ -77,6 +80,9 @@ class YTShortClipperApp(ctk.CTk):
         self.show_page("home")
         self.load_config()
         self.check_youtube_status()
+        
+        # Check for updates on startup
+        threading.Thread(target=self.check_update_silent, daemon=True).start()
     
     def set_app_icon(self):
         """Set window icon"""
@@ -315,7 +321,8 @@ class YTShortClipperApp(ctk.CTk):
             self.config, 
             self.on_settings_saved,
             lambda: self.show_page("home"),
-            OUTPUT_DIR
+            OUTPUT_DIR,
+            self.check_update_manual
         )
     
     def create_api_status_page(self):
@@ -650,6 +657,86 @@ class YTShortClipperApp(ctk.CTk):
             os.startfile(output_dir)
         else:
             subprocess.run(["open" if sys.platform == "darwin" else "xdg-open", output_dir])
+    
+    def check_update_silent(self):
+        """Check for updates silently on startup"""
+        try:
+            req = urllib.request.Request(UPDATE_CHECK_URL, headers={'User-Agent': 'YT-Short-Clipper'})
+            with urllib.request.urlopen(req, timeout=5) as response:
+                data = json.loads(response.read().decode())
+                latest_version = data.get("version", "")
+                download_url = data.get("download_url", "")
+                changelog = data.get("changelog", "")
+                
+                if latest_version and self._compare_versions(latest_version, __version__) > 0:
+                    # New version available
+                    self.after(0, lambda: self._show_update_notification(latest_version, download_url, changelog))
+        except Exception as e:
+            debug_log(f"Update check failed: {e}")
+    
+    def check_update_manual(self):
+        """Check for updates manually from settings page"""
+        try:
+            req = urllib.request.Request(UPDATE_CHECK_URL, headers={'User-Agent': 'YT-Short-Clipper'})
+            with urllib.request.urlopen(req, timeout=10) as response:
+                data = json.loads(response.read().decode())
+                latest_version = data.get("version", "")
+                download_url = data.get("download_url", "")
+                changelog = data.get("changelog", "")
+                
+                if not latest_version:
+                    messagebox.showinfo("Update Check", "Could not retrieve version information.")
+                    return
+                
+                comparison = self._compare_versions(latest_version, __version__)
+                
+                if comparison > 0:
+                    # New version available
+                    msg = f"New version available: {latest_version}\nCurrent version: {__version__}\n\n"
+                    if changelog:
+                        msg += f"Changelog:\n{changelog}\n\n"
+                    msg += f"Download: {download_url}"
+                    
+                    if messagebox.askyesno("Update Available", msg + "\n\nOpen download page?"):
+                        import webbrowser
+                        webbrowser.open(download_url)
+                elif comparison == 0:
+                    messagebox.showinfo("Update Check", f"You are using the latest version ({__version__})")
+                else:
+                    messagebox.showinfo("Update Check", f"Your version ({__version__}) is newer than the latest release ({latest_version})")
+        except Exception as e:
+            messagebox.showerror("Update Check Failed", f"Could not check for updates:\n{str(e)}")
+    
+    def _compare_versions(self, v1: str, v2: str) -> int:
+        """Compare two version strings. Returns: 1 if v1 > v2, -1 if v1 < v2, 0 if equal"""
+        try:
+            parts1 = [int(x) for x in v1.split('.')]
+            parts2 = [int(x) for x in v2.split('.')]
+            
+            # Pad shorter version with zeros
+            max_len = max(len(parts1), len(parts2))
+            parts1 += [0] * (max_len - len(parts1))
+            parts2 += [0] * (max_len - len(parts2))
+            
+            for p1, p2 in zip(parts1, parts2):
+                if p1 > p2:
+                    return 1
+                elif p1 < p2:
+                    return -1
+            return 0
+        except:
+            return 0
+    
+    def _show_update_notification(self, latest_version: str, download_url: str, changelog: str = ""):
+        """Show update notification popup"""
+        msg = f"New version available: {latest_version}\nCurrent version: {__version__}\n\n"
+        if changelog:
+            msg += f"What's new:\n{changelog}\n\n"
+        msg += "Would you like to download it?"
+        
+        if messagebox.askyesno("Update Available", msg):
+            import webbrowser
+            webbrowser.open(download_url)
 
 
 def main():

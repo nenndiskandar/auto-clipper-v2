@@ -12,17 +12,19 @@ from tkinter import filedialog, messagebox
 from openai import OpenAI
 
 from dialogs.model_selector import SearchableModelDropdown
+from version import __version__
 
 
 class SettingsPage(ctk.CTkFrame):
     """Settings page - embedded in main window"""
     
-    def __init__(self, parent, config, on_save_callback, on_back_callback, output_dir):
+    def __init__(self, parent, config, on_save_callback, on_back_callback, output_dir, check_update_callback=None):
         super().__init__(parent)
         self.config = config
         self.on_save = on_save_callback
         self.on_back = on_back_callback
         self.output_dir = output_dir
+        self.check_update = check_update_callback
         self.models_list = []
         self.youtube_uploader = None
         
@@ -316,7 +318,13 @@ See README for detailed setup guide."""
         info_frame.pack(fill="x", pady=(20, 15))
         
         ctk.CTkLabel(info_frame, text="YT Short Clipper", font=ctk.CTkFont(size=20, weight="bold")).pack()
-        ctk.CTkLabel(info_frame, text="v0.0.2", font=ctk.CTkFont(size=12), text_color="gray").pack(pady=(5, 0))
+        ctk.CTkLabel(info_frame, text=f"v{__version__}", font=ctk.CTkFont(size=12), text_color="gray").pack(pady=(5, 0))
+        
+        # Check for updates button
+        if self.check_update:
+            ctk.CTkButton(info_frame, text="Check for Updates", height=35, width=150,
+                fg_color="gray", hover_color=("gray70", "gray30"),
+                command=self.check_update).pack(pady=(10, 0))
         
         # Description
         desc_frame = ctk.CTkFrame(main, fg_color=("gray90", "gray17"))

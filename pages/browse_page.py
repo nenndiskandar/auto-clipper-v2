@@ -52,9 +52,10 @@ class BrowsePage(ctk.CTkFrame):
         self.list_frame = ctk.CTkScrollableFrame(main, height=400)
         self.list_frame.pack(fill="both", expand=True, pady=(10, 10))
         
-        # Selected video info - more compact
-        self.info_frame = ctk.CTkFrame(main, fg_color=("gray90", "gray17"))
+        # Selected video info - fixed height to prevent overlap
+        self.info_frame = ctk.CTkFrame(main, fg_color=("gray90", "gray17"), height=120)
         self.info_frame.pack(fill="x", pady=(0, 10))
+        self.info_frame.pack_propagate(False)  # Prevent frame from expanding
         
         self.info_label = ctk.CTkLabel(self.info_frame, text="Select a video to view details", 
             font=ctk.CTkFont(size=11), text_color="gray")
@@ -62,7 +63,7 @@ class BrowsePage(ctk.CTkFrame):
         
         # Action buttons - larger
         btn_frame = ctk.CTkFrame(main, fg_color="transparent")
-        btn_frame.pack(fill="x")
+        btn_frame.pack(fill="x", side="bottom")
         
         self.play_btn = ctk.CTkButton(btn_frame, text="▶ Play Video", height=45, state="disabled",
             font=ctk.CTkFont(size=14, weight="bold"), command=self.play_selected_video)
