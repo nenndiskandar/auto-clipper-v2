@@ -489,7 +489,12 @@ class SettingsPage(ctk.CTkFrame):
         main = ctk.CTkFrame(self)
         main.pack(fill="both", expand=True, padx=20, pady=(0, 20))
         
-        self.tabview = ctk.CTkTabview(main)
+        # Create tabview with custom styling for better spacing
+        self.tabview = ctk.CTkTabview(main, height=40, segmented_button_fg_color=("gray80", "gray20"),
+            segmented_button_selected_color=("#3B8ED0", "#1F6AA5"),
+            segmented_button_selected_hover_color=("#36719F", "#144870"),
+            segmented_button_unselected_color=("gray85", "gray25"),
+            segmented_button_unselected_hover_color=("gray75", "gray30"))
         self.tabview.pack(fill="both", expand=True, padx=10, pady=10)
         
         self.tabview.add("OpenAI API")
@@ -539,7 +544,7 @@ class SettingsPage(ctk.CTkFrame):
         
         # Temperature setting
         ctk.CTkLabel(scroll, text="Temperature", anchor="w").pack(fill="x", pady=(0, 0))
-        ctk.CTkLabel(scroll, text="Kontrol kreativitas AI (0.0 = konsisten, 2.0 = kreatif). Beberapa model hanya support nilai tertentu.", 
+        ctk.CTkLabel(scroll, text="Control AI creativity (0.0 = consistent, 2.0 = creative). Some models only support specific values.", 
             anchor="w", font=ctk.CTkFont(size=11), text_color="gray", wraplength=450).pack(fill="x", pady=(0, 5))
         
         temp_frame = ctk.CTkFrame(scroll, fg_color="transparent")
@@ -555,7 +560,7 @@ class SettingsPage(ctk.CTkFrame):
         
         # TTS Model setting
         ctk.CTkLabel(scroll, text="TTS Model (Text-to-Speech)", anchor="w").pack(fill="x", pady=(0, 0))
-        ctk.CTkLabel(scroll, text="Model untuk generate audio hook. Contoh: tts-1, tts-1-hd (OpenAI) atau model lain sesuai provider.", 
+        ctk.CTkLabel(scroll, text="Model for generating audio hooks. Examples: tts-1, tts-1-hd (OpenAI) or other models based on provider.", 
             anchor="w", font=ctk.CTkFont(size=11), text_color="gray", wraplength=450).pack(fill="x", pady=(0, 5))
         
         self.tts_model_entry = ctk.CTkEntry(scroll, placeholder_text="tts-1")
@@ -563,7 +568,7 @@ class SettingsPage(ctk.CTkFrame):
         
         # System Prompt section
         ctk.CTkLabel(scroll, text="System Prompt", anchor="w", font=ctk.CTkFont(size=14, weight="bold")).pack(fill="x", pady=(20, 5))
-        ctk.CTkLabel(scroll, text="Prompt untuk AI saat mencari highlight. Gunakan {num_clips}, {video_context}, {transcript} sebagai placeholder.", 
+        ctk.CTkLabel(scroll, text="Prompt for AI when finding highlights. Use {num_clips}, {video_context}, {transcript} as placeholders.", 
             anchor="w", font=ctk.CTkFont(size=11), text_color="gray", wraplength=450).pack(fill="x", pady=(0, 5))
         
         prompt_frame = ctk.CTkFrame(scroll, fg_color="transparent")
@@ -576,7 +581,7 @@ class SettingsPage(ctk.CTkFrame):
         prompt_btn_frame = ctk.CTkFrame(scroll, fg_color="transparent")
         prompt_btn_frame.pack(fill="x", pady=(5, 15))
         
-        ctk.CTkButton(prompt_btn_frame, text="🔄 Reset to Default", width=150, fg_color="gray",
+        ctk.CTkButton(prompt_btn_frame, text="Reset to Default", width=150, fg_color="gray",
             command=self.reset_prompt).pack(side="left", padx=(0, 5))
         
         self.prompt_char_count = ctk.CTkLabel(prompt_btn_frame, text="0 chars", text_color="gray", font=ctk.CTkFont(size=11))
@@ -585,13 +590,13 @@ class SettingsPage(ctk.CTkFrame):
         # Bind text change to update char count
         self.prompt_text.bind("<KeyRelease>", self.update_prompt_char_count)
         
-        ctk.CTkButton(scroll, text="💾 Save Settings", height=40, command=self.save_settings).pack(fill="x", pady=(10, 0))
+        ctk.CTkButton(scroll, text="Save Settings", height=40, command=self.save_settings).pack(fill="x", pady=(10, 0))
     
     def create_output_tab(self):
         main = self.tabview.tab("Output")
         
         ctk.CTkLabel(main, text="Output Folder", anchor="w", font=ctk.CTkFont(size=14, weight="bold")).pack(fill="x", pady=(15, 5))
-        ctk.CTkLabel(main, text="Folder tempat menyimpan hasil clip video", anchor="w", 
+        ctk.CTkLabel(main, text="Folder where video clips will be saved", anchor="w", 
             font=ctk.CTkFont(size=11), text_color="gray").pack(fill="x", pady=(0, 10))
         
         output_frame = ctk.CTkFrame(main, fg_color="transparent")
@@ -599,13 +604,13 @@ class SettingsPage(ctk.CTkFrame):
         self.output_var = ctk.StringVar(value=str(OUTPUT_DIR))
         self.output_entry = ctk.CTkEntry(output_frame, textvariable=self.output_var)
         self.output_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
-        ctk.CTkButton(output_frame, text="📂 Browse", width=100, command=self.browse_output_folder).pack(side="right")
+        ctk.CTkButton(output_frame, text="Browse", width=100, command=self.browse_output_folder).pack(side="right")
         
         # Open folder button
-        ctk.CTkButton(main, text="📂 Open Output Folder", height=40, fg_color="gray",
+        ctk.CTkButton(main, text="Open Output Folder", height=40, fg_color="gray",
             command=lambda: self.open_folder(self.output_var.get())).pack(fill="x", pady=(0, 15))
         
-        ctk.CTkButton(main, text="💾 Save Settings", height=40, command=self.save_settings).pack(fill="x", pady=(10, 0))
+        ctk.CTkButton(main, text="Save Settings", height=40, command=self.save_settings).pack(fill="x", pady=(10, 0))
     
     def create_youtube_tab(self):
         main = self.tabview.tab("YouTube")
@@ -622,7 +627,7 @@ class SettingsPage(ctk.CTkFrame):
         self.yt_status_label = ctk.CTkLabel(self.yt_status_frame, text="Not connected", text_color="gray")
         self.yt_status_label.pack(side="left")
         
-        self.yt_connect_btn = ctk.CTkButton(status_frame, text="🔗 Connect YouTube", height=40, 
+        self.yt_connect_btn = ctk.CTkButton(status_frame, text="Connect YouTube", height=40, 
             command=self.connect_youtube)
         self.yt_connect_btn.pack(fill="x", padx=10, pady=(0, 10))
         
@@ -1024,6 +1029,8 @@ class YTShortClipperApp(ctk.CTk):
         self.create_results_page()
         self.create_browse_page()
         self.create_settings_page()
+        self.create_api_status_page()
+        self.create_lib_status_page()
         
         self.show_page("home")
         self.load_config()
@@ -1062,6 +1069,14 @@ class YTShortClipperApp(ctk.CTk):
         # Refresh browse list when showing browse page
         if name == "browse":
             self.refresh_browse_list()
+        
+        # Refresh API status when showing api_status page
+        if name == "api_status":
+            self.refresh_api_status()
+        
+        # Refresh lib status when showing lib_status page
+        if name == "lib_status":
+            self.refresh_lib_status()
         
         # Reset home page state when returning to home
         if name == "home":
@@ -1109,43 +1124,58 @@ class YTShortClipperApp(ctk.CTk):
         
         ctk.CTkLabel(title_frame, text="YT Short Clipper", font=ctk.CTkFont(size=22, weight="bold")).pack(side="left")
         
-        ctk.CTkButton(top, text="⚙️", width=40, fg_color="transparent", hover_color=("gray75", "gray25"), 
-            command=lambda: self.show_page("settings")).pack(side="right")
+        # Right side buttons with icons
+        buttons_frame = ctk.CTkFrame(top, fg_color="transparent")
+        buttons_frame.pack(side="right")
         
-        # Connection status cards
-        status_frame = ctk.CTkFrame(page, fg_color="transparent")
-        status_frame.pack(fill="x", padx=20, pady=(0, 10))
+        # Load button icons
+        try:
+            settings_img = Image.open(ASSETS_DIR / "settings.png")
+            settings_img.thumbnail((20, 20), Image.Resampling.LANCZOS)
+            self.settings_icon = ctk.CTkImage(light_image=settings_img, dark_image=settings_img, size=(20, 20))
+            
+            api_img = Image.open(ASSETS_DIR / "api-status.png")
+            api_img.thumbnail((20, 20), Image.Resampling.LANCZOS)
+            self.api_icon = ctk.CTkImage(light_image=api_img, dark_image=api_img, size=(20, 20))
+            
+            lib_img = Image.open(ASSETS_DIR / "lib-status.png")
+            lib_img.thumbnail((20, 20), Image.Resampling.LANCZOS)
+            self.lib_icon = ctk.CTkImage(light_image=lib_img, dark_image=lib_img, size=(20, 20))
+            
+            # Load icons for main buttons
+            play_img = Image.open(ASSETS_DIR / "play.png")
+            play_img.thumbnail((24, 24), Image.Resampling.LANCZOS)
+            self.play_icon = ctk.CTkImage(light_image=play_img, dark_image=play_img, size=(24, 24))
+            
+            browse_img = Image.open(ASSETS_DIR / "lib-status.png")
+            browse_img.thumbnail((20, 20), Image.Resampling.LANCZOS)
+            self.browse_icon = ctk.CTkImage(light_image=browse_img, dark_image=browse_img, size=(20, 20))
+            
+            # Load refresh icon for status pages
+            refresh_img = Image.open(ASSETS_DIR / "refresh.png")
+            refresh_img.thumbnail((20, 20), Image.Resampling.LANCZOS)
+            self.refresh_icon = ctk.CTkImage(light_image=refresh_img, dark_image=refresh_img, size=(20, 20))
+        except Exception as e:
+            # Fallback to text if icons not found
+            debug_log(f"Icon load error: {e}")
+            self.settings_icon = None
+            self.api_icon = None
+            self.lib_icon = None
+            self.play_icon = None
+            self.browse_icon = None
+            self.refresh_icon = None
         
-        # API Card
-        self.api_card = ctk.CTkFrame(status_frame, fg_color=("gray85", "gray20"), corner_radius=10)
-        self.api_card.pack(side="left", fill="x", expand=True, padx=(0, 5))
+        ctk.CTkButton(buttons_frame, text="Settings", image=self.settings_icon, compound="left",
+            height=32, width=100, fg_color="transparent", hover_color=("gray75", "gray25"), 
+            command=lambda: self.show_page("settings")).pack(side="left", padx=2)
         
-        api_inner = ctk.CTkFrame(self.api_card, fg_color="transparent")
-        api_inner.pack(fill="x", padx=12, pady=10)
+        ctk.CTkButton(buttons_frame, text="API", image=self.api_icon, compound="left",
+            height=32, width=80, fg_color="transparent", hover_color=("gray75", "gray25"),
+            command=lambda: self.show_page("api_status")).pack(side="left", padx=2)
         
-        self.api_dot = ctk.CTkLabel(api_inner, text="●", font=ctk.CTkFont(size=14), text_color="#e74c3c")
-        self.api_dot.pack(side="left")
-        ctk.CTkLabel(api_inner, text="API", font=ctk.CTkFont(size=12)).pack(side="left", padx=(5, 0))
-        self.api_status_label = ctk.CTkLabel(api_inner, text="Not configured", font=ctk.CTkFont(size=10), text_color="gray")
-        self.api_status_label.pack(side="right")
-        
-        # YouTube Card
-        self.yt_card = ctk.CTkFrame(status_frame, fg_color=("gray85", "gray20"), corner_radius=10)
-        self.yt_card.pack(side="left", fill="x", expand=True, padx=(5, 0))
-        
-        yt_inner = ctk.CTkFrame(self.yt_card, fg_color="transparent")
-        yt_inner.pack(fill="x", padx=12, pady=10)
-        
-        self.yt_dot = ctk.CTkLabel(yt_inner, text="●", font=ctk.CTkFont(size=14), text_color="#e74c3c")
-        self.yt_dot.pack(side="left")
-        
-        yt_text_frame = ctk.CTkFrame(yt_inner, fg_color="transparent")
-        yt_text_frame.pack(side="left", fill="x", expand=True, padx=(5, 0))
-        
-        ctk.CTkLabel(yt_text_frame, text="YouTube", font=ctk.CTkFont(size=12)).pack(anchor="w")
-        self.yt_status_label_home = ctk.CTkLabel(yt_text_frame, text="Not connected", 
-            font=ctk.CTkFont(size=10), text_color="gray")
-        self.yt_status_label_home.pack(anchor="w")
+        ctk.CTkButton(buttons_frame, text="Lib", image=self.lib_icon, compound="left",
+            height=32, width=70, fg_color="transparent", hover_color=("gray75", "gray25"),
+            command=lambda: self.show_page("lib_status")).pack(side="left", padx=2)
         
         # Main content
         main = ctk.CTkFrame(page)
@@ -1167,7 +1197,7 @@ class YTShortClipperApp(ctk.CTk):
         # Clips input
         clips_frame = ctk.CTkFrame(main, fg_color="transparent")
         clips_frame.pack(fill="x", padx=15, pady=(0, 10))
-        ctk.CTkLabel(clips_frame, text="Jumlah Clips:", font=ctk.CTkFont(size=13)).pack(side="left")
+        ctk.CTkLabel(clips_frame, text="Clips Count:", font=ctk.CTkFont(size=13)).pack(side="left")
         self.clips_var = ctk.StringVar(value="5")
         ctk.CTkEntry(clips_frame, textvariable=self.clips_var, width=60, height=35).pack(side="left", padx=10)
         ctk.CTkLabel(clips_frame, text="(1-10)", text_color="gray").pack(side="left")
@@ -1179,40 +1209,41 @@ class YTShortClipperApp(ctk.CTk):
         ctk.CTkLabel(options_frame, text="Video Options", font=ctk.CTkFont(size=12, weight="bold"), 
             anchor="w").pack(fill="x", padx=12, pady=(10, 5))
         
-        # Caption checkbox
+        # Checkboxes in one row
+        checkboxes_row = ctk.CTkFrame(options_frame, fg_color="transparent")
+        checkboxes_row.pack(fill="x", padx=12, pady=(5, 12))
+        
+        # Caption checkbox (left side)
+        caption_col = ctk.CTkFrame(checkboxes_row, fg_color="transparent")
+        caption_col.pack(side="left", fill="x", expand=True, padx=(0, 5))
+        
         self.caption_var = ctk.BooleanVar(value=True)
-        caption_check = ctk.CTkCheckBox(options_frame, text="Add Captions", variable=self.caption_var,
+        caption_check = ctk.CTkCheckBox(caption_col, text="Add Captions", variable=self.caption_var,
             font=ctk.CTkFont(size=12))
-        caption_check.pack(anchor="w", padx=12, pady=(5, 2))
+        caption_check.pack(anchor="w")
         
-        caption_info = ctk.CTkLabel(options_frame, 
-            text="⚠️ Uses Whisper API (~$0.006/minute of audio)", 
-            font=ctk.CTkFont(size=10), text_color="orange", anchor="w")
-        caption_info.pack(anchor="w", padx=30, pady=(0, 8))
+        # Hook checkbox (right side)
+        hook_col = ctk.CTkFrame(checkboxes_row, fg_color="transparent")
+        hook_col.pack(side="left", fill="x", expand=True, padx=(5, 0))
         
-        # Hook checkbox
         self.hook_var = ctk.BooleanVar(value=True)
-        hook_check = ctk.CTkCheckBox(options_frame, text="Add Hook", variable=self.hook_var,
+        hook_check = ctk.CTkCheckBox(hook_col, text="Add Hook", variable=self.hook_var,
             font=ctk.CTkFont(size=12))
-        hook_check.pack(anchor="w", padx=12, pady=(5, 2))
-        
-        hook_info = ctk.CTkLabel(options_frame, 
-            text="⚠️ Uses TTS API (~$0.015/1K characters)", 
-            font=ctk.CTkFont(size=10), text_color="orange", anchor="w")
-        hook_info.pack(anchor="w", padx=30, pady=(0, 10))
+        hook_check.pack(anchor="w")
         
         # Buttons
         btn_frame = ctk.CTkFrame(main, fg_color="transparent")
         btn_frame.pack(fill="x", padx=15, pady=(0, 20))
         
         # Start button (disabled by default until valid URL)
-        self.start_btn = ctk.CTkButton(btn_frame, text="🚀 Start Processing", font=ctk.CTkFont(size=15, weight="bold"), 
+        self.start_btn = ctk.CTkButton(btn_frame, text="Start Processing", image=self.play_icon, 
+            compound="left", font=ctk.CTkFont(size=15, weight="bold"), 
             height=50, command=self.start_processing, state="disabled", fg_color="gray")
         self.start_btn.pack(fill="x", pady=(0, 5))
         
-        # Browse button
-        ctk.CTkButton(btn_frame, text="📂 Browse Videos", font=ctk.CTkFont(size=13), 
-            height=40, fg_color="gray", hover_color=("gray60", "gray40"),
+        # Browse button (normal blue color, not gray)
+        ctk.CTkButton(btn_frame, text="Browse Videos", image=self.browse_icon, compound="left",
+            font=ctk.CTkFont(size=13), height=40, 
             command=lambda: self.show_page("browse")).pack(fill="x")
 
     def create_processing_page(self):
@@ -1325,6 +1356,108 @@ class YTShortClipperApp(ctk.CTk):
             lambda: self.show_page("home")
         )
     
+    def create_api_status_page(self):
+        """Create API status page"""
+        page = ctk.CTkFrame(self.container)
+        self.pages["api_status"] = page
+        
+        # Header with back button
+        header = ctk.CTkFrame(page, fg_color="transparent")
+        header.pack(fill="x", padx=20, pady=(15, 10))
+        
+        ctk.CTkButton(header, text="←", width=40, fg_color="transparent", 
+            hover_color=("gray75", "gray25"), command=lambda: self.show_page("home")).pack(side="left")
+        ctk.CTkLabel(header, text="API Status", font=ctk.CTkFont(size=22, weight="bold")).pack(side="left", padx=10)
+        
+        # Main content
+        main = ctk.CTkFrame(page)
+        main.pack(fill="both", expand=True, padx=20, pady=(0, 20))
+        
+        # OpenAI API Status
+        openai_frame = ctk.CTkFrame(main, fg_color=("gray90", "gray17"))
+        openai_frame.pack(fill="x", pady=(15, 10))
+        
+        openai_header = ctk.CTkFrame(openai_frame, fg_color="transparent")
+        openai_header.pack(fill="x", padx=15, pady=(15, 10))
+        
+        ctk.CTkLabel(openai_header, text="OpenAI API", font=ctk.CTkFont(size=16, weight="bold")).pack(side="left")
+        
+        self.api_status_page_status = ctk.CTkLabel(openai_header, text="Checking...", font=ctk.CTkFont(size=13), text_color="gray")
+        self.api_status_page_status.pack(side="right")
+        
+        self.api_status_page_info = ctk.CTkLabel(openai_frame, text="", font=ctk.CTkFont(size=12), text_color="gray", anchor="w")
+        self.api_status_page_info.pack(fill="x", padx=15, pady=(0, 15))
+        
+        # YouTube API Status
+        yt_frame = ctk.CTkFrame(main, fg_color=("gray90", "gray17"))
+        yt_frame.pack(fill="x", pady=(0, 10))
+        
+        yt_header = ctk.CTkFrame(yt_frame, fg_color="transparent")
+        yt_header.pack(fill="x", padx=15, pady=(15, 10))
+        
+        ctk.CTkLabel(yt_header, text="YouTube API", font=ctk.CTkFont(size=16, weight="bold")).pack(side="left")
+        
+        self.yt_status_page_status = ctk.CTkLabel(yt_header, text="Checking...", font=ctk.CTkFont(size=13), text_color="gray")
+        self.yt_status_page_status.pack(side="right")
+        
+        self.yt_status_page_info = ctk.CTkLabel(yt_frame, text="", font=ctk.CTkFont(size=12), text_color="gray", anchor="w")
+        self.yt_status_page_info.pack(fill="x", padx=15, pady=(0, 15))
+        
+        # Refresh button
+        ctk.CTkButton(main, text="Refresh Status", image=self.refresh_icon, compound="left",
+            height=45, command=self.refresh_api_status).pack(fill="x", pady=(10, 0))
+    
+    def create_lib_status_page(self):
+        """Create library status page"""
+        page = ctk.CTkFrame(self.container)
+        self.pages["lib_status"] = page
+        
+        # Header with back button
+        header = ctk.CTkFrame(page, fg_color="transparent")
+        header.pack(fill="x", padx=20, pady=(15, 10))
+        
+        ctk.CTkButton(header, text="←", width=40, fg_color="transparent", 
+            hover_color=("gray75", "gray25"), command=lambda: self.show_page("home")).pack(side="left")
+        ctk.CTkLabel(header, text="Library Status", font=ctk.CTkFont(size=22, weight="bold")).pack(side="left", padx=10)
+        
+        # Main content
+        main = ctk.CTkFrame(page)
+        main.pack(fill="both", expand=True, padx=20, pady=(0, 20))
+        
+        # yt-dlp Status
+        ytdlp_frame = ctk.CTkFrame(main, fg_color=("gray90", "gray17"))
+        ytdlp_frame.pack(fill="x", pady=(15, 10))
+        
+        ytdlp_header = ctk.CTkFrame(ytdlp_frame, fg_color="transparent")
+        ytdlp_header.pack(fill="x", padx=15, pady=(15, 10))
+        
+        ctk.CTkLabel(ytdlp_header, text="yt-dlp", font=ctk.CTkFont(size=16, weight="bold")).pack(side="left")
+        
+        self.ytdlp_status_label = ctk.CTkLabel(ytdlp_header, text="Checking...", font=ctk.CTkFont(size=13), text_color="gray")
+        self.ytdlp_status_label.pack(side="right")
+        
+        self.ytdlp_info_label = ctk.CTkLabel(ytdlp_frame, text="", font=ctk.CTkFont(size=12), text_color="gray", anchor="w")
+        self.ytdlp_info_label.pack(fill="x", padx=15, pady=(0, 15))
+        
+        # FFmpeg Status
+        ffmpeg_frame = ctk.CTkFrame(main, fg_color=("gray90", "gray17"))
+        ffmpeg_frame.pack(fill="x", pady=(0, 10))
+        
+        ffmpeg_header = ctk.CTkFrame(ffmpeg_frame, fg_color="transparent")
+        ffmpeg_header.pack(fill="x", padx=15, pady=(15, 10))
+        
+        ctk.CTkLabel(ffmpeg_header, text="FFmpeg", font=ctk.CTkFont(size=16, weight="bold")).pack(side="left")
+        
+        self.ffmpeg_status_label = ctk.CTkLabel(ffmpeg_header, text="Checking...", font=ctk.CTkFont(size=13), text_color="gray")
+        self.ffmpeg_status_label.pack(side="right")
+        
+        self.ffmpeg_info_label = ctk.CTkLabel(ffmpeg_frame, text="", font=ctk.CTkFont(size=12), text_color="gray", anchor="w")
+        self.ffmpeg_info_label.pack(fill="x", padx=15, pady=(0, 15))
+        
+        # Refresh button
+        ctk.CTkButton(main, text="Check Libraries", image=self.refresh_icon, compound="left",
+            height=45, command=self.refresh_lib_status).pack(fill="x", pady=(10, 0))
+    
     def create_browse_page(self):
         """Create browse page for viewing existing videos"""
         page = ctk.CTkFrame(self.container)
@@ -1337,8 +1470,8 @@ class YTShortClipperApp(ctk.CTk):
         ctk.CTkButton(header, text="←", width=40, fg_color="transparent", 
             hover_color=("gray75", "gray25"), command=lambda: self.show_page("home")).pack(side="left")
         ctk.CTkLabel(header, text="Browse Videos", font=ctk.CTkFont(size=22, weight="bold")).pack(side="left", padx=10)
-        ctk.CTkButton(header, text="🔄 Refresh", height=35, width=100,
-            command=self.refresh_browse_list).pack(side="right")
+        ctk.CTkButton(header, text="Refresh", image=self.refresh_icon, compound="left",
+            height=35, width=110, command=self.refresh_browse_list).pack(side="right")
         
         # Main content
         main = ctk.CTkFrame(page)
@@ -1667,14 +1800,18 @@ class YTShortClipperApp(ctk.CTk):
         if api_key:
             try:
                 self.client = OpenAI(api_key=api_key, base_url=base_url)
-                self.api_dot.configure(text_color="#27ae60")  # Green
-                self.api_status_label.configure(text=model[:15] if model else "Connected")
+                # Only update UI if widgets exist
+                if hasattr(self, 'api_dot'):
+                    self.api_dot.configure(text_color="#27ae60")  # Green
+                    self.api_status_label.configure(text=model[:15] if model else "Connected")
             except:
-                self.api_dot.configure(text_color="#e74c3c")  # Red
-                self.api_status_label.configure(text="Invalid key")
+                if hasattr(self, 'api_dot'):
+                    self.api_dot.configure(text_color="#e74c3c")  # Red
+                    self.api_status_label.configure(text="Invalid key")
         else:
-            self.api_dot.configure(text_color="#e74c3c")  # Red
-            self.api_status_label.configure(text="Not configured")
+            if hasattr(self, 'api_dot'):
+                self.api_dot.configure(text_color="#e74c3c")  # Red
+                self.api_status_label.configure(text="Not configured")
     
     def check_youtube_status(self):
         """Check YouTube connection status"""
@@ -1687,20 +1824,118 @@ class YTShortClipperApp(ctk.CTk):
                 if channel:
                     self.youtube_connected = True
                     self.youtube_channel = channel
-                    self.yt_dot.configure(text_color="#27ae60")  # Green
                     
-                    # Show channel name
-                    channel_name = channel['title']
-                    self.yt_status_label_home.configure(text=f"{channel_name[:20]}")
+                    # Only update UI if widgets exist
+                    if hasattr(self, 'yt_dot'):
+                        self.yt_dot.configure(text_color="#27ae60")  # Green
+                        
+                        # Show channel name
+                        channel_name = channel['title']
+                        self.yt_status_label_home.configure(text=f"{channel_name[:20]}")
                     return
             
             self.youtube_connected = False
-            self.yt_dot.configure(text_color="#e74c3c")  # Red
-            self.yt_status_label_home.configure(text="Not connected")
+            if hasattr(self, 'yt_dot'):
+                self.yt_dot.configure(text_color="#e74c3c")  # Red
+                self.yt_status_label_home.configure(text="Not connected")
         except:
             self.youtube_connected = False
-            self.yt_dot.configure(text_color="#e74c3c")  # Red
-            self.yt_status_label_home.configure(text="Not available")
+            if hasattr(self, 'yt_dot'):
+                self.yt_dot.configure(text_color="#e74c3c")  # Red
+                self.yt_status_label_home.configure(text="Not available")
+    
+    def refresh_api_status(self):
+        """Refresh API status page"""
+        # Reset to checking state
+        self.api_status_page_status.configure(text="Checking...", text_color="gray")
+        self.api_status_page_info.configure(text="")
+        self.yt_status_page_status.configure(text="Checking...", text_color="gray")
+        self.yt_status_page_info.configure(text="")
+        
+        def check_status():
+            # Check OpenAI status
+            if self.client:
+                try:
+                    # Try to list models to verify connection
+                    models = self.client.models.list()
+                    model_name = self.config.get("model", "N/A")
+                    self.after(0, lambda: self.api_status_page_status.configure(text="✓ Connected", text_color="green"))
+                    self.after(0, lambda: self.api_status_page_info.configure(text=f"Model: {model_name}"))
+                except Exception as e:
+                    self.after(0, lambda: self.api_status_page_status.configure(text="✗ Error", text_color="red"))
+                    self.after(0, lambda: self.api_status_page_info.configure(text=f"Error: {str(e)[:60]}"))
+            else:
+                self.after(0, lambda: self.api_status_page_status.configure(text="✗ Not configured", text_color="orange"))
+                self.after(0, lambda: self.api_status_page_info.configure(text="Please configure API key in Settings"))
+            
+            # Check YouTube status
+            if self.youtube_connected and self.youtube_channel:
+                self.after(0, lambda: self.yt_status_page_status.configure(text="✓ Connected", text_color="green"))
+                self.after(0, lambda: self.yt_status_page_info.configure(text=f"Channel: {self.youtube_channel['title']}"))
+            else:
+                try:
+                    from youtube_uploader import YouTubeUploader
+                    uploader = YouTubeUploader()
+                    if not uploader.is_configured():
+                        self.after(0, lambda: self.yt_status_page_status.configure(text="✗ Not configured", text_color="orange"))
+                        self.after(0, lambda: self.yt_status_page_info.configure(text="client_secret.json not found"))
+                    else:
+                        self.after(0, lambda: self.yt_status_page_status.configure(text="✗ Not connected", text_color="orange"))
+                        self.after(0, lambda: self.yt_status_page_info.configure(text="Connect in Settings → YouTube tab"))
+                except Exception as e:
+                    self.after(0, lambda: self.yt_status_page_status.configure(text="✗ Error", text_color="red"))
+                    self.after(0, lambda: self.yt_status_page_info.configure(text=f"Error: {str(e)[:60]}"))
+        
+        threading.Thread(target=check_status, daemon=True).start()
+    
+    def refresh_lib_status(self):
+        """Refresh library status page"""
+        # Reset to checking state
+        self.ytdlp_status_label.configure(text="Checking...", text_color="gray")
+        self.ytdlp_info_label.configure(text="")
+        self.ffmpeg_status_label.configure(text="Checking...", text_color="gray")
+        self.ffmpeg_info_label.configure(text="")
+        
+        def check_libs():
+            # Check yt-dlp
+            ytdlp_path = get_ytdlp_path()
+            try:
+                result = subprocess.run([ytdlp_path, "--version"], capture_output=True, text=True, timeout=5)
+                if result.returncode == 0:
+                    version = result.stdout.strip()
+                    self.after(0, lambda: self.ytdlp_status_label.configure(text="✓ Installed", text_color="green"))
+                    self.after(0, lambda: self.ytdlp_info_label.configure(text=f"Version: {version}"))
+                else:
+                    self.after(0, lambda: self.ytdlp_status_label.configure(text="✗ Error", text_color="red"))
+                    self.after(0, lambda: self.ytdlp_info_label.configure(text="Failed to get version"))
+            except FileNotFoundError:
+                self.after(0, lambda: self.ytdlp_status_label.configure(text="✗ Not found", text_color="red"))
+                self.after(0, lambda: self.ytdlp_info_label.configure(text="yt-dlp not installed or not in PATH"))
+            except Exception as e:
+                self.after(0, lambda: self.ytdlp_status_label.configure(text="✗ Error", text_color="red"))
+                self.after(0, lambda: self.ytdlp_info_label.configure(text=f"Error: {str(e)[:50]}"))
+            
+            # Check FFmpeg
+            ffmpeg_path = get_ffmpeg_path()
+            try:
+                result = subprocess.run([ffmpeg_path, "-version"], capture_output=True, text=True, timeout=5)
+                if result.returncode == 0:
+                    # Extract version from first line
+                    version_line = result.stdout.split('\n')[0]
+                    version = version_line.split('version')[1].split()[0] if 'version' in version_line else "Unknown"
+                    self.after(0, lambda: self.ffmpeg_status_label.configure(text="✓ Installed", text_color="green"))
+                    self.after(0, lambda: self.ffmpeg_info_label.configure(text=f"Version: {version}"))
+                else:
+                    self.after(0, lambda: self.ffmpeg_status_label.configure(text="✗ Error", text_color="red"))
+                    self.after(0, lambda: self.ffmpeg_info_label.configure(text="Failed to get version"))
+            except FileNotFoundError:
+                self.after(0, lambda: self.ffmpeg_status_label.configure(text="✗ Not found", text_color="red"))
+                self.after(0, lambda: self.ffmpeg_info_label.configure(text="FFmpeg not installed or not in PATH"))
+            except Exception as e:
+                self.after(0, lambda: self.ffmpeg_status_label.configure(text="✗ Error", text_color="red"))
+                self.after(0, lambda: self.ffmpeg_info_label.configure(text=f"Error: {str(e)[:50]}"))
+        
+        threading.Thread(target=check_libs, daemon=True).start()
     
     def update_connection_status(self):
         """Update connection status cards (called after settings change)"""

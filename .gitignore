@@ -11,9 +11,9 @@
 *.env
 secrets.json
 config.local.json
-desktop-app/config.json
-desktop-app/client_secret.json
-desktop-app/youtube_credentials.json
+config.json
+client_secret.json
+youtube_credentials.json
 
 # ============================================
 # Python
@@ -313,3 +313,4 @@ video_info.json
 # Data JSON in output folders
 # (uncomment if you want to ignore these)
 # **/data.json
+.kiro

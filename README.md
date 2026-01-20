@@ -25,7 +25,7 @@ Download the portable desktop app — no Python or FFmpeg installation required!
 - ✅ **Token usage tracking** — see GPT tokens, Whisper minutes, TTS chars used
 - ✅ **Cost estimation** — estimated API cost per session
 - ✅ **YouTube Upload** — direct upload to YouTube with SEO-optimized titles & descriptions
-- ✅ **Custom AI Prompts** — customize how AI selects highlights (see [SYSTEM_PROMPT.md](desktop-app/SYSTEM_PROMPT.md))
+- ✅ **Custom AI Prompts** — customize how AI selects highlights (see [SYSTEM_PROMPT.md](SYSTEM_PROMPT.md))
 - ✅ **Debug Mode** — console logging when running from terminal (`python app.py`)
 
 ### YouTube Upload Setup (Optional)
@@ -95,12 +95,6 @@ AutoClipper/
 └── config.json         # Saved settings (auto-created)
 ```
 
----
-
-## 💻 CLI Version
-
-For advanced users who prefer command line or want to customize the pipeline.
-
 ## ✨ Features
 
 - **🎥 Auto Download** - Downloads YouTube videos with Indonesian subtitles using yt-dlp
@@ -153,7 +147,7 @@ For advanced users who prefer command line or want to customize the pipeline.
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-## 📋 Requirements
+## 📋 Requirements (For Development)
 
 ### System Dependencies
 
@@ -166,19 +160,23 @@ For advanced users who prefer command line or want to customize the pipeline.
 ### Python Dependencies
 
 ```
+customtkinter>=5.2.0
 openai>=1.0.0
-python-dotenv>=1.0.0
 opencv-python>=4.8.0
 numpy>=1.24.0
+Pillow>=10.0.0
+google-api-python-client>=2.100.0
+google-auth-oauthlib>=1.1.0
+google-auth-httplib2>=0.1.1
 ```
 
-> **Note:** The desktop app uses OpenAI Whisper API instead of local Whisper model, so `openai-whisper` is not required for the desktop version.
+> **Note:** The app uses OpenAI Whisper API instead of local Whisper model.
 
 ### API Keys
 
-- **OpenAI API Key** - Required for GPT-4 (highlight detection) and TTS (hook voiceover)
+- **OpenAI API Key** - Required for GPT-4 (highlight detection), Whisper (captions), and TTS (hook voiceover)
 
-## 🚀 Installation
+## 🚀 Installation (For Development)
 
 ### 1. Clone the Repository
 
@@ -209,134 +207,68 @@ pip install yt-dlp
 ### 3. Install Python Dependencies
 
 ```bash
-pip install openai python-dotenv opencv-python numpy openai-whisper
-```
-
-Or using requirements.txt:
-```bash
 pip install -r requirements.txt
 ```
 
-### 4. Configure Environment Variables
-
-Create a `.env` file in the project root:
-
-```env
-OPENAI_APIKEY=your_openai_api_key_here
-```
-
-## 📖 Usage
-
-### Quick Start (All-in-One)
-
-The main script handles the entire pipeline:
+### 4. Run the App
 
 ```bash
-# Interactive mode
-python auto-clipper/main.py
-
-# Command line mode
-python auto-clipper/main.py <youtube_url> [num_clips]
-
-# Example
-python auto-clipper/main.py "https://www.youtube.com/watch?v=xxxxx" 5
+python app.py
 ```
 
-### Individual Modules
+The app will create a `config.json` file on first run where you can save your OpenAI API key and other settings.
 
-You can also use each module separately:
-
-#### 1. Download Video + Subtitle
-
-```bash
-python auto-clipper/downloader.py <youtube_url>
-```
-
-**Output:** `downloads/video_title.mp4` + `downloads/video_title.id.srt`
-
-#### 2. Find Highlights
-
-```bash
-python auto-clipper/highlight_finder.py <srt_file> [num_clips]
-```
-
-**Output:** `downloads/video_title.highlights.json`
-
-#### 3. Clip Video
-
-```bash
-python auto-clipper/video_clipper.py <video_file> <highlights_json>
-```
-
-**Output:** `clips/clip_01_title.mp4`, `clips/clip_02_title.mp4`, ...
-
-#### 4. Convert to Portrait
-
-```bash
-python auto-clipper/portrait_converter.py <input_video> [output_video]
-```
-
-**Output:** `input_portrait.mp4`
-
-#### 5. Add Captions
-
-```bash
-python auto-clipper/caption_generator.py <input_video> [output_video] [model_size]
-```
-
-**Model sizes:** `tiny`, `base`, `small`, `medium`, `large`
-
-**Output:** `input_captioned.mp4`
-
-#### 6. Add Hook Scene
-
-```bash
-python auto-clipper/hook_generator.py <clip_path> "<hook_text>"
-```
-
-**Output:** `clip_hooked.mp4`
-
-## 📁 Output Structure
+## 📁 Project Structure
 
 ```
-output/
-├── _temp/                          # Temporary files (source video, subtitles)
-│   ├── source.mp4
-│   ├── source.id.srt
-│   └── video_info.json
-│
-├── 20240115-143001/               # Clip folder (timestamp-based)
-│   ├── master.mp4                 # Final clip (portrait + hook + captions)
-│   └── data.json                  # Metadata (title, description, timestamps)
-│
-├── 20240115-143002/
-│   ├── master.mp4
-│   └── data.json
-│
-└── ...
+yt-short-clipper/
+├── app.py                      # Main GUI application
+├── clipper_core.py             # Core processing logic
+├── youtube_uploader.py         # YouTube upload functionality
+├── requirements.txt            # Python dependencies
+├── build.spec                  # PyInstaller build config
+├── config.json                 # App settings (auto-created)
+├── SYSTEM_PROMPT.md            # AI prompt customization guide
+├── BUILD.md                    # Build instructions
+├── DEBUG.md                    # Debugging guide
+├── assets/                     # App icons
+│   ├── icon.png
+│   └── icon.ico
+└── output/                     # Output clips (auto-created)
+    ├── _temp/                  # Temporary files
+    │   ├── source.mp4
+    │   └── source.id.srt
+    └── 20240115-143001/        # Clip folder (timestamp-based)
+        ├── master.mp4          # Final clip
+        └── data.json           # Metadata
 ```
 
 ### data.json Structure
 
+Each clip folder contains a `data.json` file with metadata:
+
 ```json
 {
   "title": "🔥 Momen Kocak Saat Pembully Datang Minta Maaf",
-  "description": "Siapa sangka mantan pembully malah datang minta endorse! 😂 #podcast #viral #fyp",
-  "original_title": "Mantan Pembully Datang ke Rumah",
   "hook_text": "Mantan pembully TIARA datang ke rumah minta endorse salad buah",
-  "hook_duration": 3.5,
   "start_time": "00:15:23,000",
   "end_time": "00:17:05,000",
   "duration_seconds": 102.0,
-  "hook_added": true
+  "has_hook": true,
+  "has_captions": true,
+  "youtube_title": "🔥 Momen Kocak Saat Pembully Datang Minta Maaf",
+  "youtube_description": "Siapa sangka mantan pembully malah datang minta endorse! 😂 #podcast #viral #fyp",
+  "youtube_tags": ["shorts", "viral", "podcast"],
+  "youtube_url": "https://youtube.com/watch?v=xxxxx",
+  "youtube_video_id": "xxxxx"
 }
 ```
 
 ## ⚙️ Configuration
 
-### Highlight Detection Parameters
+All settings can be configured through the GUI Settings page (⚙️ button in the app).
 
-In `main.py` and `highlight_finder.py`:
+### Highlight Detection Parameters
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
@@ -344,10 +276,9 @@ In `main.py` and `highlight_finder.py`:
 | `min_duration` | 60s | Minimum clip duration |
 | `max_duration` | 120s | Maximum clip duration |
 | `target_duration` | 90s | Ideal clip duration |
+| `temperature` | 1.0 | AI creativity (0.0-2.0) |
 
 ### Portrait Conversion Parameters
-
-In `portrait_converter.py`:
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
@@ -357,23 +288,19 @@ In `portrait_converter.py`:
 
 ### Caption Parameters
 
-In `caption_generator.py`:
-
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `model_size` | base | Whisper model (tiny/base/small/medium/large) |
 | `language` | id | Transcription language |
 | `chunk_size` | 4 | Words per caption line |
 
 ### Hook Generation Parameters
-
-In `hook_generator.py`:
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `tts_voice` | nova | OpenAI TTS voice (nova/shimmer/alloy) |
 | `tts_speed` | 1.0 | Speech speed |
 | `max_words` | 15 | Maximum words in hook text |
+| `tts_model` | tts-1 | TTS model (tts-1 or tts-1-hd) |
 
 ## 🔧 How It Works
 
@@ -433,10 +360,9 @@ Position: Lower third (350px from bottom)
 
 ## 🐛 Troubleshooting
 
-### Desktop App Issues
-
 **1. "FFmpeg not found" or "yt-dlp not found"**
 - Make sure `ffmpeg/ffmpeg.exe` and `yt-dlp.exe` are in the same folder as `AutoClipper.exe`
+- For development: Install FFmpeg and yt-dlp system-wide
 
 **2. "API key tidak valid"**
 - Double-check your OpenAI API key
@@ -448,37 +374,20 @@ Position: Lower third (350px from bottom)
 - Check if antivirus is blocking the app (add exception)
 - Make sure you extracted all files from the zip
 
-### CLI Version Issues
-
-**1. "No Indonesian subtitle found"**
+**4. "No Indonesian subtitle found"**
 - The video might not have auto-generated Indonesian subtitles
-- Try a different video or manually provide an SRT file
+- Try a different video
 
-**2. "FFmpeg not found"**
-- Ensure FFmpeg is installed and in your system PATH
-- Run `ffmpeg -version` to verify
-
-**3. "OpenAI API error"**
-- Check your API key in `.env`
-- Ensure you have sufficient API credits
-- Verify internet connection
-
-**4. "Face detection not working"**
+**5. "Face detection not working"**
 - Ensure OpenCV is properly installed
 - The video might not have clear face visibility
-- Try adjusting `minNeighbors` parameter in face detection
-
-**5. "Whisper model download failed"**
-- Check internet connection
-- Try a smaller model size (tiny/base)
-- Manually download model: `whisper --model base`
 
 ### Performance Tips
 
-- Use `base` Whisper model for faster processing (vs `large`)
 - Process videos under 2 hours for optimal memory usage
 - Use SSD storage for faster video I/O
 - Close other applications during processing
+- The app uses OpenAI Whisper API for faster transcription
 
 ## 📊 API Usage & Costs
 
@@ -500,68 +409,19 @@ Contributions are welcome! Kami sangat menghargai kontribusi dari siapapun.
 
 ### 🔨 Building Desktop App from Source
 
-Untuk developer yang ingin build .exe sendiri:
+Untuk developer yang ingin build .exe sendiri, lihat panduan lengkap di [BUILD.md](BUILD.md).
 
-#### Prerequisites
-
+Quick steps:
 ```bash
-# Install Python dependencies
-cd desktop-app
+# Install dependencies
 pip install -r requirements.txt
 pip install pyinstaller
-```
 
-#### Build Steps
-
-```bash
-# 1. Build exe dengan PyInstaller
-cd desktop-app
+# Build
 pyinstaller build.spec
 
-# 2. Output akan ada di: desktop-app/dist/AutoClipper.exe
+# Output: dist/AutoClipper.exe
 ```
-
-#### Bundle External Dependencies
-
-Setelah build, download dan copy file berikut ke folder `dist/`:
-
-```
-dist/
-├── AutoClipper.exe          # Hasil build
-├── ffmpeg/
-│   ├── ffmpeg.exe           # Download dari https://www.gyan.dev/ffmpeg/builds/
-│   └── ffprobe.exe          # (pilih ffmpeg-release-essentials.zip)
-└── yt-dlp.exe               # Download dari https://github.com/yt-dlp/yt-dlp/releases
-```
-
-#### Download Links
-
-| File | Download |
-|------|----------|
-| FFmpeg | [ffmpeg-release-essentials.zip](https://www.gyan.dev/ffmpeg/builds/) |
-| yt-dlp | [yt-dlp.exe](https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe) |
-
-#### Final Package Size
-
-```
-AutoClipper.exe     ~50MB
-ffmpeg/             ~80MB
-yt-dlp.exe          ~10MB
-─────────────────────────
-Total:              ~140MB
-```
-
-#### Testing Build
-
-```bash
-# Test dari source (development)
-python desktop-app/app.py
-
-# Test built exe
-desktop-app/dist/AutoClipper.exe
-```
-
----
 
 ### Quick Start untuk Kontributor
 
