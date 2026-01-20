@@ -1,0 +1,504 @@
+"""
+Settings page for YT Short Clipper
+"""
+
+import os
+import sys
+import subprocess
+import threading
+import customtkinter as ctk
+from pathlib import Path
+from tkinter import filedialog, messagebox
+from openai import OpenAI
+
+from dialogs.model_selector import SearchableModelDropdown
+
+
+class SettingsPage(ctk.CTkFrame):
+    """Settings page - embedded in main window"""
+    
+    def __init__(self, parent, config, on_save_callback, on_back_callback, output_dir):
+        super().__init__(parent)
+        self.config = config
+        self.on_save = on_save_callback
+        self.on_back = on_back_callback
+        self.output_dir = output_dir
+        self.models_list = []
+        self.youtube_uploader = None
+        
+        self.create_ui()
+        self.load_config()
+    
+    def create_ui(self):
+        """Create the settings UI"""
+        # Header with back button
+        header = ctk.CTkFrame(self, fg_color="transparent")
+        header.pack(fill="x", padx=20, pady=(15, 10))
+        
+        ctk.CTkButton(header, text="←", width=40, fg_color="transparent", 
+            hover_color=("gray75", "gray25"), command=self.on_back).pack(side="left")
+        ctk.CTkLabel(header, text="Settings", font=ctk.CTkFont(size=22, weight="bold")).pack(side="left", padx=10)
+        
+        # Main content with tabs
+        main = ctk.CTkFrame(self)
+        main.pack(fill="both", expand=True, padx=20, pady=(0, 20))
+        
+        # Create tabview with custom styling
+        self.tabview = ctk.CTkTabview(main, height=40, segmented_button_fg_color=("gray80", "gray20"),
+            segmented_button_selected_color=("#3B8ED0", "#1F6AA5"),
+            segmented_button_selected_hover_color=("#36719F", "#144870"),
+            segmented_button_unselected_color=("gray85", "gray25"),
+            segmented_button_unselected_hover_color=("gray75", "gray30"))
+        self.tabview.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        self.tabview.add("OpenAI API")
+        self.tabview.add("Output")
+        self.tabview.add("YouTube")
+        self.tabview.add("About")
+        
+        self.create_openai_tab()
+        self.create_output_tab()
+        self.create_youtube_tab()
+        self.create_about_tab()
+    
+    def create_openai_tab(self):
+        """Create OpenAI API settings tab"""
+        main = self.tabview.tab("OpenAI API")
+        
+        # Scrollable frame for all content
+        scroll = ctk.CTkScrollableFrame(main)
+        scroll.pack(fill="both", expand=True, padx=5, pady=5)
+        
+        ctk.CTkLabel(scroll, text="Base URL", anchor="w").pack(fill="x", pady=(10, 0))
+        self.url_entry = ctk.CTkEntry(scroll, placeholder_text="https://api.openai.com/v1")
+        self.url_entry.pack(fill="x", pady=(5, 15))
+        
+        key_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        key_frame.pack(fill="x")
+        ctk.CTkLabel(key_frame, text="API Key", anchor="w").pack(side="left")
+        self.key_status = ctk.CTkLabel(key_frame, text="", font=ctk.CTkFont(size=11))
+        self.key_status.pack(side="right")
+        
+        key_input = ctk.CTkFrame(scroll, fg_color="transparent")
+        key_input.pack(fill="x", pady=(5, 15))
+        self.key_entry = ctk.CTkEntry(key_input, placeholder_text="sk-...", show="•")
+        self.key_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        self.validate_btn = ctk.CTkButton(key_input, text="Validate", width=80, command=self.validate_key)
+        self.validate_btn.pack(side="right")
+        
+        ctk.CTkLabel(scroll, text="Model", anchor="w").pack(fill="x")
+        model_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        model_frame.pack(fill="x", pady=(5, 20))
+        self.model_var = ctk.StringVar(value="Select model...")
+        self.model_btn = ctk.CTkButton(model_frame, textvariable=self.model_var, anchor="w",
+            fg_color=("gray75", "gray25"), hover_color=("gray70", "gray30"),
+            text_color=("gray10", "gray90"), command=self.open_model_selector)
+        self.model_btn.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        self.model_count = ctk.CTkLabel(model_frame, text="", text_color="gray", font=ctk.CTkFont(size=11))
+        self.model_count.pack(side="right")
+        
+        # Temperature setting
+        ctk.CTkLabel(scroll, text="Temperature", anchor="w").pack(fill="x", pady=(0, 0))
+        ctk.CTkLabel(scroll, text="Control AI creativity (0.0 = consistent, 2.0 = creative). Some models only support specific values.", 
+            anchor="w", font=ctk.CTkFont(size=11), text_color="gray", wraplength=450).pack(fill="x", pady=(0, 5))
+        
+        temp_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        temp_frame.pack(fill="x", pady=(5, 20))
+        
+        self.temp_var = ctk.DoubleVar(value=1.0)
+        self.temp_slider = ctk.CTkSlider(temp_frame, from_=0.0, to=2.0, variable=self.temp_var, 
+            command=self.update_temp_label, number_of_steps=20)
+        self.temp_slider.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        
+        self.temp_label = ctk.CTkLabel(temp_frame, text="1.0", width=40, anchor="e")
+        self.temp_label.pack(side="right")
+        
+        # TTS Model setting
+        ctk.CTkLabel(scroll, text="TTS Model (Text-to-Speech)", anchor="w").pack(fill="x", pady=(0, 0))
+        ctk.CTkLabel(scroll, text="Model for generating audio hooks. Examples: tts-1, tts-1-hd (OpenAI) or other models based on provider.", 
+            anchor="w", font=ctk.CTkFont(size=11), text_color="gray", wraplength=450).pack(fill="x", pady=(0, 5))
+        
+        self.tts_model_entry = ctk.CTkEntry(scroll, placeholder_text="tts-1")
+        self.tts_model_entry.pack(fill="x", pady=(5, 20))
+        
+        # System Prompt section
+        ctk.CTkLabel(scroll, text="System Prompt", anchor="w", font=ctk.CTkFont(size=14, weight="bold")).pack(fill="x", pady=(20, 5))
+        ctk.CTkLabel(scroll, text="Prompt for AI when finding highlights. Use {num_clips}, {video_context}, {transcript} as placeholders.", 
+            anchor="w", font=ctk.CTkFont(size=11), text_color="gray", wraplength=450).pack(fill="x", pady=(0, 5))
+        
+        prompt_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        prompt_frame.pack(fill="x", pady=(5, 10))
+        
+        self.prompt_text = ctk.CTkTextbox(prompt_frame, height=200, wrap="word")
+        self.prompt_text.pack(fill="both", expand=True)
+        
+        # Buttons for prompt
+        prompt_btn_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        prompt_btn_frame.pack(fill="x", pady=(5, 15))
+        
+        ctk.CTkButton(prompt_btn_frame, text="Reset to Default", width=150, fg_color="gray",
+            command=self.reset_prompt).pack(side="left", padx=(0, 5))
+        
+        self.prompt_char_count = ctk.CTkLabel(prompt_btn_frame, text="0 chars", text_color="gray", font=ctk.CTkFont(size=11))
+        self.prompt_char_count.pack(side="right")
+        
+        # Bind text change to update char count
+        self.prompt_text.bind("<KeyRelease>", self.update_prompt_char_count)
+        
+        ctk.CTkButton(scroll, text="Save Settings", height=40, command=self.save_settings).pack(fill="x", pady=(10, 0))
+    
+    def create_output_tab(self):
+        """Create output folder settings tab"""
+        main = self.tabview.tab("Output")
+        
+        ctk.CTkLabel(main, text="Output Folder", anchor="w", font=ctk.CTkFont(size=14, weight="bold")).pack(fill="x", pady=(15, 5))
+        ctk.CTkLabel(main, text="Folder where video clips will be saved", anchor="w", 
+            font=ctk.CTkFont(size=11), text_color="gray").pack(fill="x", pady=(0, 10))
+        
+        output_frame = ctk.CTkFrame(main, fg_color="transparent")
+        output_frame.pack(fill="x", pady=(5, 15))
+        self.output_var = ctk.StringVar(value=str(self.output_dir))
+        self.output_entry = ctk.CTkEntry(output_frame, textvariable=self.output_var)
+        self.output_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        ctk.CTkButton(output_frame, text="Browse", width=100, command=self.browse_output_folder).pack(side="right")
+        
+        # Open folder button
+        ctk.CTkButton(main, text="Open Output Folder", height=40, fg_color="gray",
+            command=lambda: self.open_folder(self.output_var.get())).pack(fill="x", pady=(0, 15))
+        
+        ctk.CTkButton(main, text="Save Settings", height=40, command=self.save_settings).pack(fill="x", pady=(10, 0))
+    
+    def create_youtube_tab(self):
+        """Create YouTube settings tab"""
+        main = self.tabview.tab("YouTube")
+        
+        # YouTube connection status
+        status_frame = ctk.CTkFrame(main)
+        status_frame.pack(fill="x", pady=15, padx=5)
+        
+        ctk.CTkLabel(status_frame, text="YouTube Channel", font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", padx=10, pady=(10, 5))
+        
+        self.yt_status_frame = ctk.CTkFrame(status_frame, fg_color="transparent")
+        self.yt_status_frame.pack(fill="x", padx=10, pady=(0, 10))
+        
+        self.yt_status_label = ctk.CTkLabel(self.yt_status_frame, text="Not connected", text_color="gray")
+        self.yt_status_label.pack(side="left")
+        
+        self.yt_connect_btn = ctk.CTkButton(status_frame, text="Connect YouTube", height=40, 
+            command=self.connect_youtube)
+        self.yt_connect_btn.pack(fill="x", padx=10, pady=(0, 10))
+        
+        self.yt_disconnect_btn = ctk.CTkButton(status_frame, text="Disconnect", height=35,
+            fg_color="gray", hover_color="#c0392b", command=self.disconnect_youtube)
+        self.yt_disconnect_btn.pack(fill="x", padx=10, pady=(0, 10))
+        self.yt_disconnect_btn.pack_forget()  # Hide initially
+        
+        # Info
+        info_frame = ctk.CTkFrame(main, fg_color=("gray90", "gray17"))
+        info_frame.pack(fill="x", pady=10, padx=5)
+        
+        info_text = """ℹ️ YouTube Upload Feature
+
+To enable YouTube upload:
+1. Set up Google Cloud project
+2. Enable YouTube Data API v3
+3. Create OAuth credentials
+4. Place client_secret.json in app folder
+
+See README for detailed setup guide."""
+        
+        ctk.CTkLabel(info_frame, text=info_text, justify="left", anchor="w",
+            font=ctk.CTkFont(size=11), wraplength=400).pack(padx=15, pady=15)
+        
+        # Check YouTube status
+        self.check_youtube_status()
+    
+    def check_youtube_status(self):
+        """Check if YouTube is configured and connected"""
+        try:
+            from youtube_uploader import YouTubeUploader
+            self.youtube_uploader = YouTubeUploader()
+            
+            if not self.youtube_uploader.is_configured():
+                self.yt_status_label.configure(text="⚠️ client_secret.json not found", text_color="orange")
+                self.yt_connect_btn.configure(state="disabled")
+                return
+            
+            if self.youtube_uploader.is_authenticated():
+                channel = self.youtube_uploader.get_channel_info()
+                if channel:
+                    self.yt_status_label.configure(
+                        text=f"✓ Connected: {channel['title']}", 
+                        text_color="green"
+                    )
+                    self.yt_connect_btn.pack_forget()
+                    self.yt_disconnect_btn.pack(fill="x", padx=10, pady=(0, 10))
+                    return
+            
+            self.yt_status_label.configure(text="Not connected", text_color="gray")
+            self.yt_connect_btn.configure(state="normal")
+            
+        except ImportError:
+            self.yt_status_label.configure(text="⚠️ YouTube module not available", text_color="orange")
+            self.yt_connect_btn.configure(state="disabled")
+        except Exception as e:
+            self.yt_status_label.configure(text=f"Error: {str(e)[:30]}", text_color="red")
+    
+    def connect_youtube(self):
+        """Start YouTube OAuth flow"""
+        self.yt_connect_btn.configure(state="disabled", text="Connecting...")
+        
+        def do_connect():
+            try:
+                self.youtube_uploader.authenticate(callback=self.on_youtube_connected)
+            except Exception as e:
+                self.after(0, lambda: self.on_youtube_error(str(e)))
+        
+        threading.Thread(target=do_connect, daemon=True).start()
+    
+    def on_youtube_connected(self, success, data):
+        """Callback when YouTube connection completes"""
+        if success:
+            self.after(0, lambda: self._update_youtube_connected(data))
+        else:
+            self.after(0, lambda: self.on_youtube_error(str(data)))
+    
+    def _update_youtube_connected(self, channel):
+        """Update UI after YouTube connection"""
+        if channel and channel.get('title'):
+            self.yt_status_label.configure(
+                text=f"✓ Connected: {channel['title']}", 
+                text_color="green"
+            )
+            self.yt_connect_btn.pack_forget()
+            self.yt_disconnect_btn.pack(fill="x", padx=10, pady=(0, 10))
+            # Update main app status
+            if hasattr(self.master, 'master') and hasattr(self.master.master, 'update_connection_status'):
+                self.master.master.update_connection_status()
+            messagebox.showinfo("Success", f"Connected to YouTube channel: {channel['title']}")
+        else:
+            # Channel info not available but auth succeeded
+            self.yt_status_label.configure(
+                text="✓ Connected", 
+                text_color="green"
+            )
+            self.yt_connect_btn.pack_forget()
+            self.yt_disconnect_btn.pack(fill="x", padx=10, pady=(0, 10))
+            if hasattr(self.master, 'master') and hasattr(self.master.master, 'update_connection_status'):
+                self.master.master.update_connection_status()
+            messagebox.showinfo("Success", "Connected to YouTube!")
+    
+    def on_youtube_error(self, error):
+        """Handle YouTube connection error"""
+        self.yt_status_label.configure(text="Connection failed", text_color="red")
+        self.yt_connect_btn.configure(state="normal", text="🔗 Connect YouTube")
+        messagebox.showerror("Error", f"Failed to connect: {error}")
+    
+    def disconnect_youtube(self):
+        """Disconnect YouTube account"""
+        if messagebox.askyesno("Disconnect", "Are you sure you want to disconnect YouTube?"):
+            if self.youtube_uploader:
+                self.youtube_uploader.disconnect()
+            self.yt_status_label.configure(text="Not connected", text_color="gray")
+            self.yt_disconnect_btn.pack_forget()
+            self.yt_connect_btn.configure(state="normal", text="🔗 Connect YouTube")
+            self.yt_connect_btn.pack(fill="x", padx=10, pady=(0, 10))
+            # Update main app status
+            if hasattr(self.master, 'master') and hasattr(self.master.master, 'update_connection_status'):
+                self.master.master.update_connection_status()
+    
+    def create_about_tab(self):
+        """Create about tab"""
+        main = self.tabview.tab("About")
+        
+        # App info
+        info_frame = ctk.CTkFrame(main, fg_color="transparent")
+        info_frame.pack(fill="x", pady=(20, 15))
+        
+        ctk.CTkLabel(info_frame, text="YT Short Clipper", font=ctk.CTkFont(size=20, weight="bold")).pack()
+        ctk.CTkLabel(info_frame, text="v0.0.2", font=ctk.CTkFont(size=12), text_color="gray").pack(pady=(5, 0))
+        
+        # Description
+        desc_frame = ctk.CTkFrame(main, fg_color=("gray90", "gray17"))
+        desc_frame.pack(fill="x", pady=10, padx=5)
+        
+        desc_text = """Automated YouTube to Short-Form Content Pipeline
+
+Transform long-form YouTube videos into engaging 
+short-form content for TikTok, Instagram Reels, 
+and YouTube Shorts."""
+        
+        ctk.CTkLabel(desc_frame, text=desc_text, justify="center", 
+            font=ctk.CTkFont(size=11), wraplength=380).pack(padx=15, pady=15)
+        
+        # Credits
+        credits_frame = ctk.CTkFrame(main, fg_color="transparent")
+        credits_frame.pack(fill="x", pady=10)
+        
+        ctk.CTkLabel(credits_frame, text="Made with ☕ by", font=ctk.CTkFont(size=11), 
+            text_color="gray").pack()
+        ctk.CTkLabel(credits_frame, text="Aji Prakoso", font=ctk.CTkFont(size=13, weight="bold")).pack(pady=(5, 0))
+        
+        # Links
+        links_frame = ctk.CTkFrame(main, fg_color="transparent")
+        links_frame.pack(fill="x", pady=15)
+        
+        ctk.CTkButton(links_frame, text="⭐ GitHub Repository", height=40,
+            fg_color=("#24292e", "#0d1117"), hover_color=("#2c3136", "#161b22"),
+            command=lambda: self.open_url("https://github.com/jipraks/yt-short-clipper")).pack(fill="x", pady=2)
+        
+        ctk.CTkButton(links_frame, text="📸 @jipraks on Instagram", height=40,
+            fg_color=("#E4405F", "#C13584"), hover_color=("#F56040", "#E1306C"),
+            command=lambda: self.open_url("https://instagram.com/jipraks")).pack(fill="x", pady=2)
+        
+        ctk.CTkButton(links_frame, text="🎬 YouTube Channel", height=40,
+            fg_color=("#c4302b", "#FF0000"), hover_color=("#ff0000", "#CC0000"),
+            command=lambda: self.open_url("https://youtube.com/@jipraks")).pack(fill="x", pady=2)
+        
+        # Footer
+        footer_frame = ctk.CTkFrame(main, fg_color="transparent")
+        footer_frame.pack(side="bottom", fill="x", pady=(10, 5))
+        
+        ctk.CTkLabel(footer_frame, text="Open Source • MIT License", 
+            font=ctk.CTkFont(size=10), text_color="gray").pack()
+    
+    def open_url(self, url: str):
+        """Open URL in browser"""
+        import webbrowser
+        webbrowser.open(url)
+    
+    def open_folder(self, folder_path: str):
+        """Open folder in file explorer"""
+        if sys.platform == "win32":
+            os.startfile(folder_path)
+        elif sys.platform == "darwin":
+            subprocess.run(["open", folder_path])
+        else:
+            subprocess.run(["xdg-open", folder_path])
+    
+    def load_config(self):
+        """Load configuration into UI"""
+        self.url_entry.insert(0, self.config.get("base_url", "https://api.openai.com/v1"))
+        self.key_entry.insert(0, self.config.get("api_key", ""))
+        self.model_var.set(self.config.get("model", "gpt-4.1"))
+        self.output_var.set(self.config.get("output_dir", str(self.output_dir)) or str(self.output_dir))
+        
+        # Load temperature
+        temperature = self.config.get("temperature", 1.0)
+        self.temp_var.set(temperature)
+        self.update_temp_label(temperature)
+        
+        # Load TTS model
+        tts_model = self.config.get("tts_model", "tts-1")
+        self.tts_model_entry.insert(0, tts_model)
+        
+        # Load system prompt
+        from clipper_core import AutoClipperCore
+        system_prompt = self.config.get("system_prompt", AutoClipperCore.get_default_prompt())
+        self.prompt_text.delete("1.0", "end")
+        self.prompt_text.insert("1.0", system_prompt)
+        self.update_prompt_char_count()
+        
+        if self.config.get("api_key"):
+            self.validate_key()
+    
+    def browse_output_folder(self):
+        """Browse for output folder"""
+        folder = filedialog.askdirectory(initialdir=self.output_var.get())
+        if folder:
+            self.output_var.set(folder)
+
+    def validate_key(self):
+        """Validate OpenAI API key"""
+        api_key = self.key_entry.get().strip()
+        base_url = self.url_entry.get().strip() or "https://api.openai.com/v1"
+        self.key_status.configure(text="Validating...", text_color="yellow")
+        self.validate_btn.configure(state="disabled")
+        
+        def do_validate():
+            try:
+                client = OpenAI(api_key=api_key, base_url=base_url)
+                models = sorted([m.id for m in client.models.list().data])
+                self.models_list = models
+                self.after(0, lambda: self._on_success(models))
+            except:
+                self.after(0, self._on_error)
+        threading.Thread(target=do_validate, daemon=True).start()
+    
+    def _on_success(self, models):
+        """Handle successful API key validation"""
+        self.key_status.configure(text="✓ Valid", text_color="green")
+        self.validate_btn.configure(state="normal")
+        self.model_count.configure(text=f"{len(models)} models")
+        if self.model_var.get() not in models:
+            for p in ["gpt-4.1", "gpt-4o", "gpt-4o-mini"]:
+                if p in models:
+                    self.model_var.set(p)
+                    break
+    
+    def _on_error(self):
+        """Handle API key validation error"""
+        self.key_status.configure(text="✗ Invalid", text_color="red")
+        self.validate_btn.configure(state="normal")
+        self.models_list = []
+    
+    def open_model_selector(self):
+        """Open model selector dialog"""
+        if not self.models_list:
+            messagebox.showwarning("Warning", "Validate API key first")
+            return
+        SearchableModelDropdown(self, self.models_list, self.model_var.get(), lambda m: self.model_var.set(m))
+    
+    def save_settings(self):
+        """Save settings"""
+        api_key = self.key_entry.get().strip()
+        base_url = self.url_entry.get().strip() or "https://api.openai.com/v1"
+        model = self.model_var.get()
+        output_dir = self.output_var.get().strip() or str(self.output_dir)
+        system_prompt = self.prompt_text.get("1.0", "end-1c").strip()
+        
+        if not api_key or model == "Select model...":
+            messagebox.showerror("Error", "Fill all fields")
+            return
+        
+        if not system_prompt:
+            messagebox.showerror("Error", "System prompt cannot be empty")
+            return
+        
+        # Validate placeholders
+        required_placeholders = ["{num_clips}", "{video_context}", "{transcript}"]
+        missing = [p for p in required_placeholders if p not in system_prompt]
+        if missing:
+            messagebox.showwarning("Warning", f"System prompt missing placeholders: {', '.join(missing)}\n\nPrompt might not work correctly.")
+        
+        # Create output folder if not exists
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
+        
+        self.config.set("api_key", api_key)
+        self.config.set("base_url", base_url)
+        self.config.set("model", model)
+        self.config.set("output_dir", output_dir)
+        self.config.set("temperature", self.temp_var.get())
+        self.config.set("tts_model", self.tts_model_entry.get().strip() or "tts-1")
+        self.config.set("system_prompt", system_prompt)
+        self.on_save(api_key, base_url, model)
+        self.on_back()
+    
+    def reset_prompt(self):
+        """Reset system prompt to default"""
+        if messagebox.askyesno("Reset Prompt", "Reset system prompt to default?"):
+            from clipper_core import AutoClipperCore
+            default_prompt = AutoClipperCore.get_default_prompt()
+            self.prompt_text.delete("1.0", "end")
+            self.prompt_text.insert("1.0", default_prompt)
+            self.update_prompt_char_count()
+    
+    def update_prompt_char_count(self, event=None):
+        """Update character count for system prompt"""
+        text = self.prompt_text.get("1.0", "end-1c")
+        char_count = len(text)
+        self.prompt_char_count.configure(text=f"{char_count} chars")
+    
+    def update_temp_label(self, value):
+        """Update temperature label"""
+        self.temp_label.configure(text=f"{float(value):.1f}")
