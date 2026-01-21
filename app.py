@@ -701,7 +701,11 @@ class YTShortClipperApp(ctk.CTk):
     def check_update_silent(self):
         """Check for updates silently on startup"""
         try:
-            req = urllib.request.Request(UPDATE_CHECK_URL, headers={'User-Agent': 'YT-Short-Clipper'})
+            # Get installation_id from config
+            installation_id = self.config.get("installation_id", "unknown")
+            url = f"{UPDATE_CHECK_URL}?installation_id={installation_id}"
+            
+            req = urllib.request.Request(url, headers={'User-Agent': 'YT-Short-Clipper'})
             with urllib.request.urlopen(req, timeout=5) as response:
                 data = json.loads(response.read().decode())
                 latest_version = data.get("version", "")
@@ -717,7 +721,11 @@ class YTShortClipperApp(ctk.CTk):
     def check_update_manual(self):
         """Check for updates manually from settings page"""
         try:
-            req = urllib.request.Request(UPDATE_CHECK_URL, headers={'User-Agent': 'YT-Short-Clipper'})
+            # Get installation_id from config
+            installation_id = self.config.get("installation_id", "unknown")
+            url = f"{UPDATE_CHECK_URL}?installation_id={installation_id}"
+            
+            req = urllib.request.Request(url, headers={'User-Agent': 'YT-Short-Clipper'})
             with urllib.request.urlopen(req, timeout=10) as response:
                 data = json.loads(response.read().decode())
                 latest_version = data.get("version", "")

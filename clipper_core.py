@@ -1083,15 +1083,28 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     def convert_to_portrait_with_progress(self, input_path: str, output_path: str, progress_callback):
         """Convert landscape to 9:16 portrait with speaker tracking and progress"""
         
+        self.log("[DEBUG] Starting portrait conversion...")
         print("[DEBUG] Starting portrait conversion...")
+        print(f"[DEBUG] Input: {input_path}")
+        print(f"[DEBUG] Output: {output_path}")
+        sys.stdout.flush()
         
         cap = cv2.VideoCapture(input_path)
+        if not cap.isOpened():
+            raise Exception(f"Failed to open video: {input_path}")
+        
         orig_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         orig_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         fps = cap.get(cv2.CAP_PROP_FPS)
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         
+        self.log(f"[DEBUG] Video: {orig_w}x{orig_h}, {fps}fps, {total_frames} frames")
         print(f"[DEBUG] Video: {orig_w}x{orig_h}, {fps}fps, {total_frames} frames")
+        sys.stdout.flush()
+        
+        if total_frames == 0 or fps == 0:
+            cap.release()
+            raise Exception(f"Invalid video properties: {total_frames} frames, {fps} fps")
         
         # Calculate crop dimensions
         target_ratio = 9 / 16
@@ -1106,11 +1119,20 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         
         # First pass: analyze frames (0-40%)
         print("[DEBUG] Pass 1: Analyzing frames...")
+        sys.stdout.flush()
+        
         crop_positions = []
         current_target = orig_w / 2
         frame_count = 0
+        last_log_time = 0
+        import time
         
         while True:
+            # Check for cancellation
+            if self.is_cancelled():
+                cap.release()
+                raise Exception("Cancelled by user")
+            
             ret, frame = cap.read()
             if not ret:
                 break
@@ -1128,9 +1150,15 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             crop_positions.append(crop_x)
             
             frame_count += 1
-            if frame_count % 30 == 0:  # Update every 30 frames
+            
+            # Update progress more frequently with time-based logging
+            current_time = time.time()
+            if frame_count % 30 == 0 or (current_time - last_log_time) > 2:  # Every 30 frames or 2 seconds
                 progress = (frame_count / total_frames) * 0.4  # 0-40%
+                print(f"[DEBUG] Pass 1 progress: {progress*100:.1f}% ({frame_count}/{total_frames} frames)")
+                sys.stdout.flush()
                 progress_callback(progress)
+                last_log_time = current_time
         
         print(f"[DEBUG] Analyzed {frame_count} frames")
         
@@ -1140,36 +1168,91 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         
         # Second pass: create video (45-85%)
         print("[DEBUG] Pass 2: Creating portrait video...")
+        sys.stdout.flush()  # Force output
+        
         cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
         temp_video = tempfile.NamedTemporaryFile(suffix='.mp4', delete=False).name
         
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         out = cv2.VideoWriter(temp_video, fourcc, fps, (out_w, out_h))
         
+        if not out.isOpened():
+            cap.release()
+            raise Exception(f"Failed to create VideoWriter: {temp_video}")
+        
         frame_idx = 0
+        last_log_time = 0
+        last_frame_time = time.time()
+        import time
+        
         while True:
+            # Check for cancellation
+            if self.is_cancelled():
+                cap.release()
+                out.release()
+                try:
+                    os.unlink(temp_video)
+                except:
+                    pass
+                raise Exception("Cancelled by user")
+            
+            # Watchdog: check if we're stuck (no frame processed in 30 seconds)
+            current_time = time.time()
+            if current_time - last_frame_time > 30:
+                cap.release()
+                out.release()
+                raise Exception(f"Portrait conversion timeout: stuck at frame {frame_idx}/{total_frames}")
+            
             ret, frame = cap.read()
             if not ret:
                 break
             
+            last_frame_time = current_time  # Update watchdog timer
+            
             crop_x = crop_positions[frame_idx] if frame_idx < len(crop_positions) else crop_positions[-1]
             cropped = frame[0:crop_h, crop_x:crop_x+crop_w]
             resized = cv2.resize(cropped, (out_w, out_h), interpolation=cv2.INTER_LANCZOS4)
-            out.write(resized)
+            
+            # Write frame with error checking
+            success = out.write(resized)
+            if not success:
+                print(f"[WARNING] Failed to write frame {frame_idx}")
+                sys.stdout.flush()
+            
             frame_idx += 1
             
-            if frame_idx % 30 == 0:  # Update every 30 frames
+            # Update progress more frequently and with time-based logging
+            if frame_idx % 30 == 0 or (current_time - last_log_time) > 2:  # Every 30 frames or 2 seconds
                 progress = 0.45 + (frame_idx / total_frames) * 0.4  # 45-85%
+                print(f"[DEBUG] Pass 2 progress: {progress*100:.1f}% ({frame_idx}/{total_frames} frames)")
+                sys.stdout.flush()
                 progress_callback(progress)
-        
-        cap.release()
-        out.release()
+                last_log_time = current_time
         
         print(f"[DEBUG] Created {frame_idx} frames")
+        sys.stdout.flush()
+        
+        cap.release()
+        print("[DEBUG] Released VideoCapture")
+        sys.stdout.flush()
+        
+        out.release()
+        print("[DEBUG] Released VideoWriter")
+        sys.stdout.flush()
+        
+        # Verify temp video was created
+        if not os.path.exists(temp_video) or os.path.getsize(temp_video) < 1000:
+            raise Exception(f"Failed to create temp video: {temp_video}")
+        
+        print(f"[DEBUG] Temp video size: {os.path.getsize(temp_video)} bytes")
+        sys.stdout.flush()
+        
         progress_callback(0.85)
         
         # Merge with audio (85-100%)
         print("[DEBUG] Pass 3: Merging audio...")
+        sys.stdout.flush()
+        
         duration = total_frames / fps if fps > 0 else 60
         cmd = [
             self.ffmpeg_path, "-y",
@@ -1183,17 +1266,31 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         ]
         
         # Run without progress parsing for audio merge (quick operation)
-        print("[DEBUG] Running audio merge...")
+        print(f"[DEBUG] Running audio merge command...")
+        sys.stdout.flush()
+        
         result = subprocess.run(cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
         
         if result.returncode != 0:
             print(f"[FFMPEG ERROR] {result.stderr}")
+            sys.stdout.flush()
             raise Exception("Audio merge failed")
+        
+        print("[DEBUG] Audio merge complete")
+        sys.stdout.flush()
         
         progress_callback(1.0)
         print("[DEBUG] Portrait conversion complete")
+        sys.stdout.flush()
         
-        os.unlink(temp_video)
+        # Cleanup temp video
+        try:
+            os.unlink(temp_video)
+            print("[DEBUG] Cleaned up temp video")
+            sys.stdout.flush()
+        except Exception as e:
+            print(f"[WARNING] Failed to cleanup temp video: {e}")
+            sys.stdout.flush()
     
     def add_hook_with_progress(self, input_path: str, hook_text: str, output_path: str, progress_callback) -> float:
         """Add hook scene at the beginning with progress tracking"""

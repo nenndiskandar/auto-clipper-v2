@@ -3,6 +3,7 @@ Configuration manager for YT Short Clipper
 """
 
 import json
+import uuid
 from pathlib import Path
 
 
@@ -39,11 +40,15 @@ class ConfigManager:
                         "opacity": 0.8,      # 0-1
                         "scale": 0.15        # 0-1 (percentage of video width)
                     }
+                # Generate installation_id if not exists
+                if "installation_id" not in config:
+                    config["installation_id"] = str(uuid.uuid4())
+                    self.save_config(config)
                 return config
         
         # Default config with system prompt
         from clipper_core import AutoClipperCore
-        return {
+        config = {
             "api_key": "", 
             "base_url": "https://api.openai.com/v1", 
             "model": "gpt-4.1", 
@@ -51,6 +56,7 @@ class ConfigManager:
             "temperature": 1.0,
             "output_dir": str(self.output_dir),
             "system_prompt": AutoClipperCore.get_default_prompt(),
+            "installation_id": str(uuid.uuid4()),
             "watermark": {
                 "enabled": False,
                 "image_path": "",
@@ -60,11 +66,17 @@ class ConfigManager:
                 "scale": 0.15
             }
         }
+        self.save_config(config)
+        return config
 
     def save(self):
         """Save configuration to file"""
+        self.save_config(self.config)
+    
+    def save_config(self, config):
+        """Save configuration dict to file"""
         with open(self.config_file, "w") as f:
-            json.dump(self.config, f, indent=2)
+            json.dump(config, f, indent=2)
     
     def get(self, key, default=None):
         """Get configuration value"""
