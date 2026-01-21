@@ -35,6 +35,8 @@ class AutoClipperCore:
         temperature: float = 1.0,
         system_prompt: str = None,
         watermark_settings: dict = None,
+        face_tracking_mode: str = "opencv",
+        mediapipe_settings: dict = None,
         log_callback=None,
         progress_callback=None,
         token_callback=None,
@@ -49,10 +51,21 @@ class AutoClipperCore:
         self.temperature = temperature
         self.system_prompt = system_prompt or self.get_default_prompt()
         self.watermark_settings = watermark_settings or {"enabled": False}
+        self.face_tracking_mode = face_tracking_mode
+        self.mediapipe_settings = mediapipe_settings or {
+            "lip_activity_threshold": 0.15,
+            "switch_threshold": 0.3,
+            "min_shot_duration": 90,
+            "center_weight": 0.3
+        }
         self.log = log_callback or print
         self.set_progress = progress_callback or (lambda s, p: None)
         self.report_tokens = token_callback or (lambda gi, go, w, t: None)
         self.is_cancelled = cancel_check or (lambda: False)
+        
+        # MediaPipe Face Mesh (lazy loaded)
+        self.mp_face_mesh = None
+        self.mp_drawing = None
         
         # Create temp directory
         self.temp_dir = self.output_dir / "_temp"
@@ -508,7 +521,25 @@ Return HANYA JSON array, tanpa text lain."""
             json.dump(metadata, f, ensure_ascii=False, indent=2)
     
     def convert_to_portrait(self, input_path: str, output_path: str):
-        """Convert landscape to 9:16 portrait with speaker tracking"""
+        """Convert landscape to 9:16 portrait with speaker tracking (router method)"""
+        try:
+            if self.face_tracking_mode == "mediapipe":
+                self.log("  Using MediaPipe (Active Speaker Detection)")
+                return self.convert_to_portrait_mediapipe(input_path, output_path)
+            else:
+                self.log("  Using OpenCV (Fast Mode)")
+                return self.convert_to_portrait_opencv(input_path, output_path)
+        except Exception as e:
+            # Fallback to OpenCV if MediaPipe fails
+            if self.face_tracking_mode == "mediapipe":
+                self.log(f"  ⚠ MediaPipe failed: {e}")
+                self.log("  Falling back to OpenCV mode...")
+                return self.convert_to_portrait_opencv(input_path, output_path)
+            else:
+                raise
+    
+    def convert_to_portrait_opencv(self, input_path: str, output_path: str):
+        """Convert landscape to 9:16 portrait with speaker tracking (OpenCV Haar Cascade)"""
         
         cap = cv2.VideoCapture(input_path)
         orig_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -634,6 +665,287 @@ Return HANYA JSON array, tanpa text lain."""
             final.extend([shot_median] * len(shot_positions))
         
         return final if final else stabilized
+    
+    def _init_mediapipe(self):
+        """Initialize MediaPipe Face Mesh (lazy loading)"""
+        if self.mp_face_mesh is None:
+            try:
+                import mediapipe as mp
+                self.mp_face_mesh = mp.solutions.face_mesh
+                self.mp_drawing = mp.solutions.drawing_utils
+                self.log("  MediaPipe initialized successfully")
+            except ImportError:
+                raise Exception("MediaPipe not installed. Run: pip install mediapipe")
+    
+    def convert_to_portrait_mediapipe(self, input_path: str, output_path: str):
+        """Convert landscape to 9:16 portrait with active speaker detection (MediaPipe)"""
+        
+        # Initialize MediaPipe
+        self._init_mediapipe()
+        
+        cap = cv2.VideoCapture(input_path)
+        if not cap.isOpened():
+            raise Exception(f"Failed to open video: {input_path}")
+        
+        orig_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        orig_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        
+        if total_frames == 0 or fps == 0:
+            cap.release()
+            raise Exception(f"Invalid video properties: {total_frames} frames, {fps} fps")
+        
+        # Calculate crop dimensions
+        target_ratio = 9 / 16
+        crop_w = int(orig_h * target_ratio)
+        crop_h = orig_h
+        out_w, out_h = 1080, 1920
+        
+        # MediaPipe Face Mesh settings
+        lip_threshold = self.mediapipe_settings.get("lip_activity_threshold", 0.15)
+        switch_threshold = self.mediapipe_settings.get("switch_threshold", 0.3)
+        min_shot_duration = self.mediapipe_settings.get("min_shot_duration", 90)
+        center_weight = self.mediapipe_settings.get("center_weight", 0.3)
+        
+        # First pass: analyze frames with MediaPipe
+        self.log("  Pass 1: Analyzing lip movements...")
+        crop_positions = []
+        face_activities = []  # Store activity scores per frame
+        
+        with self.mp_face_mesh.FaceMesh(
+            static_image_mode=False,
+            max_num_faces=3,
+            refine_landmarks=True,
+            min_detection_confidence=0.5,
+            min_tracking_confidence=0.5
+        ) as face_mesh:
+            
+            frame_count = 0
+            prev_lip_distances = {}  # Track previous lip distances per face
+            
+            while True:
+                if self.is_cancelled():
+                    cap.release()
+                    raise Exception("Cancelled by user")
+                
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                
+                # Convert to RGB for MediaPipe
+                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                results = face_mesh.process(rgb_frame)
+                
+                best_face_x = orig_w / 2  # Default to center
+                max_activity = 0
+                
+                if results.multi_face_landmarks:
+                    faces_data = []
+                    
+                    for face_id, face_landmarks in enumerate(results.multi_face_landmarks):
+                        # Calculate lip activity
+                        activity = self._calculate_lip_activity(
+                            face_landmarks, 
+                            orig_w, 
+                            orig_h,
+                            prev_lip_distances.get(face_id, None)
+                        )
+                        
+                        # Get face center position
+                        face_x = face_landmarks.landmark[1].x * orig_w  # Nose tip
+                        
+                        # Calculate combined score (activity + center position)
+                        center_score = 1.0 - abs(face_x - orig_w / 2) / (orig_w / 2)
+                        combined_score = (activity * (1 - center_weight)) + (center_score * center_weight)
+                        
+                        faces_data.append({
+                            'x': face_x,
+                            'activity': activity,
+                            'combined_score': combined_score
+                        })
+                        
+                        # Update previous lip distance
+                        upper_lip = face_landmarks.landmark[13]  # Upper lip center
+                        lower_lip = face_landmarks.landmark[14]  # Lower lip center
+                        lip_distance = abs(upper_lip.y - lower_lip.y)
+                        prev_lip_distances[face_id] = lip_distance
+                    
+                    # Select face with highest combined score
+                    if faces_data:
+                        best_face = max(faces_data, key=lambda f: f['combined_score'])
+                        best_face_x = best_face['x']
+                        max_activity = best_face['activity']
+                
+                # Calculate crop position
+                crop_x = int(best_face_x - crop_w / 2)
+                crop_x = max(0, min(crop_x, orig_w - crop_w))
+                crop_positions.append(crop_x)
+                face_activities.append(max_activity)
+                
+                frame_count += 1
+                
+                if frame_count % 30 == 0:
+                    self.log(f"    Analyzed {frame_count}/{total_frames} frames...")
+        
+        self.log(f"  Analyzed {frame_count} frames with MediaPipe")
+        
+        # Stabilize positions with shot-based switching
+        crop_positions = self._stabilize_positions_with_activity(
+            crop_positions, 
+            face_activities,
+            min_shot_duration,
+            switch_threshold
+        )
+        
+        # Second pass: create video
+        self.log("  Pass 2: Creating portrait video...")
+        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+        temp_video = tempfile.NamedTemporaryFile(suffix='.mp4', delete=False).name
+        
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        out = cv2.VideoWriter(temp_video, fourcc, fps, (out_w, out_h))
+        
+        if not out.isOpened():
+            cap.release()
+            raise Exception(f"Failed to create VideoWriter: {temp_video}")
+        
+        frame_idx = 0
+        while True:
+            if self.is_cancelled():
+                cap.release()
+                out.release()
+                try:
+                    os.unlink(temp_video)
+                except:
+                    pass
+                raise Exception("Cancelled by user")
+            
+            ret, frame = cap.read()
+            if not ret:
+                break
+            
+            crop_x = crop_positions[frame_idx] if frame_idx < len(crop_positions) else crop_positions[-1]
+            cropped = frame[0:crop_h, crop_x:crop_x+crop_w]
+            resized = cv2.resize(cropped, (out_w, out_h), interpolation=cv2.INTER_LANCZOS4)
+            out.write(resized)
+            
+            frame_idx += 1
+            
+            if frame_idx % 30 == 0:
+                self.log(f"    Created {frame_idx}/{total_frames} frames...")
+        
+        cap.release()
+        out.release()
+        
+        # Verify temp video was created
+        if not os.path.exists(temp_video) or os.path.getsize(temp_video) < 1000:
+            raise Exception(f"Failed to create temp video: {temp_video}")
+        
+        # Merge with audio
+        self.log("  Pass 3: Merging audio...")
+        cmd = [
+            self.ffmpeg_path, "-y",
+            "-i", temp_video,
+            "-i", input_path,
+            "-c:v", "libx264", "-preset", "fast", "-crf", "18",
+            "-c:a", "aac", "-b:a", "192k",
+            "-map", "0:v:0", "-map", "1:a:0",
+            "-shortest",
+            output_path
+        ]
+        subprocess.run(cmd, capture_output=True, creationflags=SUBPROCESS_FLAGS)
+        
+        # Cleanup
+        try:
+            os.unlink(temp_video)
+        except:
+            pass
+    
+    def _calculate_lip_activity(self, face_landmarks, frame_width, frame_height, prev_lip_distance=None):
+        """Calculate lip movement activity score"""
+        
+        # Key lip landmarks (MediaPipe Face Mesh indices)
+        # Upper lip: 13, Lower lip: 14
+        upper_lip = face_landmarks.landmark[13]
+        lower_lip = face_landmarks.landmark[14]
+        
+        # Mouth corners: 61 (left), 291 (right)
+        mouth_left = face_landmarks.landmark[61]
+        mouth_right = face_landmarks.landmark[291]
+        
+        # Calculate mouth openness (vertical distance)
+        mouth_height = abs(upper_lip.y - lower_lip.y)
+        
+        # Calculate mouth width (horizontal distance)
+        mouth_width = abs(mouth_left.x - mouth_right.x)
+        
+        # Aspect ratio (height/width) - higher when mouth is open
+        if mouth_width > 0:
+            aspect_ratio = mouth_height / mouth_width
+        else:
+            aspect_ratio = 0
+        
+        # Calculate movement delta (change from previous frame)
+        delta = 0
+        if prev_lip_distance is not None:
+            delta = abs(mouth_height - prev_lip_distance)
+        
+        # Activity score: combination of openness and movement
+        # Weight movement more heavily (0.6) than static openness (0.4)
+        activity_score = (aspect_ratio * 0.4) + (delta * 0.6)
+        
+        return activity_score
+    
+    def _stabilize_positions_with_activity(self, positions, activities, min_shot_duration, switch_threshold):
+        """Stabilize crop positions based on activity scores"""
+        if not positions:
+            return positions
+        
+        # First pass: smooth positions with moving median
+        window_size = 30
+        smoothed = []
+        
+        for i in range(len(positions)):
+            start = max(0, i - window_size // 2)
+            end = min(len(positions), i + window_size // 2)
+            window = positions[start:end]
+            smoothed.append(int(np.median(window)))
+        
+        # Second pass: lock positions per shot based on activity
+        final = []
+        shot_start = 0
+        current_position = smoothed[0] if smoothed else 0
+        
+        for i in range(len(smoothed)):
+            frames_since_switch = i - shot_start
+            
+            # Only allow switch if:
+            # 1. Minimum shot duration has passed
+            # 2. Position changed significantly
+            # 3. Activity is high enough (speaker is talking)
+            if frames_since_switch >= min_shot_duration:
+                position_diff = abs(smoothed[i] - current_position)
+                activity = activities[i] if i < len(activities) else 0
+                
+                # Switch if position changed significantly AND there's activity
+                if position_diff > 200 and activity > switch_threshold:
+                    # Lock previous shot
+                    shot_positions = smoothed[shot_start:i]
+                    if shot_positions:
+                        shot_median = int(np.median(shot_positions))
+                        final.extend([shot_median] * len(shot_positions))
+                    
+                    shot_start = i
+                    current_position = smoothed[i]
+        
+        # Handle last shot
+        shot_positions = smoothed[shot_start:]
+        if shot_positions:
+            shot_median = int(np.median(shot_positions))
+            final.extend([shot_median] * len(shot_positions))
+        
+        return final if final else smoothed
     
     def add_hook(self, input_path: str, hook_text: str, output_path: str) -> float:
         """Add hook scene at the beginning with multi-line yellow text (Fajar Sadboy style)"""
@@ -1081,7 +1393,25 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             raise Exception("FFmpeg process failed")
     
     def convert_to_portrait_with_progress(self, input_path: str, output_path: str, progress_callback):
-        """Convert landscape to 9:16 portrait with speaker tracking and progress"""
+        """Convert landscape to 9:16 portrait with speaker tracking and progress (router method)"""
+        try:
+            if self.face_tracking_mode == "mediapipe":
+                self.log("  Using MediaPipe (Active Speaker Detection)")
+                return self.convert_to_portrait_mediapipe_with_progress(input_path, output_path, progress_callback)
+            else:
+                self.log("  Using OpenCV (Fast Mode)")
+                return self.convert_to_portrait_opencv_with_progress(input_path, output_path, progress_callback)
+        except Exception as e:
+            # Fallback to OpenCV if MediaPipe fails
+            if self.face_tracking_mode == "mediapipe":
+                self.log(f"  ⚠ MediaPipe failed: {e}")
+                self.log("  Falling back to OpenCV mode...")
+                return self.convert_to_portrait_opencv_with_progress(input_path, output_path, progress_callback)
+            else:
+                raise
+    
+    def convert_to_portrait_opencv_with_progress(self, input_path: str, output_path: str, progress_callback):
+        """Convert landscape to 9:16 portrait with speaker tracking and progress (OpenCV)"""
         
         self.log("[DEBUG] Starting portrait conversion...")
         print("[DEBUG] Starting portrait conversion...")
@@ -1284,6 +1614,255 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         sys.stdout.flush()
         
         # Cleanup temp video
+        try:
+            os.unlink(temp_video)
+            print("[DEBUG] Cleaned up temp video")
+            sys.stdout.flush()
+        except Exception as e:
+            print(f"[WARNING] Failed to cleanup temp video: {e}")
+            sys.stdout.flush()
+    
+    def convert_to_portrait_mediapipe_with_progress(self, input_path: str, output_path: str, progress_callback):
+        """Convert landscape to 9:16 portrait with active speaker detection and progress (MediaPipe)"""
+        
+        # Initialize MediaPipe
+        self._init_mediapipe()
+        
+        self.log("[DEBUG] Starting MediaPipe portrait conversion...")
+        print("[DEBUG] Starting MediaPipe portrait conversion...")
+        sys.stdout.flush()
+        
+        cap = cv2.VideoCapture(input_path)
+        if not cap.isOpened():
+            raise Exception(f"Failed to open video: {input_path}")
+        
+        orig_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        orig_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        
+        self.log(f"[DEBUG] Video: {orig_w}x{orig_h}, {fps}fps, {total_frames} frames")
+        print(f"[DEBUG] Video: {orig_w}x{orig_h}, {fps}fps, {total_frames} frames")
+        sys.stdout.flush()
+        
+        if total_frames == 0 or fps == 0:
+            cap.release()
+            raise Exception(f"Invalid video properties: {total_frames} frames, {fps} fps")
+        
+        # Calculate crop dimensions
+        target_ratio = 9 / 16
+        crop_w = int(orig_h * target_ratio)
+        crop_h = orig_h
+        out_w, out_h = 1080, 1920
+        
+        # MediaPipe settings
+        lip_threshold = self.mediapipe_settings.get("lip_activity_threshold", 0.15)
+        switch_threshold = self.mediapipe_settings.get("switch_threshold", 0.3)
+        min_shot_duration = self.mediapipe_settings.get("min_shot_duration", 90)
+        center_weight = self.mediapipe_settings.get("center_weight", 0.3)
+        
+        # First pass: analyze frames with MediaPipe (0-40%)
+        print("[DEBUG] Pass 1: Analyzing lip movements with MediaPipe...")
+        sys.stdout.flush()
+        
+        crop_positions = []
+        face_activities = []
+        frame_count = 0
+        last_log_time = 0
+        import time
+        
+        with self.mp_face_mesh.FaceMesh(
+            static_image_mode=False,
+            max_num_faces=3,
+            refine_landmarks=True,
+            min_detection_confidence=0.5,
+            min_tracking_confidence=0.5
+        ) as face_mesh:
+            
+            prev_lip_distances = {}
+            
+            while True:
+                if self.is_cancelled():
+                    cap.release()
+                    raise Exception("Cancelled by user")
+                
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                
+                # Convert to RGB for MediaPipe
+                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                results = face_mesh.process(rgb_frame)
+                
+                best_face_x = orig_w / 2
+                max_activity = 0
+                
+                if results.multi_face_landmarks:
+                    faces_data = []
+                    
+                    for face_id, face_landmarks in enumerate(results.multi_face_landmarks):
+                        # Calculate lip activity
+                        activity = self._calculate_lip_activity(
+                            face_landmarks,
+                            orig_w,
+                            orig_h,
+                            prev_lip_distances.get(face_id, None)
+                        )
+                        
+                        # Get face center position
+                        face_x = face_landmarks.landmark[1].x * orig_w
+                        
+                        # Combined score
+                        center_score = 1.0 - abs(face_x - orig_w / 2) / (orig_w / 2)
+                        combined_score = (activity * (1 - center_weight)) + (center_score * center_weight)
+                        
+                        faces_data.append({
+                            'x': face_x,
+                            'activity': activity,
+                            'combined_score': combined_score
+                        })
+                        
+                        # Update previous lip distance
+                        upper_lip = face_landmarks.landmark[13]
+                        lower_lip = face_landmarks.landmark[14]
+                        lip_distance = abs(upper_lip.y - lower_lip.y)
+                        prev_lip_distances[face_id] = lip_distance
+                    
+                    if faces_data:
+                        best_face = max(faces_data, key=lambda f: f['combined_score'])
+                        best_face_x = best_face['x']
+                        max_activity = best_face['activity']
+                
+                crop_x = int(best_face_x - crop_w / 2)
+                crop_x = max(0, min(crop_x, orig_w - crop_w))
+                crop_positions.append(crop_x)
+                face_activities.append(max_activity)
+                
+                frame_count += 1
+                
+                current_time = time.time()
+                if frame_count % 30 == 0 or (current_time - last_log_time) > 2:
+                    progress = (frame_count / total_frames) * 0.4
+                    print(f"[DEBUG] Pass 1 progress: {progress*100:.1f}% ({frame_count}/{total_frames} frames)")
+                    sys.stdout.flush()
+                    progress_callback(progress)
+                    last_log_time = current_time
+        
+        print(f"[DEBUG] Analyzed {frame_count} frames with MediaPipe")
+        sys.stdout.flush()
+        
+        # Stabilize positions (40-45%)
+        progress_callback(0.4)
+        crop_positions = self._stabilize_positions_with_activity(
+            crop_positions,
+            face_activities,
+            min_shot_duration,
+            switch_threshold
+        )
+        progress_callback(0.45)
+        
+        # Second pass: create video (45-85%)
+        print("[DEBUG] Pass 2: Creating portrait video...")
+        sys.stdout.flush()
+        
+        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+        temp_video = tempfile.NamedTemporaryFile(suffix='.mp4', delete=False).name
+        
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        out = cv2.VideoWriter(temp_video, fourcc, fps, (out_w, out_h))
+        
+        if not out.isOpened():
+            cap.release()
+            raise Exception(f"Failed to create VideoWriter: {temp_video}")
+        
+        frame_idx = 0
+        last_log_time = 0
+        last_frame_time = time.time()
+        
+        while True:
+            if self.is_cancelled():
+                cap.release()
+                out.release()
+                try:
+                    os.unlink(temp_video)
+                except:
+                    pass
+                raise Exception("Cancelled by user")
+            
+            current_time = time.time()
+            if current_time - last_frame_time > 30:
+                cap.release()
+                out.release()
+                raise Exception(f"Portrait conversion timeout: stuck at frame {frame_idx}/{total_frames}")
+            
+            ret, frame = cap.read()
+            if not ret:
+                break
+            
+            last_frame_time = current_time
+            
+            crop_x = crop_positions[frame_idx] if frame_idx < len(crop_positions) else crop_positions[-1]
+            cropped = frame[0:crop_h, crop_x:crop_x+crop_w]
+            resized = cv2.resize(cropped, (out_w, out_h), interpolation=cv2.INTER_LANCZOS4)
+            
+            success = out.write(resized)
+            if not success:
+                print(f"[WARNING] Failed to write frame {frame_idx}")
+                sys.stdout.flush()
+            
+            frame_idx += 1
+            
+            if frame_idx % 30 == 0 or (current_time - last_log_time) > 2:
+                progress = 0.45 + (frame_idx / total_frames) * 0.4
+                print(f"[DEBUG] Pass 2 progress: {progress*100:.1f}% ({frame_idx}/{total_frames} frames)")
+                sys.stdout.flush()
+                progress_callback(progress)
+                last_log_time = current_time
+        
+        print(f"[DEBUG] Created {frame_idx} frames")
+        sys.stdout.flush()
+        
+        cap.release()
+        out.release()
+        
+        if not os.path.exists(temp_video) or os.path.getsize(temp_video) < 1000:
+            raise Exception(f"Failed to create temp video: {temp_video}")
+        
+        print(f"[DEBUG] Temp video size: {os.path.getsize(temp_video)} bytes")
+        sys.stdout.flush()
+        
+        progress_callback(0.85)
+        
+        # Merge with audio (85-100%)
+        print("[DEBUG] Pass 3: Merging audio...")
+        sys.stdout.flush()
+        
+        cmd = [
+            self.ffmpeg_path, "-y",
+            "-i", temp_video,
+            "-i", input_path,
+            "-c:v", "libx264", "-preset", "fast", "-crf", "18",
+            "-c:a", "aac", "-b:a", "192k",
+            "-map", "0:v:0", "-map", "1:a:0",
+            "-shortest",
+            output_path
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
+        
+        if result.returncode != 0:
+            print(f"[FFMPEG ERROR] {result.stderr}")
+            sys.stdout.flush()
+            raise Exception("Audio merge failed")
+        
+        print("[DEBUG] Audio merge complete")
+        sys.stdout.flush()
+        
+        progress_callback(1.0)
+        print("[DEBUG] MediaPipe portrait conversion complete")
+        sys.stdout.flush()
+        
+        # Cleanup
         try:
             os.unlink(temp_video)
             print("[DEBUG] Cleaned up temp video")

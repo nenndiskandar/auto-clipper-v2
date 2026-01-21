@@ -101,9 +101,12 @@ AutoClipper/
 - **🔍 AI Highlight Detection** - Uses GPT-4 to identify the most engaging segments (60-120 seconds)
 - **✂️ Smart Clipping** - Automatically cuts video at optimal timestamps
 - **📱 Portrait Conversion** - Converts landscape (16:9) to portrait (9:16) with intelligent speaker tracking
-- **🎯 Face Detection** - Tracks speakers and switches focus based on who's talking
+- **🎯 Face Detection** - Two modes available:
+  - **OpenCV (Fast)** - Crops to largest face, faster processing
+  - **MediaPipe (Smart)** - Tracks active speaker via lip movement detection, more accurate but 2-3x slower
 - **🪝 Hook Generation** - Creates attention-grabbing intro scenes with AI-generated text and TTS voiceover
 - **📝 Auto Captions** - Adds CapCut-style word-by-word highlighted captions using Whisper
+- **🖼️ Watermark Support** - Add custom watermark with adjustable position, size, and opacity
 - **📊 SEO Metadata** - Generates optimized titles and descriptions for each clip
 
 ## 🏗️ Architecture

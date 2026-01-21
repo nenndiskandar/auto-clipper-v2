@@ -40,6 +40,17 @@ class ConfigManager:
                         "opacity": 0.8,      # 0-1
                         "scale": 0.15        # 0-1 (percentage of video width)
                     }
+                # Add default face tracking mode if not exists
+                if "face_tracking_mode" not in config:
+                    config["face_tracking_mode"] = "opencv"  # "opencv" or "mediapipe"
+                # Add default MediaPipe settings if not exists
+                if "mediapipe_settings" not in config:
+                    config["mediapipe_settings"] = {
+                        "lip_activity_threshold": 0.15,
+                        "switch_threshold": 0.3,
+                        "min_shot_duration": 90,
+                        "center_weight": 0.3
+                    }
                 # Generate installation_id if not exists
                 if "installation_id" not in config:
                     config["installation_id"] = str(uuid.uuid4())
@@ -64,6 +75,13 @@ class ConfigManager:
                 "position_y": 0.05,
                 "opacity": 0.8,
                 "scale": 0.15
+            },
+            "face_tracking_mode": "opencv",
+            "mediapipe_settings": {
+                "lip_activity_threshold": 0.15,
+                "switch_threshold": 0.3,
+                "min_shot_duration": 90,
+                "center_weight": 0.3
             }
         }
         self.save_config(config)

@@ -134,16 +134,10 @@ class YTShortClipperApp(ctk.CTk):
         # Clear URL input
         self.url_var.set("")
         
-        # Reset thumbnail - use try-except to handle image reference issues
+        # Reset thumbnail - clear image reference properly
         self.current_thumbnail = None
-        try:
-            self.thumb_label.configure(image=None)
-        except:
-            pass
-        try:
-            self.thumb_label.configure(text="📺 Video thumbnail will appear here")
-        except:
-            pass
+        # Configure with empty string first to clear any image reference
+        self.thumb_label.configure(image="", text="📺 Video thumbnail will appear here")
         
         # Reset clips input to default
         self.clips_var.set("5")
@@ -444,14 +438,8 @@ class YTShortClipperApp(ctk.CTk):
             self.load_thumbnail(video_id)
         else:
             self.current_thumbnail = None
-            try:
-                self.thumb_label.configure(image=None)
-            except:
-                pass
-            try:
-                self.thumb_label.configure(text="📺 Video thumbnail will appear here")
-            except:
-                pass
+            # Use empty string to clear image reference properly
+            self.thumb_label.configure(image="", text="📺 Video thumbnail will appear here")
             # Disable start button when URL is invalid
             self.start_btn.configure(state="disabled", fg_color="gray")
     
@@ -473,30 +461,16 @@ class YTShortClipperApp(ctk.CTk):
             except:
                 self.after(0, lambda: self.on_thumbnail_error())
         
-        # Clear image first before setting text - use try-except
+        # Clear image reference properly before loading new one
         self.current_thumbnail = None
-        try:
-            self.thumb_label.configure(image=None)
-        except:
-            pass
-        try:
-            self.thumb_label.configure(text="Loading...")
-        except:
-            pass
+        self.thumb_label.configure(image="", text="Loading...")
         self.start_btn.configure(state="disabled", fg_color="gray")
         threading.Thread(target=fetch, daemon=True).start()
     
     def on_thumbnail_error(self):
-        # Clear image first before setting text - use try-except
+        # Clear image reference properly before showing error
         self.current_thumbnail = None
-        try:
-            self.thumb_label.configure(image=None)
-        except:
-            pass
-        try:
-            self.thumb_label.configure(text="⚠️ Could not load thumbnail")
-        except:
-            pass
+        self.thumb_label.configure(image="", text="⚠️ Could not load thumbnail")
         self.start_btn.configure(state="disabled", fg_color="gray")
     
     def show_thumbnail(self, img):
@@ -560,6 +534,13 @@ class YTShortClipperApp(ctk.CTk):
             temperature = self.config.get("temperature", 1.0)
             tts_model = self.config.get("tts_model", "tts-1")
             watermark_settings = self.config.get("watermark", {"enabled": False})
+            face_tracking_mode = self.config.get("face_tracking_mode", "opencv")
+            mediapipe_settings = self.config.get("mediapipe_settings", {
+                "lip_activity_threshold": 0.15,
+                "switch_threshold": 0.3,
+                "min_shot_duration": 90,
+                "center_weight": 0.3
+            })
             
             core = AutoClipperCore(
                 client=self.client,
@@ -571,6 +552,8 @@ class YTShortClipperApp(ctk.CTk):
                 temperature=temperature,
                 system_prompt=system_prompt,
                 watermark_settings=watermark_settings,
+                face_tracking_mode=face_tracking_mode,
+                mediapipe_settings=mediapipe_settings,
                 log_callback=log_with_debug,
                 progress_callback=lambda s, p: self.after(0, lambda: self.update_progress(s, p)),
                 token_callback=lambda a, b, c, d: self.after(0, lambda: self.update_tokens(a, b, c, d)),

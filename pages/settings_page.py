@@ -170,6 +170,38 @@ class SettingsPage(ctk.CTkFrame):
         ctk.CTkButton(main, text="Open Output Folder", height=40, fg_color="gray",
             command=lambda: self.open_folder(self.output_var.get())).pack(fill="x", pady=(0, 15))
         
+        # Face Tracking Mode section
+        ctk.CTkLabel(main, text="Face Tracking Mode", anchor="w", font=ctk.CTkFont(size=14, weight="bold")).pack(fill="x", pady=(15, 5))
+        ctk.CTkLabel(main, text="Choose how the video crops to speakers", anchor="w", 
+            font=ctk.CTkFont(size=11), text_color="gray").pack(fill="x", pady=(0, 10))
+        
+        # Radio buttons for face tracking mode
+        self.face_tracking_var = ctk.StringVar(value="opencv")
+        
+        opencv_frame = ctk.CTkFrame(main, fg_color=("gray85", "gray20"))
+        opencv_frame.pack(fill="x", pady=(5, 10))
+        opencv_radio = ctk.CTkRadioButton(opencv_frame, text="OpenCV (Fast)", variable=self.face_tracking_var, 
+            value="opencv", font=ctk.CTkFont(size=13, weight="bold"))
+        opencv_radio.pack(anchor="w", padx=15, pady=(10, 5))
+        ctk.CTkLabel(opencv_frame, text="• Crop to largest face", anchor="w", 
+            font=ctk.CTkFont(size=11), text_color="gray").pack(anchor="w", padx=35, pady=0)
+        ctk.CTkLabel(opencv_frame, text="• Faster processing", anchor="w", 
+            font=ctk.CTkFont(size=11), text_color="gray").pack(anchor="w", padx=35, pady=0)
+        ctk.CTkLabel(opencv_frame, text="• Recommended for most users", anchor="w", 
+            font=ctk.CTkFont(size=11), text_color="gray").pack(anchor="w", padx=35, pady=(0, 10))
+        
+        mediapipe_frame = ctk.CTkFrame(main, fg_color=("gray85", "gray20"))
+        mediapipe_frame.pack(fill="x", pady=(0, 10))
+        mediapipe_radio = ctk.CTkRadioButton(mediapipe_frame, text="MediaPipe (Smart)", variable=self.face_tracking_var, 
+            value="mediapipe", font=ctk.CTkFont(size=13, weight="bold"))
+        mediapipe_radio.pack(anchor="w", padx=15, pady=(10, 5))
+        ctk.CTkLabel(mediapipe_frame, text="• Crop to active speaker (lip movement)", anchor="w", 
+            font=ctk.CTkFont(size=11), text_color="gray").pack(anchor="w", padx=35, pady=0)
+        ctk.CTkLabel(mediapipe_frame, text="• More accurate speaker tracking", anchor="w", 
+            font=ctk.CTkFont(size=11), text_color="gray").pack(anchor="w", padx=35, pady=0)
+        ctk.CTkLabel(mediapipe_frame, text="⚠ Slower processing (2-3x)", anchor="w", 
+            font=ctk.CTkFont(size=11), text_color="orange").pack(anchor="w", padx=35, pady=(0, 10))
+        
         ctk.CTkButton(main, text="Save Settings", height=40, command=self.save_settings).pack(fill="x", pady=(10, 0))
     
     def create_watermark_tab(self):
@@ -657,6 +689,10 @@ and YouTube Shorts."""
         tts_model = self.config.get("tts_model", "tts-1")
         self.tts_model_entry.insert(0, tts_model)
         
+        # Load face tracking mode
+        face_tracking_mode = self.config.get("face_tracking_mode", "opencv")
+        self.face_tracking_var.set(face_tracking_mode)
+        
         # Load watermark settings
         watermark = self.config.get("watermark", {})
         self.watermark_enabled.set(watermark.get("enabled", False))
@@ -757,6 +793,7 @@ and YouTube Shorts."""
         self.config.set("temperature", self.temp_var.get())
         self.config.set("tts_model", self.tts_model_entry.get().strip() or "tts-1")
         self.config.set("system_prompt", system_prompt)
+        self.config.set("face_tracking_mode", self.face_tracking_var.get())
         
         # Save watermark settings
         watermark_settings = {
