@@ -31,6 +31,7 @@ from pages.browse_page import BrowsePage
 from pages.results_page import ResultsPage
 from pages.status_pages import APIStatusPage, LibStatusPage
 from pages.processing_page import ProcessingPage
+from pages.contact_page import ContactPage
 
 APP_DIR = get_app_dir()
 BUNDLE_DIR = get_bundle_dir()
@@ -76,6 +77,7 @@ class YTShortClipperApp(ctk.CTk):
         self.create_settings_page()
         self.create_api_status_page()
         self.create_lib_status_page()
+        self.create_contact_page()
         
         self.show_page("home")
         self.load_config()
@@ -297,6 +299,12 @@ class YTShortClipperApp(ctk.CTk):
         ctk.CTkButton(btn_frame, text="Browse Videos", image=self.browse_icon, compound="left",
             font=ctk.CTkFont(size=13), height=40, 
             command=lambda: self.show_page("browse")).pack(fill="x")
+        
+        # Contact button (green color to stand out)
+        ctk.CTkButton(btn_frame, text="Contact Developer", 
+            font=ctk.CTkFont(size=13, weight="bold"), height=40,
+            fg_color="#2ecc71", hover_color="#27ae60",
+            command=lambda: self.show_page("contact")).pack(fill="x", pady=(5, 0))
 
     def create_processing_page(self):
         """Create processing page as embedded frame"""
@@ -359,6 +367,14 @@ class YTShortClipperApp(ctk.CTk):
             self.client,
             lambda: self.show_page("home"),
             self.refresh_icon
+        )
+    
+    def create_contact_page(self):
+        """Create contact page as embedded frame"""
+        self.pages["contact"] = ContactPage(
+            self.container,
+            lambda: self.config.get("installation_id", "unknown"),
+            lambda: self.show_page("home")
         )
     
     def load_config(self):
