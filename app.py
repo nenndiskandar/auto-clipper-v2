@@ -68,7 +68,7 @@ class YTShortClipperApp(ctk.CTk):
         self.youtube_channel = None
         
         self.title("YT Short Clipper")
-        self.geometry("550x780")
+        self.geometry("680x780")
         self.resizable(False, False)
         
         ctk.set_appearance_mode("dark")
@@ -145,70 +145,77 @@ class YTShortClipperApp(ctk.CTk):
         # Clear URL input
         self.url_var.set("")
         
-        # Reset thumbnail - clear image reference properly
+        # Reset thumbnail - recreate preview placeholder
         self.current_thumbnail = None
-        # Configure with empty string first to clear any image reference
-        self.thumb_label.configure(image="", text="📺 Video thumbnail will appear here")
+        self.create_preview_placeholder()
         
         # Reset clips input to default
         self.clips_var.set("5")
         
-        # Reset checkboxes to default (both checked)
+        # Reset toggles to default
         self.caption_var.set(True)
         self.hook_var.set(True)
         
+        # Update switch texts
+        self.caption_switch.configure(text="ON")
+        self.hook_switch.configure(text="ON")
+        
         # Disable start button
-        self.start_btn.configure(state="disabled", fg_color="gray")
+        self.start_btn.configure(state="disabled", fg_color="gray", hover_color="gray")
 
     def create_home_page(self):
-        page = ctk.CTkFrame(self.container)
+        page = ctk.CTkFrame(self.container, fg_color=("#1a1a1a", "#0a0a0a"))
         self.pages["home"] = page
         
-        # Top bar with icon
+        # Top bar with icon and navigation
         top = ctk.CTkFrame(page, fg_color="transparent")
         top.pack(fill="x", padx=20, pady=(15, 10))
         
-        # App icon + title
+        # App icon + title on left
         title_frame = ctk.CTkFrame(top, fg_color="transparent")
         title_frame.pack(side="left")
         
         if ICON_PATH.exists():
             try:
                 icon_img = Image.open(ICON_PATH)
-                icon_img.thumbnail((32, 32), Image.Resampling.LANCZOS)
-                self.header_icon = ctk.CTkImage(light_image=icon_img, dark_image=icon_img, size=(32, 32))
-                ctk.CTkLabel(title_frame, image=self.header_icon, text="").pack(side="left", padx=(0, 10))
+                icon_img.thumbnail((40, 40), Image.Resampling.LANCZOS)
+                self.header_icon = ctk.CTkImage(light_image=icon_img, dark_image=icon_img, size=(40, 40))
+                ctk.CTkLabel(title_frame, image=self.header_icon, text="").pack(side="left", padx=(0, 12))
             except:
                 pass
         
-        ctk.CTkLabel(title_frame, text="YT Short Clipper", font=ctk.CTkFont(size=22, weight="bold")).pack(side="left")
+        title_col = ctk.CTkFrame(title_frame, fg_color="transparent")
+        title_col.pack(side="left")
+        ctk.CTkLabel(title_col, text="YT Short Clipper", font=ctk.CTkFont(size=20, weight="bold")).pack(anchor="w")
+        ctk.CTkLabel(title_col, text="Turn long videos into viral shorts", font=ctk.CTkFont(size=11), 
+            text_color="gray").pack(anchor="w")
         
-        # Right side buttons with icons
-        buttons_frame = ctk.CTkFrame(top, fg_color="transparent")
-        buttons_frame.pack(side="right")
+        # Right side navigation buttons with icons
+        nav_frame = ctk.CTkFrame(top, fg_color="transparent")
+        nav_frame.pack(side="right")
         
         # Load button icons
         try:
             settings_img = Image.open(ASSETS_DIR / "settings.png")
-            settings_img.thumbnail((20, 20), Image.Resampling.LANCZOS)
-            self.settings_icon = ctk.CTkImage(light_image=settings_img, dark_image=settings_img, size=(20, 20))
+            settings_img.thumbnail((18, 18), Image.Resampling.LANCZOS)
+            self.settings_icon = ctk.CTkImage(light_image=settings_img, dark_image=settings_img, size=(18, 18))
             
             api_img = Image.open(ASSETS_DIR / "api-status.png")
-            api_img.thumbnail((20, 20), Image.Resampling.LANCZOS)
-            self.api_icon = ctk.CTkImage(light_image=api_img, dark_image=api_img, size=(20, 20))
+            api_img.thumbnail((18, 18), Image.Resampling.LANCZOS)
+            self.api_icon = ctk.CTkImage(light_image=api_img, dark_image=api_img, size=(18, 18))
             
             lib_img = Image.open(ASSETS_DIR / "lib-status.png")
-            lib_img.thumbnail((20, 20), Image.Resampling.LANCZOS)
-            self.lib_icon = ctk.CTkImage(light_image=lib_img, dark_image=lib_img, size=(20, 20))
+            lib_img.thumbnail((18, 18), Image.Resampling.LANCZOS)
+            self.lib_icon = ctk.CTkImage(light_image=lib_img, dark_image=lib_img, size=(18, 18))
             
             # Load icons for main buttons
             play_img = Image.open(ASSETS_DIR / "play.png")
-            play_img.thumbnail((24, 24), Image.Resampling.LANCZOS)
-            self.play_icon = ctk.CTkImage(light_image=play_img, dark_image=play_img, size=(24, 24))
+            play_img.thumbnail((20, 20), Image.Resampling.LANCZOS)
+            self.play_icon = ctk.CTkImage(light_image=play_img, dark_image=play_img, size=(20, 20))
             
             browse_img = Image.open(ASSETS_DIR / "lib-status.png")
-            browse_img.thumbnail((20, 20), Image.Resampling.LANCZOS)
-            self.browse_icon = ctk.CTkImage(light_image=browse_img, dark_image=browse_img, size=(20, 20))
+            browse_img.thumbnail((18, 18), Image.Resampling.LANCZOS)
+            self.browse_icon = ctk.CTkImage(light_image=browse_img, dark_image=browse_img, size=(18, 18))
             
             # Load refresh icon for status pages
             refresh_img = Image.open(ASSETS_DIR / "refresh.png")
@@ -224,109 +231,224 @@ class YTShortClipperApp(ctk.CTk):
             self.browse_icon = None
             self.refresh_icon = None
         
-        ctk.CTkButton(buttons_frame, text="Settings", image=self.settings_icon, compound="left",
-            height=32, width=100, fg_color="transparent", hover_color=("gray75", "gray25"), 
-            command=lambda: self.show_page("settings")).pack(side="left", padx=2)
+        # Navigation buttons with rounded style
+        ctk.CTkButton(nav_frame, text="Settings", image=self.settings_icon, compound="left",
+            width=90, height=40, font=ctk.CTkFont(size=11),
+            fg_color=("#2b2b2b", "#1a1a1a"), hover_color=("#3a3a3a", "#2a2a2a"), corner_radius=10,
+            command=lambda: self.show_page("settings")).pack(side="left", padx=3)
         
-        ctk.CTkButton(buttons_frame, text="API", image=self.api_icon, compound="left",
-            height=32, width=80, fg_color="transparent", hover_color=("gray75", "gray25"),
-            command=lambda: self.show_page("api_status")).pack(side="left", padx=2)
+        ctk.CTkButton(nav_frame, text="API", image=self.api_icon, compound="left",
+            width=70, height=40, font=ctk.CTkFont(size=11),
+            fg_color=("#2b2b2b", "#1a1a1a"), hover_color=("#3a3a3a", "#2a2a2a"), corner_radius=10,
+            command=lambda: self.show_page("api_status")).pack(side="left", padx=3)
         
-        ctk.CTkButton(buttons_frame, text="Lib", image=self.lib_icon, compound="left",
-            height=32, width=70, fg_color="transparent", hover_color=("gray75", "gray25"),
-            command=lambda: self.show_page("lib_status")).pack(side="left", padx=2)
+        ctk.CTkButton(nav_frame, text="Library", image=self.lib_icon, compound="left",
+            width=85, height=40, font=ctk.CTkFont(size=11),
+            fg_color=("#2b2b2b", "#1a1a1a"), hover_color=("#3a3a3a", "#2a2a2a"), corner_radius=10,
+            command=lambda: self.show_page("lib_status")).pack(side="left", padx=3)
         
-        # Main content
-        main = ctk.CTkFrame(page)
-        main.pack(fill="both", expand=True, padx=20, pady=(0, 20))
+        # Main content area - two columns
+        main = ctk.CTkFrame(page, fg_color="transparent")
+        main.pack(fill="both", expand=True, padx=20, pady=(10, 20))
         
-        # URL input
-        ctk.CTkLabel(main, text="YouTube URL", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=15, pady=(15, 5))
+        # Left column - Configuration
+        left_col = ctk.CTkFrame(main, fg_color="transparent")
+        left_col.pack(side="left", fill="both", expand=True, padx=(0, 10))
+        
+        # YouTube URL input
+        ctk.CTkLabel(left_col, text="YouTube URL", font=ctk.CTkFont(size=12, weight="bold"), 
+            anchor="w").pack(fill="x", pady=(0, 5))
+        
+        url_frame = ctk.CTkFrame(left_col, fg_color=("#2b2b2b", "#1a1a1a"), corner_radius=8)
+        url_frame.pack(fill="x", pady=(0, 15))
+        
+        # URL input with paste button
+        url_input_container = ctk.CTkFrame(url_frame, fg_color="transparent")
+        url_input_container.pack(fill="x", padx=8, pady=8)
+        
         self.url_var = ctk.StringVar()
         self.url_var.trace("w", self.on_url_change)
-        ctk.CTkEntry(main, textvariable=self.url_var, placeholder_text="https://youtube.com/watch?v=...", height=40).pack(fill="x", padx=15)
+        url_entry = ctk.CTkEntry(url_input_container, textvariable=self.url_var, 
+            placeholder_text="Paste YouTube link here...", height=40, border_width=0,
+            fg_color="transparent")
+        url_entry.pack(side="left", fill="x", expand=True, padx=(4, 8))
         
-        # Thumbnail
-        self.thumb_frame = ctk.CTkFrame(main, height=200, fg_color=("gray85", "gray20"))
-        self.thumb_frame.pack(fill="x", padx=15, pady=15)
-        self.thumb_frame.pack_propagate(False)
-        self.thumb_label = ctk.CTkLabel(self.thumb_frame, text="📺 Video thumbnail will appear here", text_color="gray")
-        self.thumb_label.pack(expand=True)
+        # Paste button
+        paste_btn = ctk.CTkButton(url_input_container, text="📋 Paste", width=80, height=36,
+            fg_color=("#3a3a3a", "#2a2a2a"), hover_color=("#4a4a4a", "#3a3a3a"),
+            font=ctk.CTkFont(size=11), command=self.paste_url)
+        paste_btn.pack(side="right")
         
-        # Clips input
-        clips_frame = ctk.CTkFrame(main, fg_color="transparent")
-        clips_frame.pack(fill="x", padx=15, pady=(0, 10))
-        ctk.CTkLabel(clips_frame, text="Clips Count:", font=ctk.CTkFont(size=13)).pack(side="left")
+        # Clip Configuration section
+        config_frame = ctk.CTkFrame(left_col, fg_color=("#2b2b2b", "#1a1a1a"), corner_radius=10)
+        config_frame.pack(fill="x", pady=(0, 15))
+        
+        ctk.CTkLabel(config_frame, text="Clip Configuration", font=ctk.CTkFont(size=12, weight="bold"), 
+            anchor="w").pack(fill="x", padx=15, pady=(12, 8))
+        
+        # Clips Count
+        clips_row = ctk.CTkFrame(config_frame, fg_color="transparent")
+        clips_row.pack(fill="x", padx=15, pady=(0, 12))
+        
+        ctk.CTkLabel(clips_row, text="Clips Count", font=ctk.CTkFont(size=11), 
+            anchor="w").pack(side="left", fill="x", expand=True)
+        
+        clips_input_frame = ctk.CTkFrame(clips_row, fg_color="transparent")
+        clips_input_frame.pack(side="right")
+        
         self.clips_var = ctk.StringVar(value="5")
-        ctk.CTkEntry(clips_frame, textvariable=self.clips_var, width=60, height=35).pack(side="left", padx=10)
-        ctk.CTkLabel(clips_frame, text="(1-10)", text_color="gray").pack(side="left")
+        clips_entry = ctk.CTkEntry(clips_input_frame, textvariable=self.clips_var, width=80, height=32,
+            fg_color=("#3a3a3a", "#2a2a2a"), border_width=0, justify="center")
+        clips_entry.pack(side="left", padx=(0, 5))
         
-        # Options frame
-        options_frame = ctk.CTkFrame(main, fg_color=("gray90", "gray17"), corner_radius=10)
-        options_frame.pack(fill="x", padx=15, pady=(0, 15))
+        ctk.CTkLabel(clips_input_frame, text="(1-10)", font=ctk.CTkFont(size=10), 
+            text_color="gray").pack(side="left")
         
-        ctk.CTkLabel(options_frame, text="Video Options", font=ctk.CTkFont(size=12, weight="bold"), 
-            anchor="w").pack(fill="x", padx=12, pady=(10, 5))
+        # Enhancements section
+        enhance_frame = ctk.CTkFrame(left_col, fg_color=("#2b2b2b", "#1a1a1a"), corner_radius=10)
+        enhance_frame.pack(fill="x", pady=(0, 15))
         
-        # Checkboxes in one row
-        checkboxes_row = ctk.CTkFrame(options_frame, fg_color="transparent")
-        checkboxes_row.pack(fill="x", padx=12, pady=(5, 12))
+        ctk.CTkLabel(enhance_frame, text="Enhancements", font=ctk.CTkFont(size=12, weight="bold"), 
+            anchor="w").pack(fill="x", padx=15, pady=(12, 8))
         
-        # Caption checkbox (left side)
-        caption_col = ctk.CTkFrame(checkboxes_row, fg_color="transparent")
-        caption_col.pack(side="left", fill="x", expand=True, padx=(0, 5))
+        # Captions toggle
+        captions_row = ctk.CTkFrame(enhance_frame, fg_color="transparent")
+        captions_row.pack(fill="x", padx=15, pady=(0, 8))
+        
+        captions_left = ctk.CTkFrame(captions_row, fg_color="transparent")
+        captions_left.pack(side="left", fill="x", expand=True)
+        
+        ctk.CTkLabel(captions_left, text="💬 Captions", font=ctk.CTkFont(size=11, weight="bold"), 
+            anchor="w").pack(anchor="w")
         
         self.caption_var = ctk.BooleanVar(value=True)
-        caption_check = ctk.CTkCheckBox(caption_col, text="Add Captions", variable=self.caption_var,
-            font=ctk.CTkFont(size=12))
-        caption_check.pack(anchor="w")
+        caption_switch = ctk.CTkSwitch(captions_row, text="ON", variable=self.caption_var, 
+            width=60, command=self.update_caption_switch_text)
+        caption_switch.pack(side="right")
+        self.caption_switch = caption_switch
         
-        # Hook checkbox (right side)
-        hook_col = ctk.CTkFrame(checkboxes_row, fg_color="transparent")
-        hook_col.pack(side="left", fill="x", expand=True, padx=(5, 0))
+        # Hook Text toggle
+        hook_row = ctk.CTkFrame(enhance_frame, fg_color="transparent")
+        hook_row.pack(fill="x", padx=15, pady=(0, 12))
+        
+        hook_left = ctk.CTkFrame(hook_row, fg_color="transparent")
+        hook_left.pack(side="left", fill="x", expand=True)
+        
+        ctk.CTkLabel(hook_left, text="🪝 Hook Text", font=ctk.CTkFont(size=11, weight="bold"), 
+            anchor="w").pack(anchor="w")
         
         self.hook_var = ctk.BooleanVar(value=True)
-        hook_check = ctk.CTkCheckBox(hook_col, text="Add Hook", variable=self.hook_var,
-            font=ctk.CTkFont(size=12))
-        hook_check.pack(anchor="w")
+        hook_switch = ctk.CTkSwitch(hook_row, text="ON", variable=self.hook_var, 
+            width=60, command=self.update_hook_switch_text)
+        hook_switch.pack(side="right")
+        self.hook_switch = hook_switch
         
-        # Buttons
-        btn_frame = ctk.CTkFrame(main, fg_color="transparent")
-        btn_frame.pack(fill="x", padx=15, pady=(0, 15))
-        
-        # Start button (disabled by default until valid URL)
-        self.start_btn = ctk.CTkButton(btn_frame, text="Start Processing", image=self.play_icon, 
+        # Generate Shorts button
+        self.start_btn = ctk.CTkButton(left_col, text="Generate Shorts", image=self.play_icon, 
             compound="left", font=ctk.CTkFont(size=15, weight="bold"), 
-            height=50, command=self.start_processing, state="disabled", fg_color="gray")
-        self.start_btn.pack(fill="x", pady=(0, 5))
+            height=50, command=self.start_processing, state="disabled", 
+            fg_color="gray", hover_color="gray", corner_radius=10)
+        self.start_btn.pack(fill="x", pady=(0, 8))
         
-        # Browse button (normal blue color, not gray)
-        ctk.CTkButton(btn_frame, text="Browse Videos", image=self.browse_icon, compound="left",
-            font=ctk.CTkFont(size=13), height=40, 
-            command=lambda: self.show_page("browse")).pack(fill="x")
+        # Browse Videos link
+        browse_link = ctk.CTkLabel(left_col, text="📂 Browse Videos", 
+            font=ctk.CTkFont(size=11), text_color=("#3B8ED0", "#1F6AA5"), cursor="hand2")
+        browse_link.pack(pady=(0, 0))
+        browse_link.bind("<Button-1>", lambda e: self.show_page("browse"))
         
-        # Spacer to push contact buttons to bottom
-        spacer = ctk.CTkFrame(main, fg_color="transparent", height=1)
-        spacer.pack(fill="both", expand=True)
+        # Right column - Video Preview
+        right_col = ctk.CTkFrame(main, fg_color="transparent")
+        right_col.pack(side="right", fill="both", expand=True, padx=(10, 0))
         
-        # Contact & Discord buttons row at bottom (two columns)
-        contact_frame = ctk.CTkFrame(main, fg_color="transparent")
-        contact_frame.pack(fill="x", padx=15, pady=(0, 15), side="bottom")
+        # Video preview frame with landscape aspect ratio for YouTube thumbnails
+        self.thumb_frame = ctk.CTkFrame(right_col, width=400, height=520, 
+            fg_color=("#2b2b2b", "#1a1a1a"), corner_radius=15)
+        self.thumb_frame.pack(fill="both", expand=True)
+        self.thumb_frame.pack_propagate(False)
         
-        contact_row = ctk.CTkFrame(contact_frame, fg_color="transparent")
-        contact_row.pack(fill="x")
+        # Preview content container (will be recreated when showing thumbnail)
+        self.create_preview_placeholder()
         
-        # Contact button (left column, green color)
-        ctk.CTkButton(contact_row, text="Contact Developer", 
-            font=ctk.CTkFont(size=13, weight="bold"), height=40,
-            fg_color="#2ecc71", hover_color="#27ae60",
-            command=lambda: self.show_page("contact")).pack(side="left", fill="x", expand=True, padx=(0, 2.5))
+        # Footer - Contact links with separator line
+        footer = ctk.CTkFrame(page, fg_color="transparent", height=60)
+        footer.pack(fill="x", padx=20, pady=(10, 15), side="bottom")
+        footer.pack_propagate(False)
         
-        # Discord button (right column, purple/blurple color like Discord brand)
-        ctk.CTkButton(contact_row, text="Join Discord Server", 
-            font=ctk.CTkFont(size=13, weight="bold"), height=40,
-            fg_color="#5865F2", hover_color="#4752C4",
-            command=lambda: self.open_discord()).pack(side="left", fill="x", expand=True, padx=(2.5, 0))
+        # Separator line
+        separator = ctk.CTkFrame(footer, height=1, fg_color=("#3a3a3a", "#2a2a2a"))
+        separator.pack(fill="x", pady=(0, 12))
+        
+        # Footer content
+        footer_content = ctk.CTkFrame(footer, fg_color="transparent")
+        footer_content.pack(fill="x")
+        
+        # Copyright text on left with dynamic year and version
+        from datetime import datetime
+        current_year = datetime.now().year
+        ctk.CTkLabel(footer_content, text=f"© {current_year} YT Short Clipper • v{__version__}", 
+            font=ctk.CTkFont(size=10), text_color="gray", anchor="w").pack(side="left")
+        
+        # Links on right
+        links_frame = ctk.CTkFrame(footer_content, fg_color="transparent")
+        links_frame.pack(side="right")
+        
+        # GitHub link
+        github_link = ctk.CTkLabel(links_frame, text="⭐ GitHub", 
+            font=ctk.CTkFont(size=11), text_color="#ffffff", cursor="hand2")
+        github_link.pack(side="left", padx=(0, 15))
+        github_link.bind("<Button-1>", lambda e: self.open_github())
+        
+        # Join Discord link (blurple)
+        discord_link = ctk.CTkLabel(links_frame, text="💬 Join Discord Server", 
+            font=ctk.CTkFont(size=11), text_color="#5865F2", cursor="hand2")
+        discord_link.pack(side="left")
+        discord_link.bind("<Button-1>", lambda e: self.open_discord())
+    
+    def create_preview_placeholder(self):
+        """Create placeholder content for video preview"""
+        # Clear existing content
+        for widget in self.thumb_frame.winfo_children():
+            widget.destroy()
+        
+        # Preview content container
+        preview_container = ctk.CTkFrame(self.thumb_frame, fg_color="transparent")
+        preview_container.place(relx=0.5, rely=0.5, anchor="center")
+        
+        # Play button icon (large)
+        play_circle = ctk.CTkFrame(preview_container, width=80, height=80, 
+            fg_color=("#3a3a3a", "#2a2a2a"), corner_radius=40)
+        play_circle.pack(pady=(0, 15))
+        play_circle.pack_propagate(False)
+        
+        if self.play_icon:
+            play_label = ctk.CTkLabel(play_circle, image=self.play_icon, text="")
+            play_label.place(relx=0.5, rely=0.5, anchor="center")
+        
+        # Placeholder text
+        self.thumb_label = ctk.CTkLabel(preview_container, 
+            text="Paste a YouTube link\nto preview a video", 
+            font=ctk.CTkFont(size=13), text_color="gray", justify="center")
+        self.thumb_label.pack()
+    
+    def paste_url(self):
+        """Paste URL from clipboard"""
+        try:
+            # Get clipboard content
+            clipboard_text = self.clipboard_get()
+            if clipboard_text:
+                self.url_var.set(clipboard_text.strip())
+        except Exception as e:
+            debug_log(f"Paste error: {e}")
+            # If clipboard is empty or error, do nothing
+            pass
+    
+    def update_caption_switch_text(self):
+        """Update caption switch text based on state"""
+        self.caption_switch.configure(text="ON" if self.caption_var.get() else "OFF")
+    
+    def update_hook_switch_text(self):
+        """Update hook switch text based on state"""
+        self.hook_switch.configure(text="ON" if self.hook_var.get() else "OFF")
 
     def create_processing_page(self):
         """Create processing page as embedded frame"""
@@ -403,6 +525,7 @@ class YTShortClipperApp(ctk.CTk):
         api_key = self.config.get("api_key", "")
         base_url = self.config.get("base_url", "https://api.openai.com/v1")
         model = self.config.get("model", "")
+        
         if api_key:
             try:
                 self.client = OpenAI(api_key=api_key, base_url=base_url)
@@ -466,10 +589,10 @@ class YTShortClipperApp(ctk.CTk):
             self.load_thumbnail(video_id)
         else:
             self.current_thumbnail = None
-            # Use empty string to clear image reference properly
-            self.thumb_label.configure(image="", text="📺 Video thumbnail will appear here")
+            # Recreate placeholder
+            self.create_preview_placeholder()
             # Disable start button when URL is invalid
-            self.start_btn.configure(state="disabled", fg_color="gray")
+            self.start_btn.configure(state="disabled", fg_color="gray", hover_color="gray")
     
     def load_thumbnail(self, video_id: str):
         def fetch():
@@ -484,34 +607,69 @@ class YTShortClipperApp(ctk.CTk):
                             break
                     except:
                         continue
-                img.thumbnail((480, 190), Image.Resampling.LANCZOS)
+                # Resize to fit preview area in landscape (16:9 aspect ratio)
+                # Max width 380px to fit in the frame with padding
+                img.thumbnail((380, 214), Image.Resampling.LANCZOS)
                 self.after(0, lambda: self.show_thumbnail(img))
             except:
                 self.after(0, lambda: self.on_thumbnail_error())
         
         # Clear image reference properly before loading new one
         self.current_thumbnail = None
-        self.thumb_label.configure(image="", text="Loading...")
-        self.start_btn.configure(state="disabled", fg_color="gray")
+        
+        # Show loading state
+        for widget in self.thumb_frame.winfo_children():
+            widget.destroy()
+        
+        loading_container = ctk.CTkFrame(self.thumb_frame, fg_color="transparent")
+        loading_container.place(relx=0.5, rely=0.5, anchor="center")
+        
+        self.thumb_label = ctk.CTkLabel(loading_container, text="Loading...", 
+            font=ctk.CTkFont(size=13), text_color="gray")
+        self.thumb_label.pack()
+        
+        self.start_btn.configure(state="disabled", fg_color="gray", hover_color="gray")
         threading.Thread(target=fetch, daemon=True).start()
     
     def on_thumbnail_error(self):
         # Clear image reference properly before showing error
         self.current_thumbnail = None
-        self.thumb_label.configure(image="", text="⚠️ Could not load thumbnail")
-        self.start_btn.configure(state="disabled", fg_color="gray")
+        # Recreate placeholder with error message
+        for widget in self.thumb_frame.winfo_children():
+            widget.destroy()
+        
+        preview_container = ctk.CTkFrame(self.thumb_frame, fg_color="transparent")
+        preview_container.place(relx=0.5, rely=0.5, anchor="center")
+        
+        self.thumb_label = ctk.CTkLabel(preview_container, 
+            text="⚠️ Could not load thumbnail\nPlease check the URL", 
+            font=ctk.CTkFont(size=13), text_color="gray", justify="center")
+        self.thumb_label.pack()
+        
+        self.start_btn.configure(state="disabled", fg_color="gray", hover_color="gray")
     
     def show_thumbnail(self, img):
         try:
+            # Clear the preview container and show thumbnail
+            for widget in self.thumb_frame.winfo_children():
+                widget.destroy()
+            
+            # Create image with proper size
             ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=img.size)
             self.current_thumbnail = ctk_img
-            self.thumb_label.configure(image=ctk_img, text="")
+            
+            # Show thumbnail centered
+            self.thumb_label = ctk.CTkLabel(self.thumb_frame, image=ctk_img, text="")
+            self.thumb_label.place(relx=0.5, rely=0.5, anchor="center")
+            
             # Enable start button when thumbnail loads successfully
-            self.start_btn.configure(state="normal", fg_color=("#3B8ED0", "#1F6AA5"))
+            self.start_btn.configure(state="normal", fg_color=("#3B8ED0", "#1F6AA5"), 
+                hover_color=("#36719F", "#144870"))
         except Exception as e:
             debug_log(f"Error showing thumbnail: {e}")
             # If thumbnail fails, just enable the button anyway
-            self.start_btn.configure(state="normal", fg_color=("#3B8ED0", "#1F6AA5"))
+            self.start_btn.configure(state="normal", fg_color=("#3B8ED0", "#1F6AA5"), 
+                hover_color=("#36719F", "#144870"))
 
     def start_processing(self):
         if not self.client:
@@ -562,7 +720,10 @@ class YTShortClipperApp(ctk.CTk):
             temperature = self.config.get("temperature", 1.0)
             tts_model = self.config.get("tts_model", "tts-1")
             watermark_settings = self.config.get("watermark", {"enabled": False})
+            
+            # Get face tracking mode from config (set in settings page)
             face_tracking_mode = self.config.get("face_tracking_mode", "opencv")
+            
             mediapipe_settings = self.config.get("mediapipe_settings", {
                 "lip_activity_threshold": 0.15,
                 "switch_threshold": 0.3,
@@ -733,6 +894,11 @@ class YTShortClipperApp(ctk.CTk):
         """Open Discord server invite link"""
         import webbrowser
         webbrowser.open("https://s.id/ytsdiscord")
+    
+    def open_github(self):
+        """Open GitHub repository"""
+        import webbrowser
+        webbrowser.open("https://github.com/jipraks/yt-short-clipper")
     
     def check_update_silent(self):
         """Check for updates silently on startup"""
