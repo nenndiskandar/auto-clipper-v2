@@ -11,6 +11,7 @@ import cv2
 import numpy as np
 import tempfile
 import sys
+import time
 from pathlib import Path
 from datetime import datetime
 from openai import OpenAI
@@ -2073,69 +2074,172 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         
         progress_callback(0.3)
         
-        # Create hook video
-        hook_video = tempfile.NamedTemporaryFile(suffix='.mp4', delete=False).name
+        # Create hook video in our temp directory
+        hook_video = str(self.temp_dir / f"hook_{int(time.time() * 1000)}.mp4")
         
-        drawtext_filters = []
-        line_height = 85
-        font_size = 58
-        total_text_height = len(lines) * line_height
-        start_y = (height // 3) - (total_text_height // 2)
+        # Create text file for drawtext filter (avoid escaping issues)
+        text_file = str(self.temp_dir / f"hook_text_{int(time.time() * 1000)}.txt")
         
-        # Use a simpler font path that works on Windows
-        font_path = "C:/Windows/Fonts/arialbd.ttf"
+        # Write text lines to file
+        text_content = '\n'.join(lines)
+        with open(text_file, 'w', encoding='utf-8') as f:
+            f.write(text_content)
         
-        for i, line in enumerate(lines):
-            # Normalize unicode characters (fix encoding issues like … → ...)
-            normalized_line = line.encode('ascii', 'ignore').decode('ascii')
-            if not normalized_line.strip():
-                # If line becomes empty after normalization, use original but replace problematic chars
-                normalized_line = line.replace('…', '...').replace('–', '-').replace(''', "'").replace('"', '"').replace('"', '"')
-            
-            # Escape text for FFmpeg drawtext filter
-            # Order matters: escape backslash first, then other special chars
-            escaped_line = normalized_line.replace("\\", "\\\\").replace("'", "\\'").replace(":", "\\:")
-            y_pos = start_y + (i * line_height)
-            
-            drawtext_filters.append(
-                f"drawtext=text='{escaped_line}':"
-                f"fontfile='{font_path}':"
-                f"fontsize={font_size}:"
-                f"fontcolor=#FFD700:"
-                f"box=1:"
-                f"boxcolor=white@0.95:"
-                f"boxborderw=12:"
-                f"x=(w-text_w)/2:"
-                f"y={y_pos}"
-            )
+        # Use a simpler approach: create static image with text, then combine with audio
+        # This avoids complex FFmpeg filter escaping issues
         
-        # Build filter chain - only add comma if there are drawtext filters
-        if drawtext_filters:
-            filter_chain = "," + ",".join(drawtext_filters)
-        else:
-            filter_chain = ""
+        # First, create a simple background video from first frame
+        bg_video = str(self.temp_dir / f"hook_bg_{int(time.time() * 1000)}.mp4")
         
-        cmd = [
+        bg_cmd = [
             self.ffmpeg_path, "-y",
             "-i", input_path,
-            "-i", tts_file,
-            "-filter_complex",
-            f"[0:v]trim=0:0.04,loop=loop=-1:size=1:start=0,setpts=N/{fps}/TB{filter_chain},trim=0:{hook_duration},setpts=PTS-STARTPTS[v];"
-            f"[1:a]aresample=44100,apad=whole_dur={hook_duration}[a]",
-            "-map", "[v]",
-            "-map", "[a]",
+            "-vf", f"trim=0:0.04,loop=loop=-1:size=1:start=0,setpts=N/{fps}/TB",
+            "-t", str(hook_duration),
             "-c:v", "libx264",
             "-preset", "fast",
             "-crf", "18",
             "-r", str(fps),
             "-s", f"{width}x{height}",
             "-pix_fmt", "yuv420p",
+            "-an",
+            bg_video
+        ]
+        
+        result = subprocess.run(bg_cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
+        if result.returncode != 0:
+            self.log(f"Failed to create background video: {result.stderr}")
+            raise Exception("Failed to create background video")
+        
+        # Verify background video was created successfully
+        if not os.path.exists(bg_video) or os.path.getsize(bg_video) < 1000:
+            raise Exception("Background video was not created properly")
+        
+        # Copy font to temp dir to avoid Windows path colon issues in FFmpeg filter
+        import shutil
+        temp_font = str(self.temp_dir / "arial_bold.ttf")
+        if not os.path.exists(temp_font):
+            shutil.copy2("C:/Windows/Fonts/arialbd.ttf", temp_font)
+        
+        # Now add text overlays one by one
+        current_video = bg_video
+        line_height = 85
+        font_size = 58
+        total_text_height = len(lines) * line_height
+        start_y = (height // 3) - (total_text_height // 2)
+        
+        for i, line in enumerate(lines):
+            # Normalize unicode characters
+            normalized_line = line.encode('ascii', 'ignore').decode('ascii')
+            if not normalized_line.strip():
+                normalized_line = line.replace('\u2026', '...').replace('\u2013', '-').replace('\u2018', "'").replace('\u2019', "'").replace('\u201c', '"').replace('\u201d', '"')
+            
+            y_pos = start_y + (i * line_height)
+            
+            next_video = str(self.temp_dir / f"hook_text_{int(time.time() * 1000)}_{i}.mp4")
+            
+            # Use OpenCV to add text overlay instead of FFmpeg drawtext
+            # This avoids all Windows path escaping issues
+            self.log(f"Adding text overlay with OpenCV: {normalized_line}")
+            
+            # Read input video
+            cap = cv2.VideoCapture(current_video)
+            fps = int(cap.get(cv2.CAP_PROP_FPS))
+            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            
+            # Setup video writer
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            out = cv2.VideoWriter(next_video, fourcc, fps, (width, height))
+            
+            # Process each frame
+            frame_count = 0
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                
+                # Add text overlay using cv2.putText
+                # Calculate text size for centering
+                font = cv2.FONT_HERSHEY_SIMPLEX  # Fixed: use SIMPLEX instead of BOLD
+                font_scale = 2.0
+                thickness = 4
+                
+                # Get text size
+                (text_width, text_height), baseline = cv2.getTextSize(
+                    normalized_line, font, font_scale, thickness
+                )
+                
+                # Calculate position (centered horizontally, at y_pos vertically)
+                text_x = (width - text_width) // 2
+                text_y = y_pos + text_height
+                
+                # Draw white background box
+                box_padding = 12
+                box_x1 = text_x - box_padding
+                box_y1 = text_y - text_height - box_padding
+                box_x2 = text_x + text_width + box_padding
+                box_y2 = text_y + baseline + box_padding
+                
+                # Draw semi-transparent white box
+                overlay = frame.copy()
+                cv2.rectangle(overlay, (box_x1, box_y1), (box_x2, box_y2), (255, 255, 255), -1)
+                cv2.addWeighted(overlay, 0.95, frame, 0.05, 0, frame)
+                
+                # Draw yellow/gold text (#FFD700 = RGB(255, 215, 0))
+                cv2.putText(frame, normalized_line, (text_x, text_y),
+                           font, font_scale, (0, 215, 255), thickness, cv2.LINE_AA)
+                
+                out.write(frame)
+                frame_count += 1
+            
+            cap.release()
+            out.release()
+            
+            self.log(f"Processed {frame_count} frames with text overlay")
+            
+            # Verify output was created
+            if not os.path.exists(next_video) or os.path.getsize(next_video) < 1000:
+                raise Exception(f"Text overlay video {i} was not created properly")
+            
+            # Clean up previous temp file
+            if current_video != bg_video:
+                try:
+                    os.unlink(current_video)
+                except:
+                    pass
+            
+            current_video = next_video
+        
+        # Re-encode OpenCV output to proper H.264 before adding audio
+        # OpenCV mp4v codec is not compatible with copy codec
+        reencoded_video = str(self.temp_dir / f"hook_reenc_{int(time.time() * 1000)}.mp4")
+        reencode_cmd = [
+            self.ffmpeg_path, "-y",
+            "-i", current_video,
+            "-c:v", "libx264",
+            "-preset", "fast",
+            "-crf", "18",
+            "-pix_fmt", "yuv420p",
+            "-an",  # No audio yet
+            reencoded_video
+        ]
+        result = subprocess.run(reencode_cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
+        if result.returncode != 0:
+            self.log(f"Failed to re-encode OpenCV output: {result.stderr}")
+            raise Exception("Failed to re-encode text overlay video")
+        
+        # Finally, add audio to re-encoded video
+        cmd = [
+            self.ffmpeg_path, "-y",
+            "-i", reencoded_video,
+            "-i", tts_file,
+            "-c:v", "copy",
             "-c:a", "aac",
             "-b:a", "192k",
             "-ar", "44100",
             "-ac", "2",
-            "-t", str(hook_duration),
-            "-progress", "pipe:1",
+            "-shortest",
             hook_video
         ]
         
@@ -2223,6 +2327,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             os.unlink(hook_video)
             os.unlink(main_reencoded)
             os.unlink(concat_list)
+            os.unlink(text_file)
+            os.unlink(bg_video)
+            os.unlink(current_video)
         except:
             pass
         
