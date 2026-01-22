@@ -408,11 +408,11 @@ The desktop app shows real-time token usage and cost estimation during processin
 
 ## 🤝 Contributing
 
-Contributions are welcome! Kami sangat menghargai kontribusi dari siapapun.
+Contributions are welcome! We greatly appreciate contributions from anyone.
 
 ### 🔨 Building Desktop App from Source
 
-Untuk developer yang ingin build .exe sendiri, lihat panduan lengkap di [BUILD.md](BUILD.md).
+For developers who want to build the .exe themselves, see the complete guide in [BUILD.md](BUILD.md).
 
 Quick steps:
 ```bash
@@ -426,41 +426,41 @@ pyinstaller build.spec
 # Output: dist/AutoClipper.exe
 ```
 
-### Quick Start untuk Kontributor
+### Quick Start for Contributors
 
 ```bash
-# 1. Fork repo ini (klik tombol Fork di GitHub)
+# 1. Fork this repo (click the Fork button on GitHub)
 
-# 2. Clone fork kamu
-git clone https://github.com/USERNAME-KAMU/yt-short-clipper.git
+# 2. Clone your fork
+git clone https://github.com/YOUR-USERNAME/yt-short-clipper.git
 cd yt-short-clipper
 
-# 3. Tambahkan upstream remote
+# 3. Add upstream remote
 git remote add upstream https://github.com/OWNER/yt-short-clipper.git
 
-# 4. Buat branch baru
-git checkout -b feature/fitur-baru-kamu
+# 4. Create a new branch
+git checkout -b feature/your-new-feature
 
-# 5. Lakukan perubahan, lalu commit
+# 5. Make changes, then commit
 git add .
-git commit -m "feat: deskripsi perubahan"
+git commit -m "feat: description of changes"
 
-# 6. Push ke fork kamu
-git push origin feature/fitur-baru-kamu
+# 6. Push to your fork
+git push origin feature/your-new-feature
 
-# 7. Buat Pull Request di GitHub
+# 7. Create a Pull Request on GitHub
 ```
 
-### Cara Kontribusi
+### How to Contribute
 
-| Jenis | Deskripsi |
+| Type | Description |
 |-------|-----------|
-| 🐛 **Bug Report** | Laporkan bug di tab [Issues](../../issues) |
-| 💡 **Feature Request** | Request fitur baru di [Issues](../../issues) |
-| 📖 **Documentation** | Improve docs, fix typo, tambah contoh |
-| 🔧 **Code** | Fix bug, tambah fitur, improve performance |
+| 🐛 **Bug Report** | Report bugs in the [Issues](../../issues) tab |
+| 💡 **Feature Request** | Request new features in [Issues](../../issues) |
+| 📖 **Documentation** | Improve docs, fix typos, add examples |
+| 🔧 **Code** | Fix bugs, add features, improve performance |
 
-📚 **Panduan lengkap ada di [CONTRIBUTING.md](CONTRIBUTING.md)** - termasuk tutorial Git untuk pemula!
+📚 **Complete guide available in [CONTRIBUTING.md](CONTRIBUTING.md)** - includes Git tutorial for beginners!
 
 ## 📝 License
 
@@ -491,5 +491,5 @@ Made with ☕ by **Aji Prakoso** for content creators
 |---|---|
 | 🎓 | [n8n & Automation eCourse](https://classroom.jipraks.com) |
 | 📸 | [@jipraks on Instagram](https://instagram.com/jipraks) |
-| 🎬 | [Aji Prakoso's YouTube](https://youtube.com/@jipraks) |
+| 🎬 | [Aji Prakoso on YouTube](https://youtube.com/@jipraks) |
 | 🌐 | [About Aji Prakoso](https://www.jipraks.com) |
