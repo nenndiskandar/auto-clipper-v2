@@ -1508,8 +1508,27 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         print(f"[DEBUG] FFmpeg completed with return code: {result.returncode}")
         
         if result.returncode != 0:
-            print(f"[FFMPEG ERROR] {result.stderr}")
-            raise Exception("FFmpeg process failed")
+            error_msg = result.stderr if result.stderr else "Unknown FFmpeg error"
+            
+            # Extract the actual error (usually at the end)
+            error_lines = error_msg.split('\n')
+            relevant_errors = [line for line in error_lines if any(keyword in line.lower() for keyword in 
+                ['error', 'invalid', 'failed', 'cannot', 'unable', 'not found', 'does not exist'])]
+            
+            # Get last 10 lines which usually contain the actual error
+            last_lines = '\n'.join(error_lines[-10:])
+            
+            print(f"[FFMPEG ERROR] Full stderr:\n{error_msg}")
+            self.log(f"FFmpeg command failed: {' '.join(cmd)}")
+            self.log(f"FFmpeg full error output:\n{error_msg}")
+            
+            # Show relevant error or last lines
+            if relevant_errors:
+                error_summary = '\n'.join(relevant_errors[-5:])
+            else:
+                error_summary = last_lines
+            
+            raise Exception(f"FFmpeg process failed:\n{error_summary}")
     
     def convert_to_portrait_with_progress(self, input_path: str, output_path: str, progress_callback):
         """Convert landscape to 9:16 portrait with speaker tracking and progress (router method)"""
@@ -2063,13 +2082,24 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         total_text_height = len(lines) * line_height
         start_y = (height // 3) - (total_text_height // 2)
         
+        # Use a simpler font path that works on Windows
+        font_path = "C:/Windows/Fonts/arialbd.ttf"
+        
         for i, line in enumerate(lines):
-            escaped_line = line.replace("'", "'\\''").replace(":", "\\:").replace("\\", "\\\\")
+            # Normalize unicode characters (fix encoding issues like … → ...)
+            normalized_line = line.encode('ascii', 'ignore').decode('ascii')
+            if not normalized_line.strip():
+                # If line becomes empty after normalization, use original but replace problematic chars
+                normalized_line = line.replace('…', '...').replace('–', '-').replace(''', "'").replace('"', '"').replace('"', '"')
+            
+            # Escape text for FFmpeg drawtext filter
+            # Order matters: escape backslash first, then other special chars
+            escaped_line = normalized_line.replace("\\", "\\\\").replace("'", "\\'").replace(":", "\\:")
             y_pos = start_y + (i * line_height)
             
             drawtext_filters.append(
                 f"drawtext=text='{escaped_line}':"
-                f"fontfile='C\\:/Windows/Fonts/arialbd.ttf':"
+                f"fontfile='{font_path}':"
                 f"fontsize={font_size}:"
                 f"fontcolor=#FFD700:"
                 f"box=1:"
@@ -2079,14 +2109,18 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 f"y={y_pos}"
             )
         
-        filter_chain = ",".join(drawtext_filters)
+        # Build filter chain - only add comma if there are drawtext filters
+        if drawtext_filters:
+            filter_chain = "," + ",".join(drawtext_filters)
+        else:
+            filter_chain = ""
         
         cmd = [
             self.ffmpeg_path, "-y",
             "-i", input_path,
             "-i", tts_file,
             "-filter_complex",
-            f"[0:v]trim=0:0.04,loop=loop=-1:size=1:start=0,setpts=N/{fps}/TB,{filter_chain},trim=0:{hook_duration},setpts=PTS-STARTPTS[v];"
+            f"[0:v]trim=0:0.04,loop=loop=-1:size=1:start=0,setpts=N/{fps}/TB{filter_chain},trim=0:{hook_duration},setpts=PTS-STARTPTS[v];"
             f"[1:a]aresample=44100,apad=whole_dur={hook_duration}[a]",
             "-map", "[v]",
             "-map", "[a]",
