@@ -1212,7 +1212,7 @@ class YTShortClipperApp(ctk.CTk):
         try:
             # Get installation_id from config
             installation_id = self.config.get("installation_id", "unknown")
-            url = f"{UPDATE_CHECK_URL}?installation_id={installation_id}"
+            url = f"{UPDATE_CHECK_URL}?installation_id={installation_id}&app_version={__version__}"
             
             req = urllib.request.Request(url, headers={'User-Agent': 'YT-Short-Clipper'})
             with urllib.request.urlopen(req, timeout=5) as response:
@@ -1232,7 +1232,7 @@ class YTShortClipperApp(ctk.CTk):
         try:
             # Get installation_id from config
             installation_id = self.config.get("installation_id", "unknown")
-            url = f"{UPDATE_CHECK_URL}?installation_id={installation_id}"
+            url = f"{UPDATE_CHECK_URL}?installation_id={installation_id}&app_version={__version__}"
             
             req = urllib.request.Request(url, headers={'User-Agent': 'YT-Short-Clipper'})
             with urllib.request.urlopen(req, timeout=10) as response:
