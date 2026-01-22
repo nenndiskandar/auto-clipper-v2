@@ -19,10 +19,11 @@ from dialogs.youtube_upload import YouTubeUploadDialog
 class ResultsPage(ctk.CTkFrame):
     """Results page - view clips created in current session"""
     
-    def __init__(self, parent, config, client, on_back_callback, on_home_callback, open_output_callback):
+    def __init__(self, parent, config, client, on_back_callback, on_home_callback, open_output_callback, get_youtube_client=None):
         super().__init__(parent)
         self.config = config
         self.client = client
+        self.get_youtube_client = get_youtube_client or (lambda: client)
         self.on_back = on_back_callback
         self.on_home = on_home_callback
         self.open_output = open_output_callback
@@ -144,9 +145,14 @@ class ResultsPage(ctk.CTkFrame):
                 messagebox.showinfo("Connect YouTube", "Please connect your YouTube account first.\nGo to Settings → YouTube tab.")
                 return
             
+            # Get YouTube-specific client and config
+            yt_client = self.get_youtube_client()
+            ai_providers = self.config.get("ai_providers", {})
+            yt_config = ai_providers.get("youtube_title_maker", {})
+            model = yt_config.get("model", self.config.get("model", "gpt-4.1"))
+            
             # Open upload dialog
-            YouTubeUploadDialog(self, clip, self.client, 
-                self.config.get("model", "gpt-4.1"), 
+            YouTubeUploadDialog(self, clip, yt_client, model, 
                 self.config.get("temperature", 1.0))
             
         except ImportError:

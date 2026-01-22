@@ -66,6 +66,7 @@ class YTShortClipperApp(ctk.CTk):
         self.token_usage = {"gpt_input": 0, "gpt_output": 0, "whisper_seconds": 0, "tts_chars": 0}
         self.youtube_connected = False
         self.youtube_channel = None
+        self.ytdlp_path = get_ytdlp_path()  # NEW: Store yt-dlp path for subtitle fetching
         
         self.title("YT Short Clipper")
         self.geometry("680x780")
@@ -152,9 +153,9 @@ class YTShortClipperApp(ctk.CTk):
         # Reset clips input to default
         self.clips_var.set("5")
         
-        # Reset toggles to default
-        self.caption_var.set(True)
-        self.hook_var.set(True)
+        # Reset toggles to default (OFF)
+        self.caption_var.set(False)
+        self.hook_var.set(False)
         
         # Update switch texts
         self.caption_switch.configure(text="ON")
@@ -167,85 +168,27 @@ class YTShortClipperApp(ctk.CTk):
         page = ctk.CTkFrame(self.container, fg_color=("#1a1a1a", "#0a0a0a"))
         self.pages["home"] = page
         
-        # Top bar with icon and navigation
-        top = ctk.CTkFrame(page, fg_color="transparent")
-        top.pack(fill="x", padx=20, pady=(15, 10))
+        # Import header and footer components
+        from components.page_layout import PageHeader, PageFooter
         
-        # App icon + title on left
-        title_frame = ctk.CTkFrame(top, fg_color="transparent")
-        title_frame.pack(side="left")
+        # Top header
+        header = PageHeader(page, self, show_nav_buttons=True)
+        header.pack(fill="x", padx=20, pady=(15, 10))
         
-        if ICON_PATH.exists():
-            try:
-                icon_img = Image.open(ICON_PATH)
-                icon_img.thumbnail((40, 40), Image.Resampling.LANCZOS)
-                self.header_icon = ctk.CTkImage(light_image=icon_img, dark_image=icon_img, size=(40, 40))
-                ctk.CTkLabel(title_frame, image=self.header_icon, text="").pack(side="left", padx=(0, 12))
-            except:
-                pass
-        
-        title_col = ctk.CTkFrame(title_frame, fg_color="transparent")
-        title_col.pack(side="left")
-        ctk.CTkLabel(title_col, text="YT Short Clipper", font=ctk.CTkFont(size=20, weight="bold")).pack(anchor="w")
-        ctk.CTkLabel(title_col, text="Turn long videos into viral shorts", font=ctk.CTkFont(size=11), 
-            text_color="gray").pack(anchor="w")
-        
-        # Right side navigation buttons with icons
-        nav_frame = ctk.CTkFrame(top, fg_color="transparent")
-        nav_frame.pack(side="right")
-        
-        # Load button icons
+        # Load icons for buttons
         try:
-            settings_img = Image.open(ASSETS_DIR / "settings.png")
-            settings_img.thumbnail((18, 18), Image.Resampling.LANCZOS)
-            self.settings_icon = ctk.CTkImage(light_image=settings_img, dark_image=settings_img, size=(18, 18))
-            
-            api_img = Image.open(ASSETS_DIR / "api-status.png")
-            api_img.thumbnail((18, 18), Image.Resampling.LANCZOS)
-            self.api_icon = ctk.CTkImage(light_image=api_img, dark_image=api_img, size=(18, 18))
-            
-            lib_img = Image.open(ASSETS_DIR / "lib-status.png")
-            lib_img.thumbnail((18, 18), Image.Resampling.LANCZOS)
-            self.lib_icon = ctk.CTkImage(light_image=lib_img, dark_image=lib_img, size=(18, 18))
-            
-            # Load icons for main buttons
             play_img = Image.open(ASSETS_DIR / "play.png")
             play_img.thumbnail((20, 20), Image.Resampling.LANCZOS)
             self.play_icon = ctk.CTkImage(light_image=play_img, dark_image=play_img, size=(20, 20))
-            
-            browse_img = Image.open(ASSETS_DIR / "lib-status.png")
-            browse_img.thumbnail((18, 18), Image.Resampling.LANCZOS)
-            self.browse_icon = ctk.CTkImage(light_image=browse_img, dark_image=browse_img, size=(18, 18))
             
             # Load refresh icon for status pages
             refresh_img = Image.open(ASSETS_DIR / "refresh.png")
             refresh_img.thumbnail((20, 20), Image.Resampling.LANCZOS)
             self.refresh_icon = ctk.CTkImage(light_image=refresh_img, dark_image=refresh_img, size=(20, 20))
         except Exception as e:
-            # Fallback to text if icons not found
             debug_log(f"Icon load error: {e}")
-            self.settings_icon = None
-            self.api_icon = None
-            self.lib_icon = None
             self.play_icon = None
-            self.browse_icon = None
             self.refresh_icon = None
-        
-        # Navigation buttons with rounded style
-        ctk.CTkButton(nav_frame, text="Settings", image=self.settings_icon, compound="left",
-            width=90, height=40, font=ctk.CTkFont(size=11),
-            fg_color=("#2b2b2b", "#1a1a1a"), hover_color=("#3a3a3a", "#2a2a2a"), corner_radius=10,
-            command=lambda: self.show_page("settings")).pack(side="left", padx=3)
-        
-        ctk.CTkButton(nav_frame, text="API", image=self.api_icon, compound="left",
-            width=70, height=40, font=ctk.CTkFont(size=11),
-            fg_color=("#2b2b2b", "#1a1a1a"), hover_color=("#3a3a3a", "#2a2a2a"), corner_radius=10,
-            command=lambda: self.show_page("api_status")).pack(side="left", padx=3)
-        
-        ctk.CTkButton(nav_frame, text="Library", image=self.lib_icon, compound="left",
-            width=85, height=40, font=ctk.CTkFont(size=11),
-            fg_color=("#2b2b2b", "#1a1a1a"), hover_color=("#3a3a3a", "#2a2a2a"), corner_radius=10,
-            command=lambda: self.show_page("lib_status")).pack(side="left", padx=3)
         
         # Main content area - two columns
         main = ctk.CTkFrame(page, fg_color="transparent")
@@ -278,6 +221,26 @@ class YTShortClipperApp(ctk.CTk):
             fg_color=("#3a3a3a", "#2a2a2a"), hover_color=("#4a4a4a", "#3a3a3a"),
             font=ctk.CTkFont(size=11), command=self.paste_url)
         paste_btn.pack(side="right")
+        
+        # Subtitle selector (hidden by default)
+        self.subtitle_frame = ctk.CTkFrame(url_frame, fg_color="transparent")
+        self.subtitle_frame.pack(fill="x", padx=8, pady=(0, 8))
+        self.subtitle_frame.pack_forget()  # Hide initially
+        
+        subtitle_label = ctk.CTkLabel(self.subtitle_frame, text="Subtitle Language:", 
+            font=ctk.CTkFont(size=11), anchor="w")
+        subtitle_label.pack(side="left", padx=(4, 8))
+        
+        self.subtitle_var = ctk.StringVar(value="id - Indonesian")
+        self.subtitle_dropdown = ctk.CTkOptionMenu(self.subtitle_frame, 
+            variable=self.subtitle_var, values=["id - Indonesian"], 
+            width=200, height=32, fg_color=("#3a3a3a", "#2a2a2a"),
+            button_color=("#3a3a3a", "#2a2a2a"), button_hover_color=("#4a4a4a", "#3a3a3a"))
+        self.subtitle_dropdown.pack(side="left")
+        
+        # Loading indicator for subtitle fetch
+        self.subtitle_loading = ctk.CTkLabel(self.subtitle_frame, text="⏳ Loading...", 
+            font=ctk.CTkFont(size=10), text_color="gray")
         
         # Clip Configuration section
         config_frame = ctk.CTkFrame(left_col, fg_color=("#2b2b2b", "#1a1a1a"), corner_radius=10)
@@ -321,8 +284,8 @@ class YTShortClipperApp(ctk.CTk):
         ctk.CTkLabel(captions_left, text="💬 Captions", font=ctk.CTkFont(size=11, weight="bold"), 
             anchor="w").pack(anchor="w")
         
-        self.caption_var = ctk.BooleanVar(value=True)
-        caption_switch = ctk.CTkSwitch(captions_row, text="ON", variable=self.caption_var, 
+        self.caption_var = ctk.BooleanVar(value=False)
+        caption_switch = ctk.CTkSwitch(captions_row, text="OFF", variable=self.caption_var, 
             width=60, command=self.update_caption_switch_text)
         caption_switch.pack(side="right")
         self.caption_switch = caption_switch
@@ -337,8 +300,8 @@ class YTShortClipperApp(ctk.CTk):
         ctk.CTkLabel(hook_left, text="🪝 Hook Text", font=ctk.CTkFont(size=11, weight="bold"), 
             anchor="w").pack(anchor="w")
         
-        self.hook_var = ctk.BooleanVar(value=True)
-        hook_switch = ctk.CTkSwitch(hook_row, text="ON", variable=self.hook_var, 
+        self.hook_var = ctk.BooleanVar(value=False)
+        hook_switch = ctk.CTkSwitch(hook_row, text="OFF", variable=self.hook_var, 
             width=60, command=self.update_hook_switch_text)
         hook_switch.pack(side="right")
         self.hook_switch = hook_switch
@@ -369,40 +332,9 @@ class YTShortClipperApp(ctk.CTk):
         # Preview content container (will be recreated when showing thumbnail)
         self.create_preview_placeholder()
         
-        # Footer - Contact links with separator line
-        footer = ctk.CTkFrame(page, fg_color="transparent", height=60)
+        # Footer
+        footer = PageFooter(page, self)
         footer.pack(fill="x", padx=20, pady=(10, 15), side="bottom")
-        footer.pack_propagate(False)
-        
-        # Separator line
-        separator = ctk.CTkFrame(footer, height=1, fg_color=("#3a3a3a", "#2a2a2a"))
-        separator.pack(fill="x", pady=(0, 12))
-        
-        # Footer content
-        footer_content = ctk.CTkFrame(footer, fg_color="transparent")
-        footer_content.pack(fill="x")
-        
-        # Copyright text on left with dynamic year and version
-        from datetime import datetime
-        current_year = datetime.now().year
-        ctk.CTkLabel(footer_content, text=f"© {current_year} YT Short Clipper • v{__version__}", 
-            font=ctk.CTkFont(size=10), text_color="gray", anchor="w").pack(side="left")
-        
-        # Links on right
-        links_frame = ctk.CTkFrame(footer_content, fg_color="transparent")
-        links_frame.pack(side="right")
-        
-        # GitHub link
-        github_link = ctk.CTkLabel(links_frame, text="⭐ GitHub", 
-            font=ctk.CTkFont(size=11), text_color="#ffffff", cursor="hand2")
-        github_link.pack(side="left", padx=(0, 15))
-        github_link.bind("<Button-1>", lambda e: self.open_github())
-        
-        # Join Discord link (blurple)
-        discord_link = ctk.CTkLabel(links_frame, text="💬 Join Discord Server", 
-            font=ctk.CTkFont(size=11), text_color="#5865F2", cursor="hand2")
-        discord_link.pack(side="left")
-        discord_link.bind("<Button-1>", lambda e: self.open_discord())
     
     def create_preview_placeholder(self):
         """Create placeholder content for video preview"""
@@ -444,11 +376,121 @@ class YTShortClipperApp(ctk.CTk):
     
     def update_caption_switch_text(self):
         """Update caption switch text based on state"""
-        self.caption_switch.configure(text="ON" if self.caption_var.get() else "OFF")
+        # Check if trying to turn ON
+        if self.caption_var.get():
+            # Validate Caption Maker API in background
+            self.caption_switch.configure(state="disabled")
+            
+            def validate_caption_api():
+                try:
+                    ai_providers = self.config.get("ai_providers", {})
+                    cm_config = ai_providers.get("caption_maker", {})
+                    api_key = cm_config.get("api_key", "").strip()
+                    base_url = cm_config.get("base_url", "https://api.openai.com/v1").strip()
+                    model = cm_config.get("model", "").strip()
+                    
+                    if not api_key or not model:
+                        self.after(0, lambda: self._on_caption_validation_failed("API Key or Model not configured"))
+                        return
+                    
+                    # Test API connection
+                    from openai import OpenAI
+                    client = OpenAI(api_key=api_key, base_url=base_url)
+                    
+                    # Get available models
+                    models_response = client.models.list()
+                    available_models = [m.id for m in models_response.data]
+                    
+                    # Check if configured model is available
+                    if model not in available_models:
+                        self.after(0, lambda: self._on_caption_validation_failed(f"Model '{model}' not available"))
+                        return
+                    
+                    # Validation successful
+                    self.after(0, self._on_caption_validation_success)
+                    
+                except Exception as e:
+                    error_msg = str(e)[:100]
+                    self.after(0, lambda: self._on_caption_validation_failed(error_msg))
+            
+            threading.Thread(target=validate_caption_api, daemon=True).start()
+            return
+        
+        # Update text when turning OFF
+        self.caption_switch.configure(text="OFF", state="normal")
+    
+    def _on_caption_validation_success(self):
+        """Handle successful caption API validation"""
+        self.caption_switch.configure(text="ON", state="normal")
+    
+    def _on_caption_validation_failed(self, error_msg):
+        """Handle failed caption API validation"""
+        self.caption_var.set(False)
+        self.caption_switch.configure(text="OFF", state="normal")
+        messagebox.showerror("Caption Maker Validation Failed", 
+            f"Caption Maker API validation failed!\n\n" +
+            f"Error: {error_msg}\n\n" +
+            "Please check your configuration in:\n" +
+            "Settings → AI API Settings → Caption Maker")
     
     def update_hook_switch_text(self):
         """Update hook switch text based on state"""
-        self.hook_switch.configure(text="ON" if self.hook_var.get() else "OFF")
+        # Check if trying to turn ON
+        if self.hook_var.get():
+            # Validate Hook Maker API in background
+            self.hook_switch.configure(state="disabled")
+            
+            def validate_hook_api():
+                try:
+                    ai_providers = self.config.get("ai_providers", {})
+                    hm_config = ai_providers.get("hook_maker", {})
+                    api_key = hm_config.get("api_key", "").strip()
+                    base_url = hm_config.get("base_url", "https://api.openai.com/v1").strip()
+                    model = hm_config.get("model", "").strip()
+                    
+                    if not api_key or not model:
+                        self.after(0, lambda: self._on_hook_validation_failed("API Key or Model not configured"))
+                        return
+                    
+                    # Test API connection
+                    from openai import OpenAI
+                    client = OpenAI(api_key=api_key, base_url=base_url)
+                    
+                    # Get available models
+                    models_response = client.models.list()
+                    available_models = [m.id for m in models_response.data]
+                    
+                    # Check if configured model is available
+                    if model not in available_models:
+                        self.after(0, lambda: self._on_hook_validation_failed(f"Model '{model}' not available"))
+                        return
+                    
+                    # Validation successful
+                    self.after(0, self._on_hook_validation_success)
+                    
+                except Exception as e:
+                    error_msg = str(e)[:100]
+                    self.after(0, lambda: self._on_hook_validation_failed(error_msg))
+            
+            threading.Thread(target=validate_hook_api, daemon=True).start()
+            return
+        
+        # Update text when turning OFF
+        self.hook_switch.configure(text="OFF", state="normal")
+    
+    def _on_hook_validation_success(self):
+        """Handle successful hook API validation"""
+        self.hook_switch.configure(text="ON", state="normal")
+    
+    def _on_hook_validation_failed(self, error_msg):
+        """Handle failed hook API validation"""
+        self.hook_var.set(False)
+        self.hook_switch.configure(text="OFF", state="normal")
+        messagebox.showerror("Hook Maker Validation Failed", 
+            f"Hook Maker API validation failed!\n\n" +
+            f"Error: {error_msg}\n\n" +
+            "Please check your configuration in:\n" +
+            "Settings → AI API Settings → Hook Maker")
 
     def create_processing_page(self):
         """Create processing page as embedded frame"""
@@ -470,7 +512,8 @@ class YTShortClipperApp(ctk.CTk):
             self.client,
             lambda: self.show_page("processing"),
             lambda: self.show_page("home"),
-            self.open_output
+            self.open_output,
+            self.get_youtube_client
         )
     
     def create_settings_page(self):
@@ -510,7 +553,8 @@ class YTShortClipperApp(ctk.CTk):
             self.config,
             self.client,
             lambda: self.show_page("home"),
-            self.refresh_icon
+            self.refresh_icon,
+            self.get_youtube_client
         )
     
     def create_contact_page(self):
@@ -582,17 +626,123 @@ class YTShortClipperApp(ctk.CTk):
         self.client = OpenAI(api_key=api_key, base_url=base_url)
         # Update config will be reflected when user returns to home page
     
+    def get_youtube_client(self):
+        """Get OpenAI client for YouTube title generation"""
+        ai_providers = self.config.get("ai_providers", {})
+        yt_config = ai_providers.get("youtube_title_maker", {})
+        
+        if yt_config.get("api_key"):
+            return OpenAI(
+                api_key=yt_config.get("api_key"),
+                base_url=yt_config.get("base_url", "https://api.openai.com/v1")
+            )
+        else:
+            # Fallback to main client for backward compatibility
+            return self.client
+    
     def on_url_change(self, *args):
         url = self.url_var.get().strip()
         video_id = extract_video_id(url)
         if video_id:
             self.load_thumbnail(video_id)
+            self.load_subtitles(url)  # NEW: Fetch available subtitles
         else:
             self.current_thumbnail = None
             # Recreate placeholder
             self.create_preview_placeholder()
+            # Hide subtitle selector
+            self.subtitle_frame.pack_forget()
             # Disable start button when URL is invalid
             self.start_btn.configure(state="disabled", fg_color="gray", hover_color="gray")
+    
+    def load_subtitles(self, url: str):
+        """Fetch available subtitles for the video"""
+        def fetch():
+            try:
+                # Show loading state
+                self.after(0, lambda: self.show_subtitle_loading())
+                
+                # Import here to avoid circular dependency
+                from clipper_core import AutoClipperCore
+                
+                # Get available subtitles
+                debug_log(f"Fetching subtitles for: {url}")
+                result = AutoClipperCore.get_available_subtitles(url, self.ytdlp_path)
+                debug_log(f"Subtitle fetch result: {result}")
+                
+                if result.get("error"):
+                    debug_log(f"Subtitle error: {result['error']}")
+                    self.after(0, lambda: self.on_subtitle_error(result["error"]))
+                    return
+                
+                # Combine manual and auto-generated subtitles
+                all_subs = []
+                
+                # Prioritize manual subtitles
+                for sub in result.get("subtitles", []):
+                    all_subs.append({
+                        "code": sub["code"],
+                        "name": sub["name"],
+                        "type": "manual"
+                    })
+                
+                # Add auto-generated subtitles
+                for sub in result.get("automatic_captions", []):
+                    all_subs.append({
+                        "code": sub["code"],
+                        "name": f"{sub['name']} (auto)",
+                        "type": "auto"
+                    })
+                
+                debug_log(f"Total subtitles found: {len(all_subs)}")
+                
+                if not all_subs:
+                    self.after(0, lambda: self.on_subtitle_error("No subtitles available"))
+                    return
+                
+                self.after(0, lambda: self.show_subtitle_selector(all_subs))
+                
+            except Exception as e:
+                debug_log(f"Exception in load_subtitles: {str(e)}")
+                import traceback
+                debug_log(traceback.format_exc())
+                self.after(0, lambda: self.on_subtitle_error(str(e)))
+        
+        threading.Thread(target=fetch, daemon=True).start()
+    
+    def show_subtitle_loading(self):
+        """Show loading state for subtitle selector"""
+        self.subtitle_frame.pack(fill="x", padx=8, pady=(0, 8))
+        self.subtitle_dropdown.pack_forget()
+        self.subtitle_loading.pack(side="left", padx=(8, 0))
+    
+    def on_subtitle_error(self, error: str):
+        """Handle subtitle fetch error"""
+        debug_log(f"Subtitle fetch error: {error}")
+        # Hide subtitle selector on error
+        self.subtitle_frame.pack_forget()
+    
+    def show_subtitle_selector(self, subtitles: list):
+        """Show subtitle selector with available options"""
+        # Hide loading
+        self.subtitle_loading.pack_forget()
+        
+        # Create dropdown options
+        options = [f"{sub['code']} - {sub['name']}" for sub in subtitles]
+        
+        # Set default to Indonesian if available, otherwise first option
+        default_value = options[0]
+        for opt in options:
+            if opt.startswith("id "):
+                default_value = opt
+                break
+        
+        self.subtitle_var.set(default_value)
+        self.subtitle_dropdown.configure(values=options)
+        self.subtitle_dropdown.pack(side="left")
+        
+        # Show subtitle frame
+        self.subtitle_frame.pack(fill="x", padx=8, pady=(0, 8))
     
     def load_thumbnail(self, video_id: str):
         def fetch():
@@ -672,9 +822,160 @@ class YTShortClipperApp(ctk.CTk):
                 hover_color=("#36719F", "#144870"))
 
     def start_processing(self):
+        # Disable button during validation
+        self.start_btn.configure(state="disabled", text="Validating...")
+        
+        def validate_and_start():
+            try:
+                from openai import OpenAI
+                
+                # Validate Highlight Finder (required for all processing)
+                ai_providers = self.config.get("ai_providers", {})
+                hf_config = ai_providers.get("highlight_finder", {})
+                hf_api_key = hf_config.get("api_key", "").strip()
+                hf_base_url = hf_config.get("base_url", "https://api.openai.com/v1").strip()
+                hf_model = hf_config.get("model", "").strip()
+                
+                if not hf_api_key or not hf_model:
+                    self.after(0, lambda: self._on_validation_failed(
+                        "Highlight Finder API is not configured!\n\n" +
+                        "This is required to find viral moments in videos.\n\n" +
+                        "Please configure it in Settings → AI API Settings → Highlight Finder"))
+                    return
+                
+                # Test Highlight Finder API
+                try:
+                    hf_client = OpenAI(api_key=hf_api_key, base_url=hf_base_url)
+                    
+                    # Try to list models to verify API key and model availability
+                    try:
+                        hf_models = hf_client.models.list()
+                        hf_available = [m.id for m in hf_models.data]
+                        
+                        if hf_model not in hf_available:
+                            self.after(0, lambda: self._on_validation_failed(
+                                f"Highlight Finder model '{hf_model}' is not available!\n\n" +
+                                "Please check your configuration in:\n" +
+                                "Settings → AI API Settings → Highlight Finder"))
+                            return
+                    except Exception as list_error:
+                        # If models.list() fails, the API key might still be valid
+                        # Some providers don't support models.list()
+                        # Just verify the API key is not empty and continue
+                        pass
+                    
+                except Exception as e:
+                    self.after(0, lambda: self._on_validation_failed(
+                        f"Highlight Finder API validation failed!\n\n" +
+                        f"Error: {str(e)[:100]}\n\n" +
+                        "Please check your configuration in:\n" +
+                        "Settings → AI API Settings → Highlight Finder"))
+                    return
+                
+                # Validate Caption Maker if captions are enabled
+                if self.caption_var.get():
+                    cm_config = ai_providers.get("caption_maker", {})
+                    cm_api_key = cm_config.get("api_key", "").strip()
+                    cm_base_url = cm_config.get("base_url", "https://api.openai.com/v1").strip()
+                    cm_model = cm_config.get("model", "").strip()
+                    
+                    if not cm_api_key or not cm_model:
+                        self.after(0, lambda: self._on_validation_failed(
+                            "Caption Maker API is not configured!\n\n" +
+                            "Captions feature requires Whisper API.\n\n" +
+                            "Please either:\n" +
+                            "• Configure it in Settings → AI API Settings → Caption Maker\n" +
+                            "• Or disable Captions toggle"))
+                        return
+                    
+                    try:
+                        cm_client = OpenAI(api_key=cm_api_key, base_url=cm_base_url)
+                        
+                        # Try to list models to verify API key and model availability
+                        try:
+                            cm_models = cm_client.models.list()
+                            cm_available = [m.id for m in cm_models.data]
+                            
+                            if cm_model not in cm_available:
+                                self.after(0, lambda: self._on_validation_failed(
+                                    f"Caption Maker model '{cm_model}' is not available!\n\n" +
+                                    "Please check your configuration or disable Captions toggle."))
+                                return
+                        except Exception as list_error:
+                            # If models.list() fails, the API key might still be valid
+                            # Some providers don't support models.list()
+                            pass
+                        
+                    except Exception as e:
+                        self.after(0, lambda: self._on_validation_failed(
+                            f"Caption Maker API validation failed!\n\n" +
+                            f"Error: {str(e)[:100]}\n\n" +
+                            "Please check your configuration or disable Captions toggle."))
+                        return
+                
+                # Validate Hook Maker if hook is enabled
+                if self.hook_var.get():
+                    hm_config = ai_providers.get("hook_maker", {})
+                    hm_api_key = hm_config.get("api_key", "").strip()
+                    hm_base_url = hm_config.get("base_url", "https://api.openai.com/v1").strip()
+                    hm_model = hm_config.get("model", "").strip()
+                    
+                    if not hm_api_key or not hm_model:
+                        self.after(0, lambda: self._on_validation_failed(
+                            "Hook Maker API is not configured!\n\n" +
+                            "Hook Text feature requires TTS API.\n\n" +
+                            "Please either:\n" +
+                            "• Configure it in Settings → AI API Settings → Hook Maker\n" +
+                            "• Or disable Hook Text toggle"))
+                        return
+                    
+                    try:
+                        hm_client = OpenAI(api_key=hm_api_key, base_url=hm_base_url)
+                        
+                        # Try to list models to verify API key and model availability
+                        try:
+                            hm_models = hm_client.models.list()
+                            hm_available = [m.id for m in hm_models.data]
+                            
+                            if hm_model not in hm_available:
+                                self.after(0, lambda: self._on_validation_failed(
+                                    f"Hook Maker model '{hm_model}' is not available!\n\n" +
+                                    "Please check your configuration or disable Hook Text toggle."))
+                                return
+                        except Exception as list_error:
+                            # If models.list() fails, the API key might still be valid
+                            # Some providers don't support models.list()
+                            pass
+                        
+                    except Exception as e:
+                        self.after(0, lambda: self._on_validation_failed(
+                            f"Hook Maker API validation failed!\n\n" +
+                            f"Error: {str(e)[:100]}\n\n" +
+                            "Please check your configuration or disable Hook Text toggle."))
+                        return
+                
+                # All validations passed, proceed with processing
+                self.after(0, self._start_processing_validated)
+                
+            except Exception as e:
+                self.after(0, lambda: self._on_validation_failed(f"Validation error: {str(e)[:100]}"))
+        
+        threading.Thread(target=validate_and_start, daemon=True).start()
+    
+    def _on_validation_failed(self, error_msg):
+        """Handle validation failure"""
+        self.start_btn.configure(state="normal", text="Generate Shorts")
+        messagebox.showerror("Validation Failed", error_msg)
+    
+    def _start_processing_validated(self):
+        """Start processing after validation passed"""
+        self.start_btn.configure(state="normal", text="Generate Shorts")
+        
+        # Legacy validation (backward compatibility)
         if not self.client:
             messagebox.showerror("Error", "Configure API settings first!\nClick ⚙️ button.")
             return
+        
         url = self.url_var.get().strip()
         if not extract_video_id(url):
             messagebox.showerror("Error", "Enter a valid YouTube URL!")
@@ -691,6 +992,10 @@ class YTShortClipperApp(ctk.CTk):
         add_captions = self.caption_var.get()
         add_hook = self.hook_var.get()
         
+        # Get selected subtitle language (extract code from "id - Indonesian" format)
+        subtitle_selection = self.subtitle_var.get()
+        subtitle_lang = subtitle_selection.split(" - ")[0] if " - " in subtitle_selection else "id"
+        
         # Reset UI
         self.processing = True
         self.cancelled = False
@@ -704,9 +1009,9 @@ class YTShortClipperApp(ctk.CTk):
         output_dir = self.config.get("output_dir", str(OUTPUT_DIR))
         model = self.config.get("model", "gpt-4.1")
         
-        threading.Thread(target=self.run_processing, args=(url, num_clips, output_dir, model, add_captions, add_hook), daemon=True).start()
+        threading.Thread(target=self.run_processing, args=(url, num_clips, output_dir, model, add_captions, add_hook, subtitle_lang), daemon=True).start()
     
-    def run_processing(self, url, num_clips, output_dir, model, add_captions, add_hook):
+    def run_processing(self, url, num_clips, output_dir, model, add_captions, add_hook, subtitle_lang="id"):
         try:
             from clipper_core import AutoClipperCore
             
@@ -743,6 +1048,8 @@ class YTShortClipperApp(ctk.CTk):
                 watermark_settings=watermark_settings,
                 face_tracking_mode=face_tracking_mode,
                 mediapipe_settings=mediapipe_settings,
+                ai_providers=self.config.get("ai_providers"),  # NEW: Pass multi-provider config
+                subtitle_language=subtitle_lang,  # NEW: Pass selected subtitle language
                 log_callback=log_with_debug,
                 progress_callback=lambda s, p: self.after(0, lambda: self.update_progress(s, p)),
                 token_callback=lambda a, b, c, d: self.after(0, lambda: self.update_tokens(a, b, c, d)),

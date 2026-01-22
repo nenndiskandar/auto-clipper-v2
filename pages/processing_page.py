@@ -19,14 +19,33 @@ class ProcessingPage(ctk.CTkFrame):
         
         self.create_ui()
     
+    def open_github(self):
+        """Open GitHub repository"""
+        import webbrowser
+        webbrowser.open("https://github.com/jipraks/yt-short-clipper")
+    
+    def open_discord(self):
+        """Open Discord server"""
+        import webbrowser
+        webbrowser.open("https://s.id/ytsdiscord")
+    
+    def show_page(self, page_name: str):
+        """Navigate to another page (not used in processing page, but kept for consistency)"""
+        pass
+    
     def create_ui(self):
         """Create the processing page UI"""
-        # Header
-        header = ctk.CTkFrame(self, fg_color="transparent")
-        header.pack(fill="x", padx=20, pady=(15, 10))
-        ctk.CTkLabel(header, text="🎬 Processing", font=ctk.CTkFont(size=22, weight="bold")).pack(side="left")
+        # Import header and footer components
+        from components.page_layout import PageHeader, PageFooter
         
-        main = ctk.CTkFrame(self)
+        # Set background color to match other pages
+        self.configure(fg_color=("#1a1a1a", "#0a0a0a"))
+        
+        # Header with back button
+        header = PageHeader(self, self, show_nav_buttons=False, show_back_button=True, page_title="🎬 Processing")
+        header.pack(fill="x", padx=20, pady=(15, 10))
+        
+        main = ctk.CTkFrame(self, fg_color="transparent")
         main.pack(fill="both", expand=True, padx=20, pady=(0, 20))
         
         # Progress steps
@@ -95,6 +114,10 @@ class ProcessingPage(ctk.CTkFrame):
         self.results_btn = ctk.CTkButton(row2, text="📂 Browse Videos", height=45, state="disabled", 
             fg_color="#27ae60", hover_color="#2ecc71", command=self.on_browse)
         self.results_btn.pack(side="left", fill="x", expand=True, padx=(5, 0))
+        
+        # Footer
+        footer = PageFooter(self, self)
+        footer.pack(fill="x", padx=20, pady=(10, 15), side="bottom")
     
     def reset_ui(self):
         """Reset UI for new processing"""

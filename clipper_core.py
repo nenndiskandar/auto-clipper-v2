@@ -37,17 +37,56 @@ class AutoClipperCore:
         watermark_settings: dict = None,
         face_tracking_mode: str = "opencv",
         mediapipe_settings: dict = None,
+        ai_providers: dict = None,  # NEW: Multi-provider config
+        subtitle_language: str = "id",  # NEW: Configurable subtitle language
         log_callback=None,
         progress_callback=None,
         token_callback=None,
         cancel_check=None
     ):
+        # Multi-provider support
+        self.ai_providers = ai_providers or {}
+        
+        # Create separate clients for each provider
+        if self.ai_providers:
+            # Highlight Finder client
+            hf_config = self.ai_providers.get("highlight_finder", {})
+            self.highlight_client = OpenAI(
+                api_key=hf_config.get("api_key", ""),
+                base_url=hf_config.get("base_url", "https://api.openai.com/v1")
+            )
+            self.model = hf_config.get("model", model)
+            
+            # Caption Maker client (Whisper)
+            cm_config = self.ai_providers.get("caption_maker", {})
+            self.caption_client = OpenAI(
+                api_key=cm_config.get("api_key", ""),
+                base_url=cm_config.get("base_url", "https://api.openai.com/v1")
+            )
+            self.whisper_model = cm_config.get("model", "whisper-1")
+            
+            # Hook Maker client (TTS)
+            hm_config = self.ai_providers.get("hook_maker", {})
+            self.tts_client = OpenAI(
+                api_key=hm_config.get("api_key", ""),
+                base_url=hm_config.get("base_url", "https://api.openai.com/v1")
+            )
+            self.tts_model = hm_config.get("model", tts_model)
+        else:
+            # Fallback to single client (backward compatibility)
+            self.highlight_client = client
+            self.caption_client = client
+            self.tts_client = client
+            self.model = model
+            self.tts_model = tts_model
+            self.whisper_model = "whisper-1"
+        
+        # Keep original client for backward compatibility
         self.client = client
+        
         self.ffmpeg_path = ffmpeg_path
         self.ytdlp_path = ytdlp_path
         self.output_dir = Path(output_dir)
-        self.model = model
-        self.tts_model = tts_model
         self.temperature = temperature
         self.system_prompt = system_prompt or self.get_default_prompt()
         self.watermark_settings = watermark_settings or {"enabled": False}
@@ -58,6 +97,7 @@ class AutoClipperCore:
             "min_shot_duration": 90,
             "center_weight": 0.3
         }
+        self.subtitle_language = subtitle_language
         self.log = log_callback or print
         self.set_progress = progress_callback or (lambda s, p: None)
         self.report_tokens = token_callback or (lambda gi, go, w, t: None)
@@ -122,7 +162,7 @@ Return HANYA JSON array, tanpa text lain."""
             return
         
         if not srt_path:
-            raise Exception("No Indonesian subtitle found!")
+            raise Exception(f"No subtitle found for language: {self.subtitle_language}")
         
         # Step 2: Find highlights
         self.set_progress("Finding highlights...", 0.3)
@@ -178,12 +218,12 @@ Return HANYA JSON array, tanpa text lain."""
                 self.log("  Warning: Could not parse metadata")
         
         # Download video + subtitle with progress
-        self.log("  Downloading video...")
+        self.log(f"  Downloading video with {self.subtitle_language} subtitle...")
         cmd = [
             self.ytdlp_path,
             "-f", "bestvideo[height<=1080]+bestaudio/best[height<=1080]",
             "--write-sub", "--write-auto-sub",
-            "--sub-lang", "id",
+            "--sub-lang", self.subtitle_language,
             "--convert-subs", "srt",
             "--merge-output-format", "mp4",
             "--newline",  # Progress on new lines
@@ -234,13 +274,92 @@ Return HANYA JSON array, tanpa text lain."""
             raise Exception("Download failed!")
         
         video_path = self.temp_dir / "source.mp4"
-        srt_path = self.temp_dir / "source.id.srt"
+        srt_path = self.temp_dir / f"source.{self.subtitle_language}.srt"
         
         if not srt_path.exists():
             srt_path = None
-            self.log("  Warning: No Indonesian subtitle found")
+            self.log(f"  Warning: No {self.subtitle_language} subtitle found")
         
         return str(video_path), str(srt_path) if srt_path else None, video_info
+    
+    @staticmethod
+    def get_available_subtitles(url: str, ytdlp_path: str = "yt-dlp") -> dict:
+        """Get list of available subtitles for a YouTube video
+        
+        Returns:
+            dict with keys:
+                - 'subtitles': list of manual subtitle languages
+                - 'automatic_captions': list of auto-generated subtitle languages
+                - 'error': error message if failed
+        """
+        try:
+            # Use --dump-json to get structured data
+            cmd = [ytdlp_path, "--dump-json", "--skip-download", url]
+            
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                creationflags=SUBPROCESS_FLAGS,
+                timeout=30  # Add timeout to prevent hanging
+            )
+            
+            if result.returncode != 0:
+                return {"error": "Failed to fetch video info", "subtitles": [], "automatic_captions": []}
+            
+            # Parse JSON output
+            video_data = json.loads(result.stdout)
+            
+            # Extract subtitles
+            subtitles = []
+            auto_captions = []
+            
+            # Language name mapping (common ones)
+            lang_names = {
+                "en": "English",
+                "id": "Indonesian",
+                "es": "Spanish",
+                "fr": "French",
+                "de": "German",
+                "pt": "Portuguese",
+                "ru": "Russian",
+                "ja": "Japanese",
+                "ko": "Korean",
+                "zh": "Chinese",
+                "ar": "Arabic",
+                "hi": "Hindi",
+                "it": "Italian",
+                "nl": "Dutch",
+                "pl": "Polish",
+                "tr": "Turkish",
+                "vi": "Vietnamese",
+                "th": "Thai",
+            }
+            
+            # Get manual subtitles
+            if "subtitles" in video_data and video_data["subtitles"]:
+                for lang_code in video_data["subtitles"].keys():
+                    lang_name = lang_names.get(lang_code, lang_code.upper())
+                    subtitles.append({"code": lang_code, "name": lang_name})
+            
+            # Get automatic captions
+            if "automatic_captions" in video_data and video_data["automatic_captions"]:
+                for lang_code in video_data["automatic_captions"].keys():
+                    lang_name = lang_names.get(lang_code, lang_code.upper())
+                    auto_captions.append({"code": lang_code, "name": lang_name})
+            
+            return {
+                "subtitles": subtitles,
+                "automatic_captions": auto_captions,
+                "error": None
+            }
+            
+        except subprocess.TimeoutExpired:
+            return {"error": "Timeout fetching subtitles", "subtitles": [], "automatic_captions": []}
+        except json.JSONDecodeError:
+            return {"error": "Failed to parse video data", "subtitles": [], "automatic_captions": []}
+        except Exception as e:
+            return {"error": str(e), "subtitles": [], "automatic_captions": []}
     
     def parse_srt(self, srt_path: str) -> str:
         """Parse SRT to text with timestamps"""
@@ -277,7 +396,7 @@ Return HANYA JSON array, tanpa text lain."""
             transcript=transcript
         )
 
-        response = self.client.chat.completions.create(
+        response = self.highlight_client.chat.completions.create(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
             temperature=self.temperature,
@@ -954,7 +1073,7 @@ Return HANYA JSON array, tanpa text lain."""
         self.report_tokens(0, 0, 0, len(hook_text))
         
         # Generate TTS audio
-        tts_response = self.client.audio.speech.create(
+        tts_response = self.tts_client.audio.speech.create(
             model=self.tts_model,
             voice="nova",
             input=hook_text,
@@ -1228,8 +1347,8 @@ Return HANYA JSON array, tanpa text lain."""
         # Transcribe using OpenAI Whisper API with word-level timestamps
         try:
             with open(audio_file, "rb") as f:
-                transcript = self.client.audio.transcriptions.create(
-                    model="whisper-1",
+                transcript = self.caption_client.audio.transcriptions.create(
+                    model=self.whisper_model,
                     file=f,
                     language="id",
                     response_format="verbose_json",
@@ -1879,7 +1998,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         
         # Generate TTS audio (10% progress)
         progress_callback(0.1)
-        tts_response = self.client.audio.speech.create(
+        tts_response = self.tts_client.audio.speech.create(
             model=self.tts_model,
             voice="nova",
             input=hook_text,
@@ -2131,8 +2250,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         # Transcribe using OpenAI Whisper API
         try:
             with open(audio_file, "rb") as f:
-                transcript = self.client.audio.transcriptions.create(
-                    model="whisper-1",
+                transcript = self.caption_client.audio.transcriptions.create(
+                    model=self.whisper_model,
                     file=f,
                     language="id",
                     response_format="verbose_json",

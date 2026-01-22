@@ -20,6 +20,11 @@ class ConfigManager:
         if self.config_file.exists():
             with open(self.config_file, "r") as f:
                 config = json.load(f)
+                
+                # Migrate old config to new multi-provider structure
+                if "api_key" in config and "ai_providers" not in config:
+                    config = self._migrate_to_multi_provider(config)
+                
                 # Add default system_prompt if not exists
                 if "system_prompt" not in config:
                     from clipper_core import AutoClipperCore
@@ -27,7 +32,7 @@ class ConfigManager:
                 # Add default temperature if not exists
                 if "temperature" not in config:
                     config["temperature"] = 1.0
-                # Add default tts_model if not exists
+                # Add default tts_model if not exists (for backward compatibility)
                 if "tts_model" not in config:
                     config["tts_model"] = "tts-1"
                 # Add default watermark settings if not exists
@@ -55,19 +60,26 @@ class ConfigManager:
                 if "installation_id" not in config:
                     config["installation_id"] = str(uuid.uuid4())
                     self.save_config(config)
+                
+                # Ensure ai_providers structure exists
+                if "ai_providers" not in config:
+                    config["ai_providers"] = self._get_default_ai_providers()
+                    self.save_config(config)
+                
                 return config
         
         # Default config with system prompt
         from clipper_core import AutoClipperCore
         config = {
-            "api_key": "", 
-            "base_url": "https://api.openai.com/v1", 
-            "model": "gpt-4.1", 
-            "tts_model": "tts-1",
+            "api_key": "",  # Kept for backward compatibility
+            "base_url": "https://api.openai.com/v1",  # Kept for backward compatibility
+            "model": "gpt-4.1",  # Kept for backward compatibility
+            "tts_model": "tts-1",  # Kept for backward compatibility
             "temperature": 1.0,
             "output_dir": str(self.output_dir),
             "system_prompt": AutoClipperCore.get_default_prompt(),
             "installation_id": str(uuid.uuid4()),
+            "ai_providers": self._get_default_ai_providers(),
             "watermark": {
                 "enabled": False,
                 "image_path": "",
@@ -86,6 +98,63 @@ class ConfigManager:
         }
         self.save_config(config)
         return config
+    
+    def _get_default_ai_providers(self):
+        """Get default AI provider configuration"""
+        return {
+            "highlight_finder": {
+                "base_url": "https://api.openai.com/v1",
+                "api_key": "",
+                "model": "gpt-4.1"
+            },
+            "caption_maker": {
+                "base_url": "https://api.openai.com/v1",
+                "api_key": "",
+                "model": "whisper-1"
+            },
+            "hook_maker": {
+                "base_url": "https://api.openai.com/v1",
+                "api_key": "",
+                "model": "tts-1"
+            },
+            "youtube_title_maker": {
+                "base_url": "https://api.openai.com/v1",
+                "api_key": "",
+                "model": "gpt-4.1"
+            }
+        }
+    
+    def _migrate_to_multi_provider(self, old_config):
+        """Migrate old single-provider config to new multi-provider structure"""
+        api_key = old_config.get("api_key", "")
+        base_url = old_config.get("base_url", "https://api.openai.com/v1")
+        model = old_config.get("model", "gpt-4.1")
+        tts_model = old_config.get("tts_model", "tts-1")
+        
+        old_config["ai_providers"] = {
+            "highlight_finder": {
+                "base_url": base_url,
+                "api_key": api_key,
+                "model": model
+            },
+            "caption_maker": {
+                "base_url": base_url,
+                "api_key": api_key,
+                "model": "whisper-1"
+            },
+            "hook_maker": {
+                "base_url": base_url,
+                "api_key": api_key,
+                "model": tts_model
+            },
+            "youtube_title_maker": {
+                "base_url": base_url,
+                "api_key": api_key,
+                "model": model
+            }
+        }
+        
+        return old_config
 
     def save(self):
         """Save configuration to file"""

@@ -33,17 +33,19 @@ class SettingsPage(ctk.CTkFrame):
     
     def create_ui(self):
         """Create the settings UI"""
+        # Import header and footer components
+        from components.page_layout import PageHeader, PageFooter
+        
+        # Set background color to match home page
+        self.configure(fg_color=("#1a1a1a", "#0a0a0a"))
+        
         # Header with back button
-        header = ctk.CTkFrame(self, fg_color="transparent")
+        header = PageHeader(self, self, show_nav_buttons=False, show_back_button=True, page_title="Settings")
         header.pack(fill="x", padx=20, pady=(15, 10))
         
-        ctk.CTkButton(header, text="←", width=40, fg_color="transparent", 
-            hover_color=("gray75", "gray25"), command=self.on_back).pack(side="left")
-        ctk.CTkLabel(header, text="Settings", font=ctk.CTkFont(size=22, weight="bold")).pack(side="left", padx=10)
-        
         # Main content with tabs
-        main = ctk.CTkFrame(self)
-        main.pack(fill="both", expand=True, padx=20, pady=(0, 20))
+        main = ctk.CTkFrame(self, fg_color="transparent")
+        main.pack(fill="both", expand=True, padx=20, pady=(0, 10))
         
         # Create tabview with custom styling
         self.tabview = ctk.CTkTabview(main, height=40, segmented_button_fg_color=("gray80", "gray20"),
@@ -53,7 +55,7 @@ class SettingsPage(ctk.CTkFrame):
             segmented_button_unselected_hover_color=("gray75", "gray30"))
         self.tabview.pack(fill="both", expand=True, padx=10, pady=10)
         
-        self.tabview.add("OpenAI API")
+        self.tabview.add("AI API Settings")
         self.tabview.add("Output")
         self.tabview.add("Watermark")
         self.tabview.add("YouTube")
@@ -64,92 +66,754 @@ class SettingsPage(ctk.CTkFrame):
         self.create_watermark_tab()
         self.create_youtube_tab()
         self.create_about_tab()
+        
+        # Footer
+        footer = PageFooter(self, self)
+        footer.pack(fill="x", padx=20, pady=(0, 15), side="bottom")
     
     def create_openai_tab(self):
-        """Create OpenAI API settings tab"""
-        main = self.tabview.tab("OpenAI API")
+        """Create AI API settings tab with nested tabs for each provider"""
+        main = self.tabview.tab("AI API Settings")
         
-        # Scrollable frame for all content
-        scroll = ctk.CTkScrollableFrame(main)
+        # Header description
+        header_frame = ctk.CTkFrame(main, fg_color="transparent")
+        header_frame.pack(fill="x", padx=15, pady=(15, 10))
+        
+        ctk.CTkLabel(header_frame, text="AI API Settings", 
+            font=ctk.CTkFont(size=16, weight="bold"), anchor="w").pack(fill="x")
+        ctk.CTkLabel(header_frame, 
+            text="Configure different AI providers for each function. You can use different providers (OpenAI, Groq, etc.) for each task.",
+            font=ctk.CTkFont(size=11), text_color="gray", anchor="w", wraplength=500).pack(fill="x", pady=(5, 0))
+        
+        # Nested tabview for providers
+        self.provider_tabview = ctk.CTkTabview(main, height=40,
+            segmented_button_fg_color=("gray80", "gray20"),
+            segmented_button_selected_color=("#3B8ED0", "#1F6AA5"),
+            segmented_button_selected_hover_color=("#36719F", "#144870"),
+            segmented_button_unselected_color=("gray85", "gray25"),
+            segmented_button_unselected_hover_color=("gray75", "gray30"))
+        self.provider_tabview.pack(fill="both", expand=True, padx=10, pady=(10, 10))
+        
+        # Add tabs for each provider
+        self.provider_tabview.add("🎯 Highlight Finder")
+        self.provider_tabview.add("📝 Caption Maker")
+        self.provider_tabview.add("🎤 Hook Maker")
+        self.provider_tabview.add("📺 YouTube Title")
+        
+        # Create content for each tab
+        self.create_highlight_finder_tab()
+        self.create_caption_maker_tab()
+        self.create_hook_maker_tab()
+        self.create_youtube_title_tab()
+        
+        # Save button at bottom
+        ctk.CTkButton(main, text="💾 Save All Settings", height=45, 
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color=("#27ae60", "#27ae60"), hover_color=("#229954", "#229954"),
+            command=self.save_settings).pack(fill="x", padx=15, pady=(10, 15))
+    
+    
+    def open_yt_model_selector(self):
+        """Open searchable model selector dialog for YouTube Title Maker"""
+        if not self.yt_models_list:
+            messagebox.showwarning("Warning", "Please load models first by clicking 'Load' button")
+            return
+        
+        SearchableModelDropdown(self, self.yt_models_list, self.yt_model_var.get(), 
+            lambda m: self.yt_model_var.set(m))
+    
+    def load_yt_models(self):
+        """Load available models from YouTube Title Maker API"""
+        url = self.yt_url_entry.get().strip() or "https://api.openai.com/v1"
+        api_key = self.yt_key_entry.get().strip()
+        
+        if not api_key:
+            messagebox.showerror("Error", "Please enter API Key first")
+            return
+        
+        self.yt_load_models_btn.configure(state="disabled", text="Loading...")
+        
+        def do_load():
+            try:
+                from openai import OpenAI
+                client = OpenAI(api_key=api_key, base_url=url)
+                models_response = client.models.list()
+                
+                # Filter for chat models (exclude whisper, tts, embeddings, etc.)
+                all_models = [m.id for m in models_response.data]
+                chat_models = [m for m in all_models if not any(x in m.lower() for x in ['whisper', 'tts', 'embedding', 'dall-e', 'davinci'])]
+                
+                # Sort models with GPT-4 variants first
+                def sort_key(model):
+                    if 'gpt-4' in model.lower():
+                        return (0, model)
+                    elif 'gpt-3.5' in model.lower():
+                        return (1, model)
+                    else:
+                        return (2, model)
+                
+                chat_models.sort(key=sort_key)
+                
+                if not chat_models:
+                    chat_models = all_models  # Fallback to all models if filtering removes everything
+                
+                self.after(0, lambda: self._on_yt_models_loaded(chat_models))
+            except Exception as e:
+                self.after(0, lambda: self._on_yt_models_load_error(str(e)))
+        
+        threading.Thread(target=do_load, daemon=True).start()
+    
+    def _on_yt_models_loaded(self, models):
+        """Handle successful models loading for YouTube Title"""
+        self.yt_load_models_btn.configure(state="normal", text="🔄 Load")
+        
+        if models:
+            # Store models list
+            self.yt_models_list = models
+            
+            # Set current value if it exists in list, otherwise set first model
+            current = self.yt_model_var.get()
+            if current not in models:
+                self.yt_model_var.set(models[0])
+            
+            messagebox.showinfo("Success", f"✓ Loaded {len(models)} models successfully!\n\nClick 'Select' to choose a model.")
+        else:
+            messagebox.showwarning("Warning", "No models found")
+    
+    def _on_yt_models_load_error(self, error):
+        """Handle models loading error for YouTube Title"""
+        self.yt_load_models_btn.configure(state="normal", text="🔄 Load")
+        messagebox.showerror("Error", f"Failed to load models:\n\n{error}")
+    
+    def validate_yt_config(self):
+        """Validate YouTube Title Maker configuration"""
+        url = self.yt_url_entry.get().strip() or "https://api.openai.com/v1"
+        api_key = self.yt_key_entry.get().strip()
+        model = self.yt_model_var.get().strip()
+        
+        if not api_key:
+            messagebox.showerror("Error", "API Key is required")
+            return
+        
+        if not model:
+            messagebox.showerror("Error", "Model is required")
+            return
+        
+        # Disable button during validation
+        validate_btn = None
+        for widget in self.provider_tabview.tab("📺 YouTube Title").winfo_children():
+            if isinstance(widget, ctk.CTkScrollableFrame):
+                for child in widget.winfo_children():
+                    if isinstance(child, ctk.CTkFrame):
+                        for btn in child.winfo_children():
+                            if isinstance(btn, ctk.CTkButton) and "Validate" in btn.cget("text"):
+                                validate_btn = btn
+                                break
+        
+        if validate_btn:
+            validate_btn.configure(state="disabled", text="Validating...")
+        
+        def do_validate():
+            try:
+                from openai import OpenAI
+                client = OpenAI(api_key=api_key, base_url=url)
+                
+                # Try to list models to verify API key and model availability
+                try:
+                    models_response = client.models.list()
+                    available_models = [m.id for m in models_response.data]
+                    
+                    # Check if model is available
+                    if model not in available_models:
+                        self.after(0, lambda: self._on_yt_validate_error(
+                            f"Model '{model}' not found in available models.\n\n" +
+                            f"Available models: {', '.join(available_models[:5])}...", 
+                            validate_btn))
+                        return
+                except Exception as list_error:
+                    # If listing models fails, the API key might still be valid
+                    # Some providers don't support models.list()
+                    # Just verify the API key is not empty and continue
+                    pass
+                
+                self.after(0, lambda: self._on_yt_validate_success(model, url, validate_btn))
+            except Exception as e:
+                error_msg = str(e)
+                self.after(0, lambda: self._on_yt_validate_error(error_msg, validate_btn))
+        
+        threading.Thread(target=do_validate, daemon=True).start()
+    
+    def _on_yt_validate_success(self, model, url, validate_btn):
+        """Handle successful validation for YouTube Title"""
+        if validate_btn:
+            validate_btn.configure(state="normal", text="🔍 Validate Configuration")
+        messagebox.showinfo("Success", 
+            f"✓ Configuration validated successfully!\n\nModel: {model}\nProvider: {url}")
+    
+    def _on_yt_validate_error(self, error, validate_btn):
+        """Handle validation error for YouTube Title"""
+        if validate_btn:
+            validate_btn.configure(state="normal", text="🔍 Validate Configuration")
+        messagebox.showerror("Validation Failed", 
+            f"Failed to validate configuration:\n\n{error}")
+    
+    def open_hf_model_selector(self):
+        """Open searchable model selector dialog for Highlight Finder"""
+        if not self.hf_models_list:
+            messagebox.showwarning("Warning", "Please load models first by clicking 'Load' button")
+            return
+        
+        SearchableModelDropdown(self, self.hf_models_list, self.hf_model_var.get(), 
+            lambda m: self.hf_model_var.set(m))
+    
+    def load_hf_models(self):
+        """Load available models from Highlight Finder API"""
+        url = self.hf_url_entry.get().strip() or "https://api.openai.com/v1"
+        api_key = self.hf_key_entry.get().strip()
+        
+        if not api_key:
+            messagebox.showerror("Error", "Please enter API Key first")
+            return
+        
+        self.hf_load_models_btn.configure(state="disabled", text="Loading...")
+        
+        def do_load():
+            try:
+                from openai import OpenAI
+                client = OpenAI(api_key=api_key, base_url=url)
+                models_response = client.models.list()
+                
+                # Filter for chat models (exclude whisper, tts, embeddings, etc.)
+                all_models = [m.id for m in models_response.data]
+                chat_models = [m for m in all_models if not any(x in m.lower() for x in ['whisper', 'tts', 'embedding', 'dall-e', 'davinci'])]
+                
+                # Sort models with GPT-4 variants first
+                def sort_key(model):
+                    if 'gpt-4' in model.lower():
+                        return (0, model)
+                    elif 'gpt-3.5' in model.lower():
+                        return (1, model)
+                    else:
+                        return (2, model)
+                
+                chat_models.sort(key=sort_key)
+                
+                if not chat_models:
+                    chat_models = all_models  # Fallback to all models if filtering removes everything
+                
+                self.after(0, lambda: self._on_models_loaded(chat_models))
+            except Exception as e:
+                self.after(0, lambda: self._on_models_load_error(str(e)))
+        
+        threading.Thread(target=do_load, daemon=True).start()
+    
+    def _on_models_loaded(self, models):
+        """Handle successful models loading"""
+        self.hf_load_models_btn.configure(state="normal", text="🔄 Load")
+        
+        if models:
+            # Store models list
+            self.hf_models_list = models
+            
+            # Set current value if it exists in list, otherwise set first model
+            current = self.hf_model_var.get()
+            if current not in models:
+                self.hf_model_var.set(models[0])
+            
+            messagebox.showinfo("Success", f"✓ Loaded {len(models)} models successfully!\n\nClick 'Select' to choose a model.")
+        else:
+            messagebox.showwarning("Warning", "No models found")
+    
+    def _on_models_load_error(self, error):
+        """Handle models loading error"""
+        self.hf_load_models_btn.configure(state="normal", text="🔄 Load")
+        messagebox.showerror("Error", f"Failed to load models:\n\n{error}")
+    
+    def validate_hf_config(self):
+        """Validate Highlight Finder configuration"""
+        url = self.hf_url_entry.get().strip() or "https://api.openai.com/v1"
+        api_key = self.hf_key_entry.get().strip()
+        model = self.hf_model_var.get().strip()
+        
+        if not api_key:
+            messagebox.showerror("Error", "API Key is required")
+            return
+        
+        if not model:
+            messagebox.showerror("Error", "Model is required")
+            return
+        
+        # Disable button during validation
+        validate_btn = None
+        for widget in self.provider_tabview.tab("🎯 Highlight Finder").winfo_children():
+            if isinstance(widget, ctk.CTkScrollableFrame):
+                for child in widget.winfo_children():
+                    if isinstance(child, ctk.CTkFrame):
+                        for btn in child.winfo_children():
+                            if isinstance(btn, ctk.CTkButton) and "Validate" in btn.cget("text"):
+                                validate_btn = btn
+                                break
+        
+        if validate_btn:
+            validate_btn.configure(state="disabled", text="Validating...")
+        
+        def do_validate():
+            try:
+                from openai import OpenAI
+                client = OpenAI(api_key=api_key, base_url=url)
+                
+                # Try to list models to verify API key and model availability
+                try:
+                    models_response = client.models.list()
+                    available_models = [m.id for m in models_response.data]
+                    
+                    # Check if model is available
+                    if model not in available_models:
+                        self.after(0, lambda: self._on_hf_validate_error(
+                            f"Model '{model}' not found in available models.\n\n" +
+                            f"Available models: {', '.join(available_models[:5])}...", 
+                            validate_btn))
+                        return
+                except Exception as list_error:
+                    # If listing models fails, the API key might still be valid
+                    # Some providers don't support models.list()
+                    # Just verify the API key is not empty and continue
+                    pass
+                
+                self.after(0, lambda: self._on_hf_validate_success(model, url, validate_btn))
+            except Exception as e:
+                error_msg = str(e)
+                self.after(0, lambda: self._on_hf_validate_error(error_msg, validate_btn))
+        
+        threading.Thread(target=do_validate, daemon=True).start()
+    
+    def _on_hf_validate_success(self, model, url, validate_btn):
+        """Handle successful validation"""
+        if validate_btn:
+            validate_btn.configure(state="normal", text="🔍 Validate Configuration")
+        messagebox.showinfo("Success", 
+            f"✓ Configuration validated successfully!\n\nModel: {model}\nProvider: {url}")
+    
+    def _on_hf_validate_error(self, error, validate_btn):
+        """Handle validation error"""
+        if validate_btn:
+            validate_btn.configure(state="normal", text="🔍 Validate Configuration")
+        messagebox.showerror("Validation Failed", 
+            f"Failed to validate configuration:\n\n{error}")
+    
+    def validate_provider_simple(self, provider_key, url_entry, key_entry, model_entry):
+        """Validate provider configuration"""
+        url = url_entry.get().strip() or "https://api.openai.com/v1"
+        api_key = key_entry.get().strip()
+        model = model_entry.get().strip()
+        
+        if not api_key:
+            messagebox.showerror("Error", "API Key is required")
+            return
+        
+        if not model:
+            messagebox.showerror("Error", "Model is required")
+            return
+        
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=api_key, base_url=url)
+            
+            # All providers: Try to list models to verify API connection
+            try:
+                models_response = client.models.list()
+                available_models = [m.id for m in models_response.data]
+                
+                # Check if model is available
+                if model in available_models:
+                    messagebox.showinfo("Success", 
+                        f"✓ Configuration validated successfully!\n\nModel: {model}\nProvider: {url}")
+                else:
+                    # Model not found, but connection works
+                    messagebox.showwarning("Warning", 
+                        f"Model '{model}' not found in available models.\n\n" +
+                        f"Available models: {', '.join(available_models[:5])}...")
+                    
+            except Exception as list_error:
+                # Check if it's a connection/authentication error
+                error_str = str(list_error).lower()
+                if any(x in error_str for x in ['connection', 'timeout', 'unreachable', 'invalid', 'unauthorized', 'authentication', 'api key', 'not found', '404', '401', '403']):
+                    # Real error - connection or auth failed
+                    raise list_error
+                else:
+                    # Provider might not support models.list()
+                    # Show success with note based on provider type
+                    if provider_key == "caption_maker":
+                        if "whisper" not in model.lower():
+                            messagebox.showwarning("Warning", 
+                                f"Model '{model}' doesn't look like a Whisper model.\n\nExpected: whisper-1 or similar")
+                            return
+                    elif provider_key == "hook_maker":
+                        if "tts" not in model.lower():
+                            messagebox.showwarning("Warning", 
+                                f"Model '{model}' doesn't look like a TTS model.\n\nExpected: tts-1, tts-1-hd or similar")
+                            return
+                    
+                    messagebox.showinfo("Success", 
+                        f"✓ API Key validated!\n\nModel: {model}\nProvider: {url}\n\n" +
+                        "Note: Could not verify model availability (provider may not support models.list)")
+        
+        except Exception as e:
+            messagebox.showerror("Validation Failed", 
+                f"Failed to validate configuration:\n\n{str(e)}")
+    
+    def apply_url_key_to_all_simple(self, url, api_key):
+        """Apply URL and API Key to all providers"""
+        if not url and not api_key:
+            messagebox.showwarning("Warning", "Please enter URL and API Key first")
+            return
+        
+        if messagebox.askyesno("Apply to All", 
+            "Apply this URL and API Key to all AI providers?\n\n(Models will remain separate)"):
+            
+            url = url or "https://api.openai.com/v1"
+            
+            # Apply to all entry fields
+            self.hf_url_entry.delete(0, "end")
+            self.hf_url_entry.insert(0, url)
+            self.hf_key_entry.delete(0, "end")
+            self.hf_key_entry.insert(0, api_key)
+            
+            self.cm_url_entry.delete(0, "end")
+            self.cm_url_entry.insert(0, url)
+            self.cm_key_entry.delete(0, "end")
+            self.cm_key_entry.insert(0, api_key)
+            
+            self.hm_url_entry.delete(0, "end")
+            self.hm_url_entry.insert(0, url)
+            self.hm_key_entry.delete(0, "end")
+            self.hm_key_entry.insert(0, api_key)
+            
+            self.yt_url_entry.delete(0, "end")
+            self.yt_url_entry.insert(0, url)
+            self.yt_key_entry.delete(0, "end")
+            self.yt_key_entry.insert(0, api_key)
+            
+            messagebox.showinfo("Success", "✓ URL and API Key applied to all providers!")
+    
+    def create_highlight_finder_tab(self):
+        """Create Highlight Finder configuration tab"""
+        tab = self.provider_tabview.tab("🎯 Highlight Finder")
+        scroll = ctk.CTkScrollableFrame(tab)
         scroll.pack(fill="both", expand=True, padx=5, pady=5)
         
-        ctk.CTkLabel(scroll, text="Base URL", anchor="w").pack(fill="x", pady=(10, 0))
-        self.url_entry = ctk.CTkEntry(scroll, placeholder_text="https://api.openai.com/v1")
-        self.url_entry.pack(fill="x", pady=(5, 15))
+        # Description
+        desc_frame = ctk.CTkFrame(scroll, fg_color=("gray85", "gray20"), corner_radius=10)
+        desc_frame.pack(fill="x", pady=(10, 15), padx=10)
         
+        ctk.CTkLabel(desc_frame, text="ℹ️ Highlight Finder", 
+            font=ctk.CTkFont(size=13, weight="bold"), anchor="w").pack(fill="x", padx=15, pady=(12, 5))
+        ctk.CTkLabel(desc_frame, 
+            text="AI model for analyzing video transcripts and finding viral moments. Recommended: GPT-4, GPT-4o, or compatible models.",
+            font=ctk.CTkFont(size=11), text_color="gray", anchor="w", wraplength=450).pack(fill="x", padx=15, pady=(0, 12))
+        
+        # API Base URL
+        url_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        url_frame.pack(fill="x", padx=10, pady=(0, 15))
+        
+        ctk.CTkLabel(url_frame, text="API Base URL", 
+            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
+        self.hf_url_entry = ctk.CTkEntry(url_frame, height=38, 
+            placeholder_text="https://api.openai.com/v1")
+        self.hf_url_entry.pack(fill="x", pady=(5, 0))
+        
+        # API Key
         key_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        key_frame.pack(fill="x")
-        ctk.CTkLabel(key_frame, text="API Key", anchor="w").pack(side="left")
-        self.key_status = ctk.CTkLabel(key_frame, text="", font=ctk.CTkFont(size=11))
-        self.key_status.pack(side="right")
+        key_frame.pack(fill="x", padx=10, pady=(0, 15))
         
-        key_input = ctk.CTkFrame(scroll, fg_color="transparent")
-        key_input.pack(fill="x", pady=(5, 15))
-        self.key_entry = ctk.CTkEntry(key_input, placeholder_text="sk-...", show="•")
-        self.key_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
-        self.validate_btn = ctk.CTkButton(key_input, text="Validate", width=80, command=self.validate_key)
-        self.validate_btn.pack(side="right")
+        ctk.CTkLabel(key_frame, text="API Key", 
+            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
+        self.hf_key_entry = ctk.CTkEntry(key_frame, height=38, show="*",
+            placeholder_text="sk-...")
+        self.hf_key_entry.pack(fill="x", pady=(5, 0))
         
-        ctk.CTkLabel(scroll, text="Model", anchor="w").pack(fill="x")
+        # Model
         model_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        model_frame.pack(fill="x", pady=(5, 20))
-        self.model_var = ctk.StringVar(value="Select model...")
-        self.model_btn = ctk.CTkButton(model_frame, textvariable=self.model_var, anchor="w",
-            fg_color=("gray75", "gray25"), hover_color=("gray70", "gray30"),
-            text_color=("gray10", "gray90"), command=self.open_model_selector)
-        self.model_btn.pack(side="left", fill="x", expand=True, padx=(0, 10))
-        self.model_count = ctk.CTkLabel(model_frame, text="", text_color="gray", font=ctk.CTkFont(size=11))
-        self.model_count.pack(side="right")
+        model_frame.pack(fill="x", padx=10, pady=(0, 15))
         
-        # Temperature setting
-        ctk.CTkLabel(scroll, text="Temperature", anchor="w").pack(fill="x", pady=(0, 0))
-        ctk.CTkLabel(scroll, text="Control AI creativity (0.0 = consistent, 2.0 = creative). Some models only support specific values.", 
-            anchor="w", font=ctk.CTkFont(size=11), text_color="gray", wraplength=450).pack(fill="x", pady=(0, 5))
+        ctk.CTkLabel(model_frame, text="Model", 
+            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
         
+        model_select_frame = ctk.CTkFrame(model_frame, fg_color="transparent")
+        model_select_frame.pack(fill="x", pady=(5, 0))
+        
+        # Display current model
+        self.hf_model_var = ctk.StringVar(value="gpt-4.1")
+        self.hf_model_display = ctk.CTkLabel(model_select_frame, textvariable=self.hf_model_var,
+            height=38, anchor="w", fg_color=("gray85", "gray20"), corner_radius=6,
+            padx=12, font=ctk.CTkFont(size=13))
+        self.hf_model_display.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        
+        # Button to open model selector
+        self.hf_select_model_btn = ctk.CTkButton(model_select_frame, text="📋 Select", width=100, height=38,
+            fg_color="gray", command=self.open_hf_model_selector)
+        self.hf_select_model_btn.pack(side="right", padx=(0, 10))
+        
+        self.hf_load_models_btn = ctk.CTkButton(model_select_frame, text="🔄 Load", width=100, height=38,
+            fg_color="gray", command=self.load_hf_models)
+        self.hf_load_models_btn.pack(side="right")
+        
+        # Store models list
+        self.hf_models_list = []
+        
+        # Temperature
         temp_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        temp_frame.pack(fill="x", pady=(5, 20))
+        temp_frame.pack(fill="x", padx=10, pady=(0, 15))
+        
+        ctk.CTkLabel(temp_frame, text="Temperature", 
+            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
+        ctk.CTkLabel(temp_frame, 
+            text="Control AI creativity (0.0 = consistent, 2.0 = creative)",
+            font=ctk.CTkFont(size=10), text_color="gray", anchor="w").pack(fill="x", pady=(2, 5))
+        
+        temp_slider_frame = ctk.CTkFrame(temp_frame, fg_color="transparent")
+        temp_slider_frame.pack(fill="x", pady=(5, 0))
         
         self.temp_var = ctk.DoubleVar(value=1.0)
-        self.temp_slider = ctk.CTkSlider(temp_frame, from_=0.0, to=2.0, variable=self.temp_var, 
+        self.temp_slider = ctk.CTkSlider(temp_slider_frame, from_=0.0, to=2.0, variable=self.temp_var, 
             command=self.update_temp_label, number_of_steps=20)
         self.temp_slider.pack(side="left", fill="x", expand=True, padx=(0, 10))
         
-        self.temp_label = ctk.CTkLabel(temp_frame, text="1.0", width=40, anchor="e")
+        self.temp_label = ctk.CTkLabel(temp_slider_frame, text="1.0", width=40, anchor="e",
+            font=ctk.CTkFont(size=13, weight="bold"))
         self.temp_label.pack(side="right")
         
-        # TTS Model setting
-        ctk.CTkLabel(scroll, text="TTS Model (Text-to-Speech)", anchor="w").pack(fill="x", pady=(0, 0))
-        ctk.CTkLabel(scroll, text="Model for generating audio hooks. Examples: tts-1, tts-1-hd (OpenAI) or other models based on provider.", 
-            anchor="w", font=ctk.CTkFont(size=11), text_color="gray", wraplength=450).pack(fill="x", pady=(0, 5))
-        
-        self.tts_model_entry = ctk.CTkEntry(scroll, placeholder_text="tts-1")
-        self.tts_model_entry.pack(fill="x", pady=(5, 20))
-        
-        # System Prompt section
-        ctk.CTkLabel(scroll, text="System Prompt", anchor="w", font=ctk.CTkFont(size=14, weight="bold")).pack(fill="x", pady=(20, 5))
-        ctk.CTkLabel(scroll, text="Prompt for AI when finding highlights. Use {num_clips}, {video_context}, {transcript} as placeholders.", 
-            anchor="w", font=ctk.CTkFont(size=11), text_color="gray", wraplength=450).pack(fill="x", pady=(0, 5))
-        
+        # System Prompt
         prompt_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        prompt_frame.pack(fill="x", pady=(5, 10))
+        prompt_frame.pack(fill="x", padx=10, pady=(0, 15))
         
-        self.prompt_text = ctk.CTkTextbox(prompt_frame, height=200, wrap="word")
-        self.prompt_text.pack(fill="both", expand=True)
+        ctk.CTkLabel(prompt_frame, text="System Prompt", 
+            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
+        ctk.CTkLabel(prompt_frame, 
+            text="Use {num_clips}, {video_context}, {transcript} as placeholders",
+            font=ctk.CTkFont(size=10), text_color="gray", anchor="w").pack(fill="x", pady=(2, 5))
         
-        # Buttons for prompt
-        prompt_btn_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        prompt_btn_frame.pack(fill="x", pady=(5, 15))
+        self.prompt_text = ctk.CTkTextbox(prompt_frame, height=180, wrap="word")
+        self.prompt_text.pack(fill="both", expand=True, pady=(5, 5))
         
-        ctk.CTkButton(prompt_btn_frame, text="Reset to Default", width=150, fg_color="gray",
-            command=self.reset_prompt).pack(side="left", padx=(0, 5))
+        # Prompt buttons
+        prompt_btn_frame = ctk.CTkFrame(prompt_frame, fg_color="transparent")
+        prompt_btn_frame.pack(fill="x", pady=(5, 0))
         
-        self.prompt_char_count = ctk.CTkLabel(prompt_btn_frame, text="0 chars", text_color="gray", font=ctk.CTkFont(size=11))
+        ctk.CTkButton(prompt_btn_frame, text="Reset to Default", width=130, height=32,
+            fg_color="gray", command=self.reset_prompt).pack(side="left")
+        
+        self.prompt_char_count = ctk.CTkLabel(prompt_btn_frame, text="0 chars", 
+            text_color="gray", font=ctk.CTkFont(size=10))
         self.prompt_char_count.pack(side="right")
         
-        # Bind text change to update char count
+        # Bind text change
         self.prompt_text.bind("<KeyRelease>", self.update_prompt_char_count)
         
-        ctk.CTkButton(scroll, text="Save Settings", height=40, command=self.save_settings).pack(fill="x", pady=(10, 0))
+        # Buttons
+        btn_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        btn_frame.pack(fill="x", padx=10, pady=(0, 15))
+        
+        ctk.CTkButton(btn_frame, text="🔍 Validate Configuration", height=38,
+            fg_color=("#3B8ED0", "#1F6AA5"), 
+            command=self.validate_hf_config).pack(side="left", fill="x", expand=True, padx=(0, 5))
+        
+        ctk.CTkButton(btn_frame, text="📋 Apply URL & Key to All", height=38,
+            fg_color="gray",
+            command=lambda: self.apply_url_key_to_all_simple(self.hf_url_entry.get(), self.hf_key_entry.get())).pack(side="left", fill="x", expand=True, padx=(5, 0))
+    
+    def create_caption_maker_tab(self):
+        """Create Caption Maker configuration tab"""
+        tab = self.provider_tabview.tab("📝 Caption Maker")
+        scroll = ctk.CTkScrollableFrame(tab)
+        scroll.pack(fill="both", expand=True, padx=5, pady=5)
+        
+        # Description
+        desc_frame = ctk.CTkFrame(scroll, fg_color=("gray85", "gray20"), corner_radius=10)
+        desc_frame.pack(fill="x", pady=(10, 15), padx=10)
+        
+        ctk.CTkLabel(desc_frame, text="ℹ️ Caption Maker", 
+            font=ctk.CTkFont(size=13, weight="bold"), anchor="w").pack(fill="x", padx=15, pady=(12, 5))
+        ctk.CTkLabel(desc_frame, 
+            text="Whisper model for generating word-level captions with precise timestamps. Recommended: whisper-1 or compatible models.",
+            font=ctk.CTkFont(size=11), text_color="gray", anchor="w", wraplength=450).pack(fill="x", padx=15, pady=(0, 12))
+        
+        # API Base URL
+        url_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        url_frame.pack(fill="x", padx=10, pady=(0, 15))
+        
+        ctk.CTkLabel(url_frame, text="API Base URL", 
+            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
+        self.cm_url_entry = ctk.CTkEntry(url_frame, height=38, 
+            placeholder_text="https://api.openai.com/v1")
+        self.cm_url_entry.pack(fill="x", pady=(5, 0))
+        
+        # API Key
+        key_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        key_frame.pack(fill="x", padx=10, pady=(0, 15))
+        
+        ctk.CTkLabel(key_frame, text="API Key", 
+            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
+        self.cm_key_entry = ctk.CTkEntry(key_frame, height=38, show="*",
+            placeholder_text="sk-...")
+        self.cm_key_entry.pack(fill="x", pady=(5, 0))
+        
+        # Model
+        model_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        model_frame.pack(fill="x", padx=10, pady=(0, 15))
+        
+        ctk.CTkLabel(model_frame, text="Model", 
+            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
+        self.cm_model_entry = ctk.CTkEntry(model_frame, height=38,
+            placeholder_text="whisper-1")
+        self.cm_model_entry.pack(fill="x", pady=(5, 0))
+        
+        # Buttons
+        btn_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        btn_frame.pack(fill="x", padx=10, pady=(0, 15))
+        
+        ctk.CTkButton(btn_frame, text="🔍 Validate Configuration", height=38,
+            fg_color=("#3B8ED0", "#1F6AA5"), 
+            command=lambda: self.validate_provider_simple("caption_maker", self.cm_url_entry, self.cm_key_entry, self.cm_model_entry)).pack(side="left", fill="x", expand=True, padx=(0, 5))
+        
+        ctk.CTkButton(btn_frame, text="📋 Apply URL & Key to All", height=38,
+            fg_color="gray",
+            command=lambda: self.apply_url_key_to_all_simple(self.cm_url_entry.get(), self.cm_key_entry.get())).pack(side="left", fill="x", expand=True, padx=(5, 0))
+    
+    def create_hook_maker_tab(self):
+        """Create Hook Maker configuration tab"""
+        tab = self.provider_tabview.tab("🎤 Hook Maker")
+        scroll = ctk.CTkScrollableFrame(tab)
+        scroll.pack(fill="both", expand=True, padx=5, pady=5)
+        
+        # Description
+        desc_frame = ctk.CTkFrame(scroll, fg_color=("gray85", "gray20"), corner_radius=10)
+        desc_frame.pack(fill="x", pady=(10, 15), padx=10)
+        
+        ctk.CTkLabel(desc_frame, text="ℹ️ Hook Maker", 
+            font=ctk.CTkFont(size=13, weight="bold"), anchor="w").pack(fill="x", padx=15, pady=(12, 5))
+        ctk.CTkLabel(desc_frame, 
+            text="TTS model for generating audio hooks with natural voice. Recommended: tts-1, tts-1-hd, or compatible models.",
+            font=ctk.CTkFont(size=11), text_color="gray", anchor="w", wraplength=450).pack(fill="x", padx=15, pady=(0, 12))
+        
+        # API Base URL
+        url_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        url_frame.pack(fill="x", padx=10, pady=(0, 15))
+        
+        ctk.CTkLabel(url_frame, text="API Base URL", 
+            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
+        self.hm_url_entry = ctk.CTkEntry(url_frame, height=38, 
+            placeholder_text="https://api.openai.com/v1")
+        self.hm_url_entry.pack(fill="x", pady=(5, 0))
+        
+        # API Key
+        key_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        key_frame.pack(fill="x", padx=10, pady=(0, 15))
+        
+        ctk.CTkLabel(key_frame, text="API Key", 
+            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
+        self.hm_key_entry = ctk.CTkEntry(key_frame, height=38, show="*",
+            placeholder_text="sk-...")
+        self.hm_key_entry.pack(fill="x", pady=(5, 0))
+        
+        # Model
+        model_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        model_frame.pack(fill="x", padx=10, pady=(0, 15))
+        
+        ctk.CTkLabel(model_frame, text="Model", 
+            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
+        self.hm_model_entry = ctk.CTkEntry(model_frame, height=38,
+            placeholder_text="tts-1")
+        self.hm_model_entry.pack(fill="x", pady=(5, 0))
+        
+        # Buttons
+        btn_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        btn_frame.pack(fill="x", padx=10, pady=(0, 15))
+        
+        ctk.CTkButton(btn_frame, text="🔍 Validate Configuration", height=38,
+            fg_color=("#3B8ED0", "#1F6AA5"), 
+            command=lambda: self.validate_provider_simple("hook_maker", self.hm_url_entry, self.hm_key_entry, self.hm_model_entry)).pack(side="left", fill="x", expand=True, padx=(0, 5))
+        
+        ctk.CTkButton(btn_frame, text="📋 Apply URL & Key to All", height=38,
+            fg_color="gray",
+            command=lambda: self.apply_url_key_to_all_simple(self.hm_url_entry.get(), self.hm_key_entry.get())).pack(side="left", fill="x", expand=True, padx=(5, 0))
+    
+    def create_youtube_title_tab(self):
+        """Create YouTube Title Maker configuration tab"""
+        tab = self.provider_tabview.tab("📺 YouTube Title")
+        scroll = ctk.CTkScrollableFrame(tab)
+        scroll.pack(fill="both", expand=True, padx=5, pady=5)
+        
+        # Description
+        desc_frame = ctk.CTkFrame(scroll, fg_color=("gray85", "gray20"), corner_radius=10)
+        desc_frame.pack(fill="x", pady=(10, 15), padx=10)
+        
+        ctk.CTkLabel(desc_frame, text="ℹ️ YouTube Title Maker", 
+            font=ctk.CTkFont(size=13, weight="bold"), anchor="w").pack(fill="x", padx=15, pady=(12, 5))
+        ctk.CTkLabel(desc_frame, 
+            text="AI model for generating SEO-optimized titles, descriptions, and tags. Recommended: GPT-4, GPT-4o, or compatible models.",
+            font=ctk.CTkFont(size=11), text_color="gray", anchor="w", wraplength=450).pack(fill="x", padx=15, pady=(0, 12))
+        
+        # API Base URL
+        url_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        url_frame.pack(fill="x", padx=10, pady=(0, 15))
+        
+        ctk.CTkLabel(url_frame, text="API Base URL", 
+            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
+        self.yt_url_entry = ctk.CTkEntry(url_frame, height=38, 
+            placeholder_text="https://api.openai.com/v1")
+        self.yt_url_entry.pack(fill="x", pady=(5, 0))
+        
+        # API Key
+        key_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        key_frame.pack(fill="x", padx=10, pady=(0, 15))
+        
+        ctk.CTkLabel(key_frame, text="API Key", 
+            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
+        self.yt_key_entry = ctk.CTkEntry(key_frame, height=38, show="*",
+            placeholder_text="sk-...")
+        self.yt_key_entry.pack(fill="x", pady=(5, 0))
+        
+        # Model
+        model_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        model_frame.pack(fill="x", padx=10, pady=(0, 15))
+        
+        ctk.CTkLabel(model_frame, text="Model", 
+            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
+        
+        model_select_frame = ctk.CTkFrame(model_frame, fg_color="transparent")
+        model_select_frame.pack(fill="x", pady=(5, 0))
+        
+        # Display current model
+        self.yt_model_var = ctk.StringVar(value="gpt-4.1")
+        self.yt_model_display = ctk.CTkLabel(model_select_frame, textvariable=self.yt_model_var,
+            height=38, anchor="w", fg_color=("gray85", "gray20"), corner_radius=6,
+            padx=12, font=ctk.CTkFont(size=13))
+        self.yt_model_display.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        
+        # Button to open model selector
+        self.yt_select_model_btn = ctk.CTkButton(model_select_frame, text="📋 Select", width=100, height=38,
+            fg_color="gray", command=self.open_yt_model_selector)
+        self.yt_select_model_btn.pack(side="right", padx=(0, 10))
+        
+        self.yt_load_models_btn = ctk.CTkButton(model_select_frame, text="🔄 Load", width=100, height=38,
+            fg_color="gray", command=self.load_yt_models)
+        self.yt_load_models_btn.pack(side="right")
+        
+        # Store models list
+        self.yt_models_list = []
+        
+        # Buttons
+        btn_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        btn_frame.pack(fill="x", padx=10, pady=(0, 15))
+        
+        ctk.CTkButton(btn_frame, text="🔍 Validate Configuration", height=38,
+            fg_color=("#3B8ED0", "#1F6AA5"), 
+            command=self.validate_yt_config).pack(side="left", fill="x", expand=True, padx=(0, 5))
+        
+        ctk.CTkButton(btn_frame, text="📋 Apply URL & Key to All", height=38,
+            fg_color="gray",
+            command=lambda: self.apply_url_key_to_all_simple(self.yt_url_entry.get(), self.yt_key_entry.get())).pack(side="left", fill="x", expand=True, padx=(5, 0))
     
     def create_output_tab(self):
         """Create output folder settings tab"""
@@ -675,19 +1339,50 @@ and YouTube Shorts."""
     
     def load_config(self):
         """Load configuration into UI"""
-        self.url_entry.insert(0, self.config.get("base_url", "https://api.openai.com/v1"))
-        self.key_entry.insert(0, self.config.get("api_key", ""))
-        self.model_var.set(self.config.get("model", "gpt-4.1"))
+        # Load AI provider configurations
+        ai_providers = self.config.get("ai_providers", {})
+        
+        # Highlight Finder
+        hf = ai_providers.get("highlight_finder", {})
+        self.hf_url_entry.delete(0, "end")
+        self.hf_url_entry.insert(0, hf.get("base_url", "https://api.openai.com/v1"))
+        self.hf_key_entry.delete(0, "end")
+        self.hf_key_entry.insert(0, hf.get("api_key", ""))
+        self.hf_model_var.set(hf.get("model", "gpt-4.1"))
+        
+        # Caption Maker
+        cm = ai_providers.get("caption_maker", {})
+        self.cm_url_entry.delete(0, "end")
+        self.cm_url_entry.insert(0, cm.get("base_url", "https://api.openai.com/v1"))
+        self.cm_key_entry.delete(0, "end")
+        self.cm_key_entry.insert(0, cm.get("api_key", ""))
+        self.cm_model_entry.delete(0, "end")
+        self.cm_model_entry.insert(0, cm.get("model", "whisper-1"))
+        
+        # Hook Maker
+        hm = ai_providers.get("hook_maker", {})
+        self.hm_url_entry.delete(0, "end")
+        self.hm_url_entry.insert(0, hm.get("base_url", "https://api.openai.com/v1"))
+        self.hm_key_entry.delete(0, "end")
+        self.hm_key_entry.insert(0, hm.get("api_key", ""))
+        self.hm_model_entry.delete(0, "end")
+        self.hm_model_entry.insert(0, hm.get("model", "tts-1"))
+        
+        # YouTube Title Maker
+        yt = ai_providers.get("youtube_title_maker", {})
+        self.yt_url_entry.delete(0, "end")
+        self.yt_url_entry.insert(0, yt.get("base_url", "https://api.openai.com/v1"))
+        self.yt_key_entry.delete(0, "end")
+        self.yt_key_entry.insert(0, yt.get("api_key", ""))
+        self.yt_model_var.set(yt.get("model", "gpt-4.1"))
+        
+        # Load output folder
         self.output_var.set(self.config.get("output_dir", str(self.output_dir)) or str(self.output_dir))
         
         # Load temperature
         temperature = self.config.get("temperature", 1.0)
         self.temp_var.set(temperature)
         self.update_temp_label(temperature)
-        
-        # Load TTS model
-        tts_model = self.config.get("tts_model", "tts-1")
-        self.tts_model_entry.insert(0, tts_model)
         
         # Load face tracking mode
         face_tracking_mode = self.config.get("face_tracking_mode", "opencv")
@@ -710,9 +1405,6 @@ and YouTube Shorts."""
         self.prompt_text.delete("1.0", "end")
         self.prompt_text.insert("1.0", system_prompt)
         self.update_prompt_char_count()
-        
-        if self.config.get("api_key"):
-            self.validate_key()
     
     def browse_output_folder(self):
         """Browse for output folder"""
@@ -763,16 +1455,10 @@ and YouTube Shorts."""
     
     def save_settings(self):
         """Save settings"""
-        api_key = self.key_entry.get().strip()
-        base_url = self.url_entry.get().strip() or "https://api.openai.com/v1"
-        model = self.model_var.get()
         output_dir = self.output_var.get().strip() or str(self.output_dir)
         system_prompt = self.prompt_text.get("1.0", "end-1c").strip()
         
-        if not api_key or model == "Select model...":
-            messagebox.showerror("Error", "Fill all fields")
-            return
-        
+        # Validate system prompt
         if not system_prompt:
             messagebox.showerror("Error", "System prompt cannot be empty")
             return
@@ -781,17 +1467,59 @@ and YouTube Shorts."""
         required_placeholders = ["{num_clips}", "{video_context}", "{transcript}"]
         missing = [p for p in required_placeholders if p not in system_prompt]
         if missing:
-            messagebox.showwarning("Warning", f"System prompt missing placeholders: {', '.join(missing)}\n\nPrompt might not work correctly.")
+            messagebox.showwarning("Warning", 
+                f"System prompt missing placeholders: {', '.join(missing)}\n\nPrompt might not work correctly.")
+        
+        # Collect AI provider configurations from entry fields
+        ai_providers = {
+            "highlight_finder": {
+                "base_url": self.hf_url_entry.get().strip() or "https://api.openai.com/v1",
+                "api_key": self.hf_key_entry.get().strip(),
+                "model": self.hf_model_var.get().strip()
+            },
+            "caption_maker": {
+                "base_url": self.cm_url_entry.get().strip() or "https://api.openai.com/v1",
+                "api_key": self.cm_key_entry.get().strip(),
+                "model": self.cm_model_entry.get().strip()
+            },
+            "hook_maker": {
+                "base_url": self.hm_url_entry.get().strip() or "https://api.openai.com/v1",
+                "api_key": self.hm_key_entry.get().strip(),
+                "model": self.hm_model_entry.get().strip()
+            },
+            "youtube_title_maker": {
+                "base_url": self.yt_url_entry.get().strip() or "https://api.openai.com/v1",
+                "api_key": self.yt_key_entry.get().strip(),
+                "model": self.yt_model_var.get().strip()
+            }
+        }
+        
+        # Validate each provider has required fields
+        provider_names = {
+            "highlight_finder": "Highlight Finder",
+            "caption_maker": "Caption Maker",
+            "hook_maker": "Hook Maker",
+            "youtube_title_maker": "YouTube Title Maker"
+        }
+        
+        for provider_key, provider_config in ai_providers.items():
+            if not provider_config["api_key"]:
+                messagebox.showerror("Error", 
+                    f"{provider_names[provider_key]} is missing API Key.\n\nPlease configure all providers or use 'Apply URL & Key to All' button.")
+                return
+            
+            if not provider_config["model"]:
+                messagebox.showerror("Error", 
+                    f"{provider_names[provider_key]} is missing Model.\n\nPlease configure all providers.")
+                return
         
         # Create output folder if not exists
         Path(output_dir).mkdir(parents=True, exist_ok=True)
         
-        self.config.set("api_key", api_key)
-        self.config.set("base_url", base_url)
-        self.config.set("model", model)
+        # Save all configurations
+        self.config.set("ai_providers", ai_providers)
         self.config.set("output_dir", output_dir)
         self.config.set("temperature", self.temp_var.get())
-        self.config.set("tts_model", self.tts_model_entry.get().strip() or "tts-1")
         self.config.set("system_prompt", system_prompt)
         self.config.set("face_tracking_mode", self.face_tracking_var.get())
         
@@ -806,7 +1534,21 @@ and YouTube Shorts."""
         }
         self.config.set("watermark", watermark_settings)
         
-        self.on_save(api_key, base_url, model)
+        # For backward compatibility, also save first provider as default
+        highlight_finder = ai_providers.get("highlight_finder", {})
+        self.config.set("api_key", highlight_finder.get("api_key", ""))
+        self.config.set("base_url", highlight_finder.get("base_url", "https://api.openai.com/v1"))
+        self.config.set("model", highlight_finder.get("model", "gpt-4.1"))
+        
+        hook_maker = ai_providers.get("hook_maker", {})
+        self.config.set("tts_model", hook_maker.get("model", "tts-1"))
+        
+        # Call parent callback with highlight_finder config (for backward compatibility)
+        self.on_save(highlight_finder.get("api_key", ""), 
+                    highlight_finder.get("base_url", "https://api.openai.com/v1"),
+                    highlight_finder.get("model", "gpt-4.1"))
+        
+        messagebox.showinfo("Success", "✓ Settings saved successfully!")
         self.on_back()
     
     def reset_prompt(self):
@@ -827,3 +1569,27 @@ and YouTube Shorts."""
     def update_temp_label(self, value):
         """Update temperature label"""
         self.temp_label.configure(text=f"{float(value):.1f}")
+    
+    def open_github(self):
+        """Open GitHub repository"""
+        import webbrowser
+        webbrowser.open("https://github.com/jipraks/yt-short-clipper")
+    
+    def open_discord(self):
+        """Open Discord server invite link"""
+        import webbrowser
+        webbrowser.open("https://s.id/ytsdiscord")
+    
+    def show_page(self, page_name):
+        """Delegate to parent app's show_page method"""
+        # This is needed for header navigation buttons
+        # Try to find the main app instance
+        try:
+            # Navigate up the widget hierarchy to find the main app
+            parent = self.master
+            while parent and not hasattr(parent, 'show_page'):
+                parent = parent.master
+            if parent and hasattr(parent, 'show_page'):
+                parent.show_page(page_name)
+        except:
+            pass
