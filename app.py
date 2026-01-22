@@ -21,7 +21,7 @@ from version import __version__, UPDATE_CHECK_URL
 
 # Import utilities
 from utils.helpers import get_app_dir, get_bundle_dir, get_ffmpeg_path, get_ytdlp_path, extract_video_id
-from utils.logger import debug_log
+from utils.logger import debug_log, setup_error_logging, log_error, get_error_log_path
 from config.config_manager import ConfigManager
 from dialogs.model_selector import SearchableModelDropdown
 from dialogs.youtube_upload import YouTubeUploadDialog
@@ -33,8 +33,19 @@ from pages.status_pages import APIStatusPage, LibStatusPage
 from pages.processing_page import ProcessingPage
 from pages.contact_page import ContactPage
 
+# Fix for PyInstaller windowed mode (console=False)
+# When built with console=False, sys.stdout and sys.stderr are None
+# This causes 'NoneType' object has no attribute 'flush' errors
+if sys.stdout is None:
+    sys.stdout = open(os.devnull, 'w')
+if sys.stderr is None:
+    sys.stderr = open(os.devnull, 'w')
+
 APP_DIR = get_app_dir()
 BUNDLE_DIR = get_bundle_dir()
+
+# Setup error logging to file (for production builds)
+setup_error_logging(APP_DIR)
 
 CONFIG_FILE = APP_DIR / "config.json"
 OUTPUT_DIR = APP_DIR / "output"
@@ -281,7 +292,7 @@ class YTShortClipperApp(ctk.CTk):
         
         # Buttons
         btn_frame = ctk.CTkFrame(main, fg_color="transparent")
-        btn_frame.pack(fill="x", padx=15, pady=(0, 20))
+        btn_frame.pack(fill="x", padx=15, pady=(0, 15))
         
         # Start button (disabled by default until valid URL)
         self.start_btn = ctk.CTkButton(btn_frame, text="Start Processing", image=self.play_icon, 
@@ -294,11 +305,28 @@ class YTShortClipperApp(ctk.CTk):
             font=ctk.CTkFont(size=13), height=40, 
             command=lambda: self.show_page("browse")).pack(fill="x")
         
-        # Contact button (green color to stand out)
-        ctk.CTkButton(btn_frame, text="Contact Developer", 
+        # Spacer to push contact buttons to bottom
+        spacer = ctk.CTkFrame(main, fg_color="transparent", height=1)
+        spacer.pack(fill="both", expand=True)
+        
+        # Contact & Discord buttons row at bottom (two columns)
+        contact_frame = ctk.CTkFrame(main, fg_color="transparent")
+        contact_frame.pack(fill="x", padx=15, pady=(0, 15), side="bottom")
+        
+        contact_row = ctk.CTkFrame(contact_frame, fg_color="transparent")
+        contact_row.pack(fill="x")
+        
+        # Contact button (left column, green color)
+        ctk.CTkButton(contact_row, text="Contact Developer", 
             font=ctk.CTkFont(size=13, weight="bold"), height=40,
             fg_color="#2ecc71", hover_color="#27ae60",
-            command=lambda: self.show_page("contact")).pack(fill="x", pady=(5, 0))
+            command=lambda: self.show_page("contact")).pack(side="left", fill="x", expand=True, padx=(0, 2.5))
+        
+        # Discord button (right column, purple/blurple color like Discord brand)
+        ctk.CTkButton(contact_row, text="Join Discord Server", 
+            font=ctk.CTkFont(size=13, weight="bold"), height=40,
+            fg_color="#5865F2", hover_color="#4752C4",
+            command=lambda: self.open_discord()).pack(side="left", fill="x", expand=True, padx=(2.5, 0))
 
     def create_processing_page(self):
         """Create processing page as embedded frame"""
@@ -565,6 +593,10 @@ class YTShortClipperApp(ctk.CTk):
         except Exception as e:
             error_msg = str(e)
             debug_log(f"ERROR: {error_msg}")
+            
+            # Log error to file with full traceback
+            log_error(f"Processing failed for URL: {url}", e)
+            
             if self.cancelled or "cancel" in error_msg.lower():
                 self.after(0, self.on_cancelled)
             else:
@@ -697,6 +729,11 @@ class YTShortClipperApp(ctk.CTk):
         else:
             subprocess.run(["open" if sys.platform == "darwin" else "xdg-open", output_dir])
     
+    def open_discord(self):
+        """Open Discord server invite link"""
+        import webbrowser
+        webbrowser.open("https://s.id/ytsdiscord")
+    
     def check_update_silent(self):
         """Check for updates silently on startup"""
         try:
@@ -786,7 +823,36 @@ class YTShortClipperApp(ctk.CTk):
             webbrowser.open(download_url)
 
 
+def handle_exception(exc_type, exc_value, exc_traceback):
+    """Global exception handler to log uncaught exceptions"""
+    # Don't log KeyboardInterrupt
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+    
+    # Log the exception
+    log_error("Uncaught exception", exc_value)
+    
+    # Show error dialog to user
+    try:
+        import tkinter.messagebox as mb
+        error_log = get_error_log_path()
+        msg = f"An unexpected error occurred:\n\n{exc_value}\n\n"
+        if error_log:
+            msg += f"Error details saved to:\n{error_log}\n\n"
+        msg += "Please report this issue with the error.log file."
+        mb.showerror("Unexpected Error", msg)
+    except:
+        pass
+    
+    # Call default handler
+    sys.__excepthook__(exc_type, exc_value, exc_traceback)
+
+
 def main():
+    # Set global exception handler
+    sys.excepthook = handle_exception
+    
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     app = YTShortClipperApp()
     app.mainloop()

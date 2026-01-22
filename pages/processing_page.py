@@ -4,6 +4,7 @@ Processing page for video processing workflow
 
 import customtkinter as ctk
 from components.progress_step import ProgressStep
+from utils.logger import get_error_log_path
 
 
 class ProcessingPage(ctk.CTkFrame):
@@ -140,7 +141,16 @@ class ProcessingPage(ctk.CTkFrame):
     
     def on_error(self, error: str):
         """Called when processing encounters an error"""
-        self.status_label.configure(text=f"❌ {error}")
+        # Get error log path
+        error_log = get_error_log_path()
+        
+        # Update status with error and log file info
+        if error_log:
+            error_msg = f"❌ {error}\n\n📄 Error details saved to:\n{error_log}\n\nPlease send this file when reporting issues."
+        else:
+            error_msg = f"❌ {error}"
+        
+        self.status_label.configure(text=error_msg)
         self.cancel_btn.configure(state="disabled")
         self.back_btn.configure(state="normal")
         for step in self.steps:
