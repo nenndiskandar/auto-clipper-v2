@@ -85,11 +85,27 @@ class YouTubeUploader:
             )
             
             # Run local server for OAuth callback
-            self.credentials = flow.run_local_server(
-                port=8080,
-                prompt='consent',
-                success_message='YouTube connected successfully! You can close this window.'
-            )
+            # Try multiple ports if 8080 is busy
+            ports_to_try = [8080, 8090, 8888, 9000, 0]  # 0 = random available port
+            last_error = None
+            
+            for port in ports_to_try:
+                try:
+                    self.credentials = flow.run_local_server(
+                        port=port,
+                        prompt='consent',
+                        success_message='YouTube connected successfully! You can close this window.'
+                    )
+                    break  # Success, exit loop
+                except OSError as e:
+                    if "10048" in str(e) or "address already in use" in str(e).lower():
+                        last_error = e
+                        continue  # Try next port
+                    else:
+                        raise  # Different error, re-raise
+            else:
+                # All ports failed
+                raise Exception(f"Could not find available port for OAuth callback. Last error: {last_error}")
             
             self._save_credentials()
             

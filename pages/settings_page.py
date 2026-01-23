@@ -27,6 +27,7 @@ class SettingsPage(ctk.CTkFrame):
         self.check_update = check_update_callback
         self.models_list = []
         self.youtube_uploader = None
+        self.tiktok_uploader = None
         
         self.create_ui()
         self.load_config()
@@ -58,13 +59,13 @@ class SettingsPage(ctk.CTkFrame):
         self.tabview.add("AI API Settings")
         self.tabview.add("Output")
         self.tabview.add("Watermark")
-        self.tabview.add("YouTube")
+        self.tabview.add("Social Accounts")
         self.tabview.add("About")
         
         self.create_openai_tab()
         self.create_output_tab()
         self.create_watermark_tab()
-        self.create_youtube_tab()
+        self.create_social_accounts_tab()
         self.create_about_tab()
         
         # Footer
@@ -1123,38 +1124,59 @@ class SettingsPage(ctk.CTkFrame):
         # Redraw
         self.update_watermark_preview()
     
-    def create_youtube_tab(self):
-        """Create YouTube settings tab"""
-        main = self.tabview.tab("YouTube")
+    def create_social_accounts_tab(self):
+        """Create Social Accounts settings tab with YouTube and TikTok"""
+        main = self.tabview.tab("Social Accounts")
         
-        # YouTube connection status
-        status_frame = ctk.CTkFrame(main)
-        status_frame.pack(fill="x", pady=15, padx=5)
+        # Scrollable frame for content
+        scroll = ctk.CTkScrollableFrame(main)
+        scroll.pack(fill="both", expand=True, padx=5, pady=5)
         
-        ctk.CTkLabel(status_frame, text="YouTube Channel", font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", padx=10, pady=(10, 5))
+        # Header description
+        header_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        header_frame.pack(fill="x", padx=15, pady=(15, 10))
         
-        self.yt_status_frame = ctk.CTkFrame(status_frame, fg_color="transparent")
-        self.yt_status_frame.pack(fill="x", padx=10, pady=(0, 10))
+        ctk.CTkLabel(header_frame, text="Social Accounts", 
+            font=ctk.CTkFont(size=16, weight="bold"), anchor="w").pack(fill="x")
+        ctk.CTkLabel(header_frame, 
+            text="Connect your social media accounts to upload clips directly from the app.",
+            font=ctk.CTkFont(size=11), text_color="gray", anchor="w", wraplength=500).pack(fill="x", pady=(5, 0))
         
-        self.yt_status_label = ctk.CTkLabel(self.yt_status_frame, text="Not connected", text_color="gray")
-        self.yt_status_label.pack(side="left")
+        # ===== YOUTUBE SECTION =====
+        youtube_section = ctk.CTkFrame(scroll, fg_color=("gray85", "gray20"), corner_radius=10)
+        youtube_section.pack(fill="x", padx=10, pady=(10, 15))
         
-        self.yt_connect_btn = ctk.CTkButton(status_frame, text="Connect YouTube", height=40, 
+        # YouTube header
+        yt_header = ctk.CTkFrame(youtube_section, fg_color="transparent")
+        yt_header.pack(fill="x", padx=15, pady=(15, 10))
+        
+        ctk.CTkLabel(yt_header, text="📺 YouTube", 
+            font=ctk.CTkFont(size=14, weight="bold"), anchor="w").pack(side="left")
+        
+        # YouTube status
+        self.yt_status_label = ctk.CTkLabel(yt_header, text="Not connected", text_color="gray",
+            font=ctk.CTkFont(size=11))
+        self.yt_status_label.pack(side="right")
+        
+        # YouTube buttons
+        yt_btn_frame = ctk.CTkFrame(youtube_section, fg_color="transparent")
+        yt_btn_frame.pack(fill="x", padx=15, pady=(0, 10))
+        
+        self.yt_connect_btn = ctk.CTkButton(yt_btn_frame, text="Connect YouTube", height=40, 
+            fg_color=("#c4302b", "#FF0000"), hover_color=("#ff0000", "#CC0000"),
             command=self.connect_youtube)
-        self.yt_connect_btn.pack(fill="x", padx=10, pady=(0, 10))
+        self.yt_connect_btn.pack(fill="x", pady=(0, 5))
         
-        self.yt_disconnect_btn = ctk.CTkButton(status_frame, text="Disconnect", height=35,
+        self.yt_disconnect_btn = ctk.CTkButton(yt_btn_frame, text="Disconnect", height=35,
             fg_color="gray", hover_color="#c0392b", command=self.disconnect_youtube)
-        self.yt_disconnect_btn.pack(fill="x", padx=10, pady=(0, 10))
+        self.yt_disconnect_btn.pack(fill="x")
         self.yt_disconnect_btn.pack_forget()  # Hide initially
         
-        # Info
-        info_frame = ctk.CTkFrame(main, fg_color=("gray90", "gray17"))
-        info_frame.pack(fill="x", pady=10, padx=5)
+        # YouTube info
+        yt_info_frame = ctk.CTkFrame(youtube_section, fg_color=("gray90", "gray17"), corner_radius=6)
+        yt_info_frame.pack(fill="x", padx=15, pady=(0, 15))
         
-        info_text = """ℹ️ YouTube Upload Feature
-
-To enable YouTube upload:
+        yt_info_text = """ℹ️ YouTube Setup:
 1. Set up Google Cloud project
 2. Enable YouTube Data API v3
 3. Create OAuth credentials
@@ -1162,10 +1184,46 @@ To enable YouTube upload:
 
 See README for detailed setup guide."""
         
-        ctk.CTkLabel(info_frame, text=info_text, justify="left", anchor="w",
-            font=ctk.CTkFont(size=11), wraplength=400).pack(padx=15, pady=15)
+        ctk.CTkLabel(yt_info_frame, text=yt_info_text, justify="left", anchor="w",
+            font=ctk.CTkFont(size=10), text_color="gray", wraplength=450).pack(padx=12, pady=12)
         
-        # Check YouTube status
+        # ===== TIKTOK SECTION (COMING SOON) =====
+        tiktok_section = ctk.CTkFrame(scroll, fg_color=("gray85", "gray20"), corner_radius=10)
+        tiktok_section.pack(fill="x", padx=10, pady=(0, 15))
+        
+        # TikTok header
+        tt_header = ctk.CTkFrame(tiktok_section, fg_color="transparent")
+        tt_header.pack(fill="x", padx=15, pady=(15, 10))
+        
+        ctk.CTkLabel(tt_header, text="🎵 TikTok", 
+            font=ctk.CTkFont(size=14, weight="bold"), anchor="w").pack(side="left")
+        
+        ctk.CTkLabel(tt_header, text="🚧 Coming Soon", 
+            text_color="orange", font=ctk.CTkFont(size=11, weight="bold")).pack(side="right")
+        
+        # Coming Soon message
+        coming_soon_frame = ctk.CTkFrame(tiktok_section, fg_color=("gray90", "gray17"))
+        coming_soon_frame.pack(fill="x", padx=15, pady=(0, 15))
+        
+        coming_soon_text = """🚧 TikTok Upload - Coming Soon
+
+TikTok direct upload feature is currently under development.
+
+Why disabled?
+• TikTok API requires backend server for security
+• Sandbox mode has strict limitations (private accounts only)
+• We're working on a proper solution
+
+Alternative:
+For now, you can manually download your processed videos 
+and upload them to TikTok app directly.
+
+Stay tuned for updates! 🎵"""
+        
+        ctk.CTkLabel(coming_soon_frame, text=coming_soon_text, justify="left", anchor="w",
+            font=ctk.CTkFont(size=11), text_color="gray", wraplength=450).pack(padx=15, pady=15)
+        
+        # Check YouTube status only
         self.check_youtube_status()
     
     def check_youtube_status(self):
@@ -1256,11 +1314,12 @@ See README for detailed setup guide."""
                 self.youtube_uploader.disconnect()
             self.yt_status_label.configure(text="Not connected", text_color="gray")
             self.yt_disconnect_btn.pack_forget()
-            self.yt_connect_btn.configure(state="normal", text="🔗 Connect YouTube")
-            self.yt_connect_btn.pack(fill="x", padx=10, pady=(0, 10))
+            self.yt_connect_btn.configure(state="normal", text="Connect YouTube")
+            self.yt_connect_btn.pack(fill="x", pady=(0, 5))
             # Update main app status
             if hasattr(self.master, 'master') and hasattr(self.master.master, 'update_connection_status'):
                 self.master.master.update_connection_status()
+    
     
     def create_about_tab(self):
         """Create about tab"""

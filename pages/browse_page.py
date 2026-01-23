@@ -193,16 +193,17 @@ class BrowsePage(ctk.CTkFrame):
                         command=lambda v=master_file: self.play_video(v))
                     play_btn.pack(pady=(0, 5))
                     
-                    # Upload button (or uploaded indicator)
+                    # YouTube upload button (or uploaded indicator)
                     if data.get("youtube_url"):
-                        upload_btn = ctk.CTkButton(btn_col, text="✓", width=45, height=35,
-                            font=ctk.CTkFont(size=16), fg_color="#27ae60", state="disabled")
-                        upload_btn.pack()
+                        yt_btn = ctk.CTkButton(btn_col, text="✓", width=45, height=35,
+                            font=ctk.CTkFont(size=16), fg_color="#27ae60", state="disabled",
+                            hover_color="#27ae60")
+                        yt_btn.pack(pady=(0, 0))
                     else:
-                        upload_btn = ctk.CTkButton(btn_col, text="⬆", width=45, height=35,
+                        yt_btn = ctk.CTkButton(btn_col, text="⬆", width=45, height=35,
                             font=ctk.CTkFont(size=16), fg_color="#c4302b", hover_color="#ff0000",
                             command=lambda f=folder, v=master_file, d=data: self.upload_video_from_card(f, v, d))
-                        upload_btn.pack()
+                        yt_btn.pack(pady=(0, 0))
                     
                 except:
                     pass
@@ -264,6 +265,7 @@ class BrowsePage(ctk.CTkFrame):
         # Open YouTube upload dialog
         YouTubeUploadDialog(self, clip_data, yt_client, model, 
             self.config.get("temperature", 1.0))
+    
     
     def open_youtube_url(self, url: str):
         """Open YouTube URL in browser"""
