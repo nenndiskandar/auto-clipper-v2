@@ -66,6 +66,13 @@ class ConfigManager:
                     config["ai_providers"] = self._get_default_ai_providers()
                     self.save_config(config)
                 
+                # Add default Repliz settings if not exists
+                if "repliz" not in config:
+                    config["repliz"] = {
+                        "access_key": "",
+                        "secret_key": ""
+                    }
+                
                 return config
         
         # Default config with system prompt
@@ -94,6 +101,10 @@ class ConfigManager:
                 "switch_threshold": 0.3,
                 "min_shot_duration": 90,
                 "center_weight": 0.3
+            },
+            "repliz": {
+                "access_key": "",
+                "secret_key": ""
             }
         }
         self.save_config(config)

@@ -59,12 +59,14 @@ class SettingsPage(ctk.CTkFrame):
         self.tabview.add("AI API Settings")
         self.tabview.add("Output")
         self.tabview.add("Watermark")
+        self.tabview.add("Repliz")
         self.tabview.add("Social Accounts")
         self.tabview.add("About")
         
         self.create_openai_tab()
         self.create_output_tab()
         self.create_watermark_tab()
+        self.create_repliz_tab()
         self.create_social_accounts_tab()
         self.create_about_tab()
         
@@ -1124,6 +1126,162 @@ class SettingsPage(ctk.CTkFrame):
         # Redraw
         self.update_watermark_preview()
     
+    def create_repliz_tab(self):
+        """Create Repliz integration tab"""
+        main = self.tabview.tab("Repliz")
+        
+        # Scrollable frame for content
+        scroll = ctk.CTkScrollableFrame(main)
+        scroll.pack(fill="both", expand=True, padx=5, pady=5)
+        
+        # Header description
+        header_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        header_frame.pack(fill="x", padx=15, pady=(15, 10))
+        
+        ctk.CTkLabel(header_frame, text="🚀 Repliz Integration", 
+            font=ctk.CTkFont(size=16, weight="bold"), anchor="w").pack(fill="x")
+        ctk.CTkLabel(header_frame, 
+            text="Multi-platform video scheduling made easy. Upload to YouTube, TikTok, Instagram Reels, and Facebook from one place.",
+            font=ctk.CTkFont(size=11), text_color="gray", anchor="w", wraplength=500).pack(fill="x", pady=(5, 0))
+        
+        # Why Repliz card
+        why_card = ctk.CTkFrame(scroll, fg_color=("#e8f5e9", "#1b5e20"), corner_radius=10)
+        why_card.pack(fill="x", padx=10, pady=(10, 15))
+        
+        ctk.CTkLabel(why_card, text="✨ Why Use Repliz?", 
+            font=ctk.CTkFont(size=13, weight="bold"), anchor="w").pack(fill="x", padx=15, pady=(15, 10))
+        
+        why_text = """• Upload to ALL platforms at once (YouTube, TikTok, Instagram, Facebook)
+• Official API integration - safe from bans
+• No need for complex Google Console or TikTok Developer setup
+• Schedule posts in advance across all platforms
+• Affordable: Only $1.74/month (29,000 IDR) for Premium plan
+
+Perfect for content creators who want to save time and reach more audiences!"""
+        
+        ctk.CTkLabel(why_card, text=why_text, justify="left", anchor="w",
+            font=ctk.CTkFont(size=11), wraplength=480).pack(fill="x", padx=15, pady=(0, 15))
+        
+        # Sign up CTA (for users without account)
+        signup_frame = ctk.CTkFrame(scroll, fg_color=("gray85", "gray20"), corner_radius=10)
+        signup_frame.pack(fill="x", padx=10, pady=(0, 15))
+        
+        ctk.CTkLabel(signup_frame, text="🎯 Don't Have a Repliz Account Yet?", 
+            font=ctk.CTkFont(size=13, weight="bold"), anchor="w").pack(fill="x", padx=15, pady=(15, 10))
+        
+        ctk.CTkLabel(signup_frame, 
+            text="Sign up now and get started with multi-platform scheduling. Premium plan required for API access.",
+            justify="left", anchor="w", font=ctk.CTkFont(size=11), text_color="gray", wraplength=480).pack(fill="x", padx=15, pady=(0, 10))
+        
+        ctk.CTkButton(signup_frame, text="🌐 Sign Up for Repliz", height=40,
+            fg_color=("#2196F3", "#1976D2"), hover_color=("#1976D2", "#1565C0"),
+            command=lambda: self.open_url("https://s.id/ytrepliz")).pack(fill="x", padx=15, pady=(0, 15))
+        
+        # Configuration section
+        config_section = ctk.CTkFrame(scroll, fg_color=("gray90", "gray17"), corner_radius=10)
+        config_section.pack(fill="x", padx=10, pady=(0, 15))
+        
+        # Section header with status
+        config_header = ctk.CTkFrame(config_section, fg_color="transparent")
+        config_header.pack(fill="x", padx=15, pady=(15, 10))
+        
+        ctk.CTkLabel(config_header, text="API Configuration", 
+            font=ctk.CTkFont(size=14, weight="bold"), anchor="w").pack(side="left")
+        
+        self.repliz_status_label = ctk.CTkLabel(config_header, text="Not configured", text_color="gray",
+            font=ctk.CTkFont(size=11))
+        self.repliz_status_label.pack(side="right")
+        
+        # Access Key
+        access_frame = ctk.CTkFrame(config_section, fg_color="transparent")
+        access_frame.pack(fill="x", padx=15, pady=(0, 15))
+        
+        ctk.CTkLabel(access_frame, text="Access Key", 
+            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
+        ctk.CTkLabel(access_frame, text="Your Repliz API Access Key", 
+            font=ctk.CTkFont(size=10), text_color="gray", anchor="w").pack(fill="x", pady=(2, 5))
+        
+        self.repliz_access_key_entry = ctk.CTkEntry(access_frame, height=38,
+            placeholder_text="Enter your Repliz Access Key")
+        self.repliz_access_key_entry.pack(fill="x", pady=(0, 0))
+        
+        # Secret Key
+        secret_frame = ctk.CTkFrame(config_section, fg_color="transparent")
+        secret_frame.pack(fill="x", padx=15, pady=(0, 15))
+        
+        ctk.CTkLabel(secret_frame, text="Secret Key", 
+            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
+        ctk.CTkLabel(secret_frame, text="Your Repliz API Secret Key (kept secure)", 
+            font=ctk.CTkFont(size=10), text_color="gray", anchor="w").pack(fill="x", pady=(2, 5))
+        
+        self.repliz_secret_key_entry = ctk.CTkEntry(secret_frame, height=38, show="*",
+            placeholder_text="Enter your Repliz Secret Key")
+        self.repliz_secret_key_entry.pack(fill="x", pady=(0, 0))
+        
+        # Buttons
+        btn_frame = ctk.CTkFrame(config_section, fg_color="transparent")
+        btn_frame.pack(fill="x", padx=15, pady=(0, 15))
+        
+        self.repliz_validate_btn = ctk.CTkButton(btn_frame, text="🔍 Validate Keys", height=40,
+            fg_color=("#3B8ED0", "#1F6AA5"), hover_color=("#36719F", "#144870"),
+            command=self.validate_repliz_keys)
+        self.repliz_validate_btn.pack(side="left", fill="x", expand=True, padx=(0, 5))
+        
+        self.repliz_save_btn = ctk.CTkButton(btn_frame, text="💾 Save Configuration", height=40,
+            fg_color=("#27ae60", "#27ae60"), hover_color=("#229954", "#229954"),
+            command=self.save_repliz_config)
+        self.repliz_save_btn.pack(side="right", fill="x", expand=True, padx=(5, 0))
+        
+        # Connected Accounts section (initially hidden)
+        self.repliz_accounts_section = ctk.CTkFrame(scroll, fg_color=("gray90", "gray17"), corner_radius=10)
+        # Don't pack yet - will be shown after successful validation
+        
+        accounts_header = ctk.CTkFrame(self.repliz_accounts_section, fg_color="transparent")
+        accounts_header.pack(fill="x", padx=15, pady=(15, 10))
+        
+        ctk.CTkLabel(accounts_header, text="📱 Connected Social Media Accounts", 
+            font=ctk.CTkFont(size=14, weight="bold"), anchor="w").pack(side="left")
+        
+        self.repliz_accounts_count = ctk.CTkLabel(accounts_header, text="0 accounts", text_color="gray",
+            font=ctk.CTkFont(size=11))
+        self.repliz_accounts_count.pack(side="right")
+        
+        # Scrollable frame for accounts list
+        self.repliz_accounts_list = ctk.CTkScrollableFrame(self.repliz_accounts_section, 
+            height=200, fg_color="transparent")
+        self.repliz_accounts_list.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+        
+        # How to get keys section
+        howto_section = ctk.CTkFrame(scroll, fg_color=("gray85", "gray20"), corner_radius=10)
+        howto_section.pack(fill="x", padx=10, pady=(0, 15))
+        
+        ctk.CTkLabel(howto_section, text="📖 How to Get API Keys", 
+            font=ctk.CTkFont(size=13, weight="bold"), anchor="w").pack(fill="x", padx=15, pady=(15, 10))
+        
+        howto_text = """1. Log in to your Repliz account at https://repliz.com
+2. Go to Settings → Public API
+3. Generate your Access Key and Secret Key
+4. Copy both keys and paste them above
+5. Click "Validate Keys" to verify the connection
+6. Click "Save Configuration" to save
+
+Requirements:
+• Premium plan subscription ($1.74/month or 29,000 IDR)
+• At least one social media account connected in Repliz dashboard
+
+Note: Keep your Secret Key secure and never share it publicly."""
+        
+        ctk.CTkLabel(howto_section, text=howto_text, justify="left", anchor="w",
+            font=ctk.CTkFont(size=11), text_color="gray", wraplength=480).pack(fill="x", padx=15, pady=(0, 15))
+        
+        # Open Repliz dashboard button
+        ctk.CTkButton(howto_section, text="🌐 Open Repliz Dashboard", height=38,
+            fg_color="gray", hover_color=("gray70", "gray30"),
+            command=lambda: self.open_url("https://repliz.com")).pack(fill="x", padx=15, pady=(0, 15))
+        
+        # Check status on load
+        self.check_repliz_status()
+    
     def create_social_accounts_tab(self):
         """Create Social Accounts settings tab with YouTube and TikTok"""
         main = self.tabview.tab("Social Accounts")
@@ -1215,15 +1373,16 @@ Why disabled?
 • We're working on a proper solution
 
 Alternative:
-For now, you can manually download your processed videos 
-and upload them to TikTok app directly.
+For now, you can use Repliz integration (see Repliz tab) to upload 
+to TikTok, or manually download your processed videos and upload 
+them to TikTok app directly.
 
 Stay tuned for updates! 🎵"""
         
         ctk.CTkLabel(coming_soon_frame, text=coming_soon_text, justify="left", anchor="w",
             font=ctk.CTkFont(size=11), text_color="gray", wraplength=450).pack(padx=15, pady=15)
         
-        # Check YouTube status only
+        # Check YouTube status
         self.check_youtube_status()
     
     def check_youtube_status(self):
@@ -1319,6 +1478,260 @@ Stay tuned for updates! 🎵"""
             # Update main app status
             if hasattr(self.master, 'master') and hasattr(self.master.master, 'update_connection_status'):
                 self.master.master.update_connection_status()
+    
+    def check_repliz_status(self):
+        """Check if Repliz is configured"""
+        repliz_config = self.config.get("repliz", {})
+        access_key = repliz_config.get("access_key", "")
+        secret_key = repliz_config.get("secret_key", "")
+        
+        if access_key and secret_key:
+            self.repliz_status_label.configure(text="✓ Configured", text_color="green")
+            # Load keys into entry fields
+            self.repliz_access_key_entry.delete(0, "end")
+            self.repliz_access_key_entry.insert(0, access_key)
+            self.repliz_secret_key_entry.delete(0, "end")
+            self.repliz_secret_key_entry.insert(0, secret_key)
+            
+            # Auto-load accounts if keys are configured
+            self.load_repliz_accounts_silent()
+        else:
+            self.repliz_status_label.configure(text="Not configured", text_color="gray")
+    
+    def load_repliz_accounts_silent(self):
+        """Silently load Repliz accounts in background (no popup)"""
+        access_key = self.repliz_access_key_entry.get().strip()
+        secret_key = self.repliz_secret_key_entry.get().strip()
+        
+        if not access_key or not secret_key:
+            return
+        
+        def do_load():
+            try:
+                import requests
+                from requests.auth import HTTPBasicAuth
+                
+                url = "https://api.repliz.com/public/account"
+                params = {"page": 1, "limit": 10}
+                
+                response = requests.get(
+                    url, 
+                    params=params,
+                    auth=HTTPBasicAuth(access_key, secret_key),
+                    timeout=10
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    self.after(0, lambda: self._display_accounts_only(data))
+                    
+            except Exception:
+                # Silently fail - don't show error on auto-load
+                pass
+        
+        threading.Thread(target=do_load, daemon=True).start()
+    
+    def _display_accounts_only(self, data):
+        """Display accounts without showing success popup"""
+        total_accounts = data.get("totalDocs", 0)
+        accounts = data.get("docs", [])
+        
+        # Update accounts count
+        self.repliz_accounts_count.configure(text=f"{total_accounts} account(s)")
+        
+        # Clear existing accounts list
+        for widget in self.repliz_accounts_list.winfo_children():
+            widget.destroy()
+        
+        if total_accounts > 0:
+            # Show accounts section
+            self.repliz_accounts_section.pack(fill="x", padx=10, pady=(0, 15))
+            
+            # Display each account
+            for account in accounts:
+                self._create_account_card(account)
+        else:
+            # Hide accounts section if no accounts
+            self.repliz_accounts_section.pack_forget()
+    
+    def validate_repliz_keys(self):
+        """Validate Repliz API keys by calling /public/account endpoint"""
+        access_key = self.repliz_access_key_entry.get().strip()
+        secret_key = self.repliz_secret_key_entry.get().strip()
+        
+        if not access_key or not secret_key:
+            messagebox.showerror("Error", "Please enter both Access Key and Secret Key")
+            return
+        
+        self.repliz_validate_btn.configure(state="disabled", text="Validating...")
+        self.repliz_status_label.configure(text="Validating...", text_color="yellow")
+        
+        def do_validate():
+            try:
+                import requests
+                from requests.auth import HTTPBasicAuth
+                
+                # Call Repliz API /public/account endpoint with required pagination params
+                url = "https://api.repliz.com/public/account"
+                params = {
+                    "page": 1,
+                    "limit": 1  # Only need 1 result to validate
+                }
+                
+                # Use Basic Authentication with Access Key as username and Secret Key as password
+                response = requests.get(
+                    url, 
+                    params=params,
+                    auth=HTTPBasicAuth(access_key, secret_key),
+                    timeout=10
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    self.after(0, lambda: self._on_repliz_validate_success(data))
+                else:
+                    error_msg = f"HTTP {response.status_code}"
+                    try:
+                        error_data = response.json()
+                        error_msg = error_data.get("message", error_msg)
+                    except:
+                        if response.status_code == 401:
+                            error_msg = "invalid authorization header"
+                        pass
+                    self.after(0, lambda: self._on_repliz_validate_error(error_msg))
+                    
+            except requests.exceptions.Timeout:
+                self.after(0, lambda: self._on_repliz_validate_error("Request timeout"))
+            except requests.exceptions.ConnectionError:
+                self.after(0, lambda: self._on_repliz_validate_error("Connection error"))
+            except Exception as e:
+                self.after(0, lambda: self._on_repliz_validate_error(str(e)))
+        
+        threading.Thread(target=do_validate, daemon=True).start()
+    
+    def _on_repliz_validate_success(self, data):
+        """Handle successful Repliz validation"""
+        self.repliz_validate_btn.configure(state="normal", text="🔍 Validate Keys")
+        self.repliz_status_label.configure(text="✓ Valid", text_color="green")
+        
+        # Extract account info from response
+        total_accounts = data.get("totalDocs", 0)
+        accounts = data.get("docs", [])
+        
+        # Update accounts count
+        self.repliz_accounts_count.configure(text=f"{total_accounts} account(s)")
+        
+        # Clear existing accounts list
+        for widget in self.repliz_accounts_list.winfo_children():
+            widget.destroy()
+        
+        if total_accounts > 0:
+            # Show accounts section
+            self.repliz_accounts_section.pack(fill="x", padx=10, pady=(0, 15))
+            
+            # Display each account
+            for account in accounts:
+                self._create_account_card(account)
+            
+            info_msg = f"✓ API Keys validated successfully!\n\nYou have {total_accounts} connected account(s)."
+        else:
+            # Hide accounts section if no accounts
+            self.repliz_accounts_section.pack_forget()
+            
+            # No accounts connected yet, but API keys are valid
+            info_msg = "✓ API Keys validated successfully!\n\nYou don't have any connected social media accounts yet.\n\nGo to Repliz dashboard to connect your accounts."
+        
+        messagebox.showinfo("Success", info_msg)
+    
+    def _create_account_card(self, account):
+        """Create a card for displaying account info"""
+        card = ctk.CTkFrame(self.repliz_accounts_list, fg_color=("gray95", "gray25"), corner_radius=8)
+        card.pack(fill="x", pady=5)
+        
+        # Account info container
+        info_container = ctk.CTkFrame(card, fg_color="transparent")
+        info_container.pack(fill="x", padx=12, pady=10)
+        
+        # Platform icon and name
+        platform_type = account.get("type", "unknown")
+        platform_icons = {
+            "youtube": "📺",
+            "tiktok": "🎵",
+            "instagram": "📸",
+            "threads": "🧵",
+            "facebook": "👥"
+        }
+        icon = platform_icons.get(platform_type, "🔗")
+        
+        # Left side: Icon and account info
+        left_frame = ctk.CTkFrame(info_container, fg_color="transparent")
+        left_frame.pack(side="left", fill="x", expand=True)
+        
+        # Platform type with icon
+        platform_label = ctk.CTkLabel(left_frame, 
+            text=f"{icon} {platform_type.upper()}", 
+            font=ctk.CTkFont(size=11, weight="bold"),
+            anchor="w")
+        platform_label.pack(anchor="w")
+        
+        # Account name
+        account_name = account.get("name", "Unknown")
+        name_label = ctk.CTkLabel(left_frame, 
+            text=account_name,
+            font=ctk.CTkFont(size=12),
+            anchor="w")
+        name_label.pack(anchor="w", pady=(2, 0))
+        
+        # Username
+        username = account.get("username", "")
+        if username:
+            username_label = ctk.CTkLabel(left_frame, 
+                text=f"@{username}" if not username.startswith("@") else username,
+                font=ctk.CTkFont(size=10),
+                text_color="gray",
+                anchor="w")
+            username_label.pack(anchor="w", pady=(2, 0))
+        
+        # Right side: Connection status
+        right_frame = ctk.CTkFrame(info_container, fg_color="transparent")
+        right_frame.pack(side="right")
+        
+        is_connected = account.get("isConnected", False)
+        status_text = "✓ Connected" if is_connected else "✗ Disconnected"
+        status_color = "green" if is_connected else "red"
+        
+        status_label = ctk.CTkLabel(right_frame, 
+            text=status_text,
+            font=ctk.CTkFont(size=10, weight="bold"),
+            text_color=status_color)
+        status_label.pack()
+    
+    def _on_repliz_validate_error(self, error):
+        """Handle Repliz validation error"""
+        self.repliz_validate_btn.configure(state="normal", text="🔍 Validate Keys")
+        self.repliz_status_label.configure(text="✗ Invalid", text_color="red")
+        messagebox.showerror("Validation Failed", 
+            f"Failed to validate Repliz keys:\n\n{error}\n\nPlease check your Access Key and Secret Key.")
+    
+    def save_repliz_config(self):
+        """Save Repliz configuration"""
+        access_key = self.repliz_access_key_entry.get().strip()
+        secret_key = self.repliz_secret_key_entry.get().strip()
+        
+        if not access_key or not secret_key:
+            messagebox.showerror("Error", "Please enter both Access Key and Secret Key")
+            return
+        
+        # Save to config
+        repliz_config = {
+            "access_key": access_key,
+            "secret_key": secret_key
+        }
+        
+        self.config.set("repliz", repliz_config)
+        self.repliz_status_label.configure(text="✓ Configured", text_color="green")
+        messagebox.showinfo("Success", "✓ Repliz configuration saved successfully!")
+    
     
     
     def create_about_tab(self):
