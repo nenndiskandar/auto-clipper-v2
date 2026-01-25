@@ -1,5 +1,9 @@
 # YT-Short-Clipper
 
+[![Discord](https://img.shields.io/badge/Join-Discord-5865F2?logo=discord&logoColor=white)](https://s.id/ytsdiscord)
+[![GitHub Stars](https://img.shields.io/github/stars/jipraks/yt-short-clipper?style=social)](https://github.com/jipraks/yt-short-clipper)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 🎬 **Automated YouTube to Short-Form Content Pipeline**
 
 Transform long-form YouTube videos (podcasts, interviews, vlogs) into engaging short-form content for TikTok, Instagram Reels, and YouTube Shorts — all with a single command.
