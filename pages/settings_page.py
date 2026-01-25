@@ -1246,9 +1246,9 @@ Perfect for content creators who want to save time and reach more audiences!"""
             font=ctk.CTkFont(size=11))
         self.repliz_accounts_count.pack(side="right")
         
-        # Scrollable frame for accounts list
-        self.repliz_accounts_list = ctk.CTkScrollableFrame(self.repliz_accounts_section, 
-            height=200, fg_color="transparent")
+        # Grid frame for accounts cards (non-scrollable)
+        self.repliz_accounts_list = ctk.CTkFrame(self.repliz_accounts_section, 
+            fg_color="transparent")
         self.repliz_accounts_list.pack(fill="both", expand=True, padx=15, pady=(0, 15))
         
         # How to get keys section
@@ -1547,9 +1547,9 @@ Stay tuned for updates! 🎵"""
             # Show accounts section
             self.repliz_accounts_section.pack(fill="x", padx=10, pady=(0, 15))
             
-            # Display each account
-            for account in accounts:
-                self._create_account_card(account)
+            # Display each account in grid
+            for idx, account in enumerate(accounts):
+                self._create_account_card(account, idx)
         else:
             # Hide accounts section if no accounts
             self.repliz_accounts_section.pack_forget()
@@ -1629,9 +1629,9 @@ Stay tuned for updates! 🎵"""
             # Show accounts section
             self.repliz_accounts_section.pack(fill="x", padx=10, pady=(0, 15))
             
-            # Display each account
-            for account in accounts:
-                self._create_account_card(account)
+            # Display each account in grid
+            for idx, account in enumerate(accounts):
+                self._create_account_card(account, idx)
             
             info_msg = f"✓ API Keys validated successfully!\n\nYou have {total_accounts} connected account(s)."
         else:
@@ -1643,15 +1643,8 @@ Stay tuned for updates! 🎵"""
         
         messagebox.showinfo("Success", info_msg)
     
-    def _create_account_card(self, account):
-        """Create a card for displaying account info"""
-        card = ctk.CTkFrame(self.repliz_accounts_list, fg_color=("gray95", "gray25"), corner_radius=8)
-        card.pack(fill="x", pady=5)
-        
-        # Account info container
-        info_container = ctk.CTkFrame(card, fg_color="transparent")
-        info_container.pack(fill="x", padx=12, pady=10)
-        
+    def _create_account_card(self, account, index):
+        """Create a grid card for displaying account info with profile picture"""
         # Platform icon and name
         platform_type = account.get("type", "unknown")
         platform_icons = {
@@ -1663,48 +1656,151 @@ Stay tuned for updates! 🎵"""
         }
         icon = platform_icons.get(platform_type, "🔗")
         
-        # Left side: Icon and account info
-        left_frame = ctk.CTkFrame(info_container, fg_color="transparent")
-        left_frame.pack(side="left", fill="x", expand=True)
+        # Calculate grid position (3 columns)
+        row = index // 3
+        col = index % 3
         
-        # Platform type with icon
-        platform_label = ctk.CTkLabel(left_frame, 
-            text=f"{icon} {platform_type.upper()}", 
-            font=ctk.CTkFont(size=11, weight="bold"),
-            anchor="w")
-        platform_label.pack(anchor="w")
+        # Create card with fixed width for grid layout
+        card = ctk.CTkFrame(self.repliz_accounts_list, fg_color=("gray95", "gray25"), 
+            corner_radius=10, width=160, height=200)
+        card.pack_propagate(False)  # Prevent card from shrinking
+        card.grid(row=row, column=col, padx=8, pady=8, sticky="nsew")
         
-        # Account name
+        # Profile picture frame (circular)
+        picture_url = account.get("picture", "")
+        
+        if picture_url:
+            # Load profile picture from URL
+            self._load_profile_picture(card, picture_url, icon)
+        else:
+            # Fallback: Show platform icon
+            icon_label = ctk.CTkLabel(card, text=icon, 
+                font=ctk.CTkFont(size=48))
+            icon_label.pack(pady=(15, 5))
+        
+        # Platform type badge
+        platform_badge = ctk.CTkLabel(card, 
+            text=platform_type.upper(), 
+            font=ctk.CTkFont(size=9, weight="bold"),
+            fg_color=("gray80", "gray30"),
+            corner_radius=4,
+            padx=8, pady=2)
+        platform_badge.pack(pady=(5, 5))
+        
+        # Account name (truncate if too long)
         account_name = account.get("name", "Unknown")
-        name_label = ctk.CTkLabel(left_frame, 
-            text=account_name,
-            font=ctk.CTkFont(size=12),
-            anchor="w")
-        name_label.pack(anchor="w", pady=(2, 0))
+        if len(account_name) > 15:
+            account_name = account_name[:13] + "..."
         
-        # Username
+        name_label = ctk.CTkLabel(card, 
+            text=account_name,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            wraplength=140)
+        name_label.pack(pady=(0, 2))
+        
+        # Username (truncate if too long)
         username = account.get("username", "")
         if username:
-            username_label = ctk.CTkLabel(left_frame, 
-                text=f"@{username}" if not username.startswith("@") else username,
+            if len(username) > 18:
+                username = username[:16] + "..."
+            username_text = f"@{username}" if not username.startswith("@") else username
+            username_label = ctk.CTkLabel(card, 
+                text=username_text,
                 font=ctk.CTkFont(size=10),
                 text_color="gray",
-                anchor="w")
-            username_label.pack(anchor="w", pady=(2, 0))
+                wraplength=140)
+            username_label.pack(pady=(0, 8))
         
-        # Right side: Connection status
-        right_frame = ctk.CTkFrame(info_container, fg_color="transparent")
-        right_frame.pack(side="right")
-        
+        # Connection status badge at bottom
         is_connected = account.get("isConnected", False)
         status_text = "✓ Connected" if is_connected else "✗ Disconnected"
-        status_color = "green" if is_connected else "red"
+        status_color = ("green", "green") if is_connected else ("red", "red")
         
-        status_label = ctk.CTkLabel(right_frame, 
+        status_badge = ctk.CTkLabel(card, 
             text=status_text,
-            font=ctk.CTkFont(size=10, weight="bold"),
-            text_color=status_color)
-        status_label.pack()
+            font=ctk.CTkFont(size=9, weight="bold"),
+            text_color="white",
+            fg_color=status_color,
+            corner_radius=4,
+            padx=10, pady=4)
+        status_badge.pack(side="bottom", pady=(0, 10))
+    
+    def _load_profile_picture(self, parent, url, fallback_icon):
+        """Load profile picture from URL and display in circular frame"""
+        def do_load():
+            try:
+                import requests
+                from PIL import Image, ImageDraw, ImageOps
+                from io import BytesIO
+                
+                # Download image
+                response = requests.get(url, timeout=5)
+                if response.status_code == 200:
+                    # Open image
+                    img = Image.open(BytesIO(response.content))
+                    
+                    # Resize to 80x80
+                    img = img.resize((80, 80), Image.Resampling.LANCZOS)
+                    
+                    # Convert to RGB if needed
+                    if img.mode != 'RGB':
+                        img = img.convert('RGB')
+                    
+                    # Create circular mask
+                    mask = Image.new('L', (80, 80), 0)
+                    draw = ImageDraw.Draw(mask)
+                    draw.ellipse((0, 0, 80, 80), fill=255)
+                    
+                    # Apply mask
+                    output = ImageOps.fit(img, (80, 80), centering=(0.5, 0.5))
+                    output.putalpha(mask)
+                    
+                    # Convert to CTkImage
+                    from customtkinter import CTkImage
+                    ctk_img = CTkImage(light_image=output, dark_image=output, size=(80, 80))
+                    
+                    # Update UI in main thread
+                    self.after(0, lambda: self._display_profile_picture(parent, ctk_img))
+                else:
+                    # Fallback to icon
+                    self.after(0, lambda: self._display_fallback_icon(parent, fallback_icon))
+                    
+            except Exception as e:
+                # Fallback to icon on error
+                self.after(0, lambda: self._display_fallback_icon(parent, fallback_icon))
+        
+        # Show loading placeholder
+        loading_label = ctk.CTkLabel(parent, text="⏳", 
+            font=ctk.CTkFont(size=40))
+        loading_label.pack(pady=(15, 5))
+        
+        # Load in background thread
+        threading.Thread(target=do_load, daemon=True).start()
+    
+    def _display_profile_picture(self, parent, ctk_img):
+        """Display loaded profile picture"""
+        # Remove loading placeholder
+        for widget in parent.winfo_children():
+            if isinstance(widget, ctk.CTkLabel) and widget.cget("text") == "⏳":
+                widget.destroy()
+                break
+        
+        # Display profile picture
+        img_label = ctk.CTkLabel(parent, image=ctk_img, text="")
+        img_label.pack(pady=(15, 5))
+    
+    def _display_fallback_icon(self, parent, icon):
+        """Display fallback icon if image loading fails"""
+        # Remove loading placeholder
+        for widget in parent.winfo_children():
+            if isinstance(widget, ctk.CTkLabel) and widget.cget("text") == "⏳":
+                widget.destroy()
+                break
+        
+        # Display fallback icon
+        icon_label = ctk.CTkLabel(parent, text=icon, 
+            font=ctk.CTkFont(size=48))
+        icon_label.pack(pady=(15, 5))
     
     def _on_repliz_validate_error(self, error):
         """Handle Repliz validation error"""

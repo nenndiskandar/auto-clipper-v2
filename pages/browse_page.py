@@ -183,27 +183,34 @@ class BrowsePage(ctk.CTkFrame):
                         font=ctk.CTkFont(size=10), text_color="gray", anchor="w")
                     date_label.pack(fill="x", pady=(2, 0))
                     
-                    # Action buttons on right
-                    btn_col = ctk.CTkFrame(content_frame, fg_color="transparent")
-                    btn_col.pack(side="right")
+                    # Action buttons below date (horizontal layout)
+                    btn_row = ctk.CTkFrame(info, fg_color="transparent")
+                    btn_row.pack(fill="x", pady=(8, 0))
                     
                     # Play button
-                    play_btn = ctk.CTkButton(btn_col, text="▶", width=45, height=35,
-                        font=ctk.CTkFont(size=16), fg_color=("#3B8ED0", "#1F6AA5"),
+                    play_btn = ctk.CTkButton(btn_row, text="▶ Play Video", height=32,
+                        font=ctk.CTkFont(size=11), fg_color=("#3B8ED0", "#1F6AA5"),
                         command=lambda v=master_file: self.play_video(v))
-                    play_btn.pack(pady=(0, 5))
+                    play_btn.pack(side="left", padx=(0, 5))
                     
                     # YouTube upload button (or uploaded indicator)
                     if data.get("youtube_url"):
-                        yt_btn = ctk.CTkButton(btn_col, text="✓", width=45, height=35,
-                            font=ctk.CTkFont(size=16), fg_color="#27ae60", state="disabled",
-                            hover_color="#27ae60")
-                        yt_btn.pack(pady=(0, 0))
+                        yt_btn = ctk.CTkButton(btn_row, text="✓ Uploaded to YouTube", height=32,
+                            font=ctk.CTkFont(size=11), fg_color="#27ae60", text_color="white",
+                            state="disabled", hover_color="#27ae60")
+                        yt_btn.pack(side="left", padx=(0, 5))
                     else:
-                        yt_btn = ctk.CTkButton(btn_col, text="⬆", width=45, height=35,
-                            font=ctk.CTkFont(size=16), fg_color="#c4302b", hover_color="#ff0000",
+                        yt_btn = ctk.CTkButton(btn_row, text="⬆ Upload to YouTube", height=32,
+                            font=ctk.CTkFont(size=11), fg_color="#c4302b", hover_color="#ff0000",
                             command=lambda f=folder, v=master_file, d=data: self.upload_video_from_card(f, v, d))
-                        yt_btn.pack(pady=(0, 0))
+                        yt_btn.pack(side="left", padx=(0, 5))
+                    
+                    # Repliz upload button
+                    repliz_btn = ctk.CTkButton(btn_row, text="📤 Upload via Repliz", height=32,
+                        font=ctk.CTkFont(size=11), fg_color=("#2196F3", "#1976D2"), 
+                        hover_color=("#1976D2", "#1565C0"),
+                        command=lambda f=folder, v=master_file, d=data: self.upload_via_repliz(f, v, d))
+                    repliz_btn.pack(side="left", padx=(0, 0))
                     
                 except:
                     pass
@@ -265,6 +272,38 @@ class BrowsePage(ctk.CTkFrame):
         # Open YouTube upload dialog
         YouTubeUploadDialog(self, clip_data, yt_client, model, 
             self.config.get("temperature", 1.0))
+    
+    def upload_via_repliz(self, folder: Path, video_path: Path, data: dict):
+        """Upload video via Repliz - show account selection dialog"""
+        # Check if Repliz is configured
+        repliz_config = self.config.get("repliz", {})
+        access_key = repliz_config.get("access_key", "")
+        secret_key = repliz_config.get("secret_key", "")
+        
+        if not access_key or not secret_key:
+            messagebox.showerror("Repliz Not Configured", 
+                "Please configure Repliz API keys in Settings → Repliz tab first.")
+            return
+        
+        # Reformat data for dialog
+        clip_data = {
+            "folder": folder,
+            "video": video_path,
+            "title": data.get("title", "Untitled"),
+            "hook_text": data.get("hook_text", ""),
+            "duration": data.get("duration_seconds", 0)
+        }
+        
+        # Get OpenAI client and config for metadata generation
+        yt_client = self.get_youtube_client()
+        ai_providers = self.config.get("ai_providers", {})
+        yt_config = ai_providers.get("youtube_title_maker", {})
+        model = yt_config.get("model", self.config.get("model", "gpt-4.1"))
+        
+        # Open Repliz account selection dialog
+        from dialogs.repliz_upload import ReplizUploadDialog
+        ReplizUploadDialog(self, clip_data, access_key, secret_key, 
+            yt_client, model, self.config.get("temperature", 1.0))
     
     
     def open_youtube_url(self, url: str):

@@ -139,7 +139,7 @@ class ContactPage(ctk.CTkFrame):
                 }
                 
                 # Send POST request
-                url = "https://n8n.pesenin.my.id/webhook/yt-clipper/contact-form"
+                url = "https://api.ytclip.org/webhook/yt-clipper/contact-form"
                 json_data = json.dumps(data).encode('utf-8')
                 
                 req = urllib.request.Request(url, data=json_data, 

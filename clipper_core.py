@@ -414,14 +414,18 @@ Return HANYA JSON array, tanpa text lain."""
         
         highlights = json.loads(result)
         
-        # Filter by duration
+        # Filter by duration (min 58s, max 120s)
         valid = []
         for h in highlights:
             duration = self.parse_timestamp(h["end_time"]) - self.parse_timestamp(h["start_time"])
             h["duration_seconds"] = round(duration, 1)
-            if duration >= 58:
+            if 58 <= duration <= 120:
                 valid.append(h)
                 self.log(f"  ✓ {h['title']} ({duration:.0f}s)")
+            elif duration > 120:
+                self.log(f"  ✗ {h['title']} ({duration:.0f}s) - Too long, skipped")
+            elif duration < 58:
+                self.log(f"  ✗ {h['title']} ({duration:.0f}s) - Too short, skipped")
             
             if len(valid) >= num_clips:
                 break

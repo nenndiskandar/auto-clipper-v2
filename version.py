@@ -2,8 +2,8 @@
 YT-Short-Clipper Version Information
 """
 
-__version__ = "0.0.8"
-__version_info__ = (0, 0, 8)
+__version__ = "0.0.9"
+__version_info__ = (0, 0, 9)
 
 # Update URL
-UPDATE_CHECK_URL = "https://n8n.pesenin.my.id/webhook/yt-clipper/latest-version"
+UPDATE_CHECK_URL = "https://api.ytclip.org/webhook/yt-clipper/latest-version"

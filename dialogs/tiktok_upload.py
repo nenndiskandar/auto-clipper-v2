@@ -2,10 +2,13 @@
 TikTok upload dialog (Sandbox Mode)
 """
 
+import sys
 import json
 import threading
 import customtkinter as ctk
 from tkinter import messagebox
+from pathlib import Path
+from PIL import Image
 
 
 class TikTokUploadDialog(ctk.CTkToplevel):
@@ -23,7 +26,39 @@ class TikTokUploadDialog(ctk.CTkToplevel):
         self.transient(parent)
         self.grab_set()
         
+        # Set icon
+        self.set_dialog_icon()
+        
         self.create_ui()
+    
+    def set_dialog_icon(self):
+        """Set dialog icon to match main window"""
+        try:
+            from utils.helpers import get_bundle_dir
+            BUNDLE_DIR = get_bundle_dir()
+            ASSETS_DIR = BUNDLE_DIR / "assets"
+            ICON_PATH = ASSETS_DIR / "icon.png"
+            ICON_ICO_PATH = ASSETS_DIR / "icon.ico"
+            
+            if sys.platform == "win32":
+                # Use .ico file directly on Windows
+                if ICON_ICO_PATH.exists():
+                    self.iconbitmap(str(ICON_ICO_PATH))
+                elif ICON_PATH.exists():
+                    # Convert PNG to ICO if needed
+                    img = Image.open(ICON_PATH)
+                    ico_path = ASSETS_DIR / "icon.ico"
+                    img.save(str(ico_path), format='ICO', sizes=[(16, 16), (32, 32), (48, 48), (256, 256)])
+                    self.iconbitmap(str(ico_path))
+            else:
+                if ICON_PATH.exists():
+                    from tkinter import PhotoImage
+                    icon_img = Image.open(ICON_PATH)
+                    photo = PhotoImage(icon_img)
+                    self.iconphoto(True, photo)
+                    self._icon_photo = photo
+        except Exception as e:
+            pass  # Silently fail if icon can't be set
     
     def create_ui(self):
         """Create the dialog UI"""
