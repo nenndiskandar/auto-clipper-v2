@@ -57,6 +57,7 @@ class SettingsPage(ctk.CTkFrame):
         self.tabview.pack(fill="both", expand=True, padx=10, pady=10)
         
         self.tabview.add("AI API Settings")
+        self.tabview.add("Performance")
         self.tabview.add("Output")
         self.tabview.add("Watermark")
         self.tabview.add("Repliz")
@@ -64,6 +65,7 @@ class SettingsPage(ctk.CTkFrame):
         self.tabview.add("About")
         
         self.create_openai_tab()
+        self.create_performance_tab()
         self.create_output_tab()
         self.create_watermark_tab()
         self.create_repliz_tab()
@@ -817,6 +819,187 @@ class SettingsPage(ctk.CTkFrame):
         ctk.CTkButton(btn_frame, text="📋 Apply URL & Key to All", height=38,
             fg_color="gray",
             command=lambda: self.apply_url_key_to_all_simple(self.yt_url_entry.get(), self.yt_key_entry.get())).pack(side="left", fill="x", expand=True, padx=(5, 0))
+    
+    def create_performance_tab(self):
+        """Create performance settings tab with GPU detection"""
+        main = self.tabview.tab("Performance")
+        
+        # Scrollable frame
+        scroll = ctk.CTkScrollableFrame(main)
+        scroll.pack(fill="both", expand=True, padx=5, pady=5)
+        
+        # Header
+        header_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        header_frame.pack(fill="x", padx=10, pady=(15, 10))
+        
+        ctk.CTkLabel(header_frame, text="Hardware Acceleration", 
+            font=ctk.CTkFont(size=16, weight="bold"), anchor="w").pack(fill="x")
+        ctk.CTkLabel(header_frame, 
+            text="Use GPU to speed up video processing. GPU encoding is 3-5x faster than CPU.",
+            font=ctk.CTkFont(size=11), text_color="gray", anchor="w", wraplength=500).pack(fill="x", pady=(5, 0))
+        
+        # GPU Detection section
+        detection_frame = ctk.CTkFrame(scroll, fg_color=("gray85", "gray20"), corner_radius=10)
+        detection_frame.pack(fill="x", padx=10, pady=(10, 15))
+        
+        ctk.CTkLabel(detection_frame, text="🔍 GPU Detection", 
+            font=ctk.CTkFont(size=14, weight="bold"), anchor="w").pack(fill="x", padx=15, pady=(15, 10))
+        
+        # GPU info display
+        self.gpu_info_frame = ctk.CTkFrame(detection_frame, fg_color=("gray90", "gray15"), corner_radius=8)
+        self.gpu_info_frame.pack(fill="x", padx=15, pady=(0, 10))
+        
+        self.gpu_status_label = ctk.CTkLabel(self.gpu_info_frame, text="Detecting GPU...", 
+            font=ctk.CTkFont(size=12), anchor="w", justify="left")
+        self.gpu_status_label.pack(fill="x", padx=15, pady=15)
+        
+        # Detect button
+        self.detect_gpu_btn = ctk.CTkButton(detection_frame, text="🔄 Detect GPU", height=38,
+            fg_color=("#3B8ED0", "#1F6AA5"), command=self.detect_gpu)
+        self.detect_gpu_btn.pack(fill="x", padx=15, pady=(0, 15))
+        
+        # GPU Acceleration toggle
+        self.gpu_enabled_var = ctk.BooleanVar(value=False)
+        
+        toggle_frame = ctk.CTkFrame(scroll, fg_color=("gray85", "gray20"), corner_radius=10)
+        toggle_frame.pack(fill="x", padx=10, pady=(0, 15))
+        
+        ctk.CTkLabel(toggle_frame, text="⚡ GPU Acceleration", 
+            font=ctk.CTkFont(size=14, weight="bold"), anchor="w").pack(fill="x", padx=15, pady=(15, 10))
+        
+        self.gpu_switch = ctk.CTkSwitch(toggle_frame, text="Enable GPU Acceleration", 
+            variable=self.gpu_enabled_var, font=ctk.CTkFont(size=13),
+            command=self.toggle_gpu_acceleration, state="disabled")
+        self.gpu_switch.pack(anchor="w", padx=15, pady=(0, 10))
+        
+        # Info about GPU acceleration
+        info_text = ctk.CTkLabel(toggle_frame, 
+            text="When enabled, video encoding will use your GPU instead of CPU.\n" +
+                 "This significantly speeds up processing but requires compatible hardware.",
+            font=ctk.CTkFont(size=11), text_color="gray", anchor="w", justify="left", wraplength=480)
+        info_text.pack(fill="x", padx=15, pady=(0, 15))
+        
+        # Technical details section
+        details_frame = ctk.CTkFrame(scroll, fg_color=("gray85", "gray20"), corner_radius=10)
+        details_frame.pack(fill="x", padx=10, pady=(0, 15))
+        
+        ctk.CTkLabel(details_frame, text="ℹ️ Technical Details", 
+            font=ctk.CTkFont(size=14, weight="bold"), anchor="w").pack(fill="x", padx=15, pady=(15, 10))
+        
+        self.encoder_info_label = ctk.CTkLabel(details_frame, 
+            text="Encoder: Not detected\nPreset: N/A\nStatus: Click 'Detect GPU' to check",
+            font=ctk.CTkFont(size=11), text_color="gray", anchor="w", justify="left")
+        self.encoder_info_label.pack(fill="x", padx=15, pady=(0, 15))
+        
+        # Save button
+        ctk.CTkButton(scroll, text="💾 Save Settings", height=45, 
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color=("#27ae60", "#27ae60"), hover_color=("#229954", "#229954"),
+            command=self.save_settings).pack(fill="x", padx=10, pady=(10, 15))
+        
+        # Auto-detect on load
+        self.after(500, self.detect_gpu)
+    
+    def detect_gpu(self):
+        """Detect GPU and update UI"""
+        self.detect_gpu_btn.configure(state="disabled", text="Detecting...")
+        
+        def do_detect():
+            try:
+                from utils.gpu_detector import GPUDetector
+                detector = GPUDetector()
+                
+                # Detect GPU
+                gpu_info = detector.detect_gpu()
+                recommendation = detector.get_recommended_encoder()
+                
+                self.after(0, lambda: self._on_gpu_detected(gpu_info, recommendation))
+            except Exception as e:
+                self.after(0, lambda: self._on_gpu_detect_error(str(e)))
+        
+        threading.Thread(target=do_detect, daemon=True).start()
+    
+    def _on_gpu_detected(self, gpu_info, recommendation):
+        """Handle GPU detection result"""
+        self.detect_gpu_btn.configure(state="normal", text="🔄 Detect GPU")
+        
+        if gpu_info['available']:
+            # GPU found
+            gpu_type_emoji = {
+                'nvidia': '🟢',
+                'amd': '🔴',
+                'intel': '🔵'
+            }
+            emoji = gpu_type_emoji.get(gpu_info['type'], '⚪')
+            
+            status_text = f"{emoji} GPU Detected\n\n"
+            status_text += f"Name: {gpu_info['name']}\n"
+            status_text += f"Type: {gpu_info['type'].upper()}"
+            
+            self.gpu_status_label.configure(text=status_text, text_color=("green", "lightgreen"))
+            
+            # Update encoder info
+            if recommendation['available']:
+                encoder_text = f"Encoder: {recommendation['encoder']}\n"
+                encoder_text += f"Preset: {recommendation['preset']}\n"
+                encoder_text += f"Status: ✓ Ready to use"
+                self.encoder_info_label.configure(text=encoder_text, text_color=("green", "lightgreen"))
+                
+                # Enable GPU switch
+                self.gpu_switch.configure(state="normal")
+            else:
+                encoder_text = f"Encoder: Not available\n"
+                encoder_text += f"Reason: {recommendation['reason']}"
+                self.encoder_info_label.configure(text=encoder_text, text_color=("orange", "yellow"))
+                
+                # Disable GPU switch
+                self.gpu_switch.configure(state="disabled")
+                self.gpu_enabled_var.set(False)
+        else:
+            # No GPU found
+            status_text = "⚪ No GPU Detected\n\n"
+            status_text += "No compatible GPU found on this system.\n"
+            status_text += "Video processing will use CPU."
+            
+            self.gpu_status_label.configure(text=status_text, text_color="gray")
+            
+            # Update encoder info
+            encoder_text = "Encoder: libx264 (CPU)\n"
+            encoder_text += "Preset: fast\n"
+            encoder_text += "Status: Using CPU encoding"
+            self.encoder_info_label.configure(text=encoder_text, text_color="gray")
+            
+            # Disable GPU switch
+            self.gpu_switch.configure(state="disabled")
+            self.gpu_enabled_var.set(False)
+    
+    def _on_gpu_detect_error(self, error):
+        """Handle GPU detection error"""
+        self.detect_gpu_btn.configure(state="normal", text="🔄 Detect GPU")
+        
+        status_text = "❌ Detection Error\n\n"
+        status_text += f"Error: {error}"
+        
+        self.gpu_status_label.configure(text=status_text, text_color=("red", "orange"))
+        
+        # Disable GPU switch
+        self.gpu_switch.configure(state="disabled")
+        self.gpu_enabled_var.set(False)
+    
+    def toggle_gpu_acceleration(self):
+        """Handle GPU acceleration toggle"""
+        if self.gpu_enabled_var.get():
+            # Enabled
+            messagebox.showinfo("GPU Acceleration Enabled", 
+                "GPU acceleration is now enabled.\n\n" +
+                "Video processing will use your GPU for faster encoding.\n\n" +
+                "Don't forget to click 'Save Settings' to apply changes.")
+        else:
+            # Disabled
+            messagebox.showinfo("GPU Acceleration Disabled", 
+                "GPU acceleration is now disabled.\n\n" +
+                "Video processing will use CPU encoding.\n\n" +
+                "Don't forget to click 'Save Settings' to apply changes.")
     
     def create_output_tab(self):
         """Create output folder settings tab"""
@@ -1973,6 +2156,10 @@ and YouTube Shorts."""
         self.prompt_text.delete("1.0", "end")
         self.prompt_text.insert("1.0", system_prompt)
         self.update_prompt_char_count()
+        
+        # Load GPU acceleration settings
+        gpu_settings = self.config.get("gpu_acceleration", {})
+        self.gpu_enabled_var.set(gpu_settings.get("enabled", False))
     
     def browse_output_folder(self):
         """Browse for output folder"""
@@ -2101,6 +2288,12 @@ and YouTube Shorts."""
             "scale": self.watermark_scale.get()
         }
         self.config.set("watermark", watermark_settings)
+        
+        # Save GPU acceleration settings
+        gpu_settings = {
+            "enabled": self.gpu_enabled_var.get()
+        }
+        self.config.set("gpu_acceleration", gpu_settings)
         
         # For backward compatibility, also save first provider as default
         highlight_finder = ai_providers.get("highlight_finder", {})

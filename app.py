@@ -1055,6 +1055,12 @@ class YTShortClipperApp(ctk.CTk):
                 token_callback=lambda a, b, c, d: self.after(0, lambda: self.update_tokens(a, b, c, d)),
                 cancel_check=lambda: self.cancelled
             )
+            
+            # Enable GPU acceleration if configured
+            gpu_settings = self.config.get("gpu_acceleration", {})
+            if gpu_settings.get("enabled", False):
+                core.enable_gpu_acceleration(True)
+            
             core.process(url, num_clips, add_captions=add_captions, add_hook=add_hook)
             if not self.cancelled:
                 self.after(0, self.on_complete)

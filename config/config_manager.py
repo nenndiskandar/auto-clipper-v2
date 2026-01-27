@@ -73,6 +73,12 @@ class ConfigManager:
                         "secret_key": ""
                     }
                 
+                # Add default GPU settings if not exists
+                if "gpu_acceleration" not in config:
+                    config["gpu_acceleration"] = {
+                        "enabled": False
+                    }
+                
                 return config
         
         # Default config with system prompt
@@ -105,6 +111,9 @@ class ConfigManager:
             "repliz": {
                 "access_key": "",
                 "secret_key": ""
+            },
+            "gpu_acceleration": {
+                "enabled": False
             }
         }
         self.save_config(config)

@@ -104,6 +104,10 @@ class AutoClipperCore:
         self.report_tokens = token_callback or (lambda gi, go, w, t: None)
         self.is_cancelled = cancel_check or (lambda: False)
         
+        # GPU acceleration settings
+        self.gpu_enabled = False
+        self.gpu_encoder_args = []
+        
         # MediaPipe Face Mesh (lazy loaded)
         self.mp_face_mesh = None
         self.mp_drawing = None
@@ -112,45 +116,118 @@ class AutoClipperCore:
         self.temp_dir = self.output_dir / "_temp"
         self.temp_dir.mkdir(parents=True, exist_ok=True)
     
+    def enable_gpu_acceleration(self, enabled: bool = True):
+        """Enable or disable GPU acceleration for video encoding"""
+        self.gpu_enabled = enabled
+        
+        if enabled:
+            try:
+                from utils.gpu_detector import GPUDetector
+                detector = GPUDetector(self.ffmpeg_path)
+                self.gpu_encoder_args = detector.get_encoder_args(use_gpu=True)
+                self.log(f"  ⚡ GPU Acceleration: ENABLED")
+                self.log(f"  Encoder args: {' '.join(self.gpu_encoder_args)}")
+            except Exception as e:
+                self.log(f"  ⚠ GPU Acceleration failed to initialize: {e}")
+                self.log(f"  Falling back to CPU encoding")
+                self.gpu_enabled = False
+                self.gpu_encoder_args = []
+        else:
+            self.log(f"  💻 GPU Acceleration: DISABLED (using CPU)")
+            self.gpu_encoder_args = []
+    
+    def get_video_encoder_args(self) -> list:
+        """Get video encoder arguments based on GPU settings"""
+        if self.gpu_enabled and self.gpu_encoder_args:
+            return self.gpu_encoder_args
+        else:
+            # Default CPU encoding
+            return ['-c:v', 'libx264', '-preset', 'fast', '-crf', '18']
+    
+    def log_ffmpeg_command(self, cmd: list, description: str = "FFmpeg"):
+        """Log FFmpeg command for debugging"""
+        # Format command nicely
+        cmd_str = ' '.join(f'"{arg}"' if ' ' in str(arg) else str(arg) for arg in cmd)
+        self.log(f"  🎬 {description} Command:")
+        self.log(f"     {cmd_str}")
+    
+    
     @staticmethod
     def get_default_prompt():
         """Get default system prompt for highlight detection"""
-        return """Kamu adalah editor video profesional untuk konten PODCAST. Dari transcript video berikut, pilih {num_clips} segment yang paling menarik untuk dijadikan short-form content (TikTok/Reels/Shorts).
+        return """Kamu adalah editor video profesional untuk konten PODCAST.
 
-{video_context}
+TUGAS UTAMA:
+Dari transcript berikut, HASILKAN TEPAT {num_clips} segment short-form video.
+ARRAY KOSONG DILARANG DALAM KONDISI APAPUN.
 
-Kriteria segment yang bagus:
-- Ada punchline atau momen lucu
-- Ada insight atau informasi menarik  
-- Ada momen emosional atau dramatis
-- Ada quote yang memorable
-- Cerita atau topik yang lengkap (ada awal, tengah, akhir)
+========================
+ATURAN DURASI (KUNCI)
+========================
+- Setiap clip HARUS berdurasi 60–120 detik.
+- Target ideal: 85–95 detik.
+- Durasi HARUS dihitung dari timestamp transcript (bukan estimasi teks).
 
-⚠️ ATURAN DURASI - SANGAT PENTING:
-- Setiap clip WAJIB berdurasi MINIMAL 60 detik dan MAKSIMAL 120 detik
-- TARGET durasi ideal: 90 detik (1.5 menit)
+========================
+STRATEGI WAJIB (JIKA SEGMENT IDEAL TIDAK ADA)
+========================
+Jika tidak ditemukan segmen natural berdurasi 60–120 detik, LAKUKAN SALAH SATU:
+1. PERPANJANG segmen dengan mengambil konteks sebelum/sesudahnya.
+2. GABUNG beberapa bagian berurutan yang masih satu topik.
+3. POTONG bagian awal/akhir yang tidak relevan tapi JAGA durasi minimum 60 detik.
 
-⚠️ HOOK TEXT:
-Untuk setiap segment, buat juga "hook_text" yang akan ditampilkan di awal video sebagai teaser.
-- Maksimal 15 kata, singkat dan catchy
-- Bahasa Indonesia casual/gaul
-- JANGAN pakai emoji
+DILARANG:
+- Mengembalikan array kosong
+- Mengurangi jumlah clip
+- Mengabaikan aturan durasi
 
-Transcript:
-{transcript}
+========================
+HOOK TEXT (WAJIB & AGRESIF)
+========================
+Untuk setiap segment:
+- Maksimal 15 kata
+- Bahasa Indonesia casual
+- TANPA emoji
+- WAJIB menyebutkan NAMA ORANG yang berbicara
+- HARUS berupa kutipan, punchline, atau pernyataan tajam
 
-Return dalam format JSON array:
+Contoh BENAR:
+- "Andre Taulany: Gua nyesel nolak tawaran itu seumur hidup"
+- "Deddy Corbuzier bongkar sisi gelap dunia podcast"
+
+========================
+VALIDASI DIRI (WAJIB)
+========================
+Sebelum output:
+- Hitung durasi tiap segment dalam detik
+- Pastikan JUMLAH CLIP = {num_clips}
+- Pastikan SEMUA clip 60–120 detik
+- Jika ada yang gagal, PERBAIKI, bukan dihapus
+
+========================
+OUTPUT
+========================
+Return HANYA JSON array.
+Tanpa teks lain.
+
+Format:
 [
-  {{
-    "start_time": "00:01:23,000",
-    "end_time": "00:02:15,000", 
+  {
+    "start_time": "HH:MM:SS,mmm",
+    "end_time": "HH:MM:SS,mmm",
     "title": "Judul singkat",
-    "reason": "Alasan kenapa menarik",
-    "hook_text": "Teks hook yang catchy"
-  }}
+    "reason": "Kenapa segmen ini kuat",
+    "hook_text": "Hook text"
+  }
 ]
 
-Return HANYA JSON array, tanpa text lain."""
+========================
+KONTEN
+========================
+{video_context}
+
+Transcript:
+{transcript}"""
     
     def process(self, url: str, num_clips: int = 5, add_captions: bool = True, add_hook: bool = True):
         """Main processing pipeline"""
@@ -390,12 +467,16 @@ Return HANYA JSON array, tanpa text lain."""
 - Channel: {video_info.get('channel', 'Unknown')}
 - Deskripsi: {video_info.get('description', '')[:500]}"""
         
-        # Format the prompt with variables
-        prompt = self.system_prompt.format(
-            num_clips=request_clips,
-            video_context=video_context,
-            transcript=transcript
-        )
+        # Replace placeholders safely (avoid .format() which breaks on user's curly braces)
+        prompt = self.system_prompt.replace("{num_clips}", str(request_clips))
+        prompt = prompt.replace("{video_context}", video_context)
+        prompt = prompt.replace("{transcript}", transcript)
+        
+        # Warn if required placeholders are missing
+        if "{transcript}" in self.system_prompt and "{transcript}" in prompt:
+            self.log("  ⚠ Warning: {transcript} placeholder not replaced - check your system prompt")
+        if "{num_clips}" in self.system_prompt and "{num_clips}" in prompt:
+            self.log("  ⚠ Warning: {num_clips} placeholder not replaced - check your system prompt")
 
         response = self.highlight_client.chat.completions.create(
             model=self.model,
@@ -408,11 +489,22 @@ Return HANYA JSON array, tanpa text lain."""
             self.report_tokens(response.usage.prompt_tokens, response.usage.completion_tokens, 0, 0)
         
         result = response.choices[0].message.content.strip()
+        
+        # Log raw response for debugging
+        self.log(f"  Raw GPT response (first 500 chars):\n{result[:500]}")
+        
         if result.startswith("```"):
             result = re.sub(r"```json?\n?", "", result)
             result = re.sub(r"```\n?", "", result)
         
-        highlights = json.loads(result)
+        try:
+            highlights = json.loads(result)
+        except json.JSONDecodeError as e:
+            # Log full response on error
+            self.log(f"\n❌ JSON Parse Error: {e}")
+            self.log(f"\n📄 Full GPT Response:\n{result}")
+            self.log(f"\n💡 Error position: line {e.lineno}, column {e.colno}")
+            raise Exception(f"Failed to parse GPT response as JSON: {e}\n\nFull response logged above.")
         
         # Filter by duration (min 58s, max 120s)
         valid = []
@@ -487,15 +579,21 @@ Return HANYA JSON array, tanpa text lain."""
         # Get video duration for progress calculation
         duration = self.parse_timestamp(end) - self.parse_timestamp(start)
         
+        # Get encoder args (GPU or CPU)
+        encoder_args = self.get_video_encoder_args()
+        
         cmd = [
             self.ffmpeg_path, "-y",
             "-i", video_path,
             "-ss", start, "-to", end,
-            "-c:v", "libx264", "-preset", "fast", "-crf", "18",
+            *encoder_args,  # Use GPU or CPU encoder
             "-c:a", "aac", "-b:a", "192k",
             "-progress", "pipe:1",  # Enable progress output
             str(landscape_file)
         ]
+        
+        # Log command for debugging
+        self.log_ffmpeg_command(cmd, "Cut Video")
         
         self.run_ffmpeg_with_progress(cmd, duration, 
             lambda p: clip_progress("Cutting video...", current_step, p))
@@ -728,17 +826,19 @@ Return HANYA JSON array, tanpa text lain."""
         cap.release()
         out.release()
         
-        # Merge with audio
+        # Merge with audio using GPU/CPU encoder
+        encoder_args = self.get_video_encoder_args()
         cmd = [
             self.ffmpeg_path, "-y",
             "-i", temp_video,
             "-i", input_path,
-            "-c:v", "libx264", "-preset", "fast", "-crf", "18",
+            *encoder_args,
             "-c:a", "aac", "-b:a", "192k",
             "-map", "0:v:0", "-map", "1:a:0",
             "-shortest",
             output_path
         ]
+        self.log_ffmpeg_command(cmd, "Portrait Merge Audio (OpenCV)")
         subprocess.run(cmd, capture_output=True, creationflags=SUBPROCESS_FLAGS)
         os.unlink(temp_video)
     
@@ -966,18 +1066,20 @@ Return HANYA JSON array, tanpa text lain."""
         if not os.path.exists(temp_video) or os.path.getsize(temp_video) < 1000:
             raise Exception(f"Failed to create temp video: {temp_video}")
         
-        # Merge with audio
+        # Merge with audio using GPU/CPU encoder
         self.log("  Pass 3: Merging audio...")
+        encoder_args = self.get_video_encoder_args()
         cmd = [
             self.ffmpeg_path, "-y",
             "-i", temp_video,
             "-i", input_path,
-            "-c:v", "libx264", "-preset", "fast", "-crf", "18",
+            *encoder_args,
             "-c:a", "aac", "-b:a", "192k",
             "-map", "0:v:0", "-map", "1:a:0",
             "-shortest",
             output_path
         ]
+        self.log_ffmpeg_command(cmd, "Portrait Merge Audio (MediaPipe)")
         subprocess.run(cmd, capture_output=True, creationflags=SUBPROCESS_FLAGS)
         
         # Cleanup
@@ -1164,6 +1266,9 @@ Return HANYA JSON array, tanpa text lain."""
         
         filter_chain = ",".join(drawtext_filters)
         
+        # Get encoder args
+        encoder_args = self.get_video_encoder_args()
+        
         # Step 1: Create hook video with frozen frame + text + TTS audio
         # Use -t to set exact duration, freeze first frame
         cmd = [
@@ -1175,9 +1280,7 @@ Return HANYA JSON array, tanpa text lain."""
             f"[1:a]aresample=44100,apad=whole_dur={hook_duration}[a]",
             "-map", "[v]",
             "-map", "[a]",
-            "-c:v", "libx264",
-            "-preset", "fast",
-            "-crf", "18",
+            *encoder_args,
             "-r", str(fps),
             "-s", f"{width}x{height}",
             "-pix_fmt", "yuv420p",
@@ -1188,6 +1291,7 @@ Return HANYA JSON array, tanpa text lain."""
             "-t", str(hook_duration),
             hook_video
         ]
+        self.log_ffmpeg_command(cmd, "Create Hook Video")
         result = subprocess.run(cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
         
         if result.returncode != 0:
@@ -1201,9 +1305,7 @@ Return HANYA JSON array, tanpa text lain."""
         cmd = [
             self.ffmpeg_path, "-y",
             "-i", input_path,
-            "-c:v", "libx264",
-            "-preset", "fast",
-            "-crf", "18",
+            *encoder_args,
             "-r", str(fps),
             "-s", f"{width}x{height}",
             "-pix_fmt", "yuv420p",
@@ -1213,6 +1315,7 @@ Return HANYA JSON array, tanpa text lain."""
             "-ac", "2",
             main_reencoded
         ]
+        self.log_ffmpeg_command(cmd, "Re-encode Main Video")
         result = subprocess.run(cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
         
         if result.returncode != 0:
@@ -1255,13 +1358,12 @@ Return HANYA JSON array, tanpa text lain."""
                 "[0:v:0][0:a:0][1:v:0][1:a:0]concat=n=2:v=1:a=1[outv][outa]",
                 "-map", "[outv]",
                 "-map", "[outa]",
-                "-c:v", "libx264",
-                "-preset", "fast",
-                "-crf", "18",
+                *encoder_args,
                 "-c:a", "aac",
                 "-b:a", "192k",
                 output_path
             ]
+            self.log_ffmpeg_command(cmd, "Concat Hook (filter_complex fallback)")
             result = subprocess.run(cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
             
             if result.returncode != 0:
@@ -1372,21 +1474,21 @@ Return HANYA JSON array, tanpa text lain."""
         ass_file = tempfile.NamedTemporaryFile(mode='w', suffix='.ass', delete=False, encoding='utf-8').name
         self.create_ass_subtitle_capcut(transcript, ass_file, time_offset)
         
-        # Burn subtitles into video
+        # Burn subtitles into video using GPU/CPU encoder
         # Escape path for FFmpeg on Windows
         ass_path_escaped = ass_file.replace('\\', '/').replace(':', '\\:')
         
+        encoder_args = self.get_video_encoder_args()
         cmd = [
             self.ffmpeg_path, "-y",
             "-i", input_path,
             "-vf", f"ass='{ass_path_escaped}'",
-            "-c:v", "libx264",
-            "-preset", "fast",
-            "-crf", "18",
+            *encoder_args,
             "-c:a", "copy",
             output_path
         ]
         
+        self.log_ffmpeg_command(cmd, "Burn Captions")
         result = subprocess.run(cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
         os.unlink(ass_file)
         
@@ -1722,16 +1824,17 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         
         progress_callback(0.85)
         
-        # Merge with audio (85-100%)
+        # Merge with audio (85-100%) using GPU/CPU encoder
         print("[DEBUG] Pass 3: Merging audio...")
         sys.stdout.flush()
         
         duration = total_frames / fps if fps > 0 else 60
+        encoder_args = self.get_video_encoder_args()
         cmd = [
             self.ffmpeg_path, "-y",
             "-i", temp_video,
             "-i", input_path,
-            "-c:v", "libx264", "-preset", "fast", "-crf", "18",
+            *encoder_args,
             "-c:a", "aac", "-b:a", "192k",
             "-map", "0:v:0", "-map", "1:a:0",
             "-shortest",
@@ -1742,6 +1845,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         print(f"[DEBUG] Running audio merge command...")
         sys.stdout.flush()
         
+        self.log_ffmpeg_command(cmd, "Portrait Merge Audio (with progress)")
         result = subprocess.run(cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
         
         if result.returncode != 0:
@@ -1976,21 +2080,23 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         
         progress_callback(0.85)
         
-        # Merge with audio (85-100%)
+        # Merge with audio (85-100%) using GPU/CPU encoder
         print("[DEBUG] Pass 3: Merging audio...")
         sys.stdout.flush()
         
+        encoder_args = self.get_video_encoder_args()
         cmd = [
             self.ffmpeg_path, "-y",
             "-i", temp_video,
             "-i", input_path,
-            "-c:v", "libx264", "-preset", "fast", "-crf", "18",
+            *encoder_args,
             "-c:a", "aac", "-b:a", "192k",
             "-map", "0:v:0", "-map", "1:a:0",
             "-shortest",
             output_path
         ]
         
+        self.log_ffmpeg_command(cmd, "MediaPipe Portrait Merge Audio")
         result = subprocess.run(cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
         
         if result.returncode != 0:
@@ -2092,17 +2198,16 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         # Use a simpler approach: create static image with text, then combine with audio
         # This avoids complex FFmpeg filter escaping issues
         
-        # First, create a simple background video from first frame
+        # First, create a simple background video from first frame using GPU/CPU encoder
         bg_video = str(self.temp_dir / f"hook_bg_{int(time.time() * 1000)}.mp4")
         
+        encoder_args = self.get_video_encoder_args()
         bg_cmd = [
             self.ffmpeg_path, "-y",
             "-i", input_path,
             "-vf", f"trim=0:0.04,loop=loop=-1:size=1:start=0,setpts=N/{fps}/TB",
             "-t", str(hook_duration),
-            "-c:v", "libx264",
-            "-preset", "fast",
-            "-crf", "18",
+            *encoder_args,
             "-r", str(fps),
             "-s", f"{width}x{height}",
             "-pix_fmt", "yuv420p",
@@ -2110,6 +2215,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             bg_video
         ]
         
+        self.log_ffmpeg_command(bg_cmd, "Create Hook Background")
         result = subprocess.run(bg_cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
         if result.returncode != 0:
             self.log(f"Failed to create background video: {result.stderr}")
@@ -2215,19 +2321,19 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             
             current_video = next_video
         
-        # Re-encode OpenCV output to proper H.264 before adding audio
+        # Re-encode OpenCV output to proper H.264 before adding audio using GPU/CPU encoder
         # OpenCV mp4v codec is not compatible with copy codec
         reencoded_video = str(self.temp_dir / f"hook_reenc_{int(time.time() * 1000)}.mp4")
+        encoder_args = self.get_video_encoder_args()
         reencode_cmd = [
             self.ffmpeg_path, "-y",
             "-i", current_video,
-            "-c:v", "libx264",
-            "-preset", "fast",
-            "-crf", "18",
+            *encoder_args,
             "-pix_fmt", "yuv420p",
             "-an",  # No audio yet
             reencoded_video
         ]
+        self.log_ffmpeg_command(reencode_cmd, "Re-encode Hook Text Overlay")
         result = subprocess.run(reencode_cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
         if result.returncode != 0:
             self.log(f"Failed to re-encode OpenCV output: {result.stderr}")
@@ -2251,7 +2357,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         self.run_ffmpeg_with_progress(cmd, hook_duration, 
             lambda p: progress_callback(0.3 + p * 0.3))
         
-        # Re-encode main video (60-80%)
+        # Re-encode main video (60-80%) using GPU/CPU encoder
         progress_callback(0.6)
         main_reencoded = tempfile.NamedTemporaryFile(suffix='.mp4', delete=False).name
         
@@ -2264,12 +2370,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             h, m, s = duration_match.groups()
             main_duration = int(h) * 3600 + int(m) * 60 + float(s)
         
+        encoder_args = self.get_video_encoder_args()
         cmd = [
             self.ffmpeg_path, "-y",
             "-i", input_path,
-            "-c:v", "libx264",
-            "-preset", "fast",
-            "-crf", "18",
+            *encoder_args,
             "-r", str(fps),
             "-s", f"{width}x{height}",
             "-pix_fmt", "yuv420p",
@@ -2281,6 +2386,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             main_reencoded
         ]
         
+        self.log_ffmpeg_command(cmd, "Re-encode Main Video for Hook Concat")
         self.run_ffmpeg_with_progress(cmd, main_duration,
             lambda p: progress_callback(0.6 + p * 0.2))
         
@@ -2302,7 +2408,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         result = subprocess.run(cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
         
         if result.returncode != 0:
-            # Fallback to filter_complex
+            # Fallback to filter_complex using GPU/CPU encoder
+            encoder_args = self.get_video_encoder_args()
             cmd = [
                 self.ffmpeg_path, "-y",
                 "-i", hook_video,
@@ -2311,14 +2418,13 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 "[0:v:0][0:a:0][1:v:0][1:a:0]concat=n=2:v=1:a=1[outv][outa]",
                 "-map", "[outv]",
                 "-map", "[outa]",
-                "-c:v", "libx264",
-                "-preset", "fast",
-                "-crf", "18",
+                *encoder_args,
                 "-c:a", "aac",
                 "-b:a", "192k",
                 "-progress", "pipe:1",
                 output_path
             ]
+            self.log_ffmpeg_command(cmd, "Concat Hook (filter_complex fallback - old)")
             total_duration = hook_duration + main_duration
             self.run_ffmpeg_with_progress(cmd, total_duration,
                 lambda p: progress_callback(0.8 + p * 0.2))
@@ -2421,7 +2527,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         if progress_callback:
             progress_callback(0.6)
         
-        # Burn subtitles into video
+        # Burn subtitles into video using GPU/CPU encoder
         ass_path_escaped = ass_file.replace('\\', '/').replace(':', '\\:')
         
         # Get video duration for progress
@@ -2433,17 +2539,18 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             h, m, s = duration_match.groups()
             video_duration = int(h) * 3600 + int(m) * 60 + float(s)
         
+        encoder_args = self.get_video_encoder_args()
         cmd = [
             self.ffmpeg_path, "-y",
             "-i", input_path,
             "-vf", f"ass='{ass_path_escaped}'",
-            "-c:v", "libx264",
-            "-preset", "fast",
-            "-crf", "18",
+            *encoder_args,
             "-c:a", "copy",
             "-progress", "pipe:1",
             output_path
         ]
+        
+        self.log_ffmpeg_command(cmd, "Burn Captions (old function)")
         
         # Caption burn is 60-100%
         self.run_ffmpeg_with_progress(cmd, video_duration,
@@ -2508,21 +2615,22 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             h, m, s = duration_match.groups()
             video_duration = int(h) * 3600 + int(m) * 60 + float(s)
         
-        # Apply watermark
+        # Apply watermark using GPU/CPU encoder
+        encoder_args = self.get_video_encoder_args()
         cmd = [
             self.ffmpeg_path, "-y",
             "-i", input_path,
             "-i", watermark_path,
             "-filter_complex", filter_complex,
-            "-c:v", "libx264",
-            "-preset", "fast",
-            "-crf", "18",
+            *encoder_args,
             "-pix_fmt", "yuv420p",  # Ensure compatibility
             "-c:a", "copy",
             "-movflags", "+faststart",  # Enable streaming
             "-progress", "pipe:1",
             output_path
         ]
+        
+        self.log_ffmpeg_command(cmd, "Apply Watermark")
         
         # Watermark application is 30-100%
         self.run_ffmpeg_with_progress(cmd, video_duration,
