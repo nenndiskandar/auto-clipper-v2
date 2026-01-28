@@ -20,8 +20,10 @@ pip install --break-system-packages -r requirements.txt
 
 **Output yang diharapkan:**
 ```
-Successfully installed customtkinter openai opencv-python numpy Pillow mediapipe requests google-api-python-client google-auth-oauthlib google-auth-httplib2
+Successfully installed customtkinter openai opencv-python numpy Pillow mediapipe requests google-api-python-client google-auth-oauthlib google-auth-httplib2 yt-dlp
 ```
+
+**Note:** Jika ada error "externally-managed-environment", gunakan `--break-system-packages` flag
 
 ## Step 2: Jalankan Aplikasi
 
@@ -84,9 +86,26 @@ pip install --break-system-packages -r requirements.txt
 
 ### Error: `yt-dlp not found`
 **Solution:**
+
+Option 1 (Recommended - Install as user package):
+```bash
+pip install --user yt-dlp
+```
+
+Option 2 (System-wide):
 ```bash
 pip install --break-system-packages yt-dlp
 ```
+
+Option 3 (Using run.sh wrapper):
+```bash
+bash run.sh
+```
+
+The app automatically detects yt-dlp in:
+1. Bundled location (yt-dlp.exe on Windows)
+2. User package directory (~/.local/bin/)
+3. System PATH
 
 ### Aplikasi jalan tapi blank/tidak load
 **Solution:**

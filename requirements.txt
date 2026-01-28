@@ -6,6 +6,7 @@ numpy>=1.24.0
 Pillow>=10.0.0
 mediapipe>=0.10.0
 requests>=2.31.0
+yt-dlp>=2024.0.0
 
 # YouTube Upload
 google-api-python-client>=2.100.0
