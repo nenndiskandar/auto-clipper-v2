@@ -125,7 +125,8 @@ class SettingsPage(ctk.CTkFrame):
     def open_yt_model_selector(self):
         """Open searchable model selector dialog for YouTube Title Maker"""
         if not self.yt_models_list:
-            messagebox.showwarning("Warning", "Please load models first by clicking 'Load' button")
+            selected_display = self.yt_provider_var.get()
+            messagebox.showwarning("Warning", f"No models available for {selected_display}.\n\nTry clicking 'Load' or select another provider.")
             return
         
         SearchableModelDropdown(self, self.yt_models_list, self.yt_model_var.get(), 
@@ -133,6 +134,36 @@ class SettingsPage(ctk.CTkFrame):
     
     def load_yt_models(self):
         """Load available models from YouTube Title Maker API"""
+        from config.ai_provider_config import (
+            get_provider_display_list, 
+            get_provider_default_models,
+            requires_model_load
+        )
+        
+        # Get selected provider
+        selected_display = self.yt_provider_var.get()
+        provider_display_list = get_provider_display_list()
+        provider_key = None
+        for display_name, key in provider_display_list:
+            if display_name == selected_display:
+                provider_key = key
+                break
+        
+        if not provider_key:
+            messagebox.showerror("Error", "Please select a provider first")
+            return
+        
+        # If provider doesn't require loading (models are fixed), just use defaults
+        if not requires_model_load(provider_key):
+            default_models = get_provider_default_models(provider_key)
+            self.yt_models_list = default_models
+            messagebox.showinfo("Info", 
+                f"✓ {selected_display}\n\n{len(default_models)} models available:\n" +
+                "\n".join(default_models[:5]) + 
+                (f"\n... and {len(default_models) - 5} more" if len(default_models) > 5 else ""))
+            return
+        
+        # For providers that need API loading (OpenAI, Groq, etc.)
         url = self.yt_url_entry.get().strip() or "https://api.openai.com/v1"
         api_key = self.yt_key_entry.get().strip()
         
@@ -302,7 +333,8 @@ class SettingsPage(ctk.CTkFrame):
     def open_hf_model_selector(self):
         """Open searchable model selector dialog for Highlight Finder"""
         if not self.hf_models_list:
-            messagebox.showwarning("Warning", "Please load models first by clicking 'Load' button")
+            selected_display = self.hf_provider_var.get()
+            messagebox.showwarning("Warning", f"No models available for {selected_display}.\n\nTry clicking 'Load' or select another provider.")
             return
         
         SearchableModelDropdown(self, self.hf_models_list, self.hf_model_var.get(), 
@@ -310,6 +342,36 @@ class SettingsPage(ctk.CTkFrame):
     
     def load_hf_models(self):
         """Load available models from Highlight Finder API"""
+        from config.ai_provider_config import (
+            get_provider_display_list, 
+            get_provider_default_models,
+            requires_model_load
+        )
+        
+        # Get selected provider
+        selected_display = self.hf_provider_var.get()
+        provider_display_list = get_provider_display_list()
+        provider_key = None
+        for display_name, key in provider_display_list:
+            if display_name == selected_display:
+                provider_key = key
+                break
+        
+        if not provider_key:
+            messagebox.showerror("Error", "Please select a provider first")
+            return
+        
+        # If provider doesn't require loading (models are fixed), just use defaults
+        if not requires_model_load(provider_key):
+            default_models = get_provider_default_models(provider_key)
+            self.hf_models_list = default_models
+            messagebox.showinfo("Info", 
+                f"✓ {selected_display}\n\n{len(default_models)} models available:\n" +
+                "\n".join(default_models[:5]) + 
+                (f"\n... and {len(default_models) - 5} more" if len(default_models) > 5 else ""))
+            return
+        
+        # For providers that need API loading (OpenAI, Groq, etc.)
         url = self.hf_url_entry.get().strip() or "https://api.openai.com/v1"
         api_key = self.hf_key_entry.get().strip()
         

@@ -15,7 +15,7 @@ AI_PROVIDERS_CONFIG = {
     },
     "google": {
         "name": "🔵 Google Gemini",
-        "base_url": "https://generativelanguage.googleapis.com/v1beta/models",
+        "base_url": "https://generativelanguage.googleapis.com/v1beta",
         "description": "Google's Generative AI (Gemini models)",
         "default_models": ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
         "api_key_format": "AIza*",
