@@ -13,10 +13,6 @@ from openai import OpenAI
 
 from dialogs.model_selector import SearchableModelDropdown
 from version import __version__
-from config.ai_provider_config import (
-    AI_PROVIDERS_CONFIG, get_provider_display_list, get_provider_base_url,
-    get_provider_default_models, requires_model_load, get_provider_description
-)
 
 
 class SettingsPage(ctk.CTkFrame):
@@ -90,9 +86,56 @@ class SettingsPage(ctk.CTkFrame):
         
         ctk.CTkLabel(header_frame, text="AI API Settings", 
             font=ctk.CTkFont(size=16, weight="bold"), anchor="w").pack(fill="x")
-        ctk.CTkLabel(header_frame, 
-            text="Configure different AI providers for each function. You can use different providers (OpenAI, Groq, etc.) for each task.",
-            font=ctk.CTkFont(size=11), text_color="gray", anchor="w", wraplength=500).pack(fill="x", pady=(5, 0))
+        
+        # Provider selector cards (YT CLIP AI, OPEN AI, CUSTOM)
+        cards_frame = ctk.CTkFrame(main, fg_color="transparent")
+        cards_frame.pack(fill="x", padx=15, pady=(10, 15))
+        
+        # Create variable to track selected provider type
+        self.provider_type_var = ctk.StringVar(value="ytclip")
+        
+        # Card container with 3 columns
+        cards_container = ctk.CTkFrame(cards_frame, fg_color="transparent")
+        cards_container.pack(fill="x")
+        
+        # YT CLIP AI Card
+        ytclip_card = ctk.CTkFrame(cards_container, fg_color=("gray85", "gray20"), 
+            corner_radius=10, border_width=2, border_color=("gray70", "gray30"))
+        ytclip_card.pack(side="left", fill="both", expand=True, padx=(0, 5))
+        
+        ytclip_btn = ctk.CTkButton(ytclip_card, text="🎬 YT CLIP AI", height=60,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color="transparent", hover_color=("#3B8ED0", "#1F6AA5"),
+            command=lambda: self._select_provider_type("ytclip", ytclip_card, openai_card, custom_card))
+        ytclip_btn.pack(fill="both", expand=True, padx=3, pady=3)
+        
+        self.ytclip_card = ytclip_card
+        
+        # OPEN AI Card
+        openai_card = ctk.CTkFrame(cards_container, fg_color=("gray85", "gray20"), 
+            corner_radius=10, border_width=2, border_color=("gray70", "gray30"))
+        openai_card.pack(side="left", fill="both", expand=True, padx=5)
+        
+        openai_btn = ctk.CTkButton(openai_card, text="🤖 OPEN AI", height=60,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color="transparent", hover_color=("#3B8ED0", "#1F6AA5"),
+            command=lambda: self._select_provider_type("openai", ytclip_card, openai_card, custom_card))
+        openai_btn.pack(fill="both", expand=True, padx=3, pady=3)
+        
+        self.openai_card = openai_card
+        
+        # CUSTOM Card
+        custom_card = ctk.CTkFrame(cards_container, fg_color=("gray85", "gray20"), 
+            corner_radius=10, border_width=2, border_color=("gray70", "gray30"))
+        custom_card.pack(side="left", fill="both", expand=True, padx=(5, 0))
+        
+        custom_btn = ctk.CTkButton(custom_card, text="⚙️ CUSTOM", height=60,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color="transparent", hover_color=("#3B8ED0", "#1F6AA5"),
+            command=lambda: self._select_provider_type("custom", ytclip_card, openai_card, custom_card))
+        custom_btn.pack(fill="both", expand=True, padx=3, pady=3)
+        
+        self.custom_card = custom_card
         
         # Nested tabview for providers
         self.provider_tabview = ctk.CTkTabview(main, height=40,
@@ -125,8 +168,7 @@ class SettingsPage(ctk.CTkFrame):
     def open_yt_model_selector(self):
         """Open searchable model selector dialog for YouTube Title Maker"""
         if not self.yt_models_list:
-            selected_display = self.yt_provider_var.get()
-            messagebox.showwarning("Warning", f"No models available for {selected_display}.\n\nTry clicking 'Load' or select another provider.")
+            messagebox.showwarning("Warning", "No models available.\n\nTry clicking 'Load' first.")
             return
         
         SearchableModelDropdown(self, self.yt_models_list, self.yt_model_var.get(), 
@@ -134,36 +176,6 @@ class SettingsPage(ctk.CTkFrame):
     
     def load_yt_models(self):
         """Load available models from YouTube Title Maker API"""
-        from config.ai_provider_config import (
-            get_provider_display_list, 
-            get_provider_default_models,
-            requires_model_load
-        )
-        
-        # Get selected provider
-        selected_display = self.yt_provider_var.get()
-        provider_display_list = get_provider_display_list()
-        provider_key = None
-        for display_name, key in provider_display_list:
-            if display_name == selected_display:
-                provider_key = key
-                break
-        
-        if not provider_key:
-            messagebox.showerror("Error", "Please select a provider first")
-            return
-        
-        # If provider doesn't require loading (models are fixed), just use defaults
-        if not requires_model_load(provider_key):
-            default_models = get_provider_default_models(provider_key)
-            self.yt_models_list = default_models
-            messagebox.showinfo("Info", 
-                f"✓ {selected_display}\n\n{len(default_models)} models available:\n" +
-                "\n".join(default_models[:5]) + 
-                (f"\n... and {len(default_models) - 5} more" if len(default_models) > 5 else ""))
-            return
-        
-        # For providers that need API loading (OpenAI, Groq, etc.)
         url = self.yt_url_entry.get().strip() or "https://api.openai.com/v1"
         api_key = self.yt_key_entry.get().strip()
         
@@ -297,44 +309,10 @@ class SettingsPage(ctk.CTkFrame):
         messagebox.showerror("Validation Failed", 
             f"Failed to validate configuration:\n\n{error}")
     
-    
-    def _on_hf_provider_changed(self):
-        """Handle Highlight Finder provider change - auto-fill URL and load models"""
-        selected_display = self.hf_provider_var.get()
-        
-        # Find the provider key from display name
-        provider_display_list = get_provider_display_list()
-        provider_key = None
-        for display_name, key in provider_display_list:
-            if display_name == selected_display:
-                provider_key = key
-                break
-        
-        if not provider_key:
-            return
-        
-        # Auto-fill Base URL
-        base_url = get_provider_base_url(provider_key)
-        self.hf_url_entry.delete(0, "end")
-        self.hf_url_entry.insert(0, base_url)
-        
-        # Auto-load default models for this provider
-        default_models = get_provider_default_models(provider_key)
-        if default_models:
-            self.hf_models_list = default_models
-            # Set first model as current
-            self.hf_model_var.set(default_models[0])
-            # Update load button text
-            if requires_model_load(provider_key):
-                self.hf_load_models_btn.configure(state="normal", text="🔄 Refresh")
-            else:
-                self.hf_load_models_btn.configure(state="normal", text="✓ Ready")
-    
     def open_hf_model_selector(self):
         """Open searchable model selector dialog for Highlight Finder"""
         if not self.hf_models_list:
-            selected_display = self.hf_provider_var.get()
-            messagebox.showwarning("Warning", f"No models available for {selected_display}.\n\nTry clicking 'Load' or select another provider.")
+            messagebox.showwarning("Warning", "No models available.\n\nTry clicking 'Load' first.")
             return
         
         SearchableModelDropdown(self, self.hf_models_list, self.hf_model_var.get(), 
@@ -342,36 +320,6 @@ class SettingsPage(ctk.CTkFrame):
     
     def load_hf_models(self):
         """Load available models from Highlight Finder API"""
-        from config.ai_provider_config import (
-            get_provider_display_list, 
-            get_provider_default_models,
-            requires_model_load
-        )
-        
-        # Get selected provider
-        selected_display = self.hf_provider_var.get()
-        provider_display_list = get_provider_display_list()
-        provider_key = None
-        for display_name, key in provider_display_list:
-            if display_name == selected_display:
-                provider_key = key
-                break
-        
-        if not provider_key:
-            messagebox.showerror("Error", "Please select a provider first")
-            return
-        
-        # If provider doesn't require loading (models are fixed), just use defaults
-        if not requires_model_load(provider_key):
-            default_models = get_provider_default_models(provider_key)
-            self.hf_models_list = default_models
-            messagebox.showinfo("Info", 
-                f"✓ {selected_display}\n\n{len(default_models)} models available:\n" +
-                "\n".join(default_models[:5]) + 
-                (f"\n... and {len(default_models) - 5} more" if len(default_models) > 5 else ""))
-            return
-        
-        # For providers that need API loading (OpenAI, Groq, etc.)
         url = self.hf_url_entry.get().strip() or "https://api.openai.com/v1"
         api_key = self.hf_key_entry.get().strip()
         
@@ -600,6 +548,70 @@ class SettingsPage(ctk.CTkFrame):
             
             messagebox.showinfo("Success", "✓ URL and API Key applied to all providers!")
     
+    def _select_provider_type(self, provider_type, ytclip_card, openai_card, custom_card):
+        """Handle provider type selection and update UI"""
+        self.provider_type_var.set(provider_type)
+        
+        # Update card borders to show selection
+        ytclip_card.configure(border_color=("gray70", "gray30"))
+        openai_card.configure(border_color=("gray70", "gray30"))
+        custom_card.configure(border_color=("gray70", "gray30"))
+        
+        if provider_type == "ytclip":
+            ytclip_card.configure(border_color=("#3B8ED0", "#1F6AA5"))
+            base_url = "https://ai-api.ytclip.org/v1"
+        elif provider_type == "openai":
+            openai_card.configure(border_color=("#3B8ED0", "#1F6AA5"))
+            base_url = "https://api.openai.com/v1"
+        else:  # custom
+            custom_card.configure(border_color=("#3B8ED0", "#1F6AA5"))
+            base_url = self.hf_url_entry.get().strip() or "https://api.openai.com/v1"
+        
+        # Update all URL fields
+        if hasattr(self, 'hf_url_entry'):
+            self.hf_url_entry.delete(0, "end")
+            self.hf_url_entry.insert(0, base_url)
+        
+        if hasattr(self, 'cm_url_entry'):
+            self.cm_url_entry.delete(0, "end")
+            self.cm_url_entry.insert(0, base_url)
+        
+        if hasattr(self, 'hm_url_entry'):
+            self.hm_url_entry.delete(0, "end")
+            self.hm_url_entry.insert(0, base_url)
+        
+        if hasattr(self, 'yt_url_entry'):
+            self.yt_url_entry.delete(0, "end")
+            self.yt_url_entry.insert(0, base_url)
+        
+        # Show/hide URL entry fields based on selection
+        self._toggle_url_fields(provider_type == "custom")
+    
+    def _toggle_url_fields(self, show_custom):
+        """Show or hide URL entry fields based on provider type"""
+        # For YT CLIP AI and OPEN AI: hide URL fields completely
+        # For CUSTOM: show URL fields
+        if show_custom:
+            # Show URL frames
+            if hasattr(self, 'hf_url_frame'):
+                self.hf_url_frame.pack(fill="x", padx=10, pady=(0, 15), before=self.hf_key_frame)
+            if hasattr(self, 'cm_url_frame'):
+                self.cm_url_frame.pack(fill="x", padx=10, pady=(0, 15), before=self.cm_key_frame)
+            if hasattr(self, 'hm_url_frame'):
+                self.hm_url_frame.pack(fill="x", padx=10, pady=(0, 15), before=self.hm_key_frame)
+            if hasattr(self, 'yt_url_frame'):
+                self.yt_url_frame.pack(fill="x", padx=10, pady=(0, 15), before=self.yt_key_frame)
+        else:
+            # Hide URL frames
+            if hasattr(self, 'hf_url_frame'):
+                self.hf_url_frame.pack_forget()
+            if hasattr(self, 'cm_url_frame'):
+                self.cm_url_frame.pack_forget()
+            if hasattr(self, 'hm_url_frame'):
+                self.hm_url_frame.pack_forget()
+            if hasattr(self, 'yt_url_frame'):
+                self.yt_url_frame.pack_forget()
+    
     def create_highlight_finder_tab(self):
         """Create Highlight Finder configuration tab"""
         tab = self.provider_tabview.tab("🎯 Highlight Finder")
@@ -616,46 +628,24 @@ class SettingsPage(ctk.CTkFrame):
             text="AI model for analyzing video transcripts and finding viral moments. Recommended: GPT-4, GPT-4o, or compatible models.",
             font=ctk.CTkFont(size=11), text_color="gray", anchor="w", wraplength=450).pack(fill="x", padx=15, pady=(0, 12))
         
-        # AI Provider Selector
-        provider_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        provider_frame.pack(fill="x", padx=10, pady=(0, 15))
+        # API Base URL (will be hidden for YT CLIP AI and OPEN AI)
+        self.hf_url_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        # Don't pack yet, will be shown/hidden by _toggle_url_fields
         
-        ctk.CTkLabel(provider_frame, text="AI Provider", 
+        ctk.CTkLabel(self.hf_url_frame, text="API Base URL", 
             font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
-        
-        provider_display_list = get_provider_display_list()
-        provider_names = [name for name, _ in provider_display_list]
-        provider_keys = [key for _, key in provider_display_list]
-        
-        # Find default OpenAI display name
-        default_display = next((name for name, key in provider_display_list if key == "openai"), provider_names[0])
-        
-        self.hf_provider_var = ctk.StringVar(value=default_display)
-        # Trace variable changes to auto-fill on provider change
-        self.hf_provider_var.trace("w", lambda *args: self._on_hf_provider_changed())
-        
-        self.hf_provider_dropdown = ctk.CTkComboBox(provider_frame, values=provider_names,
-            height=38, state="readonly", variable=self.hf_provider_var)
-        self.hf_provider_dropdown.pack(fill="x", pady=(5, 0))
-        
-        # API Base URL (auto-filled)
-        url_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        url_frame.pack(fill="x", padx=10, pady=(0, 15))
-        
-        ctk.CTkLabel(url_frame, text="API Base URL", 
-            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
-        self.hf_url_entry = ctk.CTkEntry(url_frame, height=38, 
+        self.hf_url_entry = ctk.CTkEntry(self.hf_url_frame, height=38,
             placeholder_text="https://api.openai.com/v1")
         self.hf_url_entry.pack(fill="x", pady=(5, 0))
-        self.hf_url_entry.insert(0, get_provider_base_url("openai"))
+        self.hf_url_entry.insert(0, "https://api.openai.com/v1")
         
         # API Key
-        key_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        key_frame.pack(fill="x", padx=10, pady=(0, 15))
+        self.hf_key_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        self.hf_key_frame.pack(fill="x", padx=10, pady=(0, 15))
         
-        ctk.CTkLabel(key_frame, text="API Key", 
+        ctk.CTkLabel(self.hf_key_frame, text="API Key", 
             font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
-        self.hf_key_entry = ctk.CTkEntry(key_frame, height=38, show="*",
+        self.hf_key_entry = ctk.CTkEntry(self.hf_key_frame, height=38, show="*",
             placeholder_text="sk-...")
         self.hf_key_entry.pack(fill="x", pady=(5, 0))
         
@@ -765,45 +755,23 @@ class SettingsPage(ctk.CTkFrame):
             text="Whisper model for generating word-level captions with precise timestamps. Recommended: whisper-1 or compatible models.",
             font=ctk.CTkFont(size=11), text_color="gray", anchor="w", wraplength=450).pack(fill="x", padx=15, pady=(0, 12))
         
-        # AI Provider Selector
-        provider_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        provider_frame.pack(fill="x", padx=10, pady=(0, 15))
+        # API Base URL (will be hidden for YT CLIP AI and OPEN AI)
+        self.cm_url_frame = ctk.CTkFrame(scroll, fg_color="transparent")
         
-        ctk.CTkLabel(provider_frame, text="AI Provider", 
+        ctk.CTkLabel(self.cm_url_frame, text="API Base URL", 
             font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
-        
-        provider_display_list = get_provider_display_list()
-        provider_names = [name for name, _ in provider_display_list]
-        
-        # Find default OpenAI display name
-        default_display = next((name for name, key in provider_display_list if key == "openai"), provider_names[0])
-        
-        self.cm_provider_var = ctk.StringVar(value=default_display)
-        # Trace variable changes to auto-fill on provider change
-        self.cm_provider_var.trace("w", lambda *args: self._on_cm_provider_changed())
-        
-        self.cm_provider_dropdown = ctk.CTkComboBox(provider_frame, values=provider_names,
-            height=38, state="readonly", variable=self.cm_provider_var)
-        self.cm_provider_dropdown.pack(fill="x", pady=(5, 0))
-        
-        # API Base URL
-        url_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        url_frame.pack(fill="x", padx=10, pady=(0, 15))
-        
-        ctk.CTkLabel(url_frame, text="API Base URL", 
-            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
-        self.cm_url_entry = ctk.CTkEntry(url_frame, height=38, 
+        self.cm_url_entry = ctk.CTkEntry(self.cm_url_frame, height=38,
             placeholder_text="https://api.openai.com/v1")
         self.cm_url_entry.pack(fill="x", pady=(5, 0))
-        self.cm_url_entry.insert(0, get_provider_base_url("openai"))
+        self.cm_url_entry.insert(0, "https://api.openai.com/v1")
         
         # API Key
-        key_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        key_frame.pack(fill="x", padx=10, pady=(0, 15))
+        self.cm_key_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        self.cm_key_frame.pack(fill="x", padx=10, pady=(0, 15))
         
-        ctk.CTkLabel(key_frame, text="API Key", 
+        ctk.CTkLabel(self.cm_key_frame, text="API Key", 
             font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
-        self.cm_key_entry = ctk.CTkEntry(key_frame, height=38, show="*",
+        self.cm_key_entry = ctk.CTkEntry(self.cm_key_frame, height=38, show="*",
             placeholder_text="sk-...")
         self.cm_key_entry.pack(fill="x", pady=(5, 0))
         
@@ -829,34 +797,6 @@ class SettingsPage(ctk.CTkFrame):
             fg_color="gray",
             command=lambda: self.apply_url_key_to_all_simple(self.cm_url_entry.get(), self.cm_key_entry.get())).pack(side="left", fill="x", expand=True, padx=(5, 0))
     
-    def _on_cm_provider_changed(self):
-        """Handle Caption Maker provider change - auto-fill URL"""
-        selected_display = self.cm_provider_var.get()
-        
-        # Find the provider key from display name
-        provider_display_list = get_provider_display_list()
-        provider_key = None
-        for display_name, key in provider_display_list:
-            if display_name == selected_display:
-                provider_key = key
-                break
-        
-        if not provider_key:
-            return
-        
-        # Auto-fill Base URL
-        base_url = get_provider_base_url(provider_key)
-        self.cm_url_entry.delete(0, "end")
-        self.cm_url_entry.insert(0, base_url)
-        
-        # Auto-load default model for Caption Maker
-        default_models = get_provider_default_models(provider_key)
-        if default_models:
-            # For caption maker, prefer whisper models if available
-            caption_model = next((m for m in default_models if 'whisper' in m.lower()), default_models[0])
-            self.cm_model_entry.delete(0, "end")
-            self.cm_model_entry.insert(0, caption_model)
-    
     def create_hook_maker_tab(self):
         """Create Hook Maker configuration tab"""
         tab = self.provider_tabview.tab("🎤 Hook Maker")
@@ -873,45 +813,23 @@ class SettingsPage(ctk.CTkFrame):
             text="TTS model for generating audio hooks with natural voice. Recommended: tts-1, tts-1-hd, or compatible models.",
             font=ctk.CTkFont(size=11), text_color="gray", anchor="w", wraplength=450).pack(fill="x", padx=15, pady=(0, 12))
         
-        # AI Provider Selector
-        provider_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        provider_frame.pack(fill="x", padx=10, pady=(0, 15))
+        # API Base URL (will be hidden for YT CLIP AI and OPEN AI)
+        self.hm_url_frame = ctk.CTkFrame(scroll, fg_color="transparent")
         
-        ctk.CTkLabel(provider_frame, text="AI Provider", 
+        ctk.CTkLabel(self.hm_url_frame, text="API Base URL", 
             font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
-        
-        provider_display_list = get_provider_display_list()
-        provider_names = [name for name, _ in provider_display_list]
-        
-        # Find default OpenAI display name
-        default_display = next((name for name, key in provider_display_list if key == "openai"), provider_names[0])
-        
-        self.hm_provider_var = ctk.StringVar(value=default_display)
-        # Trace variable changes to auto-fill on provider change
-        self.hm_provider_var.trace("w", lambda *args: self._on_hm_provider_changed())
-        
-        self.hm_provider_dropdown = ctk.CTkComboBox(provider_frame, values=provider_names,
-            height=38, state="readonly", variable=self.hm_provider_var)
-        self.hm_provider_dropdown.pack(fill="x", pady=(5, 0))
-        
-        # API Base URL
-        url_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        url_frame.pack(fill="x", padx=10, pady=(0, 15))
-        
-        ctk.CTkLabel(url_frame, text="API Base URL", 
-            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
-        self.hm_url_entry = ctk.CTkEntry(url_frame, height=38, 
+        self.hm_url_entry = ctk.CTkEntry(self.hm_url_frame, height=38,
             placeholder_text="https://api.openai.com/v1")
         self.hm_url_entry.pack(fill="x", pady=(5, 0))
-        self.hm_url_entry.insert(0, get_provider_base_url("openai"))
+        self.hm_url_entry.insert(0, "https://api.openai.com/v1")
         
         # API Key
-        key_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        key_frame.pack(fill="x", padx=10, pady=(0, 15))
+        self.hm_key_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        self.hm_key_frame.pack(fill="x", padx=10, pady=(0, 15))
         
-        ctk.CTkLabel(key_frame, text="API Key", 
+        ctk.CTkLabel(self.hm_key_frame, text="API Key", 
             font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
-        self.hm_key_entry = ctk.CTkEntry(key_frame, height=38, show="*",
+        self.hm_key_entry = ctk.CTkEntry(self.hm_key_frame, height=38, show="*",
             placeholder_text="sk-...")
         self.hm_key_entry.pack(fill="x", pady=(5, 0))
         
@@ -924,11 +842,6 @@ class SettingsPage(ctk.CTkFrame):
         self.hm_model_entry = ctk.CTkEntry(model_frame, height=38,
             placeholder_text="tts-1")
         self.hm_model_entry.pack(fill="x", pady=(5, 0))
-        # Set default TTS model
-        default_models = get_provider_default_models("openai")
-        if default_models:
-            tts_model = next((m for m in default_models if 'tts' in m.lower()), "tts-1")
-            self.hm_model_entry.insert(0, tts_model)
         
         # Buttons
         btn_frame = ctk.CTkFrame(scroll, fg_color="transparent")
@@ -941,34 +854,6 @@ class SettingsPage(ctk.CTkFrame):
         ctk.CTkButton(btn_frame, text="📋 Apply URL & Key to All", height=38,
             fg_color="gray",
             command=lambda: self.apply_url_key_to_all_simple(self.hm_url_entry.get(), self.hm_key_entry.get())).pack(side="left", fill="x", expand=True, padx=(5, 0))
-    
-    def _on_hm_provider_changed(self):
-        """Handle Hook Maker provider change - auto-fill URL and model"""
-        selected_display = self.hm_provider_var.get()
-        
-        # Find the provider key from display name
-        provider_display_list = get_provider_display_list()
-        provider_key = None
-        for display_name, key in provider_display_list:
-            if display_name == selected_display:
-                provider_key = key
-                break
-        
-        if not provider_key:
-            return
-        
-        # Auto-fill Base URL
-        base_url = get_provider_base_url(provider_key)
-        self.hm_url_entry.delete(0, "end")
-        self.hm_url_entry.insert(0, base_url)
-        
-        # Auto-load default model for Hook Maker
-        default_models = get_provider_default_models(provider_key)
-        if default_models:
-            # For hook maker, prefer TTS models if available
-            tts_model = next((m for m in default_models if 'tts' in m.lower()), default_models[0])
-            self.hm_model_entry.delete(0, "end")
-            self.hm_model_entry.insert(0, tts_model)
     
     def create_youtube_title_tab(self):
         """Create YouTube Title Maker configuration tab"""
@@ -986,45 +871,23 @@ class SettingsPage(ctk.CTkFrame):
             text="AI model for generating SEO-optimized titles, descriptions, and tags. Recommended: GPT-4, GPT-4o, or compatible models.",
             font=ctk.CTkFont(size=11), text_color="gray", anchor="w", wraplength=450).pack(fill="x", padx=15, pady=(0, 12))
         
-        # AI Provider Selector
-        provider_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        provider_frame.pack(fill="x", padx=10, pady=(0, 15))
+        # API Base URL (will be hidden for YT CLIP AI and OPEN AI)
+        self.yt_url_frame = ctk.CTkFrame(scroll, fg_color="transparent")
         
-        ctk.CTkLabel(provider_frame, text="AI Provider", 
+        ctk.CTkLabel(self.yt_url_frame, text="API Base URL", 
             font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
-        
-        provider_display_list = get_provider_display_list()
-        provider_names = [name for name, _ in provider_display_list]
-        
-        # Find default OpenAI display name
-        default_display = next((name for name, key in provider_display_list if key == "openai"), provider_names[0])
-        
-        self.yt_provider_var = ctk.StringVar(value=default_display)
-        # Trace variable changes to auto-fill on provider change
-        self.yt_provider_var.trace("w", lambda *args: self._on_yt_provider_changed())
-        
-        self.yt_provider_dropdown = ctk.CTkComboBox(provider_frame, values=provider_names,
-            height=38, state="readonly", variable=self.yt_provider_var)
-        self.yt_provider_dropdown.pack(fill="x", pady=(5, 0))
-        
-        # API Base URL
-        url_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        url_frame.pack(fill="x", padx=10, pady=(0, 15))
-        
-        ctk.CTkLabel(url_frame, text="API Base URL", 
-            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
-        self.yt_url_entry = ctk.CTkEntry(url_frame, height=38, 
+        self.yt_url_entry = ctk.CTkEntry(self.yt_url_frame, height=38,
             placeholder_text="https://api.openai.com/v1")
         self.yt_url_entry.pack(fill="x", pady=(5, 0))
-        self.yt_url_entry.insert(0, get_provider_base_url("openai"))
+        self.yt_url_entry.insert(0, "https://api.openai.com/v1")
         
         # API Key
-        key_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        key_frame.pack(fill="x", padx=10, pady=(0, 15))
+        self.yt_key_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        self.yt_key_frame.pack(fill="x", padx=10, pady=(0, 15))
         
-        ctk.CTkLabel(key_frame, text="API Key", 
+        ctk.CTkLabel(self.yt_key_frame, text="API Key", 
             font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
-        self.yt_key_entry = ctk.CTkEntry(key_frame, height=38, show="*",
+        self.yt_key_entry = ctk.CTkEntry(self.yt_key_frame, height=38, show="*",
             placeholder_text="sk-...")
         self.yt_key_entry.pack(fill="x", pady=(5, 0))
         
@@ -1039,7 +902,7 @@ class SettingsPage(ctk.CTkFrame):
         model_select_frame.pack(fill="x", pady=(5, 0))
         
         # Display current model
-        self.yt_model_var = ctk.StringVar(value="gpt-4o")
+        self.yt_model_var = ctk.StringVar(value="gpt-4.1")
         self.yt_model_display = ctk.CTkLabel(model_select_frame, textvariable=self.yt_model_var,
             height=38, anchor="w", fg_color=("gray85", "gray20"), corner_radius=6,
             padx=12, font=ctk.CTkFont(size=13))
@@ -1054,8 +917,8 @@ class SettingsPage(ctk.CTkFrame):
             fg_color="gray", command=self.load_yt_models)
         self.yt_load_models_btn.pack(side="right")
         
-        # Store models list and set default from provider
-        self.yt_models_list = get_provider_default_models("openai")
+        # Store models list
+        self.yt_models_list = []
         
         # Buttons
         btn_frame = ctk.CTkFrame(scroll, fg_color="transparent")
@@ -1068,38 +931,6 @@ class SettingsPage(ctk.CTkFrame):
         ctk.CTkButton(btn_frame, text="📋 Apply URL & Key to All", height=38,
             fg_color="gray",
             command=lambda: self.apply_url_key_to_all_simple(self.yt_url_entry.get(), self.yt_key_entry.get())).pack(side="left", fill="x", expand=True, padx=(5, 0))
-    
-    def _on_yt_provider_changed(self):
-        """Handle YouTube Title provider change - auto-fill URL and load models"""
-        selected_display = self.yt_provider_var.get()
-        
-        # Find the provider key from display name
-        provider_display_list = get_provider_display_list()
-        provider_key = None
-        for display_name, key in provider_display_list:
-            if display_name == selected_display:
-                provider_key = key
-                break
-        
-        if not provider_key:
-            return
-        
-        # Auto-fill Base URL
-        base_url = get_provider_base_url(provider_key)
-        self.yt_url_entry.delete(0, "end")
-        self.yt_url_entry.insert(0, base_url)
-        
-        # Auto-load default models for this provider
-        default_models = get_provider_default_models(provider_key)
-        if default_models:
-            self.yt_models_list = default_models
-            # Set first model as current
-            self.yt_model_var.set(default_models[0])
-            # Update load button text
-            if requires_model_load(provider_key):
-                self.yt_load_models_btn.configure(state="normal", text="🔄 Refresh")
-            else:
-                self.yt_load_models_btn.configure(state="normal", text="✓ Ready")
     
     def create_performance_tab(self):
         """Create performance settings tab with GPU detection"""
@@ -2374,18 +2205,38 @@ and YouTube Shorts."""
         # Load AI provider configurations
         ai_providers = self.config.get("ai_providers", {})
         
+        # Load provider type (ytclip, openai, custom)
+        provider_type = self.config.get("provider_type", "ytclip")
+        self.provider_type_var.set(provider_type)
+        
+        # Update card selection visually
+        if provider_type == "ytclip":
+            self.ytclip_card.configure(border_color=("#3B8ED0", "#1F6AA5"))
+            self.openai_card.configure(border_color=("gray70", "gray30"))
+            self.custom_card.configure(border_color=("gray70", "gray30"))
+        elif provider_type == "openai":
+            self.ytclip_card.configure(border_color=("gray70", "gray30"))
+            self.openai_card.configure(border_color=("#3B8ED0", "#1F6AA5"))
+            self.custom_card.configure(border_color=("gray70", "gray30"))
+        else:  # custom
+            self.ytclip_card.configure(border_color=("gray70", "gray30"))
+            self.openai_card.configure(border_color=("gray70", "gray30"))
+            self.custom_card.configure(border_color=("#3B8ED0", "#1F6AA5"))
+        
         # Highlight Finder
         hf = ai_providers.get("highlight_finder", {})
+        self.hf_url_entry.configure(state="normal")
         self.hf_url_entry.delete(0, "end")
-        self.hf_url_entry.insert(0, hf.get("base_url", "https://api.openai.com/v1"))
+        self.hf_url_entry.insert(0, hf.get("base_url", "https://ai-api.ytclip.org/v1" if provider_type == "ytclip" else "https://api.openai.com/v1"))
         self.hf_key_entry.delete(0, "end")
         self.hf_key_entry.insert(0, hf.get("api_key", ""))
         self.hf_model_var.set(hf.get("model", "gpt-4.1"))
         
         # Caption Maker
         cm = ai_providers.get("caption_maker", {})
+        self.cm_url_entry.configure(state="normal")
         self.cm_url_entry.delete(0, "end")
-        self.cm_url_entry.insert(0, cm.get("base_url", "https://api.openai.com/v1"))
+        self.cm_url_entry.insert(0, cm.get("base_url", "https://ai-api.ytclip.org/v1" if provider_type == "ytclip" else "https://api.openai.com/v1"))
         self.cm_key_entry.delete(0, "end")
         self.cm_key_entry.insert(0, cm.get("api_key", ""))
         self.cm_model_entry.delete(0, "end")
@@ -2393,8 +2244,9 @@ and YouTube Shorts."""
         
         # Hook Maker
         hm = ai_providers.get("hook_maker", {})
+        self.hm_url_entry.configure(state="normal")
         self.hm_url_entry.delete(0, "end")
-        self.hm_url_entry.insert(0, hm.get("base_url", "https://api.openai.com/v1"))
+        self.hm_url_entry.insert(0, hm.get("base_url", "https://ai-api.ytclip.org/v1" if provider_type == "ytclip" else "https://api.openai.com/v1"))
         self.hm_key_entry.delete(0, "end")
         self.hm_key_entry.insert(0, hm.get("api_key", ""))
         self.hm_model_entry.delete(0, "end")
@@ -2402,11 +2254,15 @@ and YouTube Shorts."""
         
         # YouTube Title Maker
         yt = ai_providers.get("youtube_title_maker", {})
+        self.yt_url_entry.configure(state="normal")
         self.yt_url_entry.delete(0, "end")
-        self.yt_url_entry.insert(0, yt.get("base_url", "https://api.openai.com/v1"))
+        self.yt_url_entry.insert(0, yt.get("base_url", "https://ai-api.ytclip.org/v1" if provider_type == "ytclip" else "https://api.openai.com/v1"))
         self.yt_key_entry.delete(0, "end")
         self.yt_key_entry.insert(0, yt.get("api_key", ""))
         self.yt_model_var.set(yt.get("model", "gpt-4.1"))
+        
+        # Set URL fields state based on provider type
+        self._toggle_url_fields(provider_type == "custom")
         
         # Load output folder
         self.output_var.set(self.config.get("output_dir", str(self.output_dir)) or str(self.output_dir))
@@ -2553,6 +2409,7 @@ and YouTube Shorts."""
         Path(output_dir).mkdir(parents=True, exist_ok=True)
         
         # Save all configurations
+        self.config.set("provider_type", self.provider_type_var.get())
         self.config.set("ai_providers", ai_providers)
         self.config.set("output_dir", output_dir)
         self.config.set("temperature", self.temp_var.get())

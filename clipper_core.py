@@ -22,6 +22,12 @@ try:
 except ImportError:
     GOOGLE_GENAI_AVAILABLE = False
 
+try:
+    import deno
+    DENO_AVAILABLE = True
+except ImportError:
+    DENO_AVAILABLE = False
+
 # Hide console window on Windows
 SUBPROCESS_FLAGS = 0
 if sys.platform == "win32":
@@ -277,6 +283,25 @@ Transcript:
         """Download video and subtitle with progress"""
         self.log("[1/4] Downloading video & subtitle...")
         
+        # Validate yt-dlp is available
+        try:
+            version_check = subprocess.run(
+                [self.ytdlp_path, "--version"],
+                capture_output=True,
+                text=True,
+                creationflags=SUBPROCESS_FLAGS,
+                timeout=5
+            )
+            if version_check.returncode != 0:
+                raise Exception(f"yt-dlp not working properly. Path: {self.ytdlp_path}")
+            self.log(f"  Using yt-dlp version: {version_check.stdout.strip()}")
+        except FileNotFoundError:
+            raise Exception(f"yt-dlp not found at: {self.ytdlp_path}\n\nPlease install yt-dlp or check the path in settings.")
+        except subprocess.TimeoutExpired:
+            raise Exception(f"yt-dlp not responding. Path: {self.ytdlp_path}")
+        except Exception as e:
+            raise Exception(f"Failed to validate yt-dlp: {str(e)}")
+        
         # Get video metadata
         self.log("  Fetching video info...")
         meta_cmd = [self.ytdlp_path, "--dump-json", "--no-download", url]
@@ -303,59 +328,109 @@ Transcript:
         
         # Download video + subtitle with progress
         self.log(f"  Downloading video with {self.subtitle_language} subtitle...")
-        cmd = [
-            self.ytdlp_path,
-            "-f", "bestvideo[height<=1080]+bestaudio/best[height<=1080]",
-            "--write-sub", "--write-auto-sub",
-            "--sub-lang", self.subtitle_language,
-            "--convert-subs", "srt",
-            "--merge-output-format", "mp4",
-            "--newline",  # Progress on new lines
-            "-o", str(self.temp_dir / "source.%(ext)s"),
-            url
+        
+        # Try multiple download strategies (fallback on failure)
+        download_strategies = [
+            {
+                "name": "Browser cookies (Chrome)",
+                "extra_args": ["--cookies-from-browser", "chrome"]
+            },
+            {
+                "name": "Browser cookies (Edge)",
+                "extra_args": ["--cookies-from-browser", "edge"]
+            },
+            {
+                "name": "Simple format (no auth)",
+                "extra_args": []
+            }
         ]
         
-        # Run with realtime progress output
-        process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            creationflags=SUBPROCESS_FLAGS
-        )
+        # High-quality format selector (prioritize 1080p separate video+audio)
+        format_selector = "bestvideo[height<=1080][ext=mp4]+bestaudio/bestvideo[height<=1080]+bestaudio/best[height<=1080]"
         
-        last_progress = ""
-        while True:
-            # Check for cancellation
+        last_error = None
+        for strategy in download_strategies:
             if self.is_cancelled():
-                process.terminate()
-                process.wait()
                 raise Exception("Cancelled by user")
             
-            line = process.stdout.readline()
-            if not line and process.poll() is not None:
-                break
+            self.log(f"  Trying: {strategy['name']}...")
             
-            line = line.strip()
-            if not line:
-                continue
+            cmd = [
+                self.ytdlp_path,
+                "-f", format_selector,
+                *strategy["extra_args"],
+                "--write-sub", "--write-auto-sub",
+                "--sub-lang", self.subtitle_language,
+                "--convert-subs", "srt",
+                "--merge-output-format", "mp4",
+                "--newline",
+                "-o", str(self.temp_dir / "source.%(ext)s"),
+                url
+            ]
+            
+            # Run with realtime progress output
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                creationflags=SUBPROCESS_FLAGS
+            )
+            
+            last_progress = ""
+            output_lines = []
+            
+            while True:
+                if self.is_cancelled():
+                    process.terminate()
+                    process.wait()
+                    raise Exception("Cancelled by user")
                 
-            # Parse download progress
-            if "[download]" in line and "%" in line:
-                # Extract percentage
-                match = re.search(r'(\d+\.?\d*)%', line)
-                if match:
-                    percent = match.group(1)
-                    progress_text = f"  Downloading: {percent}%"
-                    if progress_text != last_progress:
-                        self.set_progress(f"Downloading video... {percent}%", 0.05 + float(percent) / 100 * 0.2)
-                        last_progress = progress_text
-            elif "[Merger]" in line or "Merging" in line:
-                self.log("  Merging video & audio...")
-                self.set_progress("Merging video & audio...", 0.25)
-        
-        if process.returncode != 0:
-            raise Exception("Download failed!")
+                line = process.stdout.readline()
+                if not line and process.poll() is not None:
+                    break
+                
+                line = line.strip()
+                output_lines.append(line)
+                
+                if not line:
+                    continue
+                    
+                # Parse download progress
+                if "[download]" in line and "%" in line:
+                    match = re.search(r'(\d+\.?\d*)%', line)
+                    if match:
+                        percent = match.group(1)
+                        progress_text = f"  Downloading: {percent}%"
+                        if progress_text != last_progress:
+                            self.set_progress(f"Downloading video... {percent}%", 0.05 + float(percent) / 100 * 0.2)
+                            last_progress = progress_text
+                elif "[Merger]" in line or "Merging" in line:
+                    self.log("  Merging video & audio...")
+                    self.set_progress("Merging video & audio...", 0.25)
+            
+            # Check if successful
+            if process.returncode == 0:
+                self.log(f"  ✓ Download successful using: {strategy['name']}")
+                break
+            else:
+                # Capture error for logging
+                stderr_output = process.stderr.read() if process.stderr else ""
+                error_lines = []
+                
+                for line in output_lines + stderr_output.split('\n'):
+                    line = line.strip()
+                    if line and ('ERROR' in line or 'error' in line):
+                        error_lines.append(line)
+                
+                last_error = '\n'.join(error_lines[-5:]) if error_lines else f"Return code {process.returncode}"
+                self.log(f"  ✗ Failed: {last_error.split(chr(10))[0][:80]}")  # First line only
+                
+                # Continue to next strategy
+                continue
+        else:
+            # All strategies failed
+            raise Exception(f"Download failed after trying all methods!\n\nLast error:\n{last_error}")
         
         video_path = self.temp_dir / "source.mp4"
         srt_path = self.temp_dir / f"source.{self.subtitle_language}.srt"

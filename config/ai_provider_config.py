@@ -4,6 +4,15 @@ Contains base URLs and default models for various AI providers
 """
 
 AI_PROVIDERS_CONFIG = {
+    "ytclip": {
+        "name": "⭐ YTClip AI",
+        "base_url": "https://ai-api.ytclip.org/v1",
+        "description": "YTClip AI - Optimized for video content processing",
+        "default_models": ["gpt-4o", "gpt-4-turbo", "gpt-4", "gpt-3.5-turbo"],
+        "api_key_format": "ytc-*",
+        "docs_url": "https://ytclip.org/api-keys",
+        "requires_load": True  # Needs to fetch models from API
+    },
     "openai": {
         "name": "🔴 OpenAI",
         "base_url": "https://api.openai.com/v1",
@@ -99,6 +108,7 @@ AI_PROVIDERS_CONFIG = {
 # Models for specific use cases
 SPECIALIZED_MODELS = {
     "highlight_finder": {
+        "ytclip": ["gpt-4o", "gpt-4-turbo", "gpt-4", "gpt-3.5-turbo"],
         "openai": ["gpt-4o", "gpt-4-turbo", "gpt-4", "gpt-3.5-turbo"],
         "google": ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"],
         "groq": ["mixtral-8x7b-32768", "llama2-70b-4096"],
@@ -107,16 +117,19 @@ SPECIALIZED_MODELS = {
         "mistral": ["mistral-large-latest"],
     },
     "caption_maker": {
+        "ytclip": ["whisper-1"],
         "openai": ["whisper-1"],  # Special case for whisper
         "google": [],  # Gemini doesn't have whisper equivalent
         "groq": [],
     },
     "hook_maker": {
+        "ytclip": ["tts-1-hd", "tts-1"],
         "openai": ["tts-1-hd", "tts-1"],  # TTS models
         "google": [],  # Gemini doesn't have TTS built-in
         "anthropic": [],
     },
     "youtube_title_maker": {
+        "ytclip": ["gpt-4o", "gpt-4-turbo", "gpt-4", "gpt-3.5-turbo"],
         "openai": ["gpt-4o", "gpt-4-turbo", "gpt-4", "gpt-3.5-turbo"],
         "google": ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"],
         "groq": ["mixtral-8x7b-32768"],
@@ -147,10 +160,19 @@ def get_all_providers() -> list:
 
 def get_provider_display_list() -> list:
     """Get list of providers with display names for dropdown"""
-    return [
-        (AI_PROVIDERS_CONFIG[key]["name"], key)
-        for key in sorted(AI_PROVIDERS_CONFIG.keys())
-    ]
+    # Put YTClip AI first, then sort the rest
+    providers = []
+    
+    # Add YTClip AI first if it exists
+    if "ytclip" in AI_PROVIDERS_CONFIG:
+        providers.append((AI_PROVIDERS_CONFIG["ytclip"]["name"], "ytclip"))
+    
+    # Add the rest sorted alphabetically
+    for key in sorted(AI_PROVIDERS_CONFIG.keys()):
+        if key != "ytclip":
+            providers.append((AI_PROVIDERS_CONFIG[key]["name"], key))
+    
+    return providers
 
 
 def requires_model_load(provider_key: str) -> bool:
