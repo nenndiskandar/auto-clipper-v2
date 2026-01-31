@@ -14,13 +14,17 @@ Panduan lengkap untuk menggunakan YT-Short-Clipper bagi pemula.
   - [3.1 Install Extension Browser](#31-install-extension-browser)
   - [3.2 Export Cookies](#32-export-cookies)
   - [3.3 Upload Cookies ke Aplikasi](#33-upload-cookies-ke-aplikasi)
-- [4. Konfigurasi AI API](#4-konfigurasi-ai-api)
-  - [4.1 Buka AI API Settings](#41-buka-ai-api-settings)
-  - [4.2 Pilih Modul AI](#42-pilih-modul-ai)
-  - [4.3 Pilih AI Provider](#43-pilih-ai-provider)
-  - [4.4 Masukkan API Key & Load Models](#44-masukkan-api-key--load-models)
-  - [4.5 Validasi & Simpan](#45-validasi--simpan)
-- [5. Mulai Menggunakan Aplikasi](#5-mulai-menggunakan-aplikasi)
+- [4. Membuat API Key di YT Clip AI (Rekomendasi)](#4-membuat-api-key-di-yt-clip-ai-rekomendasi)
+  - [4.1 Login dengan Google](#41-login-dengan-google)
+  - [4.2 Top Up Balance](#42-top-up-balance)
+  - [4.3 Buat API Key](#43-buat-api-key)
+- [5. Konfigurasi AI API](#5-konfigurasi-ai-api)
+  - [5.1 Buka AI API Settings](#51-buka-ai-api-settings)
+  - [5.2 Pilih Modul AI](#52-pilih-modul-ai)
+  - [5.3 Pilih AI Provider](#53-pilih-ai-provider)
+  - [5.4 Masukkan API Key & Load Models](#54-masukkan-api-key--load-models)
+  - [5.5 Validasi & Simpan](#55-validasi--simpan)
+- [6. Mulai Menggunakan Aplikasi](#6-mulai-menggunakan-aplikasi)
 
 ---
 
@@ -104,18 +108,65 @@ Cookies diperlukan agar aplikasi bisa mengakses video YouTube atas nama kamu.
 
 ---
 
-## 4. Konfigurasi AI API
+## 4. Membuat API Key di YT Clip AI (Rekomendasi)
+
+**YT Clip AI** adalah AI provider yang direkomendasikan karena harga lebih terjangkau dan sudah dioptimasi untuk aplikasi ini.
+
+### 4.1 Login dengan Google
+
+1. Buka [https://ai.ytclip.org](https://ai.ytclip.org)
+2. Klik **"Login with Google"** dan pilih akun Google kamu
+
+   ![YT Clip AI Login](assets/docs/15.ytclip-ai-login-google.png)
+
+### 4.2 Top Up Balance
+
+1. Setelah login, klik tombol **"Top Up"** untuk menambah saldo
+
+   ![Top Up Balance](assets/docs/16.ytclip-ai-topup-balance.png)
+
+2. Masukkan jumlah top up yang diinginkan (dalam USD), akan terlihat konversi ke IDR
+
+   ![Input Top Up Amount](assets/docs/17.ytclip-ai-input-topup-amount-and-calculation-to-idr.png)
+
+3. Bayar menggunakan **QRIS**
+
+   ![Pay with QRIS](assets/docs/18.ytclip-ai-pay-qris.png)
+
+4. Setelah pembayaran berhasil, saldo USD akan langsung masuk secara realtime
+
+### 4.3 Buat API Key
+
+1. Setelah saldo terisi, klik tombol **"Create Key"**
+
+   ![Create Key Button](assets/docs/19.ytclip-ai-create-key.png)
+
+2. Isi nama untuk API Key kamu, lalu klik **"Create"**
+
+   ![Create API Key Modal](assets/docs/20.ytclip-ai-create-api-key-modal.png)
+
+3. **Copy Secret Key** yang muncul dan simpan di tempat aman
+
+   ![Copy Secret Key](assets/docs/21.ytclip-ai-copy-secret-key.png)
+
+> **⚠️ Penting:** Secret Key hanya ditampilkan sekali! Pastikan sudah di-copy sebelum menutup dialog.
+
+Setelah mendapatkan API Key, lanjut ke [Konfigurasi AI API](#5-konfigurasi-ai-api) untuk memasukkan key ke aplikasi.
+
+---
+
+## 5. Konfigurasi AI API
 
 Aplikasi membutuhkan API Key untuk mengakses layanan AI (GPT, Whisper, TTS).
 
-### 4.1 Buka AI API Settings
+### 5.1 Buka AI API Settings
 
 1. Klik tombol **Settings** (⚙️) di pojok kanan atas
 2. Pilih menu **"AI API Settings"**
 
    ![AI API Settings](assets/docs/09.ai-api-settings.png)
 
-### 4.2 Pilih Modul AI
+### 5.2 Pilih Modul AI
 
 Aplikasi memiliki beberapa modul AI yang bisa dikonfigurasi secara terpisah:
 
@@ -126,7 +177,7 @@ Aplikasi memiliki beberapa modul AI yang bisa dikonfigurasi secara terpisah:
 - **Hook Maker** - Membuat hook text untuk intro
 - **Title Generator** - Generate judul & deskripsi SEO
 
-### 4.3 Pilih AI Provider
+### 5.3 Pilih AI Provider
 
 1. Klik dropdown **"AI Provider"**
 2. Pilih provider yang kamu punya API key-nya:
@@ -138,7 +189,7 @@ Aplikasi memiliki beberapa modul AI yang bisa dikonfigurasi secara terpisah:
 
 3. URL akan otomatis terisi sesuai provider yang dipilih
 
-### 4.4 Masukkan API Key & Load Models
+### 5.4 Masukkan API Key & Load Models
 
 1. Paste **API Key** kamu di field yang tersedia
 2. Klik tombol **"Load Models"** untuk mengambil daftar model
@@ -149,18 +200,18 @@ Aplikasi memiliki beberapa modul AI yang bisa dikonfigurasi secara terpisah:
 
    ![Select Models](assets/docs/13.select-models.png)
 
-### 4.5 Validasi & Simpan
+### 5.5 Validasi & Simpan
 
 1. Klik tombol **"Validate"** untuk memastikan konfigurasi benar
 2. Jika valid, klik **"Save"** untuk menyimpan
 
    ![Validate Configuration and Save](assets/docs/14.validate-configuration-and-save.png)
 
-> **💡 Tips:** Ulangi langkah 4.2 - 4.5 untuk setiap modul AI yang ingin dikonfigurasi.
+> **💡 Tips:** Ulangi langkah 5.2 - 5.5 untuk setiap modul AI yang ingin dikonfigurasi.
 
 ---
 
-## 5. Mulai Menggunakan Aplikasi
+## 6. Mulai Menggunakan Aplikasi
 
 Setelah semua setup selesai, kamu bisa mulai menggunakan aplikasi:
 
@@ -174,4 +225,5 @@ Hasil clips akan tersimpan di folder `output/` dalam folder aplikasi.
 
 ## ❓ Butuh Bantuan?
 
-Gabung [Discord Community](https://s.id/ytsdiscord) untuk tanya jawab, laporan bug, dan diskusi dengan pengguna lain.
+- 🔑 [Dapatkan API Key AI di sini](https://ai.ytclip.org)
+- 💬 Gabung [Discord Community](https://s.id/ytsdiscord) untuk tanya jawab, laporan bug, dan diskusi dengan pengguna lain

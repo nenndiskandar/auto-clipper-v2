@@ -177,9 +177,20 @@ class PageFooter(ctk.CTkFrame):
         github_link.pack(side="left", padx=(0, 15))
         github_link.bind("<Button-1>", lambda e: self.app.open_github())
         
+        # Get AI API Key link (cyan/teal)
+        api_key_link = ctk.CTkLabel(links_frame, text="🔑 Get AI API Key", 
+            font=ctk.CTkFont(size=11), text_color="#00CED1", cursor="hand2")
+        api_key_link.pack(side="left", padx=(0, 15))
+        api_key_link.bind("<Button-1>", lambda e: self.open_ai_api_key_page())
+        
         # Join Discord link (blurple)
         discord_link = ctk.CTkLabel(links_frame, text="💬 Join Discord Server", 
             font=ctk.CTkFont(size=11), text_color="#5865F2", cursor="hand2")
         discord_link.pack(side="left")
         discord_link.bind("<Button-1>", lambda e: self.app.open_discord())
+    
+    def open_ai_api_key_page(self):
+        """Open AI API Key page"""
+        import webbrowser
+        webbrowser.open("https://ai.ytclip.org")
 

@@ -14,13 +14,17 @@ Complete guide for using YT-Short-Clipper for beginners.
   - [3.1 Install Browser Extension](#31-install-browser-extension)
   - [3.2 Export Cookies](#32-export-cookies)
   - [3.3 Upload Cookies to App](#33-upload-cookies-to-app)
-- [4. AI API Configuration](#4-ai-api-configuration)
-  - [4.1 Open AI API Settings](#41-open-ai-api-settings)
-  - [4.2 Select AI Module](#42-select-ai-module)
-  - [4.3 Select AI Provider](#43-select-ai-provider)
-  - [4.4 Enter API Key & Load Models](#44-enter-api-key--load-models)
-  - [4.5 Validate & Save](#45-validate--save)
-- [5. Start Using the App](#5-start-using-the-app)
+- [4. Create API Key on YT Clip AI (Recommended)](#4-create-api-key-on-yt-clip-ai-recommended)
+  - [4.1 Login with Google](#41-login-with-google)
+  - [4.2 Top Up Balance](#42-top-up-balance)
+  - [4.3 Create API Key](#43-create-api-key)
+- [5. AI API Configuration](#5-ai-api-configuration)
+  - [5.1 Open AI API Settings](#51-open-ai-api-settings)
+  - [5.2 Select AI Module](#52-select-ai-module)
+  - [5.3 Select AI Provider](#53-select-ai-provider)
+  - [5.4 Enter API Key & Load Models](#54-enter-api-key--load-models)
+  - [5.5 Validate & Save](#55-validate--save)
+- [6. Start Using the App](#6-start-using-the-app)
 
 ---
 
@@ -104,18 +108,65 @@ Cookies are required so the app can access YouTube videos on your behalf.
 
 ---
 
-## 4. AI API Configuration
+## 4. Create API Key on YT Clip AI (Recommended)
+
+**YT Clip AI** is the recommended AI provider because it's more affordable and optimized for this app.
+
+### 4.1 Login with Google
+
+1. Go to [https://ai.ytclip.org](https://ai.ytclip.org)
+2. Click **"Login with Google"** and select your Google account
+
+   ![YT Clip AI Login](assets/docs/15.ytclip-ai-login-google.png)
+
+### 4.2 Top Up Balance
+
+1. After login, click the **"Top Up"** button to add balance
+
+   ![Top Up Balance](assets/docs/16.ytclip-ai-topup-balance.png)
+
+2. Enter the top up amount (in USD), you'll see the conversion to IDR
+
+   ![Input Top Up Amount](assets/docs/17.ytclip-ai-input-topup-amount-and-calculation-to-idr.png)
+
+3. Pay using **QRIS**
+
+   ![Pay with QRIS](assets/docs/18.ytclip-ai-pay-qris.png)
+
+4. After payment is successful, your USD balance will be added in realtime
+
+### 4.3 Create API Key
+
+1. After balance is added, click the **"Create Key"** button
+
+   ![Create Key Button](assets/docs/19.ytclip-ai-create-key.png)
+
+2. Enter a name for your API Key, then click **"Create"**
+
+   ![Create API Key Modal](assets/docs/20.ytclip-ai-create-api-key-modal.png)
+
+3. **Copy the Secret Key** that appears and save it somewhere safe
+
+   ![Copy Secret Key](assets/docs/21.ytclip-ai-copy-secret-key.png)
+
+> **⚠️ Important:** The Secret Key is only shown once! Make sure to copy it before closing the dialog.
+
+After getting your API Key, continue to [AI API Configuration](#5-ai-api-configuration) to enter the key into the app.
+
+---
+
+## 5. AI API Configuration
 
 The app requires an API Key to access AI services (GPT, Whisper, TTS).
 
-### 4.1 Open AI API Settings
+### 5.1 Open AI API Settings
 
 1. Click the **Settings** button (⚙️) in the top right corner
 2. Select **"AI API Settings"**
 
    ![AI API Settings](assets/docs/09.ai-api-settings.png)
 
-### 4.2 Select AI Module
+### 5.2 Select AI Module
 
 The app has several AI modules that can be configured separately:
 
@@ -126,7 +177,7 @@ The app has several AI modules that can be configured separately:
 - **Hook Maker** - Creates hook text for intros
 - **Title Generator** - Generates SEO titles & descriptions
 
-### 4.3 Select AI Provider
+### 5.3 Select AI Provider
 
 1. Click the **"AI Provider"** dropdown
 2. Select the provider you have an API key for:
@@ -138,7 +189,7 @@ The app has several AI modules that can be configured separately:
 
 3. The URL will auto-fill based on the selected provider
 
-### 4.4 Enter API Key & Load Models
+### 5.4 Enter API Key & Load Models
 
 1. Paste your **API Key** in the provided field
 2. Click the **"Load Models"** button to fetch the model list
@@ -149,18 +200,18 @@ The app has several AI modules that can be configured separately:
 
    ![Select Models](assets/docs/13.select-models.png)
 
-### 4.5 Validate & Save
+### 5.5 Validate & Save
 
 1. Click the **"Validate"** button to ensure the configuration is correct
 2. If valid, click **"Save"** to save the settings
 
    ![Validate Configuration and Save](assets/docs/14.validate-configuration-and-save.png)
 
-> **💡 Tip:** Repeat steps 4.2 - 4.5 for each AI module you want to configure.
+> **💡 Tip:** Repeat steps 5.2 - 5.5 for each AI module you want to configure.
 
 ---
 
-## 5. Start Using the App
+## 6. Start Using the App
 
 After all setup is complete, you can start using the app:
 
@@ -174,4 +225,5 @@ The resulting clips will be saved in the `output/` folder inside the app folder.
 
 ## ❓ Need Help?
 
-Join [Discord Community](https://s.id/ytsdiscord) for Q&A, bug reports, and discussions with other users.
+- 🔑 [Get AI API Key here](https://ai.ytclip.org)
+- 💬 Join [Discord Community](https://s.id/ytsdiscord) for Q&A, bug reports, and discussions with other users
