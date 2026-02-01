@@ -376,6 +376,12 @@ class YTShortClipperApp(ctk.CTk):
     
     def paste_url(self):
         """Paste URL from clipboard"""
+        # Check if cookies exist first
+        if not self.cookies_path.exists():
+            # Show custom dialog with buttons
+            self.show_cookies_required_dialog()
+            return
+        
         try:
             # Get clipboard content
             clipboard_text = self.clipboard_get()
@@ -385,6 +391,81 @@ class YTShortClipperApp(ctk.CTk):
             debug_log(f"Paste error: {e}")
             # If clipboard is empty or error, do nothing
             pass
+    
+    def show_cookies_required_dialog(self):
+        """Show custom dialog for cookies requirement with clickable buttons"""
+        import webbrowser
+        
+        # Create dialog window
+        dialog = ctk.CTkToplevel(self)
+        dialog.title("YouTube Cookies Required")
+        dialog.geometry("500x220")
+        dialog.resizable(False, False)
+        dialog.transient(self)
+        dialog.grab_set()
+        
+        # Center dialog on parent window
+        dialog.update_idletasks()
+        x = self.winfo_x() + (self.winfo_width() // 2) - (dialog.winfo_width() // 2)
+        y = self.winfo_y() + (self.winfo_height() // 2) - (dialog.winfo_height() // 2)
+        dialog.geometry(f"+{x}+{y}")
+        
+        # Main content frame
+        content_frame = ctk.CTkFrame(dialog, fg_color="transparent")
+        content_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        # Warning message
+        ctk.CTkLabel(content_frame, 
+            text="⚠️ Please upload YouTube cookies first!",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color=("#e74c3c", "#e74c3c")).pack(pady=(0, 15))
+        
+        ctk.CTkLabel(content_frame,
+            text="Click a button below to open the setup guide:",
+            font=ctk.CTkFont(size=12)).pack(pady=(0, 15))
+        
+        # Buttons frame
+        buttons_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
+        buttons_frame.pack(pady=(0, 10))
+        
+        # English guide button
+        english_btn = ctk.CTkButton(buttons_frame,
+            text="📖 English Guide",
+            width=140,
+            height=35,
+            font=ctk.CTkFont(size=12),
+            fg_color=("#3B8ED0", "#1F6AA5"),
+            hover_color=("#2E7AB8", "#16527D"),
+            command=lambda: [
+                webbrowser.open("https://github.com/jipraks/yt-short-clipper/blob/master/GUIDE.md#3-setup-youtube-cookies"),
+                dialog.destroy()
+            ])
+        english_btn.pack(side="left", padx=5)
+        
+        # Indonesian guide button
+        indonesian_btn = ctk.CTkButton(buttons_frame,
+            text="📖 Bahasa Indonesia",
+            width=140,
+            height=35,
+            font=ctk.CTkFont(size=12),
+            fg_color=("#3B8ED0", "#1F6AA5"),
+            hover_color=("#2E7AB8", "#16527D"),
+            command=lambda: [
+                webbrowser.open("https://github.com/jipraks/yt-short-clipper/blob/master/PANDUAN.md#3-setup-cookies-youtube"),
+                dialog.destroy()
+            ])
+        indonesian_btn.pack(side="left", padx=5)
+        
+        # Close button
+        close_btn = ctk.CTkButton(content_frame,
+            text="Close",
+            width=100,
+            height=35,
+            font=ctk.CTkFont(size=12),
+            fg_color=("#6c757d", "#5a6268"),
+            hover_color=("#5a6268", "#4e555b"),
+            command=dialog.destroy)
+        close_btn.pack(pady=(10, 0))
     
     def upload_cookies(self):
         """Upload cookies.txt file"""
@@ -732,16 +813,17 @@ class YTShortClipperApp(ctk.CTk):
         has_cookies = self.cookies_path.exists()
         libs_ok = getattr(self, 'libs_installed', True)  # Default True if not checked yet
         
-        # If no cookies, disable everything
+        # Always keep paste button enabled (so user can see alert)
+        self.paste_btn.configure(state="normal")
+        
+        # If no cookies, disable URL entry and start button
         if not has_cookies:
             self.url_entry.configure(state="disabled")
-            self.paste_btn.configure(state="disabled")
             self.start_btn.configure(state="disabled", fg_color="gray", hover_color="gray")
             return
         
         # Cookies exist - enable URL input
         self.url_entry.configure(state="normal")
-        self.paste_btn.configure(state="normal")
         
         # Check if URL is valid, subtitle is loaded, and libs are installed
         url = self.url_var.get().strip()
