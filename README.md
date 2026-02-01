@@ -6,98 +6,33 @@
 
 🎬 **Automated YouTube to Short-Form Content Pipeline**
 
-Transform long-form YouTube videos (podcasts, interviews, vlogs) into engaging short-form content for TikTok, Instagram Reels, and YouTube Shorts — all with a single command.
+Transform long-form YouTube videos (podcasts, interviews, vlogs) into engaging short-form content for TikTok, Instagram Reels, and YouTube Shorts — powered by AI.
 
-## 🖥️ Desktop App (Recommended)
+---
 
-Download the portable desktop app — no Python or FFmpeg installation required!
+## � Getting Started
 
-### Quick Start
+### For Users (Non-Technical)
 
-1. Download `AutoClipper-v1.0.zip` from [Releases](../../releases)
-2. Extract to any folder
-3. Run `AutoClipper.exe`
-4. Enter your OpenAI API key and click "Validate"
-5. Paste YouTube URL, set number of clips, and click "Start Processing"
+Download the desktop app and follow the complete setup guide:
 
-### Desktop App Features
+- 📖 **[English Guide](GUIDE.md)** - Complete setup guide with screenshots
+- 📖 **[Panduan Indonesia](PANDUAN.md)** - Panduan lengkap dengan screenshot
 
-- ✅ **No installation required** — portable single folder
-- ✅ **Simple GUI** — just paste URL and click process
-- ✅ **API key validation** — instant feedback if key is valid
-- ✅ **Real-time progress** — download percentage, processing status
-- ✅ **Token usage tracking** — see GPT tokens, Whisper minutes, TTS chars used
-- ✅ **Cost estimation** — estimated API cost per session
-- ✅ **YouTube Upload** — direct upload to YouTube with SEO-optimized titles & descriptions
-- ✅ **Custom AI Prompts** — customize how AI selects highlights (see [SYSTEM_PROMPT.md](SYSTEM_PROMPT.md))
-- ✅ **Debug Mode** — console logging when running from terminal (`python app.py`)
+**What you'll learn:**
+1. How to download and run the app
+2. Setup required libraries (yt-dlp, FFmpeg, Deno)
+3. Setup YouTube cookies for video access
+4. Configure AI API (multiple providers supported)
+5. Start processing videos
 
-### YouTube Upload Setup (Optional)
+### For Developers
 
-To enable direct YouTube upload from the app, you need to set up Google Cloud credentials:
+If you want to contribute or run from source:
 
-#### Step 1: Create Google Cloud Project
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Click "Select a project" → "New Project"
-3. Name it "YT Short Clipper" → Click "Create"
-
-#### Step 2: Enable YouTube Data API
-
-1. In sidebar, click "APIs & Services" → "Library"
-2. Search for "YouTube Data API v3"
-3. Click on it → Click "Enable"
-
-#### Step 3: Configure OAuth Consent Screen
-
-1. Go to "APIs & Services" → "OAuth consent screen"
-2. Select "External" → Click "Create"
-3. Fill in required fields:
-   - **App name:** YT Short Clipper
-   - **User support email:** Your email
-   - **Developer contact:** Your email
-4. Click "Save and Continue"
-5. On Scopes page, click "Add or Remove Scopes"
-6. Find and select: `https://www.googleapis.com/auth/youtube.upload`
-7. Click "Save and Continue"
-8. On Test Users page, click "Add Users"
-9. Add your Google/YouTube email address
-10. Click "Save and Continue"
-
-#### Step 4: Create OAuth Credentials
-
-1. Go to "APIs & Services" → "Credentials"
-2. Click "Create Credentials" → "OAuth client ID"
-3. Application type: **Desktop app**
-4. Name: "YT Short Clipper Desktop"
-5. Click "Create"
-6. Click "Download JSON"
-7. Rename the downloaded file to `client_secret.json`
-8. Place it in the same folder as `AutoClipper.exe`
-
-#### Step 5: Connect YouTube in App
-
-1. Open YT Short Clipper app
-2. Go to Settings (⚙️ button)
-3. Click "Connect YouTube"
-4. A browser window will open for Google login
-5. Select your YouTube channel account
-6. Grant permission to upload videos
-7. Done! You can now upload directly from the Results page
-
-> **Note:** Your app will be in "Testing" mode, which limits to 100 users. This is fine for personal use. For public distribution, you'd need to submit for Google verification.
-
-### Desktop App Contents
-
-```
-AutoClipper/
-├── AutoClipper.exe     # Main application
-├── ffmpeg/
-│   └── ffmpeg.exe      # Bundled FFmpeg
-├── yt-dlp.exe          # Bundled yt-dlp
-├── output/             # Output clips folder
-└── config.json         # Saved settings (auto-created)
-```
+1. See [Installation](#-installation-for-development) below for development setup
+2. See [Contributing](#-contributing) for contribution guidelines
+3. See [BUILD.md](BUILD.md) for building the desktop app from source
 
 ## ✨ Features
 
@@ -154,6 +89,8 @@ AutoClipper/
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+---
+
 ## 📋 Requirements (For Development)
 
 ### System Dependencies
@@ -181,9 +118,21 @@ google-auth-httplib2>=0.1.1
 
 ### API Keys
 
-- **OpenAI API Key** - Required for GPT-4 (highlight detection), Whisper (captions), and TTS (hook voiceover)
+The app supports **10+ AI providers** including:
+- **YT Clip AI** (Recommended) - [https://ai.ytclip.org](https://ai.ytclip.org)
+- **OpenAI** - GPT-4, Whisper, TTS
+- **Google Gemini** - Free tier available
+- **Groq** - Fastest + free
+- **Anthropic Claude** - High quality
+- And more...
+
+See [GUIDE.md](GUIDE.md) or [PANDUAN.md](PANDUAN.md) for detailed API setup instructions.
+
+---
 
 ## 🚀 Installation (For Development)
+
+> **Note:** This section is for developers who want to run the app from source code. If you're a regular user, please follow the [User Guide](GUIDE.md) or [Panduan Indonesia](PANDUAN.md) instead.
 
 ### 1. Clone the Repository
 
@@ -223,7 +172,9 @@ pip install -r requirements.txt
 python app.py
 ```
 
-The app will create a `config.json` file on first run where you can save your OpenAI API key and other settings.
+The app will create a `config.json` file on first run where you can save your AI API keys and other settings.
+
+---
 
 ## 📁 Project Structure
 
@@ -271,32 +222,27 @@ Each clip folder contains a `data.json` file with metadata:
 }
 ```
 
+---
+
 ## ⚙️ Configuration
 
 All settings can be configured through the GUI Settings page (⚙️ button in the app).
 
-### 🎯 AI Provider Selection (NEW! ✨)
+For complete setup instructions with screenshots, see:
+- [English Guide](GUIDE.md#5-ai-api-configuration)
+- [Panduan Indonesia](PANDUAN.md#5-konfigurasi-ai-api)
 
-The app now features **intelligent AI provider selection** with auto-fill:
+### AI Provider Selection
 
-**Supported Providers (10+):**
-- 🔴 **OpenAI** - GPT-4o, GPT-4, GPT-3.5-turbo (recommended for quality)
-- 🔵 **Google Gemini** - Gemini-2.5-flash, Gemini-1.5-pro (free tier available)
-- ⚡ **Groq** - Mixtral-8x7b, Llama2-70b (fastest + free)
-- 🤖 **Anthropic Claude** - Claude-3-5-sonnet, Claude-3-opus
-- And 6 more providers...
+The app supports **10+ AI providers** with intelligent auto-fill:
+- YT Clip AI (Recommended)
+- OpenAI
+- Google Gemini
+- Groq
+- Anthropic Claude
+- And more...
 
-**How it works:**
-1. Open Settings → AI API Settings
-2. Choose any tab (Highlight Finder, Caption Maker, etc.)
-3. Click AI Provider dropdown
-4. Select your provider
-5. ✨ **URL auto-fills** | ✨ **Model auto-loads**
-6. Just paste API key and save!
-
-**Setup time: 60 seconds** (vs 5-10 minutes manual setup)
-
-For detailed guide, see: [AI_PROVIDER_SELECTOR.md](AI_PROVIDER_SELECTOR.md)
+For detailed provider comparison and setup, see: [AI_PROVIDER_SELECTOR.md](AI_PROVIDER_SELECTOR.md)
 
 ### Highlight Detection Parameters
 
@@ -331,6 +277,8 @@ For detailed guide, see: [AI_PROVIDER_SELECTOR.md](AI_PROVIDER_SELECTOR.md)
 | `tts_speed` | 1.0 | Speech speed |
 | `max_words` | 15 | Maximum words in hook text |
 | `tts_model` | tts-1 | TTS model (tts-1 or tts-1-hd) |
+
+---
 
 ## 🔧 How It Works
 
@@ -374,6 +322,8 @@ For detailed guide, see: [AI_PROVIDER_SELECTOR.md](AI_PROVIDER_SELECTOR.md)
   - Black outline and semi-transparent background
 - Burns captions into video using FFmpeg
 
+---
+
 ## 🎨 Caption Styling
 
 The captions use CapCut-style formatting:
@@ -388,38 +338,9 @@ Shadow: 2px
 Position: Lower third (350px from bottom)
 ```
 
-## 🐛 Troubleshooting
+---
 
-**1. "FFmpeg not found" or "yt-dlp not found"**
-- Make sure `ffmpeg/ffmpeg.exe` and `yt-dlp.exe` are in the same folder as `AutoClipper.exe`
-- For development: Install FFmpeg and yt-dlp system-wide
-
-**2. "API key tidak valid"**
-- Double-check your OpenAI API key
-- Ensure you have API credits available
-- Check internet connection
-
-**3. App won't start / crashes**
-- Try running as Administrator
-- Check if antivirus is blocking the app (add exception)
-- Make sure you extracted all files from the zip
-
-**4. "No Indonesian subtitle found"**
-- The video might not have auto-generated Indonesian subtitles
-- Try a different video
-
-**5. "Face detection not working"**
-- Ensure OpenCV is properly installed
-- The video might not have clear face visibility
-
-### Performance Tips
-
-- Process videos under 2 hours for optimal memory usage
-- Use SSD storage for faster video I/O
-- Close other applications during processing
-- The app uses OpenAI Whisper API for faster transcription
-
-## 📊 API Usage & Costs
+## � API Usage & Costs 
 
 Estimated OpenAI API costs per video (5 clips):
 
@@ -432,6 +353,8 @@ Estimated OpenAI API costs per video (5 clips):
 **Total estimate:** ~$0.10-0.25 per video (5 clips)
 
 The desktop app shows real-time token usage and cost estimation during processing.
+
+---
 
 ## 🤝 Contributing
 
@@ -488,6 +411,8 @@ git push origin feature/your-new-feature
 | 🔧 **Code** | Fix bugs, add features, improve performance |
 
 📚 **Complete guide available in [CONTRIBUTING.md](CONTRIBUTING.md)** - includes Git tutorial for beginners!
+
+---
 
 ## 📝 License
 
