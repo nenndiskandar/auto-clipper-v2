@@ -379,10 +379,6 @@ Transcript:
             'quiet': True,
             'no_warnings': False,
             'extract_flat': False,
-            'postprocessors': [{
-                'key': 'FFmpegSubtitlesConvertor',
-                'format': 'srt',
-            }],
         }
         
         # Add Deno JS runtime if available
@@ -397,8 +393,15 @@ Transcript:
         if ffmpeg_path and Path(ffmpeg_path).exists():
             ydl_opts['ffmpeg_location'] = str(Path(ffmpeg_path).parent)
             self.log(f"  FFmpeg location: {ydl_opts['ffmpeg_location']}")
+            
+            # Only add subtitle converter postprocessor if FFmpeg is available
+            # This prevents "Postprocessing: Conversion failed!" error
+            ydl_opts['postprocessors'] = [{
+                'key': 'FFmpegSubtitlesConvertor',
+                'format': 'srt',
+            }]
         else:
-            self.log(f"  WARNING: FFmpeg not found!")
+            self.log(f"  WARNING: FFmpeg not found - subtitle conversion disabled")
         
         # Add cookies (required)
         from utils.helpers import get_app_dir

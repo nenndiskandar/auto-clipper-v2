@@ -14,6 +14,10 @@ class BaseProviderSettingsPage(BaseSettingsSubPage):
     
     # Override in child class for fixed model list (None = load from API)
     FIXED_MODELS = None
+    # Override in child class to use manual input instead of dropdown
+    USE_MANUAL_INPUT = False
+    # Default model value when using manual input
+    DEFAULT_MODEL = ""
     
     def __init__(self, parent, title, provider_key, config, on_save_callback, on_back_callback):
         self.config = config
@@ -42,6 +46,9 @@ class BaseProviderSettingsPage(BaseSettingsSubPage):
             variable=self.provider_type_var, height=36,
             command=self._on_provider_type_changed)
         self.provider_dropdown.pack(fill="x", pady=(5, 0))
+        
+        # System Message Section (optional, can be overridden by child)
+        self.system_message_textbox = None
         
         # URL Section (only visible for custom)
         self.url_section = self.create_section("Base URL")
@@ -75,26 +82,38 @@ class BaseProviderSettingsPage(BaseSettingsSubPage):
         model_row = ctk.CTkFrame(model_frame, fg_color="transparent")
         model_row.pack(fill="x", pady=(5, 0))
         
-        self.model_var = ctk.StringVar(value="")
-        
-        # Check if using fixed models or load from API
-        if self.FIXED_MODELS:
-            # Fixed dropdown - no load button needed
-            self.model_dropdown = ctk.CTkOptionMenu(model_row, 
-                values=self.FIXED_MODELS,
-                variable=self.model_var, height=36)
-            self.model_dropdown.pack(fill="x")
+        # Check if using manual input mode
+        if self.USE_MANUAL_INPUT:
+            # Manual input mode - use CTkEntry
+            self.model_entry = ctk.CTkEntry(model_row, 
+                placeholder_text=f"e.g., {self.DEFAULT_MODEL}", height=36)
+            self.model_entry.pack(fill="x")
+            self.model_dropdown = None
+            self.model_var = None
             self.load_btn = None
         else:
-            # Dynamic dropdown with load button
-            self.model_dropdown = ctk.CTkOptionMenu(model_row, 
-                values=["-- Click Load to fetch models --"],
-                variable=self.model_var, height=36, width=200)
-            self.model_dropdown.pack(side="left", fill="x", expand=True, padx=(0, 5))
+            # Dropdown mode
+            self.model_var = ctk.StringVar(value="")
+            self.model_entry = None
             
-            self.load_btn = ctk.CTkButton(model_row, text="🔄 Load", width=80, height=36,
-                command=self.load_models)
-            self.load_btn.pack(side="right")
+            # Check if using fixed models or load from API
+            if self.FIXED_MODELS:
+                # Fixed dropdown - no load button needed
+                self.model_dropdown = ctk.CTkOptionMenu(model_row, 
+                    values=self.FIXED_MODELS,
+                    variable=self.model_var, height=36)
+                self.model_dropdown.pack(fill="x")
+                self.load_btn = None
+            else:
+                # Dynamic dropdown with load button
+                self.model_dropdown = ctk.CTkOptionMenu(model_row, 
+                    values=["-- Click Load to fetch models --"],
+                    variable=self.model_var, height=36, width=200)
+                self.model_dropdown.pack(side="left", fill="x", expand=True, padx=(0, 5))
+                
+                self.load_btn = ctk.CTkButton(model_row, text="🔄 Load", width=80, height=36,
+                    command=self.load_models)
+                self.load_btn.pack(side="right")
         
         # Actions
         actions_frame = ctk.CTkFrame(self.content, fg_color="transparent")
@@ -233,24 +252,52 @@ class BaseProviderSettingsPage(BaseSettingsSubPage):
         self.key_entry.insert(0, provider.get("api_key", ""))
         
         saved_model = provider.get("model", "")
-        if saved_model:
-            if self.FIXED_MODELS:
-                # For fixed models, just set the value
-                if saved_model in self.FIXED_MODELS:
-                    self.model_var.set(saved_model)
-                else:
-                    self.model_var.set(self.FIXED_MODELS[0])
+        
+        # Load model based on input type
+        if self.USE_MANUAL_INPUT:
+            # Manual input mode
+            self.model_entry.delete(0, "end")
+            if saved_model:
+                self.model_entry.insert(0, saved_model)
             else:
-                # For dynamic models, add to dropdown if not empty
-                self.model_var.set(saved_model)
-                current_values = list(self.model_dropdown.cget("values"))
-                if saved_model not in current_values:
-                    self.model_dropdown.configure(values=[saved_model] + current_values)
+                self.model_entry.insert(0, self.DEFAULT_MODEL)
+        else:
+            # Dropdown mode
+            if saved_model:
+                if self.FIXED_MODELS:
+                    # For fixed models, just set the value
+                    if saved_model in self.FIXED_MODELS:
+                        self.model_var.set(saved_model)
+                    else:
+                        self.model_var.set(self.FIXED_MODELS[0])
+                else:
+                    # For dynamic models, add to dropdown if not empty
+                    self.model_var.set(saved_model)
+                    current_values = list(self.model_dropdown.cget("values"))
+                    if saved_model not in current_values:
+                        self.model_dropdown.configure(values=[saved_model] + current_values)
+        
+        # Load system message if textbox exists
+        if self.system_message_textbox:
+            # Try provider-specific system_message first, fallback to root system_prompt
+            system_message = provider.get("system_message", "")
+            if not system_message:
+                system_message = config_dict.get("system_prompt", "")
+            self.system_message_textbox.delete("1.0", "end")
+            self.system_message_textbox.insert("1.0", system_message)
     
     def save_settings(self):
         """Save settings"""
         api_key = self.key_entry.get().strip()
-        model = self.model_var.get().strip()
+        
+        # Get model from entry or dropdown
+        if self.USE_MANUAL_INPUT:
+            model = self.model_entry.get().strip()
+            if not model:
+                model = self.DEFAULT_MODEL
+        else:
+            model = self.model_var.get().strip()
+        
         url = self.get_base_url()
         
         if not api_key:
@@ -271,11 +318,19 @@ class BaseProviderSettingsPage(BaseSettingsSubPage):
         if "ai_providers" not in config_dict:
             config_dict["ai_providers"] = {}
         
-        config_dict["ai_providers"][self.provider_key] = {
+        provider_config = {
             "base_url": url,
             "api_key": api_key,
             "model": model
         }
+        
+        # Save system message if textbox exists
+        if self.system_message_textbox:
+            system_message = self.system_message_textbox.get("1.0", "end").strip()
+            if system_message:
+                provider_config["system_message"] = system_message
+        
+        config_dict["ai_providers"][self.provider_key] = provider_config
         
         # Call save callback with the full config dict (not just ai_providers)
         if self.on_save_callback:

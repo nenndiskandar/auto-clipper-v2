@@ -10,8 +10,9 @@ from pages.settings.ai_providers.base_provider import BaseProviderSettingsPage
 class CaptionMakerSettingsPage(BaseProviderSettingsPage):
     """Settings page for Caption Maker AI provider"""
     
-    # Fixed model list for Whisper
-    FIXED_MODELS = ["whisper-1"]
+    # Use manual input instead of dropdown
+    USE_MANUAL_INPUT = True
+    DEFAULT_MODEL = "whisper-1"
     
     def __init__(self, parent, config, on_save_callback, on_back_callback):
         super().__init__(

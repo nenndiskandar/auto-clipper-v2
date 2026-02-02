@@ -1296,7 +1296,11 @@ class YTShortClipperApp(ctk.CTk):
                 self.after(0, lambda: self.update_status(msg))
             
             # Get system prompt from config
-            system_prompt = self.config.get("system_prompt", None)
+            # Priority: ai_providers.highlight_finder.system_message > root system_prompt
+            ai_providers = self.config.get("ai_providers", {})
+            highlight_finder = ai_providers.get("highlight_finder", {})
+            system_prompt = highlight_finder.get("system_message") or self.config.get("system_prompt", None)
+            
             temperature = self.config.get("temperature", 1.0)
             tts_model = self.config.get("tts_model", "tts-1")
             watermark_settings = self.config.get("watermark", {"enabled": False})

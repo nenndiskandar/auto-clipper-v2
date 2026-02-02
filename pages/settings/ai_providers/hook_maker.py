@@ -10,8 +10,9 @@ from pages.settings.ai_providers.base_provider import BaseProviderSettingsPage
 class HookMakerSettingsPage(BaseProviderSettingsPage):
     """Settings page for Hook Maker AI provider"""
     
-    # Fixed model list for TTS
-    FIXED_MODELS = ["tts-1", "tts-1-hd"]
+    # Use manual input instead of dropdown
+    USE_MANUAL_INPUT = True
+    DEFAULT_MODEL = "tts-1-hd"
     
     def __init__(self, parent, config, on_save_callback, on_back_callback):
         super().__init__(
