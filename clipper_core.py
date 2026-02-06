@@ -283,7 +283,20 @@ Transcript:
             return
         
         if not srt_path:
-            raise Exception(f"No subtitle found for language: {self.subtitle_language}")
+            # Provide helpful error message with available subtitles
+            raise Exception(
+                f"❌ ERROR: Subtitle tidak tersedia\n\n"
+                f"Video ini tidak memiliki subtitle bahasa: {self.subtitle_language.upper()}\n\n"
+                f"SOLUSI:\n"
+                f"1. Cek subtitle yang tersedia untuk video ini:\n"
+                f"   - Klik tombol 'Check Subtitles' di aplikasi\n"
+                f"   - Atau buka video di YouTube dan cek CC/subtitle\n\n"
+                f"2. Pilih bahasa subtitle lain yang tersedia\n"
+                f"   (contoh: en - English, es - Spanish)\n\n"
+                f"3. Atau gunakan video lain yang punya subtitle Indonesia\n\n"
+                f"💡 TIP: Video podcast/interview biasanya punya auto-generated subtitle\n"
+                f"dalam berbagai bahasa. Pilih yang paling mendekati."
+            )
         
         # Step 2: Find highlights
         self.set_progress("Finding highlights...", 0.3)
@@ -509,8 +522,15 @@ Transcript:
         srt_path = self.temp_dir / f"source.{self.subtitle_language}.srt"
         
         if not srt_path.exists():
-            srt_path = None
-            self.log(f"  Warning: No {self.subtitle_language} subtitle found")
+            # Check if any subtitle was downloaded (fallback to other languages)
+            available_subs = list(self.temp_dir.glob("source.*.srt"))
+            if available_subs:
+                srt_path = available_subs[0]
+                detected_lang = srt_path.stem.split('.')[-1]
+                self.log(f"  ⚠ {self.subtitle_language} subtitle not found, using {detected_lang} instead")
+            else:
+                srt_path = None
+                self.log(f"  ✗ No subtitle found for language: {self.subtitle_language}")
         
         return str(video_path), str(srt_path) if srt_path else None, video_info
     
@@ -740,8 +760,15 @@ Transcript:
         srt_path = self.temp_dir / f"source.{self.subtitle_language}.srt"
         
         if not srt_path.exists():
-            srt_path = None
-            self.log(f"  Warning: No {self.subtitle_language} subtitle found")
+            # Check if any subtitle was downloaded (fallback to other languages)
+            available_subs = list(self.temp_dir.glob("source.*.srt"))
+            if available_subs:
+                srt_path = available_subs[0]
+                detected_lang = srt_path.stem.split('.')[-1]
+                self.log(f"  ⚠ {self.subtitle_language} subtitle not found, using {detected_lang} instead")
+            else:
+                srt_path = None
+                self.log(f"  ✗ No subtitle found for language: {self.subtitle_language}")
         
         return str(video_path), str(srt_path) if srt_path else None, video_info
 
