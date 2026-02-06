@@ -1101,22 +1101,65 @@ Transcript:
             result = self._call_gemini_api(prompt)
         else:
             # Use OpenAI SDK for OpenAI, Groq, Anthropic, etc.
-            response = self.highlight_client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=self.temperature,
-            )
-            
-            # Report token usage (input and output separately)
-            if response.usage:
-                self.report_tokens(response.usage.prompt_tokens, response.usage.completion_tokens, 0, 0)
-            
-            result = response.choices[0].message.content.strip()
-        
-        result = response.choices[0].message.content.strip()
+            try:
+                response = self.highlight_client.chat.completions.create(
+                    model=self.model,
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=self.temperature,
+                )
+                
+                # Validate response structure
+                if not response:
+                    raise Exception("API returned empty response")
+                
+                if not hasattr(response, 'choices') or not response.choices:
+                    # Log response structure for debugging
+                    self.log(f"  ⚠ Unexpected API response structure: {type(response)}")
+                    self.log(f"  Response attributes: {dir(response)}")
+                    raise Exception(
+                        "API response missing 'choices' field.\n\n"
+                        "This usually happens with custom API providers that don't follow OpenAI format.\n\n"
+                        "Please check:\n"
+                        "1. API key is valid and has credits\n"
+                        "2. Base URL is correct for your provider\n"
+                        "3. Model name is supported by your provider\n"
+                        "4. Provider follows OpenAI-compatible API format"
+                    )
+                
+                if not response.choices[0].message or not response.choices[0].message.content:
+                    raise Exception(
+                        "API returned empty content.\n\n"
+                        "Possible causes:\n"
+                        "1. Model refused to generate content (content filter)\n"
+                        "2. API quota exceeded\n"
+                        "3. Model doesn't support this type of request"
+                    )
+                
+                # Report token usage (input and output separately)
+                if hasattr(response, 'usage') and response.usage:
+                    self.report_tokens(response.usage.prompt_tokens, response.usage.completion_tokens, 0, 0)
+                
+                result = response.choices[0].message.content.strip()
+                
+            except Exception as e:
+                # Check if it's our custom exception
+                if "API response missing" in str(e) or "API returned empty" in str(e):
+                    raise
+                
+                # Otherwise, wrap with more context
+                self.log(f"  ❌ API Error: {e}")
+                raise Exception(
+                    f"Failed to get highlights from AI model.\n\n"
+                    f"Error: {str(e)}\n\n"
+                    f"Please check:\n"
+                    f"1. API key is valid: {self.highlight_client.api_key[:20]}...\n"
+                    f"2. Base URL is correct: {self.highlight_client.base_url}\n"
+                    f"3. Model exists: {self.model}\n"
+                    f"4. You have sufficient credits/quota"
+                )
         
         # Log raw response for debugging
-        self.log(f"  Raw GPT response (first 500 chars):\n{result[:500]}")
+        self.log(f"  Raw AI response (first 500 chars):\n{result[:500]}")
         
         if result.startswith("```"):
             result = re.sub(r"```json?\n?", "", result)
