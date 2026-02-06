@@ -44,6 +44,23 @@ Your cookies.txt must contain these YouTube authentication cookies:
 - Your cookies are expired or invalid
 - Export fresh cookies while logged into YouTube
 
+**Error: "HTTP Error 403: Forbidden"**
+- Your cookies are expired (typically last 1-2 weeks)
+- Export fresh cookies while logged into YouTube
+- Make sure you're logged in when exporting
+
+**Error: "The downloaded file is empty"**
+- YouTube detected bot activity
+- Your cookies are not strong enough for video content
+- **Solution:**
+  1. Open browser in **Incognito/Private mode**
+  2. Go to youtube.com and **login** to your Google account
+  3. Watch 2-3 videos **completely** (don't skip)
+  4. Open the video you want to download, watch for a bit
+  5. Export fresh cookies using the extension
+  6. Upload the new cookies.txt
+- **Tip:** Use an account that actively watches YouTube
+
 **Error: "Missing YouTube authentication cookies"**
 - Your cookies.txt is incomplete
 - Make sure you export from youtube.com while logged in
@@ -51,6 +68,16 @@ Your cookies.txt must contain these YouTube authentication cookies:
 **Cookies expire quickly**
 - YouTube cookies typically last 1-2 weeks
 - Re-export when you see authentication errors
+- Use an active YouTube account for better cookie longevity
+
+**Still having issues? Update yt-dlp:**
+- YouTube frequently changes their protection
+- Update yt-dlp to the latest version:
+  ```bash
+  pip install --upgrade yt-dlp
+  ```
+- Check latest version: https://github.com/yt-dlp/yt-dlp/releases
+- Recommended: yt-dlp >= 2026.2.4
 
 ### Security Notes
 
@@ -100,6 +127,23 @@ File cookies.txt harus berisi cookies autentikasi YouTube berikut:
 - Cookies sudah expired atau tidak valid
 - Export cookies baru saat sedang login ke YouTube
 
+**Error: "HTTP Error 403: Forbidden"**
+- Cookies sudah expired (biasanya bertahan 1-2 minggu)
+- Export cookies baru saat sedang login ke YouTube
+- Pastikan sudah login saat export cookies
+
+**Error: "The downloaded file is empty"**
+- YouTube mendeteksi aktivitas bot
+- Cookies tidak cukup kuat untuk akses video content
+- **Solusi:**
+  1. Buka browser dalam mode **Incognito/Private**
+  2. Buka youtube.com dan **login** ke akun Google
+  3. Tonton 2-3 video **sampai selesai** (jangan skip)
+  4. Buka video yang ingin di-download, tonton sebentar
+  5. Export cookies baru menggunakan extension
+  6. Upload cookies.txt yang baru
+- **Tips:** Gunakan akun yang aktif menonton YouTube
+
 **Error: "Missing YouTube authentication cookies"**
 - File cookies.txt tidak lengkap
 - Pastikan export dari youtube.com saat sudah login
@@ -107,6 +151,16 @@ File cookies.txt harus berisi cookies autentikasi YouTube berikut:
 **Cookies cepat expired**
 - Cookies YouTube biasanya bertahan 1-2 minggu
 - Export ulang jika muncul error autentikasi
+- Gunakan akun YouTube yang aktif untuk cookies lebih tahan lama
+
+**Masih error? Update yt-dlp:**
+- YouTube sering mengubah proteksi mereka
+- Update yt-dlp ke versi terbaru:
+  ```bash
+  pip install --upgrade yt-dlp
+  ```
+- Cek versi terbaru: https://github.com/yt-dlp/yt-dlp/releases
+- Direkomendasikan: yt-dlp >= 2026.2.4
 
 ### Catatan Keamanan
 

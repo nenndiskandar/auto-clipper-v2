@@ -451,7 +451,59 @@ Transcript:
         except Exception as e:
             last_error = str(e)
             self.log(f"  ✗ Failed: {last_error[:100]}")
-            raise Exception(f"Download failed!\n\n{last_error}")
+            
+            # Provide helpful error message for common issues
+            if "403" in last_error or "Forbidden" in last_error:
+                raise Exception(
+                    "❌ ERROR: YouTube menolak akses (HTTP 403 Forbidden)\n\n"
+                    "PENYEBAB:\n"
+                    "• Cookies sudah EXPIRED (biasanya 1-2 minggu)\n"
+                    "• Cookies tidak lengkap atau tidak valid\n"
+                    "• Browser tidak login ke YouTube saat export cookies\n\n"
+                    "SOLUSI:\n"
+                    "1. Buka youtube.com di browser\n"
+                    "2. PASTIKAN sudah LOGIN ke akun YouTube/Google\n"
+                    "3. Export cookies BARU menggunakan extension:\n"
+                    "   - Chrome/Edge: 'Get cookies.txt LOCALLY'\n"
+                    "   - Firefox: 'cookies.txt'\n"
+                    "4. Upload cookies.txt yang baru di halaman Home\n\n"
+                    "📖 Lihat COOKIES.md untuk panduan lengkap"
+                )
+            elif "downloaded file is empty" in last_error.lower() or "file is empty" in last_error.lower():
+                raise Exception(
+                    "❌ ERROR: File video kosong (0 bytes)\n\n"
+                    "PENYEBAB:\n"
+                    "• YouTube mendeteksi aktivitas BOT\n"
+                    "• Cookies tidak cukup kuat untuk akses video content\n"
+                    "• Video mungkin memiliki proteksi khusus\n\n"
+                    "SOLUSI:\n"
+                    "1. Buka browser INCOGNITO/PRIVATE mode\n"
+                    "2. Buka youtube.com dan LOGIN ke akun Google\n"
+                    "3. Tonton 2-3 video LENGKAP (bukan skip)\n"
+                    "4. Buka video yang ingin di-download, tonton sebentar\n"
+                    "5. Export cookies BARU dengan extension:\n"
+                    "   - Chrome/Edge: 'Get cookies.txt LOCALLY'\n"
+                    "   - Firefox: 'cookies.txt'\n"
+                    "6. Upload cookies.txt yang baru\n\n"
+                    "💡 TIP: Gunakan akun yang aktif menonton YouTube\n"
+                    "📖 Lihat COOKIES.md untuk panduan lengkap"
+                )
+            elif "Sign in to confirm" in last_error or "bot" in last_error.lower():
+                raise Exception(
+                    "❌ ERROR: YouTube meminta verifikasi bot\n\n"
+                    "PENYEBAB:\n"
+                    "• Cookies sudah tidak valid\n"
+                    "• YouTube mendeteksi aktivitas mencurigakan\n\n"
+                    "SOLUSI:\n"
+                    "1. Buka youtube.com di browser INCOGNITO/PRIVATE\n"
+                    "2. Login ke akun YouTube/Google\n"
+                    "3. Tonton 1-2 video untuk 'warm up' akun\n"
+                    "4. Export cookies baru\n"
+                    "5. Upload cookies.txt yang baru\n\n"
+                    "📖 Lihat COOKIES.md untuk panduan lengkap"
+                )
+            else:
+                raise Exception(f"Download failed!\n\n{last_error}")
         
         video_path = self.temp_dir / "source.mp4"
         srt_path = self.temp_dir / f"source.{self.subtitle_language}.srt"
@@ -628,8 +680,61 @@ Transcript:
                 # Continue to next strategy
                 continue
         else:
-            # All strategies failed
-            raise Exception(f"Download failed after trying all methods!\n\nLast error:\n{last_error}")
+            # All strategies failed - provide helpful error message
+            if last_error and ("403" in last_error or "Forbidden" in last_error):
+                raise Exception(
+                    "❌ ERROR: YouTube menolak akses (HTTP 403 Forbidden)\n\n"
+                    "PENYEBAB:\n"
+                    "• Cookies sudah EXPIRED (biasanya 1-2 minggu)\n"
+                    "• Cookies tidak lengkap atau tidak valid\n"
+                    "• Browser tidak login ke YouTube saat export cookies\n\n"
+                    "SOLUSI:\n"
+                    "1. Buka youtube.com di browser\n"
+                    "2. PASTIKAN sudah LOGIN ke akun YouTube/Google\n"
+                    "3. Export cookies BARU menggunakan extension:\n"
+                    "   - Chrome/Edge: 'Get cookies.txt LOCALLY'\n"
+                    "   - Firefox: 'cookies.txt'\n"
+                    "4. Upload cookies.txt yang baru di halaman Home\n\n"
+                    "📖 Lihat COOKIES.md untuk panduan lengkap\n\n"
+                    f"Detail error:\n{last_error}"
+                )
+            elif last_error and ("downloaded file is empty" in last_error.lower() or "file is empty" in last_error.lower()):
+                raise Exception(
+                    "❌ ERROR: File video kosong (0 bytes)\n\n"
+                    "PENYEBAB:\n"
+                    "• YouTube mendeteksi aktivitas BOT\n"
+                    "• Cookies tidak cukup kuat untuk akses video content\n"
+                    "• Video mungkin memiliki proteksi khusus\n\n"
+                    "SOLUSI:\n"
+                    "1. Buka browser INCOGNITO/PRIVATE mode\n"
+                    "2. Buka youtube.com dan LOGIN ke akun Google\n"
+                    "3. Tonton 2-3 video LENGKAP (bukan skip)\n"
+                    "4. Buka video yang ingin di-download, tonton sebentar\n"
+                    "5. Export cookies BARU dengan extension:\n"
+                    "   - Chrome/Edge: 'Get cookies.txt LOCALLY'\n"
+                    "   - Firefox: 'cookies.txt'\n"
+                    "6. Upload cookies.txt yang baru\n\n"
+                    "💡 TIP: Gunakan akun yang aktif menonton YouTube\n"
+                    "📖 Lihat COOKIES.md untuk panduan lengkap\n\n"
+                    f"Detail error:\n{last_error}"
+                )
+            elif last_error and ("Sign in to confirm" in last_error or "bot" in last_error.lower()):
+                raise Exception(
+                    "❌ ERROR: YouTube meminta verifikasi bot\n\n"
+                    "PENYEBAB:\n"
+                    "• Cookies sudah tidak valid\n"
+                    "• YouTube mendeteksi aktivitas mencurigakan\n\n"
+                    "SOLUSI:\n"
+                    "1. Buka youtube.com di browser INCOGNITO/PRIVATE\n"
+                    "2. Login ke akun YouTube/Google\n"
+                    "3. Tonton 1-2 video untuk 'warm up' akun\n"
+                    "4. Export cookies baru\n"
+                    "5. Upload cookies.txt yang baru\n\n"
+                    "📖 Lihat COOKIES.md untuk panduan lengkap\n\n"
+                    f"Detail error:\n{last_error}"
+                )
+            else:
+                raise Exception(f"Download failed after trying all methods!\n\nLast error:\n{last_error}")
         
         video_path = self.temp_dir / "source.mp4"
         srt_path = self.temp_dir / f"source.{self.subtitle_language}.srt"
