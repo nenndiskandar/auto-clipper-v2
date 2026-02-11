@@ -208,6 +208,9 @@ ATURAN DURASI (KUNCI)
 - Target ideal: 85–95 detik.
 - Durasi HARUS dihitung dari timestamp transcript (bukan estimasi teks).
 
+PENTING: Jika segment natural terlalu pendek, PERPANJANG dengan konteks sebelum/sesudahnya!
+Jangan buat segment < 60 detik!
+
 ========================
 STRATEGI WAJIB (JIKA SEGMENT IDEAL TIDAK ADA)
 ========================
@@ -220,6 +223,66 @@ DILARANG:
 - Mengembalikan array kosong
 - Mengurangi jumlah clip
 - Mengabaikan aturan durasi
+- Membuat segment < 60 detik
+
+========================
+CONTOH OUTPUT YANG BENAR
+========================
+[
+  {{
+    "start_time": "00:05:30,000",
+    "end_time": "00:06:45,500",
+    "title": "Raditya Dika Cerita Awal Mula Jadi Content Creator",
+    "description": "Radit berbagi pengalaman pertama kali bikin konten dan tantangan yang dihadapi",
+    "virality_score": 7,
+    "hook_text": "Raditya Dika: Dulu gua bikin video cuma modal HP jadul"
+  }},
+  {{
+    "start_time": "00:12:15,200",
+    "end_time": "00:13:30,800",
+    "title": "Drama di Balik Layar Produksi Film",
+    "description": "Reveal konflik internal tim produksi yang bikin film hampir batal",
+    "virality_score": 9,
+    "hook_text": "Deddy Corbuzier: Film ini hampir gak jadi gara-gara drama internal"
+  }}
+]
+
+========================
+FIELD WAJIB (CRITICAL!)
+========================
+SETIAP segment HARUS memiliki PERSIS 6 field ini (tidak boleh lebih, tidak boleh kurang):
+
+1. "start_time" (string): Format "HH:MM:SS,mmm"
+2. "end_time" (string): Format "HH:MM:SS,mmm"
+3. "title" (string): Judul menarik, max 60 karakter
+4. "description" (string): Deskripsi singkat kenapa menarik, max 150 karakter
+5. "virality_score" (integer): WAJIB! Angka 1-10 (BUKAN string!)
+6. "hook_text" (string): Hook text untuk opening video
+
+JANGAN GUNAKAN FIELD LAIN!
+- JANGAN pakai "reason" → gunakan "description"
+- JANGAN pakai field apapun selain 6 di atas
+- "virality_score" HARUS integer (angka), BUKAN string!
+
+========================
+VIRALITY SCORE GUIDELINES
+========================
+Berikan score tinggi (8-10) jika:
+- Ada kontroversi atau drama
+- Reveal informasi mengejutkan
+- Momen emosional kuat
+- Punchline atau joke yang kuat
+- Cerita personal yang relatable
+
+Berikan score sedang (5-7) jika:
+- Cerita menarik tapi tidak shocking
+- Insight atau tips berguna
+- Momen lucu atau wholesome
+
+Berikan score rendah (1-4) jika:
+- Informasi umum atau biasa
+- Tidak ada hook yang kuat
+- Konten terlalu teknis
 
 ========================
 HOOK TEXT (WAJIB & AGRESIF)
@@ -238,28 +301,22 @@ Contoh BENAR:
 ========================
 VALIDASI DIRI (WAJIB)
 ========================
-Sebelum output:
-- Hitung durasi tiap segment dalam detik
-- Pastikan JUMLAH CLIP = {num_clips}
-- Pastikan SEMUA clip 60–120 detik
-- Jika ada yang gagal, PERBAIKI, bukan dihapus
+Sebelum output, CEK:
+1. Jumlah segment = {num_clips}? (HARUS SAMA!)
+2. Semua segment 60-120 detik? (Jika tidak, PERPANJANG!)
+3. Semua segment punya 6 field? (start_time, end_time, title, description, virality_score, hook_text)
+4. Field "virality_score" berupa integer 1-10? (BUKAN string!)
+5. Tidak ada field "reason" atau field lain?
+
+Jika ada yang salah, PERBAIKI sebelum return!
 
 ========================
-OUTPUT
+OUTPUT FORMAT (STRICT!)
 ========================
-Return HANYA JSON array.
-Tanpa teks lain.
+Return HANYA JSON array, TANPA teks lain (no markdown, no explanation).
 
-Format:
-[
-  {
-    "start_time": "HH:MM:SS,mmm",
-    "end_time": "HH:MM:SS,mmm",
-    "title": "Judul singkat",
-    "reason": "Kenapa segmen ini kuat",
-    "hook_text": "Hook text"
-  }
-]
+Format PERSIS seperti ini:
+[{{"start_time":"HH:MM:SS,mmm","end_time":"HH:MM:SS,mmm","title":"...","description":"...","virality_score":8,"hook_text":"..."}}]
 
 ========================
 KONTEN
@@ -1177,11 +1234,28 @@ Transcript:
         # Filter by duration (min 58s, max 120s)
         valid = []
         for h in highlights:
+            # Fallback: convert "reason" to "description" if exists
+            if "reason" in h and "description" not in h:
+                h["description"] = h.pop("reason")
+                self.log(f"  ⚠ Converted 'reason' to 'description' for '{h.get('title', 'Unknown')}'")
+            
             duration = self.parse_timestamp(h["end_time"]) - self.parse_timestamp(h["start_time"])
             h["duration_seconds"] = round(duration, 1)
+            
+            # Ensure virality_score exists (default to 5 if missing)
+            if "virality_score" not in h:
+                h["virality_score"] = 5
+                self.log(f"  ⚠ Missing virality_score for '{h.get('title', 'Unknown')}', defaulting to 5")
+            
+            # Ensure description exists
+            if "description" not in h:
+                h["description"] = h.get("title", "No description")
+                self.log(f"  ⚠ Missing description for '{h.get('title', 'Unknown')}', using title")
+            
             if 58 <= duration <= 120:
                 valid.append(h)
-                self.log(f"  ✓ {h['title']} ({duration:.0f}s)")
+                virality = h.get("virality_score", 5)
+                self.log(f"  ✓ {h['title']} ({duration:.0f}s) [🔥 {virality}/10]")
             elif duration > 120:
                 self.log(f"  ✗ {h['title']} ({duration:.0f}s) - Too long, skipped")
             elif duration < 58:
@@ -1189,6 +1263,12 @@ Transcript:
             
             if len(valid) >= num_clips:
                 break
+        
+        # If we don't have enough valid clips, warn user
+        if len(valid) < num_clips:
+            self.log(f"\n⚠️ WARNING: Only found {len(valid)} valid clips out of {num_clips} requested!")
+            self.log(f"   AI returned many segments that were too short (< 58s).")
+            self.log(f"   Consider using a better AI model or adjusting the prompt.")
         
         return valid[:num_clips]
     
@@ -3454,3 +3534,160 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         
         if not Path(output_path).exists():
             raise Exception("Failed to apply credit watermark")
+
+    def find_highlights_only(self, url: str, num_clips: int = 5) -> dict:
+        """Phase 1: Download video and find highlights (without processing)
+        
+        Returns:
+            dict with keys:
+                - 'session_dir': Path to session directory
+                - 'video_path': Path to downloaded video
+                - 'srt_path': Path to subtitle file
+                - 'highlights': List of highlight dicts with metadata
+                - 'video_info': Video metadata (title, channel, etc.)
+        """
+        # Create session directory with timestamp
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        session_dir = self.output_dir / "sessions" / timestamp
+        session_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Update temp_dir to session-specific temp
+        self.temp_dir = session_dir / "_temp"
+        self.temp_dir.mkdir(parents=True, exist_ok=True)
+        
+        self.log(f"Session directory: {session_dir}")
+        
+        # Step 1: Download video
+        self.set_progress("Downloading video...", 0.1)
+        video_path, srt_path, video_info = self.download_video(url)
+        
+        # Store channel name for credit watermark
+        self.channel_name = video_info.get("channel", "") if video_info else ""
+        
+        if self.is_cancelled():
+            return None
+        
+        if not srt_path:
+            raise Exception(
+                f"❌ ERROR: Subtitle tidak tersedia\n\n"
+                f"Video ini tidak memiliki subtitle bahasa: {self.subtitle_language.upper()}\n\n"
+                f"SOLUSI:\n"
+                f"1. Cek subtitle yang tersedia untuk video ini:\n"
+                f"   - Klik tombol 'Check Subtitles' di aplikasi\n"
+                f"   - Atau buka video di YouTube dan cek CC/subtitle\n\n"
+                f"2. Pilih bahasa subtitle lain yang tersedia\n"
+                f"   (contoh: en - English, es - Spanish)\n\n"
+                f"3. Atau gunakan video lain yang punya subtitle Indonesia\n\n"
+                f"💡 TIP: Video podcast/interview biasanya punya auto-generated subtitle\n"
+                f"dalam berbagai bahasa. Pilih yang paling mendekati."
+            )
+        
+        # Step 2: Find highlights
+        self.set_progress("Finding highlights with AI...", 0.5)
+        transcript = self.parse_srt(srt_path)
+        highlights = self.find_highlights(transcript, video_info, num_clips)
+        
+        if self.is_cancelled():
+            return None
+        
+        if not highlights:
+            raise Exception(
+                "❌ No valid highlights found!\n\n"
+                "Possible causes:\n"
+                "1. AI model failed to generate highlights\n"
+                "2. Video transcript too short or not suitable\n"
+                "3. AI model configuration issue\n\n"
+                "Try:\n"
+                "- Using a different AI model (GPT-4, Gemini, etc.)\n"
+                "- Checking AI API settings\n"
+                "- Using a longer video with more content"
+            )
+        
+        self.set_progress("Highlights found!", 1.0)
+        self.log(f"\n✅ Found {len(highlights)} highlights")
+        
+        # Save session data to JSON for resume capability
+        session_data_file = session_dir / "session_data.json"
+        session_data = {
+            "session_dir": str(session_dir),
+            "video_path": video_path,
+            "srt_path": srt_path,
+            "highlights": highlights,
+            "video_info": video_info,
+            "created_at": datetime.now().isoformat(),
+            "status": "highlights_found"
+        }
+        
+        with open(session_data_file, "w", encoding="utf-8") as f:
+            json.dump(session_data, f, indent=2, ensure_ascii=False)
+        
+        self.log(f"Session data saved to: {session_data_file}")
+        
+        return session_data
+    
+    def process_selected_highlights(self, video_path: str, selected_highlights: list, 
+                                   session_dir: Path, add_captions: bool = True, 
+                                   add_hook: bool = True):
+        """Phase 2: Process only selected highlights
+        
+        Args:
+            video_path: Path to source video
+            selected_highlights: List of highlight dicts to process
+            session_dir: Session directory for output
+            add_captions: Whether to add captions
+            add_hook: Whether to add hook
+        """
+        if not selected_highlights:
+            raise Exception("No highlights selected for processing")
+        
+        self.log(f"\n[Processing {len(selected_highlights)} selected clips]")
+        
+        # Ensure session_dir is Path object
+        if isinstance(session_dir, str):
+            session_dir = Path(session_dir)
+        
+        # Update output_dir to session clips folder
+        clips_dir = session_dir / "clips"
+        clips_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Process each selected clip
+        total_clips = len(selected_highlights)
+        for i, highlight in enumerate(selected_highlights, 1):
+            if self.is_cancelled():
+                return
+            
+            # Create clip-specific folder
+            clip_folder = clips_dir / f"clip_{i:03d}"
+            clip_folder.mkdir(parents=True, exist_ok=True)
+            
+            # Temporarily override output_dir for this clip
+            original_output_dir = self.output_dir
+            self.output_dir = clip_folder.parent
+            
+            try:
+                self.process_clip(video_path, highlight, i, total_clips, 
+                                add_captions=add_captions, add_hook=add_hook)
+            finally:
+                # Restore original output_dir
+                self.output_dir = original_output_dir
+        
+        # Cleanup temp files
+        self.set_progress("Cleaning up...", 0.95)
+        self.cleanup()
+        
+        # Update session status to completed
+        session_data_file = session_dir / "session_data.json"
+        if session_data_file.exists():
+            with open(session_data_file, "r", encoding="utf-8") as f:
+                session_data = json.load(f)
+            
+            session_data["status"] = "completed"
+            session_data["completed_at"] = datetime.now().isoformat()
+            session_data["clips_processed"] = total_clips
+            
+            with open(session_data_file, "w", encoding="utf-8") as f:
+                json.dump(session_data, f, indent=2, ensure_ascii=False)
+        
+        self.set_progress("Complete!", 1.0)
+        self.log(f"\n✅ Created {total_clips} clips in: {clips_dir}")

@@ -1,14 +1,13 @@
 """
-Processing page for video processing workflow
+Clipping page for video clipping workflow
 """
 
 import customtkinter as ctk
-from components.progress_step import ProgressStep
 from utils.logger import get_error_log_path
 
 
-class ProcessingPage(ctk.CTkFrame):
-    """Processing page - shows progress during video processing"""
+class ClippingPage(ctk.CTkFrame):
+    """Clipping page - shows progress during video clipping"""
     
     def __init__(self, parent, on_cancel_callback, on_back_callback, on_open_output_callback, on_browse_callback):
         super().__init__(parent)
@@ -34,45 +33,49 @@ class ProcessingPage(ctk.CTkFrame):
         pass
     
     def create_ui(self):
-        """Create the processing page UI"""
+        """Create the clipping page UI"""
         from components.page_layout import PageHeader, PageFooter
         
         self.configure(fg_color=("#1a1a1a", "#0a0a0a"))
         
         # Header
-        header = PageHeader(self, self, show_nav_buttons=False, show_back_button=True, page_title="🎬 Processing")
+        header = PageHeader(self, self, show_nav_buttons=False, show_back_button=True, page_title="✂️ Clipping Videos")
         header.pack(fill="x", padx=20, pady=(15, 10))
         
         main = ctk.CTkFrame(self, fg_color="transparent")
         main.pack(fill="both", expand=True, padx=20, pady=(0, 20))
         
-        # Progress steps - 2 cards horizontal (NEW FLOW)
-        steps_frame = ctk.CTkFrame(main, fg_color=("gray90", "gray17"))
-        steps_frame.pack(fill="x", padx=15, pady=15)
+        # Progress section
+        progress_frame = ctk.CTkFrame(main, fg_color=("gray90", "gray17"))
+        progress_frame.pack(fill="x", padx=15, pady=15)
         
-        ctk.CTkLabel(steps_frame, text="Progress", font=ctk.CTkFont(size=12, weight="bold")).pack(anchor="w", padx=15, pady=(12, 8))
+        ctk.CTkLabel(progress_frame, text="Clipping Progress", font=ctk.CTkFont(size=12, weight="bold")).pack(anchor="w", padx=15, pady=(12, 8))
         
-        cards_frame = ctk.CTkFrame(steps_frame, fg_color="transparent")
-        cards_frame.pack(fill="x", padx=10, pady=(0, 12))
-        cards_frame.grid_columnconfigure((0, 1), weight=1, uniform="step")
+        # Progress info
+        info_frame = ctk.CTkFrame(progress_frame, fg_color="transparent")
+        info_frame.pack(fill="x", padx=15, pady=(0, 12))
         
-        self.steps = []
-        step_titles = [
-            "Downloading Video & Subtitles",
-            "Finding Highlights with AI"
-        ]
+        # Current clip info
+        self.current_clip_label = ctk.CTkLabel(info_frame, text="Preparing...", 
+            font=ctk.CTkFont(size=14, weight="bold"))
+        self.current_clip_label.pack(anchor="w", pady=(0, 5))
         
-        for i, title in enumerate(step_titles):
-            step = ProgressStep(cards_frame, i + 1, title)
-            step.grid(row=0, column=i, padx=5, pady=5, sticky="nsew")
-            self.steps.append(step)
+        # Progress bar
+        self.progress_bar = ctk.CTkProgressBar(info_frame, height=20)
+        self.progress_bar.pack(fill="x", pady=(0, 5))
+        self.progress_bar.set(0)
+        
+        # Progress text (X of Y clips)
+        self.progress_text = ctk.CTkLabel(info_frame, text="0 / 0 clips processed", 
+            font=ctk.CTkFont(size=11), text_color="gray")
+        self.progress_text.pack(anchor="w")
         
         # Current status
         self.status_frame = ctk.CTkFrame(main)
         self.status_frame.pack(fill="x", padx=15, pady=(0, 15))
         
         self.status_label = ctk.CTkLabel(self.status_frame, text="Initializing...", 
-            font=ctk.CTkFont(size=13), wraplength=480)
+            font=ctk.CTkFont(size=12), wraplength=480)
         self.status_label.pack(pady=12)
         
         # Buttons
@@ -95,7 +98,7 @@ class ProcessingPage(ctk.CTkFrame):
         self.open_btn = ctk.CTkButton(row2, text="📂 Open Output", height=45, state="disabled", command=self.on_open_output)
         self.open_btn.pack(side="left", fill="x", expand=True, padx=(0, 5))
         
-        self.results_btn = ctk.CTkButton(row2, text="📂 Browse Videos", height=45, state="disabled", 
+        self.results_btn = ctk.CTkButton(row2, text="📂 Browse Sessions", height=45, state="disabled", 
             fg_color="#27ae60", hover_color="#2ecc71", command=self.on_browse)
         self.results_btn.pack(side="left", fill="x", expand=True, padx=(5, 0))
         
@@ -104,45 +107,49 @@ class ProcessingPage(ctk.CTkFrame):
         footer.pack(fill="x", padx=20, pady=(10, 15), side="bottom")
     
     def reset_ui(self):
-        """Reset UI for new processing"""
-        for step in self.steps:
-            step.reset()
-        
+        """Reset UI for new clipping"""
+        self.progress_bar.set(0)
+        self.current_clip_label.configure(text="Preparing...")
+        self.progress_text.configure(text="0 / 0 clips processed")
         self.status_label.configure(text="Initializing...")
         self.cancel_btn.configure(state="normal")
         self.open_btn.configure(state="disabled")
         self.back_btn.configure(state="disabled")
         self.results_btn.configure(state="disabled")
     
+    def update_progress(self, current: int, total: int, clip_title: str = ""):
+        """Update progress bar and text"""
+        if total > 0:
+            progress = current / total
+            self.progress_bar.set(progress)
+        
+        self.progress_text.configure(text=f"{current} / {total} clips processed")
+        
+        if clip_title:
+            self.current_clip_label.configure(text=f"Processing: {clip_title[:50]}")
+    
     def update_status(self, msg: str):
         """Update status label"""
         self.status_label.configure(text=msg)
     
-    def update_tokens(self, gpt_total: int, whisper_minutes: float, tts_chars: int):
-        """Update token usage display (deprecated - kept for compatibility)"""
-        pass  # No-op since we removed the UI
-    
     def on_complete(self):
-        """Called when processing completes successfully"""
+        """Called when clipping completes successfully"""
         self.status_label.configure(text="✅ All clips created successfully!")
         self.cancel_btn.configure(state="disabled")
         self.open_btn.configure(state="normal")
         self.back_btn.configure(state="normal")
         self.results_btn.configure(state="normal")
-        for step in self.steps:
-            step.set_done("Complete")
+        self.current_clip_label.configure(text="✓ Complete")
     
     def on_cancelled(self):
-        """Called when processing is cancelled"""
+        """Called when clipping is cancelled"""
         self.status_label.configure(text="⚠️ Cancelled by user")
         self.cancel_btn.configure(state="disabled")
         self.back_btn.configure(state="normal")
-        for step in self.steps:
-            if step.status == "active":
-                step.set_error("Cancelled")
+        self.current_clip_label.configure(text="⚠ Cancelled")
     
     def on_error(self, error: str):
-        """Called when processing encounters an error"""
+        """Called when clipping encounters an error"""
         error_log = get_error_log_path()
         
         if error_log:
@@ -153,6 +160,4 @@ class ProcessingPage(ctk.CTkFrame):
         self.status_label.configure(text=error_msg)
         self.cancel_btn.configure(state="disabled")
         self.back_btn.configure(state="normal")
-        for step in self.steps:
-            if step.status == "active":
-                step.set_error("Failed")
+        self.current_clip_label.configure(text="✗ Failed")

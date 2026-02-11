@@ -31,7 +31,10 @@ from pages.browse_page import BrowsePage
 from pages.results_page import ResultsPage
 from pages.status_pages import APIStatusPage, LibStatusPage
 from pages.processing_page import ProcessingPage
+from pages.clipping_page import ClippingPage
 from pages.contact_page import ContactPage
+from pages.highlight_selection_page import HighlightSelectionPage
+from pages.session_browser_page import SessionBrowserPage
 
 # Fix for PyInstaller windowed mode (console=False)
 # When built with console=False, sys.stdout and sys.stderr are None
@@ -70,6 +73,9 @@ class YTShortClipperApp(ctk.CTk):
         self.ytdlp_path = get_ytdlp_path()  # NEW: Store yt-dlp path for subtitle fetching
         self.cookies_path = COOKIES_FILE  # NEW: Store cookies path
         
+        # Session data for highlight selection flow
+        self.session_data = None  # Will store result from find_highlights_only
+        
         self.title("YT Short Clipper")
         self.geometry("780x620")
         self.resizable(False, False)
@@ -86,6 +92,9 @@ class YTShortClipperApp(ctk.CTk):
         self.pages = {}
         self.create_home_page()
         self.create_processing_page()
+        self.create_clipping_page()
+        self.create_highlight_selection_page()
+        self.create_session_browser_page()
         self.create_results_page()
         self.create_browse_page()
         self.create_settings_page()
@@ -163,14 +172,6 @@ class YTShortClipperApp(ctk.CTk):
         
         # Reset clips input to default
         self.clips_var.set("5")
-        
-        # Reset toggles to default (OFF)
-        self.caption_var.set(False)
-        self.hook_var.set(False)
-        
-        # Update switch texts
-        self.caption_switch.configure(text="ON")
-        self.hook_switch.configure(text="ON")
         
         # Update start button state
         self.update_start_button_state()
@@ -273,13 +274,13 @@ class YTShortClipperApp(ctk.CTk):
         
         self.create_preview_placeholder()
         
-        # ===== MIDDLE ROW: Cookies + Enhancements (full width 50:50) =====
+        # ===== MIDDLE ROW: Cookies only (full width) =====
         middle_row = ctk.CTkFrame(page, fg_color="transparent")
         middle_row.pack(fill="x", padx=20, pady=(0, 10))
         
-        # YouTube Cookies card (left 50%)
+        # YouTube Cookies card (full width)
         cookies_frame = ctk.CTkFrame(middle_row, fg_color=("#2b2b2b", "#1a1a1a"), corner_radius=8)
-        cookies_frame.pack(side="left", fill="both", expand=True, padx=(0, 5))
+        cookies_frame.pack(fill="x")
         
         ctk.CTkLabel(cookies_frame, text="YouTube Cookies", font=ctk.CTkFont(size=11, weight="bold"), 
             anchor="w").pack(fill="x", padx=12, pady=(10, 5))
@@ -293,51 +294,20 @@ class YTShortClipperApp(ctk.CTk):
             font=ctk.CTkFont(size=10), command=self.upload_cookies)
         upload_cookies_btn.pack(fill="x", padx=12, pady=(0, 10))
         
-        # Enhancements card (right 50%)
-        enhance_frame = ctk.CTkFrame(middle_row, fg_color=("#2b2b2b", "#1a1a1a"), corner_radius=8)
-        enhance_frame.pack(side="right", fill="both", expand=True, padx=(5, 0))
-        
-        ctk.CTkLabel(enhance_frame, text="Enhancements", font=ctk.CTkFont(size=11, weight="bold"), 
-            anchor="w").pack(fill="x", padx=12, pady=(10, 5))
-        
-        # Captions toggle
-        captions_row = ctk.CTkFrame(enhance_frame, fg_color="transparent")
-        captions_row.pack(fill="x", padx=12, pady=(0, 3))
-        
-        ctk.CTkLabel(captions_row, text="💬 Captions", font=ctk.CTkFont(size=10), 
-            anchor="w").pack(side="left")
-        
-        self.caption_var = ctk.BooleanVar(value=False)
-        self.caption_switch = ctk.CTkSwitch(captions_row, text="", variable=self.caption_var, 
-            width=36, height=18, command=self.update_caption_switch_text)
-        self.caption_switch.pack(side="right")
-        
-        # Hook toggle
-        hook_row = ctk.CTkFrame(enhance_frame, fg_color="transparent")
-        hook_row.pack(fill="x", padx=12, pady=(0, 10))
-        
-        ctk.CTkLabel(hook_row, text="🪝 Hook Text", font=ctk.CTkFont(size=10), 
-            anchor="w").pack(side="left")
-        
-        self.hook_var = ctk.BooleanVar(value=False)
-        self.hook_switch = ctk.CTkSwitch(hook_row, text="", variable=self.hook_var, 
-            width=36, height=18, command=self.update_hook_switch_text)
-        self.hook_switch.pack(side="right")
-        
         # ===== BOTTOM: Generate button + Browse =====
         bottom_section = ctk.CTkFrame(page, fg_color="transparent")
         bottom_section.pack(fill="x", padx=20, pady=(0, 5))
         
-        self.start_btn = ctk.CTkButton(bottom_section, text="Generate Shorts", image=self.play_icon, 
+        self.start_btn = ctk.CTkButton(bottom_section, text="Find Highlights", image=self.play_icon, 
             compound="left", font=ctk.CTkFont(size=13, weight="bold"),
             height=40, command=self.start_processing, state="disabled", 
             fg_color="gray", hover_color="gray", corner_radius=8)
         self.start_btn.pack(fill="x", pady=(0, 5))
         
-        browse_link = ctk.CTkLabel(bottom_section, text="📂 Browse Videos", 
+        sessions_link = ctk.CTkLabel(bottom_section, text="📋 Browse Sessions", 
             font=ctk.CTkFont(size=10), text_color=("#3B8ED0", "#1F6AA5"), cursor="hand2")
-        browse_link.pack()
-        browse_link.bind("<Button-1>", lambda e: self.show_page("browse"))
+        sessions_link.pack()
+        sessions_link.bind("<Button-1>", lambda e: self.show_page("session_browser"))
         
         # ===== LIB STATUS =====
         self.lib_status_frame = ctk.CTkFrame(page, fg_color="transparent")
@@ -510,124 +480,6 @@ class YTShortClipperApp(ctk.CTk):
             self.update_start_button_state()
             return False
     
-    def update_caption_switch_text(self):
-        """Update caption switch text based on state"""
-        # Check if trying to turn ON
-        if self.caption_var.get():
-            # Validate Caption Maker API in background
-            self.caption_switch.configure(state="disabled")
-            
-            def validate_caption_api():
-                try:
-                    ai_providers = self.config.get("ai_providers", {})
-                    cm_config = ai_providers.get("caption_maker", {})
-                    api_key = cm_config.get("api_key", "").strip()
-                    base_url = cm_config.get("base_url", "https://api.openai.com/v1").strip()
-                    model = cm_config.get("model", "").strip()
-                    
-                    if not api_key or not model:
-                        self.after(0, lambda: self._on_caption_validation_failed("API Key or Model not configured"))
-                        return
-                    
-                    # Test API connection
-                    from openai import OpenAI
-                    client = OpenAI(api_key=api_key, base_url=base_url)
-                    
-                    # Get available models
-                    models_response = client.models.list()
-                    available_models = [m.id for m in models_response.data]
-                    
-                    # Check if configured model is available
-                    if model not in available_models:
-                        self.after(0, lambda: self._on_caption_validation_failed(f"Model '{model}' not available"))
-                        return
-                    
-                    # Validation successful
-                    self.after(0, self._on_caption_validation_success)
-                    
-                except Exception as e:
-                    error_msg = str(e)[:100]
-                    self.after(0, lambda: self._on_caption_validation_failed(error_msg))
-            
-            threading.Thread(target=validate_caption_api, daemon=True).start()
-            return
-        
-        # Update text when turning OFF
-        self.caption_switch.configure(text="OFF", state="normal")
-    
-    def _on_caption_validation_success(self):
-        """Handle successful caption API validation"""
-        self.caption_switch.configure(text="ON", state="normal")
-    
-    def _on_caption_validation_failed(self, error_msg):
-        """Handle failed caption API validation"""
-        self.caption_var.set(False)
-        self.caption_switch.configure(text="OFF", state="normal")
-        messagebox.showerror("Caption Maker Validation Failed", 
-            f"Caption Maker API validation failed!\n\n" +
-            f"Error: {error_msg}\n\n" +
-            "Please check your configuration in:\n" +
-            "Settings → AI API Settings → Caption Maker")
-    
-    def update_hook_switch_text(self):
-        """Update hook switch text based on state"""
-        # Check if trying to turn ON
-        if self.hook_var.get():
-            # Validate Hook Maker API in background
-            self.hook_switch.configure(state="disabled")
-            
-            def validate_hook_api():
-                try:
-                    ai_providers = self.config.get("ai_providers", {})
-                    hm_config = ai_providers.get("hook_maker", {})
-                    api_key = hm_config.get("api_key", "").strip()
-                    base_url = hm_config.get("base_url", "https://api.openai.com/v1").strip()
-                    model = hm_config.get("model", "").strip()
-                    
-                    if not api_key or not model:
-                        self.after(0, lambda: self._on_hook_validation_failed("API Key or Model not configured"))
-                        return
-                    
-                    # Test API connection
-                    from openai import OpenAI
-                    client = OpenAI(api_key=api_key, base_url=base_url)
-                    
-                    # Get available models
-                    models_response = client.models.list()
-                    available_models = [m.id for m in models_response.data]
-                    
-                    # Check if configured model is available
-                    if model not in available_models:
-                        self.after(0, lambda: self._on_hook_validation_failed(f"Model '{model}' not available"))
-                        return
-                    
-                    # Validation successful
-                    self.after(0, self._on_hook_validation_success)
-                    
-                except Exception as e:
-                    error_msg = str(e)[:100]
-                    self.after(0, lambda: self._on_hook_validation_failed(error_msg))
-            
-            threading.Thread(target=validate_hook_api, daemon=True).start()
-            return
-        
-        # Update text when turning OFF
-        self.hook_switch.configure(text="OFF", state="normal")
-    
-    def _on_hook_validation_success(self):
-        """Handle successful hook API validation"""
-        self.hook_switch.configure(text="ON", state="normal")
-    
-    def _on_hook_validation_failed(self, error_msg):
-        """Handle failed hook API validation"""
-        self.hook_var.set(False)
-        self.hook_switch.configure(text="OFF", state="normal")
-        messagebox.showerror("Hook Maker Validation Failed", 
-            f"Hook Maker API validation failed!\n\n" +
-            f"Error: {error_msg}\n\n" +
-            "Please check your configuration in:\n" +
-            "Settings → AI API Settings → Hook Maker")
-
     def create_processing_page(self):
         """Create processing page as embedded frame"""
         self.pages["processing"] = ProcessingPage(
@@ -639,6 +491,34 @@ class YTShortClipperApp(ctk.CTk):
         )
         # Keep reference to steps for update_progress
         self.steps = self.pages["processing"].steps
+    
+    def create_clipping_page(self):
+        """Create clipping page as embedded frame"""
+        self.pages["clipping"] = ClippingPage(
+            self.container,
+            self.cancel_processing,
+            lambda: self.show_page("home"),
+            self.open_output,
+            lambda: self.show_page("session_browser")
+        )
+    
+    def create_highlight_selection_page(self):
+        """Create highlight selection page as embedded frame"""
+        self.pages["highlight_selection"] = HighlightSelectionPage(
+            self.container,
+            lambda: self.show_page("home"),  # Back to home
+            self.process_selected_highlights  # Process callback
+        )
+    
+    def create_session_browser_page(self):
+        """Create session browser page as embedded frame"""
+        self.pages["session_browser"] = SessionBrowserPage(
+            self.container,
+            self.config,
+            lambda: self.show_page("home"),  # Back to home
+            self.resume_session,  # Resume callback
+            self  # Pass app reference
+        )
     
     def create_results_page(self):
         """Create results page as embedded frame"""
@@ -1147,88 +1027,6 @@ class YTShortClipperApp(ctk.CTk):
                         "Settings → AI API Settings → Highlight Finder"))
                     return
                 
-                # Validate Caption Maker if captions are enabled
-                if self.caption_var.get():
-                    cm_config = ai_providers.get("caption_maker", {})
-                    cm_api_key = cm_config.get("api_key", "").strip()
-                    cm_base_url = cm_config.get("base_url", "https://api.openai.com/v1").strip()
-                    cm_model = cm_config.get("model", "").strip()
-                    
-                    if not cm_api_key or not cm_model:
-                        self.after(0, lambda: self._on_validation_failed(
-                            "Caption Maker API is not configured!\n\n" +
-                            "Captions feature requires Whisper API.\n\n" +
-                            "Please either:\n" +
-                            "• Configure it in Settings → AI API Settings → Caption Maker\n" +
-                            "• Or disable Captions toggle"))
-                        return
-                    
-                    try:
-                        cm_client = OpenAI(api_key=cm_api_key, base_url=cm_base_url)
-                        
-                        # Try to list models to verify API key and model availability
-                        try:
-                            cm_models = cm_client.models.list()
-                            cm_available = [m.id for m in cm_models.data]
-                            
-                            if cm_model not in cm_available:
-                                self.after(0, lambda: self._on_validation_failed(
-                                    f"Caption Maker model '{cm_model}' is not available!\n\n" +
-                                    "Please check your configuration or disable Captions toggle."))
-                                return
-                        except Exception as list_error:
-                            # If models.list() fails, the API key might still be valid
-                            # Some providers don't support models.list()
-                            pass
-                        
-                    except Exception as e:
-                        self.after(0, lambda: self._on_validation_failed(
-                            f"Caption Maker API validation failed!\n\n" +
-                            f"Error: {str(e)[:100]}\n\n" +
-                            "Please check your configuration or disable Captions toggle."))
-                        return
-                
-                # Validate Hook Maker if hook is enabled
-                if self.hook_var.get():
-                    hm_config = ai_providers.get("hook_maker", {})
-                    hm_api_key = hm_config.get("api_key", "").strip()
-                    hm_base_url = hm_config.get("base_url", "https://api.openai.com/v1").strip()
-                    hm_model = hm_config.get("model", "").strip()
-                    
-                    if not hm_api_key or not hm_model:
-                        self.after(0, lambda: self._on_validation_failed(
-                            "Hook Maker API is not configured!\n\n" +
-                            "Hook Text feature requires TTS API.\n\n" +
-                            "Please either:\n" +
-                            "• Configure it in Settings → AI API Settings → Hook Maker\n" +
-                            "• Or disable Hook Text toggle"))
-                        return
-                    
-                    try:
-                        hm_client = OpenAI(api_key=hm_api_key, base_url=hm_base_url)
-                        
-                        # Try to list models to verify API key and model availability
-                        try:
-                            hm_models = hm_client.models.list()
-                            hm_available = [m.id for m in hm_models.data]
-                            
-                            if hm_model not in hm_available:
-                                self.after(0, lambda: self._on_validation_failed(
-                                    f"Hook Maker model '{hm_model}' is not available!\n\n" +
-                                    "Please check your configuration or disable Hook Text toggle."))
-                                return
-                        except Exception as list_error:
-                            # If models.list() fails, the API key might still be valid
-                            # Some providers don't support models.list()
-                            pass
-                        
-                    except Exception as e:
-                        self.after(0, lambda: self._on_validation_failed(
-                            f"Hook Maker API validation failed!\n\n" +
-                            f"Error: {str(e)[:100]}\n\n" +
-                            "Please check your configuration or disable Hook Text toggle."))
-                        return
-                
                 # All validations passed, proceed with processing
                 self.after(0, self._start_processing_validated)
                 
@@ -1239,12 +1037,12 @@ class YTShortClipperApp(ctk.CTk):
     
     def _on_validation_failed(self, error_msg):
         """Handle validation failure"""
-        self.start_btn.configure(state="normal", text="Generate Shorts")
+        self.start_btn.configure(state="normal", text="Find Highlights")
         messagebox.showerror("Validation Failed", error_msg)
     
     def _start_processing_validated(self):
         """Start processing after validation passed"""
-        self.start_btn.configure(state="normal", text="Generate Shorts")
+        self.start_btn.configure(state="normal", text="Find Highlights")
         
         # Legacy validation (backward compatibility)
         if not self.client:
@@ -1263,10 +1061,6 @@ class YTShortClipperApp(ctk.CTk):
             messagebox.showerror("Error", "Clips must be 1-10!")
             return
         
-        # Get options
-        add_captions = self.caption_var.get()
-        add_hook = self.hook_var.get()
-        
         # Get selected subtitle language (extract code from "id - Indonesian" format)
         subtitle_selection = self.subtitle_var.get()
         subtitle_lang = subtitle_selection.split(" - ")[0] if " - " in subtitle_selection else "id"
@@ -1284,7 +1078,10 @@ class YTShortClipperApp(ctk.CTk):
         output_dir = self.config.get("output_dir", str(OUTPUT_DIR))
         model = self.config.get("model", "gpt-4.1")
         
-        threading.Thread(target=self.run_processing, args=(url, num_clips, output_dir, model, add_captions, add_hook, subtitle_lang), daemon=True).start()
+        # NEW FLOW: Only find highlights (don't process yet)
+        threading.Thread(target=self.run_find_highlights, 
+                        args=(url, num_clips, output_dir, model, subtitle_lang), 
+                        daemon=True).start()
     
     def run_processing(self, url, num_clips, output_dir, model, add_captions, add_hook, subtitle_lang="id"):
         try:
@@ -1419,23 +1216,280 @@ class YTShortClipperApp(ctk.CTk):
         tts_chars = self.token_usage['tts_chars']
         self.pages["processing"].update_tokens(gpt_total, whisper_minutes, tts_chars)
     
+    def run_find_highlights(self, url, num_clips, output_dir, model, subtitle_lang="id"):
+        """NEW: Phase 1 - Find highlights only (don't process yet)"""
+        try:
+            from clipper_core import AutoClipperCore
+            
+            # Wrapper for log callback
+            def log_with_debug(msg):
+                debug_log(msg)
+                self.after(0, lambda: self.update_status(msg))
+            
+            # Get system prompt from config
+            ai_providers = self.config.get("ai_providers", {})
+            highlight_finder = ai_providers.get("highlight_finder", {})
+            system_prompt = highlight_finder.get("system_message") or self.config.get("system_prompt", None)
+            
+            temperature = self.config.get("temperature", 1.0)
+            
+            core = AutoClipperCore(
+                client=self.client,
+                ffmpeg_path=get_ffmpeg_path(),
+                ytdlp_path=get_ytdlp_path(),
+                output_dir=output_dir,
+                model=model,
+                temperature=temperature,
+                system_prompt=system_prompt,
+                ai_providers=self.config.get("ai_providers"),
+                subtitle_language=subtitle_lang,
+                log_callback=log_with_debug,
+                progress_callback=lambda s, p: self.after(0, lambda: self.update_progress(s, p)),
+                token_callback=lambda a, b, c, d: self.after(0, lambda: self.update_tokens(a, b, c, d)),
+                cancel_check=lambda: self.cancelled
+            )
+            
+            # Call find_highlights_only (returns session data)
+            result = core.find_highlights_only(url, num_clips)
+            
+            if not self.cancelled and result:
+                # Store session data for later processing
+                self.session_data = result
+                
+                # Navigate to highlight selection page
+                self.after(0, self.show_highlight_selection)
+            elif self.cancelled:
+                self.after(0, self.on_cancelled)
+                
+        except Exception as e:
+            error_msg = str(e)
+            debug_log(f"ERROR: {error_msg}")
+            log_error(f"Find highlights failed for URL: {url}", e)
+            
+            if self.cancelled or "cancel" in error_msg.lower():
+                self.after(0, self.on_cancelled)
+            else:
+                self.after(0, lambda: self.on_error(error_msg))
+    
+    def show_highlight_selection(self):
+        """Show highlight selection page with found highlights"""
+        if not self.session_data:
+            messagebox.showerror("Error", "No highlight data available")
+            self.show_page("home")
+            return
+        
+        # Set highlights in selection page
+        self.pages["highlight_selection"].set_highlights(
+            self.session_data["highlights"],
+            self.session_data["video_path"],
+            self.session_data["session_dir"]
+        )
+        
+        # Show the page
+        self.show_page("highlight_selection")
+        
+        # Reset processing flag
+        self.processing = False
+    
+    def resume_session(self, session_data: dict):
+        """Resume a previous session"""
+        # Store session data
+        self.session_data = session_data
+        
+        # Navigate to highlight selection page
+        self.show_highlight_selection()
+    
+    def load_session_clips(self, clips_dir: Path):
+        """Load clips from a session's clips folder and show results page"""
+        # Change back button to go to session browser instead of processing
+        self.pages["results"].set_back_callback(lambda: self.show_page("session_browser"))
+        
+        # Load clips from the specific directory
+        self.pages["results"].load_clips(clips_dir)
+        
+        # Show results page
+        self.pages["results"].show_results()
+        self.show_page("results")
+    
+    def process_selected_highlights(self, selected_highlights: list, add_captions: bool = False, add_hook: bool = False):
+        """NEW: Phase 2 - Process only selected highlights"""
+        if not self.session_data:
+            messagebox.showerror("Error", "No session data available")
+            return
+        
+        # Store enhancement options
+        self.add_captions = add_captions
+        self.add_hook = add_hook
+        
+        # Reset UI for clipping
+        self.processing = True
+        self.cancelled = False
+        
+        # Reset clipping page UI
+        self.pages["clipping"].reset_ui()
+        self.show_page("clipping")
+        
+        # Start processing in background thread
+        threading.Thread(
+            target=self.run_process_selected,
+            args=(selected_highlights,),
+            daemon=True
+        ).start()
+    
+    def run_process_selected(self, selected_highlights: list):
+        """Process selected highlights in background thread"""
+        try:
+            from clipper_core import AutoClipperCore
+            
+            # Store total clips for progress tracking
+            self.total_clips = len(selected_highlights)
+            self.current_clip = 0
+            
+            # Wrapper for log callback with clipping progress
+            def log_with_debug(msg):
+                debug_log(msg)
+                self.after(0, lambda: self.update_clipping_status(msg))
+            
+            # Get config
+            ai_providers = self.config.get("ai_providers", {})
+            highlight_finder = ai_providers.get("highlight_finder", {})
+            system_prompt = highlight_finder.get("system_message") or self.config.get("system_prompt", None)
+            
+            temperature = self.config.get("temperature", 1.0)
+            tts_model = self.config.get("tts_model", "tts-1")
+            watermark_settings = self.config.get("watermark", {"enabled": False})
+            credit_watermark_settings = self.config.get("credit_watermark", {"enabled": False})
+            face_tracking_mode = self.config.get("face_tracking_mode", "opencv")
+            mediapipe_settings = self.config.get("mediapipe_settings", {
+                "lip_activity_threshold": 0.15,
+                "switch_threshold": 0.3,
+                "min_shot_duration": 90,
+                "center_weight": 0.3
+            })
+            
+            output_dir = self.config.get("output_dir", str(OUTPUT_DIR))
+            model = self.config.get("model", "gpt-4.1")
+            
+            core = AutoClipperCore(
+                client=self.client,
+                ffmpeg_path=get_ffmpeg_path(),
+                ytdlp_path=get_ytdlp_path(),
+                output_dir=output_dir,
+                model=model,
+                tts_model=tts_model,
+                temperature=temperature,
+                system_prompt=system_prompt,
+                watermark_settings=watermark_settings,
+                credit_watermark_settings=credit_watermark_settings,
+                face_tracking_mode=face_tracking_mode,
+                mediapipe_settings=mediapipe_settings,
+                ai_providers=self.config.get("ai_providers"),
+                subtitle_language="id",  # Already downloaded
+                log_callback=log_with_debug,
+                progress_callback=lambda s, p: self.after(0, lambda: self.update_clipping_progress(s, p)),
+                token_callback=lambda a, b, c, d: None,  # No token tracking for clipping
+                cancel_check=lambda: self.cancelled
+            )
+            
+            # Enable GPU acceleration if configured
+            gpu_settings = self.config.get("gpu_acceleration", {})
+            if gpu_settings.get("enabled", False):
+                core.enable_gpu_acceleration(True)
+            
+            # Process selected highlights
+            core.process_selected_highlights(
+                self.session_data["video_path"],
+                selected_highlights,
+                self.session_data["session_dir"],
+                add_captions=self.add_captions,
+                add_hook=self.add_hook
+            )
+            
+            if not self.cancelled:
+                self.after(0, self.on_clipping_complete)
+                
+        except Exception as e:
+            error_msg = str(e)
+            debug_log(f"ERROR: {error_msg}")
+            log_error(f"Process selected highlights failed", e)
+            
+            if self.cancelled or "cancel" in error_msg.lower():
+                self.after(0, self.on_clipping_cancelled)
+            else:
+                self.after(0, lambda: self.on_clipping_error(error_msg))
+    
+    def update_clipping_status(self, msg: str):
+        """Update clipping page status"""
+        self.pages["clipping"].update_status(msg)
+    
+    def update_clipping_progress(self, status: str, progress: float):
+        """Update clipping progress from clipper_core"""
+        # Parse status to extract clip number and title
+        # Format: "Clip 1/3: Converting to portrait... (50%)"
+        if "Clip " in status:
+            try:
+                # Extract clip number
+                clip_part = status.split("Clip ")[1].split(":")[0]  # "1/3"
+                current = int(clip_part.split("/")[0])
+                total = int(clip_part.split("/")[1])
+                
+                # Extract title (everything after "Clip X/Y: " and before " (")
+                title_part = status.split(": ", 1)[1]
+                if " (" in title_part:
+                    title = title_part.split(" (")[0]
+                else:
+                    title = title_part
+                
+                # Update UI
+                self.pages["clipping"].update_progress(current, total, title)
+                self.pages["clipping"].update_status(status)
+            except:
+                # Fallback: just update status
+                self.pages["clipping"].update_status(status)
+        else:
+            # Not a clip progress message, just update status
+            self.pages["clipping"].update_status(status)
+    
     def cancel_processing(self):
         if messagebox.askyesno("Cancel", "Are you sure you want to cancel?"):
             self.cancelled = True
-            self.pages["processing"].update_status("⚠️ Cancelling... please wait")
-            self.pages["processing"].cancel_btn.configure(state="disabled")
+            # Update both pages
+            if "processing" in self.pages:
+                self.pages["processing"].update_status("⚠️ Cancelling... please wait")
+                self.pages["processing"].cancel_btn.configure(state="disabled")
+            if "clipping" in self.pages:
+                self.pages["clipping"].update_status("⚠️ Cancelling... please wait")
+                self.pages["clipping"].cancel_btn.configure(state="disabled")
     
     def on_cancelled(self):
         """Called when processing is cancelled"""
         self.processing = False
         self.pages["processing"].on_cancelled()
     
+    def on_clipping_cancelled(self):
+        """Called when clipping is cancelled"""
+        self.processing = False
+        self.pages["clipping"].on_cancelled()
+    
     def on_complete(self):
         self.processing = False
         self.pages["processing"].on_complete()
         
+        # Reset back button to default (processing page)
+        self.pages["results"].set_back_callback(self.pages["results"].default_back_callback)
+        
         # Load created clips in results page
         self.pages["results"].load_clips()
+    
+    def on_clipping_complete(self):
+        """Called when clipping completes successfully"""
+        self.processing = False
+        self.pages["clipping"].on_complete()
+    
+    def on_clipping_error(self, error: str):
+        """Called when clipping encounters an error"""
+        self.processing = False
+        self.pages["clipping"].on_error(error)
     
     def show_browse_after_complete(self):
         """Show browse page after processing complete"""

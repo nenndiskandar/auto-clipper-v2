@@ -331,6 +331,14 @@ def setup_ffmpeg(app_dir: Path, progress_callback=None) -> bool:
                     shutil.copy2(probe_src, probe_dest)
                     debug_log(f"FFprobe copied to: {probe_dest}")
                 
+                # Also copy ffplay if exists
+                play_name = "ffplay.exe" if os_type == 'windows' else "ffplay"
+                play_src = Path(root) / play_name
+                if play_src.exists():
+                    play_dest = ffmpeg_dir / play_name
+                    shutil.copy2(play_src, play_dest)
+                    debug_log(f"FFplay copied to: {play_dest}")
+                
                 break
         
         if not found:

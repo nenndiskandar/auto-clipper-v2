@@ -27,11 +27,16 @@ class ResultsPage(ctk.CTkFrame):
         self.on_back = on_back_callback
         self.on_home = on_home_callback
         self.open_output = open_output_callback
+        self.default_back_callback = on_back_callback  # Store default
         
         self.created_clips = []
         self._thumb_refs = []
         
         self.create_ui()
+    
+    def set_back_callback(self, callback):
+        """Change the back button callback dynamically"""
+        self.on_back = callback
     
     def create_ui(self):
         """Create the results page UI"""
@@ -52,31 +57,60 @@ class ResultsPage(ctk.CTkFrame):
         ctk.CTkButton(btn_frame, text="📂 Open Folder", height=45, command=self.open_output).pack(side="left", fill="x", expand=True, padx=(5, 5))
         ctk.CTkButton(btn_frame, text="🏠 New Clip", height=45, fg_color="#27ae60", hover_color="#2ecc71", command=self.on_home).pack(side="left", fill="x", expand=True, padx=(5, 0))
     
-    def load_clips(self):
-        """Load info about created clips from output directory"""
-        output_dir = Path(self.config.get("output_dir", "output"))
-        self.created_clips = []
-        
-        # Find all clip folders (sorted by name = creation time)
-        clip_folders = sorted([d for d in output_dir.iterdir() if d.is_dir() and not d.name.startswith("_")], reverse=True)
-        
-        for folder in clip_folders[:20]:  # Limit to 20 most recent
-            data_file = folder / "data.json"
-            master_file = folder / "master.mp4"
+    def load_clips(self, clips_dir: Path = None):
+        """Load info about created clips from output directory or specific clips folder"""
+        if clips_dir is None:
+            # Default behavior: load from output directory
+            output_dir = Path(self.config.get("output_dir", "output"))
+            self.created_clips = []
             
-            if data_file.exists() and master_file.exists():
-                try:
-                    with open(data_file, "r", encoding="utf-8") as f:
-                        data = json.load(f)
-                    self.created_clips.append({
-                        "folder": folder,
-                        "video": master_file,
-                        "title": data.get("title", "Untitled"),
-                        "hook_text": data.get("hook_text", ""),
-                        "duration": data.get("duration_seconds", 0)
-                    })
-                except:
-                    pass
+            # Find all clip folders (sorted by name = creation time)
+            clip_folders = sorted([d for d in output_dir.iterdir() if d.is_dir() and not d.name.startswith("_")], reverse=True)
+            
+            for folder in clip_folders[:20]:  # Limit to 20 most recent
+                data_file = folder / "data.json"
+                master_file = folder / "master.mp4"
+                
+                if data_file.exists() and master_file.exists():
+                    try:
+                        with open(data_file, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                        self.created_clips.append({
+                            "folder": folder,
+                            "video": master_file,
+                            "title": data.get("title", "Untitled"),
+                            "hook_text": data.get("hook_text", ""),
+                            "duration": data.get("duration_seconds", 0)
+                        })
+                    except:
+                        pass
+        else:
+            # Load from specific clips directory (session-based)
+            self.created_clips = []
+            
+            if not clips_dir.exists():
+                return
+            
+            # Find all clip folders in the clips directory
+            clip_folders = sorted([d for d in clips_dir.iterdir() if d.is_dir()], reverse=True)
+            
+            for folder in clip_folders:
+                data_file = folder / "data.json"
+                master_file = folder / "master.mp4"
+                
+                if data_file.exists() and master_file.exists():
+                    try:
+                        with open(data_file, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                        self.created_clips.append({
+                            "folder": folder,
+                            "video": master_file,
+                            "title": data.get("title", "Untitled"),
+                            "hook_text": data.get("hook_text", ""),
+                            "duration": data.get("duration_seconds", 0)
+                        })
+                    except:
+                        pass
     
     def show_results(self):
         """Show results page with clip list"""
@@ -125,6 +159,12 @@ class ResultsPage(ctk.CTkFrame):
         ctk.CTkButton(btn_frame, text="📂", width=35, height=30, fg_color="gray",
             command=lambda f=clip["folder"]: self.open_folder(f)).pack(side="left", padx=2)
         
+        # Repliz upload button
+        repliz_btn = ctk.CTkButton(btn_frame, text="📤 Repliz", width=60, height=30, 
+            fg_color="#9b59b6", hover_color="#8e44ad",
+            command=lambda c=clip: self.upload_to_repliz(c))
+        repliz_btn.pack(side="left", padx=2)
+        
         # YouTube upload button
         upload_btn = ctk.CTkButton(btn_frame, text="⬆️ YT", width=50, height=30, 
             fg_color="#c4302b", hover_color="#ff0000",
@@ -157,6 +197,35 @@ class ResultsPage(ctk.CTkFrame):
             
         except ImportError:
             messagebox.showerror("Error", "YouTube upload module not available.\nInstall: pip install google-api-python-client google-auth-oauthlib")
+        except Exception as e:
+            messagebox.showerror("Error", f"Upload error: {str(e)}")
+    
+    def upload_to_repliz(self, clip: dict):
+        """Open Repliz upload dialog for a clip"""
+        try:
+            # Check if Repliz is configured
+            repliz_config = self.config.get("repliz", {})
+            access_key = repliz_config.get("access_key", "")
+            secret_key = repliz_config.get("secret_key", "")
+            
+            if not access_key or not secret_key:
+                messagebox.showerror("Repliz Not Configured", 
+                    "Please configure Repliz API keys in Settings → Repliz tab first.")
+                return
+            
+            # Get OpenAI client and config for metadata generation
+            yt_client = self.get_youtube_client()
+            ai_providers = self.config.get("ai_providers", {})
+            yt_config = ai_providers.get("youtube_title_maker", {})
+            model = yt_config.get("model", self.config.get("model", "gpt-4.1"))
+            
+            # Open Repliz account selection dialog
+            from dialogs.repliz_upload import ReplizUploadDialog
+            ReplizUploadDialog(self, clip, access_key, secret_key, 
+                yt_client, model, self.config.get("temperature", 1.0))
+            
+        except ImportError:
+            messagebox.showerror("Error", "Repliz upload module not available.")
         except Exception as e:
             messagebox.showerror("Error", f"Upload error: {str(e)}")
     

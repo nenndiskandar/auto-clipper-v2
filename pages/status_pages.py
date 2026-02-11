@@ -345,13 +345,27 @@ class LibStatusPage(ctk.CTkFrame):
         ffmpeg_card = ctk.CTkFrame(lib_cards_frame, fg_color=("gray85", "gray20"), corner_radius=8)
         ffmpeg_card.grid(row=0, column=1, padx=5, pady=5, sticky="nsew")
         self.ffmpeg_card = ffmpeg_card  # Store reference for download button
-        ctk.CTkLabel(ffmpeg_card, text="🎬 FFmpeg", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=10, pady=(10, 5))
+        ctk.CTkLabel(ffmpeg_card, text="🎬 FFmpeg Suite", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=10, pady=(10, 5))
         self.ffmpeg_status_label = ctk.CTkLabel(ffmpeg_card, text="Checking...", font=ctk.CTkFont(size=10), text_color="gray")
         self.ffmpeg_status_label.pack(anchor="w", padx=10)
         self.ffmpeg_info_label = ctk.CTkLabel(ffmpeg_card, text="", font=ctk.CTkFont(size=9), text_color="gray")
-        self.ffmpeg_info_label.pack(anchor="w", padx=10, pady=(2, 5))
+        self.ffmpeg_info_label.pack(anchor="w", padx=10, pady=(2, 0))
+        
+        # Sub-components frame (ffmpeg, ffprobe, ffplay)
+        self.ffmpeg_components_frame = ctk.CTkFrame(ffmpeg_card, fg_color="transparent")
+        self.ffmpeg_components_frame.pack(fill="x", padx=10, pady=(5, 5))
+        
+        self.ffmpeg_exe_label = ctk.CTkLabel(self.ffmpeg_components_frame, text="", font=ctk.CTkFont(size=8), text_color="gray")
+        self.ffmpeg_exe_label.pack(anchor="w")
+        self.ffprobe_exe_label = ctk.CTkLabel(self.ffmpeg_components_frame, text="", font=ctk.CTkFont(size=8), text_color="gray")
+        self.ffprobe_exe_label.pack(anchor="w")
+        self.ffplay_exe_label = ctk.CTkLabel(self.ffmpeg_components_frame, text="", font=ctk.CTkFont(size=8), text_color="gray")
+        self.ffplay_exe_label.pack(anchor="w")
+        
         self.ffmpeg_download_btn = ctk.CTkButton(ffmpeg_card, text="📥 Download", height=26, font=ctk.CTkFont(size=10),
             command=self.download_ffmpeg, fg_color=("#3B8ED0", "#1F6AA5"))
+        self.ffmpeg_reinstall_btn = ctk.CTkButton(ffmpeg_card, text="🔄 Reinstall", height=26, font=ctk.CTkFont(size=10),
+            command=self.download_ffmpeg, fg_color=("#FF8C00", "#CC7000"))
         self.ffmpeg_progress = ctk.CTkProgressBar(ffmpeg_card, height=6)
         self.ffmpeg_progress_label = ctk.CTkLabel(ffmpeg_card, text="", font=ctk.CTkFont(size=8), text_color="gray")
         
@@ -380,11 +394,15 @@ class LibStatusPage(ctk.CTkFrame):
         self.ytdlp_info_label.configure(text="")
         self.ffmpeg_status_label.configure(text="Checking...", text_color="gray")
         self.ffmpeg_info_label.configure(text="")
+        self.ffmpeg_exe_label.configure(text="")
+        self.ffprobe_exe_label.configure(text="")
+        self.ffplay_exe_label.configure(text="")
         self.deno_status_label.configure(text="Checking...", text_color="gray")
         self.deno_info_label.configure(text="")
         
         # Hide download buttons
         self.ffmpeg_download_btn.pack_forget()
+        self.ffmpeg_reinstall_btn.pack_forget()
         self.deno_download_btn.pack_forget()
         
         def check_libs():
@@ -432,8 +450,53 @@ class LibStatusPage(ctk.CTkFrame):
                         # Extract version from first line
                         version_line = result.stdout.split('\n')[0]
                         version = version_line.split('version')[1].split()[0] if 'version' in version_line else "Unknown"
-                        self.after(0, lambda: self.ffmpeg_status_label.configure(text="✓ Installed", text_color="green"))
-                        self.after(0, lambda: self.ffmpeg_info_label.configure(text=f"v{version}"))
+                        
+                        # Check individual components
+                        import sys
+                        from pathlib import Path
+                        ffmpeg_dir = Path(ffmpeg_path).parent
+                        
+                        # Determine executable names based on OS
+                        if sys.platform == "win32":
+                            ffmpeg_exe = "ffmpeg.exe"
+                            ffprobe_exe = "ffprobe.exe"
+                            ffplay_exe = "ffplay.exe"
+                        else:
+                            ffmpeg_exe = "ffmpeg"
+                            ffprobe_exe = "ffprobe"
+                            ffplay_exe = "ffplay"
+                        
+                        # Check each component
+                        has_ffmpeg = (ffmpeg_dir / ffmpeg_exe).exists()
+                        has_ffprobe = (ffmpeg_dir / ffprobe_exe).exists()
+                        has_ffplay = (ffmpeg_dir / ffplay_exe).exists()
+                        
+                        # Update component labels
+                        self.after(0, lambda: self.ffmpeg_exe_label.configure(
+                            text=f"  {'✓' if has_ffmpeg else '✗'} ffmpeg", 
+                            text_color="green" if has_ffmpeg else "red"
+                        ))
+                        self.after(0, lambda: self.ffprobe_exe_label.configure(
+                            text=f"  {'✓' if has_ffprobe else '✗'} ffprobe", 
+                            text_color="green" if has_ffprobe else "red"
+                        ))
+                        self.after(0, lambda: self.ffplay_exe_label.configure(
+                            text=f"  {'✓' if has_ffplay else '✗'} ffplay (for preview)", 
+                            text_color="green" if has_ffplay else "orange"
+                        ))
+                        
+                        # Determine overall status
+                        if has_ffmpeg and has_ffprobe and has_ffplay:
+                            self.after(0, lambda: self.ffmpeg_status_label.configure(text="✓ Complete", text_color="green"))
+                            self.after(0, lambda: self.ffmpeg_info_label.configure(text=f"v{version}"))
+                        elif has_ffmpeg and has_ffprobe:
+                            self.after(0, lambda: self.ffmpeg_status_label.configure(text="⚠ Incomplete", text_color="orange"))
+                            self.after(0, lambda: self.ffmpeg_info_label.configure(text=f"v{version} (missing ffplay)"))
+                            self.after(0, lambda: self.ffmpeg_reinstall_btn.pack(fill="x", padx=10, pady=(5, 10)))
+                        else:
+                            self.after(0, lambda: self.ffmpeg_status_label.configure(text="⚠ Incomplete", text_color="orange"))
+                            self.after(0, lambda: self.ffmpeg_info_label.configure(text=f"v{version} (missing components)"))
+                            self.after(0, lambda: self.ffmpeg_reinstall_btn.pack(fill="x", padx=10, pady=(5, 10)))
                     else:
                         self.after(0, lambda: self.ffmpeg_status_label.configure(text="✗ Error", text_color="red"))
                         self.after(0, lambda: self.ffmpeg_info_label.configure(text="Failed to get version"))
@@ -443,7 +506,7 @@ class LibStatusPage(ctk.CTkFrame):
             else:
                 self.after(0, lambda: self.ffmpeg_status_label.configure(text="✗ Not found", text_color="orange"))
                 self.after(0, lambda: self.ffmpeg_info_label.configure(text="Click to download"))
-                self.after(0, lambda: self.ffmpeg_download_btn.pack(fill="x", padx=10, pady=(0, 10)))
+                self.after(0, lambda: self.ffmpeg_download_btn.pack(fill="x", padx=10, pady=(5, 10)))
             
             # Check Deno
             deno_installed = check_dependency("deno", app_dir)
@@ -478,6 +541,9 @@ class LibStatusPage(ctk.CTkFrame):
         
         self.downloading = True
         self.ffmpeg_download_btn.configure(state="disabled", text="Downloading...")
+        self.ffmpeg_reinstall_btn.configure(state="disabled", text="Downloading...")
+        self.ffmpeg_download_btn.pack_forget()
+        self.ffmpeg_reinstall_btn.pack_forget()
         self.ffmpeg_progress.pack(fill="x", padx=15, pady=(5, 5))
         self.ffmpeg_progress.set(0)
         self.ffmpeg_progress_label.pack(fill="x", padx=15, pady=(0, 15))
@@ -551,7 +617,8 @@ class LibStatusPage(ctk.CTkFrame):
     
     def _reset_ffmpeg_ui(self):
         """Reset FFmpeg download UI"""
-        self.ffmpeg_download_btn.configure(state="normal", text="📥 Download FFmpeg")
+        self.ffmpeg_download_btn.configure(state="normal", text="📥 Download")
+        self.ffmpeg_reinstall_btn.configure(state="normal", text="🔄 Reinstall")
         self.ffmpeg_progress.pack_forget()
         self.ffmpeg_progress_label.pack_forget()
     
