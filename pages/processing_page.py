@@ -55,6 +55,7 @@ class ProcessingPage(ctk.CTkFrame):
         cards_frame = ctk.CTkFrame(steps_frame, fg_color="transparent")
         cards_frame.pack(fill="x", padx=10, pady=(0, 12))
         cards_frame.grid_columnconfigure((0, 1), weight=1, uniform="step")
+        self.cards_frame = cards_frame
         
         self.steps = []
         step_titles = [
@@ -113,6 +114,35 @@ class ProcessingPage(ctk.CTkFrame):
         self.open_btn.configure(state="disabled")
         self.back_btn.configure(state="disabled")
         self.results_btn.configure(state="disabled")
+    
+    def switch_to_transcription_mode(self):
+        """Rebuild step cards for 3-step AI transcription flow.
+        
+        Replaces the 2-step layout with:
+        1. Download Video
+        2. AI Transcription (Whisper)
+        3. Finding Highlights with AI
+        """
+        # Destroy existing step widgets
+        for step in self.steps:
+            step.destroy()
+        self.steps.clear()
+        
+        # Reconfigure grid for 3 columns
+        self.cards_frame.grid_columnconfigure((0, 1, 2), weight=1, uniform="step")
+        
+        step_titles = [
+            "Downloading Video",
+            "AI Transcription",
+            "Finding Highlights"
+        ]
+        
+        for i, title in enumerate(step_titles):
+            step = ProgressStep(self.cards_frame, i + 1, title)
+            step.grid(row=0, column=i, padx=5, pady=5, sticky="nsew")
+            self.steps.append(step)
+        
+        self.status_label.configure(text="Downloading video...")
     
     def update_status(self, msg: str):
         """Update status label"""

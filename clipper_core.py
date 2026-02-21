@@ -6,6 +6,7 @@ Refactored to use OpenAI Whisper API instead of local model
 import subprocess
 import os
 import re
+import threading
 import json
 import cv2
 import numpy as np
@@ -59,6 +60,18 @@ if sys.platform == "win32":
     SUBPROCESS_FLAGS = subprocess.CREATE_NO_WINDOW
 
 
+class SubtitleNotFoundError(Exception):
+    """Raised when no subtitle is available for the video.
+    
+    Carries context needed to offer Whisper transcription fallback.
+    """
+    def __init__(self, message: str, video_path: str, video_info: dict, session_dir: str = None):
+        super().__init__(message)
+        self.video_path = video_path
+        self.video_info = video_info
+        self.session_dir = session_dir
+
+
 class AutoClipperCore:
     """Core processing logic for Auto Clipper"""
     
@@ -96,11 +109,12 @@ class AutoClipperCore:
             )
             self.model = hf_config.get("model", model)
             
-            # Caption Maker client (Whisper)
+            # Caption Maker client (Whisper) — use longer timeout for large audio uploads
             cm_config = self.ai_providers.get("caption_maker", {})
             self.caption_client = OpenAI(
                 api_key=cm_config.get("api_key", ""),
-                base_url=cm_config.get("base_url", "https://api.openai.com/v1")
+                base_url=cm_config.get("base_url", "https://api.openai.com/v1"),
+                timeout=600.0  # 10 minutes for large audio files
             )
             self.whisper_model = cm_config.get("model", "whisper-1")
             
@@ -395,19 +409,10 @@ Transcript:
             return
         
         if not srt_path:
-            # Provide helpful error message with available subtitles
-            raise Exception(
-                f"❌ ERROR: Subtitle tidak tersedia\n\n"
-                f"Video ini tidak memiliki subtitle bahasa: {self.subtitle_language.upper()}\n\n"
-                f"SOLUSI:\n"
-                f"1. Cek subtitle yang tersedia untuk video ini:\n"
-                f"   - Klik tombol 'Check Subtitles' di aplikasi\n"
-                f"   - Atau buka video di YouTube dan cek CC/subtitle\n\n"
-                f"2. Pilih bahasa subtitle lain yang tersedia\n"
-                f"   (contoh: en - English, es - Spanish)\n\n"
-                f"3. Atau gunakan video lain yang punya subtitle Indonesia\n\n"
-                f"💡 TIP: Video podcast/interview biasanya punya auto-generated subtitle\n"
-                f"dalam berbagai bahasa. Pilih yang paling mendekati."
+            raise SubtitleNotFoundError(
+                f"No subtitle available for language: {self.subtitle_language.upper()}",
+                video_path=video_path,
+                video_info=video_info
             )
         
         # Step 2: Find highlights
@@ -494,10 +499,6 @@ Transcript:
         ydl_opts = {
             'format': format_selector,
             'format_sort': ['res', 'br'],
-            'writesubtitles': True,
-            'writeautomaticsub': True,
-            'subtitleslangs': [self.subtitle_language],
-            'subtitlesformat': 'srt',
             'merge_output_format': 'mp4',
             'outtmpl': str(self.temp_dir / 'source.%(ext)s'),
             'progress_hooks': [progress_hook],
@@ -505,6 +506,15 @@ Transcript:
             'no_warnings': False,
             'extract_flat': False,
         }
+        
+        # Only request subtitles if a real language is selected (skip for AI transcription mode)
+        if self.subtitle_language and self.subtitle_language != "none":
+            ydl_opts['writesubtitles'] = True
+            ydl_opts['writeautomaticsub'] = True
+            ydl_opts['subtitleslangs'] = [self.subtitle_language]
+            ydl_opts['subtitlesformat'] = 'srt'
+        else:
+            self.log("  Skipping subtitle download (AI transcription mode)")
         
         # Add Deno JS runtime if available
         if deno_path and Path(deno_path).exists():
@@ -519,12 +529,12 @@ Transcript:
             ydl_opts['ffmpeg_location'] = str(Path(ffmpeg_path).parent)
             self.log(f"  FFmpeg location: {ydl_opts['ffmpeg_location']}")
             
-            # Only add subtitle converter postprocessor if FFmpeg is available
-            # This prevents "Postprocessing: Conversion failed!" error
-            ydl_opts['postprocessors'] = [{
-                'key': 'FFmpegSubtitlesConvertor',
-                'format': 'srt',
-            }]
+            # Only add subtitle converter postprocessor if FFmpeg is available AND subtitles requested
+            if self.subtitle_language and self.subtitle_language != "none":
+                ydl_opts['postprocessors'] = [{
+                    'key': 'FFmpegSubtitlesConvertor',
+                    'format': 'srt',
+                }]
         else:
             self.log(f"  WARNING: FFmpeg not found - subtitle conversion disabled")
         
@@ -568,7 +578,10 @@ Transcript:
                     self.log(f"  Title: {video_info['title'][:50]}...")
                 
                 # Now download
-                self.log(f"  Downloading video with {self.subtitle_language} subtitle...")
+                if self.subtitle_language and self.subtitle_language != "none":
+                    self.log(f"  Downloading video with {self.subtitle_language} subtitle...")
+                else:
+                    self.log(f"  Downloading video (no subtitle, AI transcription mode)...")
                 ydl.download([url])
             
             self.log(f"  ✓ Download successful!")
@@ -708,7 +721,10 @@ Transcript:
                 self.log("  Warning: Could not parse metadata")
         
         # Download video + subtitle with progress
-        self.log(f"  Downloading video with {self.subtitle_language} subtitle...")
+        if self.subtitle_language and self.subtitle_language != "none":
+            self.log(f"  Downloading video with {self.subtitle_language} subtitle...")
+        else:
+            self.log(f"  Downloading video (no subtitle, AI transcription mode)...")
         
         # Try multiple download strategies (fallback on failure)
         download_strategies = [
@@ -742,14 +758,22 @@ Transcript:
                 "--format-sort", "res,br",
                 *base_args,
                 *strategy["extra_args"],
-                "--write-sub", "--write-auto-sub",
-                "--sub-lang", self.subtitle_language,
-                "--convert-subs", "srt",
+            ]
+            
+            # Only request subtitles if a real language is selected
+            if self.subtitle_language and self.subtitle_language != "none":
+                cmd.extend([
+                    "--write-sub", "--write-auto-sub",
+                    "--sub-lang", self.subtitle_language,
+                    "--convert-subs", "srt",
+                ])
+            
+            cmd.extend([
                 "--merge-output-format", "mp4",
                 "--newline",
                 "-o", str(self.temp_dir / "source.%(ext)s"),
                 url
-            ]
+            ])
             
             # Run with realtime progress output
             process = subprocess.Popen(
@@ -941,16 +965,26 @@ Transcript:
                     "automatic_captions": []
                 }
             
-            # Validate cookies file has required YouTube auth cookies
+            # Validate cookies file has YouTube auth cookies
+            # Check both plain cookies (SID, HSID, etc.) and __Secure- prefixed variants
+            # Modern browsers/extensions often export only __Secure- versions
             required_cookies = ['SID', 'HSID', 'SSID', 'APISID', 'SAPISID', 'LOGIN_INFO']
+            secure_prefixes = ['__Secure-1P', '__Secure-3P']
             found_cookies = []
             try:
                 with open(cookies_path, 'r', encoding='utf-8') as f:
                     content = f.read()
                     for cookie in required_cookies:
-                        # Check for cookie name in the file (tab-separated format)
+                        # Check plain cookie name (tab-separated format)
                         if f"\t{cookie}\t" in content or content.endswith(f"\t{cookie}"):
                             found_cookies.append(cookie)
+                        else:
+                            # Check __Secure- prefixed variants (e.g. __Secure-3PSID)
+                            for prefix in secure_prefixes:
+                                secure_name = f"{prefix}{cookie}"
+                                if f"\t{secure_name}\t" in content or content.endswith(f"\t{secure_name}"):
+                                    found_cookies.append(secure_name)
+                                    break
                 
                 if not found_cookies:
                     debug_log(f"Cookies file missing required auth cookies. Found: {found_cookies}")
@@ -1157,6 +1191,325 @@ Transcript:
             lines.append(f"[{start} - {end}] {clean_text}")
         
         return "\n".join(lines)
+    
+    def transcribe_full_video(self, video_path: str) -> str:
+        """Transcribe full video audio using Whisper API (Caption Maker).
+        
+        Extracts audio from the video, compresses to mp3, splits into chunks
+        if needed (Whisper API has ~25MB limit), and returns a transcript
+        formatted like parse_srt output so find_highlights can consume it directly.
+        
+        Returns:
+            str: Transcript with timestamps in SRT-like format:
+                 [HH:MM:SS,mmm - HH:MM:SS,mmm] text
+        """
+        self.log("[AI Transcription] Transcribing full video with Whisper API...")
+        
+        # Check Caption Maker is configured
+        cm_config = self.ai_providers.get("caption_maker", {})
+        if not cm_config.get("api_key"):
+            raise Exception(
+                "Caption Maker is not configured!\n\n"
+                "Please set up Caption Maker in:\n"
+                "Settings → AI API Settings → Caption Maker"
+            )
+        
+        # Extract audio as compressed mp3 to minimize file size
+        audio_file = tempfile.NamedTemporaryFile(suffix='.mp3', delete=False).name
+        cmd = [
+            self.ffmpeg_path, "-y",
+            "-i", video_path,
+            "-vn",
+            "-acodec", "libmp3lame",
+            "-ar", "16000",
+            "-ac", "1",
+            "-b:a", "64k",
+            audio_file
+        ]
+        self.log("  Extracting audio from video...")
+        result = subprocess.run(cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
+        
+        if result.returncode != 0:
+            if os.path.exists(audio_file):
+                os.unlink(audio_file)
+            raise Exception(f"Failed to extract audio from video:\n{result.stderr[:200]}")
+        
+        file_size_mb = os.path.getsize(audio_file) / (1024 * 1024)
+        self.log(f"  Audio file size: {file_size_mb:.1f} MB")
+        
+        # Get total audio duration
+        probe_cmd = [self.ffmpeg_path, "-i", audio_file, "-f", "null", "-"]
+        probe_result = subprocess.run(probe_cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
+        duration_match = re.search(r"Duration: (\d+):(\d+):(\d+\.\d+)", probe_result.stderr)
+        total_duration = 0
+        if duration_match:
+            h, m, s = duration_match.groups()
+            total_duration = int(h) * 3600 + int(m) * 60 + float(s)
+        
+        self.log(f"  Audio duration: {total_duration:.0f}s ({total_duration/60:.1f} min)")
+        
+        # Report Whisper usage
+        self.report_tokens(0, 0, total_duration, 0)
+        
+        # Split into chunks if file is too large (>4MB to avoid proxy timeout)
+        MAX_CHUNK_SIZE_MB = 4
+        all_segments = []
+        
+        if file_size_mb <= MAX_CHUNK_SIZE_MB:
+            # Single file, transcribe directly
+            self.log("  Sending to Whisper API...")
+            self.set_progress("Transcribing audio with AI...", 0.3)
+            segments = self._whisper_transcribe_file(audio_file, 0)
+            all_segments.extend(segments)
+        else:
+            # Split into chunks by duration
+            chunk_count = int(file_size_mb / MAX_CHUNK_SIZE_MB) + 1
+            chunk_duration = total_duration / chunk_count
+            self.log(f"  File too large, splitting into {chunk_count} chunks (~{chunk_duration:.0f}s each)...")
+            
+            for i in range(chunk_count):
+                if self.is_cancelled():
+                    os.unlink(audio_file)
+                    return ""
+                
+                chunk_start = i * chunk_duration
+                chunk_file = tempfile.NamedTemporaryFile(suffix='.mp3', delete=False).name
+                
+                cmd = [
+                    self.ffmpeg_path, "-y",
+                    "-i", audio_file,
+                    "-ss", str(chunk_start),
+                    "-t", str(chunk_duration),
+                    "-acodec", "libmp3lame",
+                    "-ar", "16000",
+                    "-ac", "1",
+                    "-b:a", "64k",
+                    chunk_file
+                ]
+                subprocess.run(cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
+                
+                chunk_size = os.path.getsize(chunk_file) / (1024 * 1024)
+                self.log(f"  Transcribing chunk {i+1}/{chunk_count} ({chunk_size:.1f}MB, ~{chunk_duration:.0f}s)...")
+                self.set_progress(f"Transcribing audio chunk {i+1}/{chunk_count}...", 
+                                  0.3 + (0.2 * (i + 1) / chunk_count))
+                
+                segments = self._whisper_transcribe_file(chunk_file, chunk_start)
+                all_segments.extend(segments)
+                
+                try:
+                    os.unlink(chunk_file)
+                except Exception:
+                    pass
+        
+        # Cleanup main audio file
+        try:
+            os.unlink(audio_file)
+        except Exception:
+            pass
+        
+        if not all_segments:
+            raise Exception("Whisper API returned empty transcription. The video may have no speech.")
+        
+        # Format segments into SRT-like transcript (same format as parse_srt output)
+        lines = []
+        for seg in all_segments:
+            start_ts = self._seconds_to_srt_timestamp(seg["start"])
+            end_ts = self._seconds_to_srt_timestamp(seg["end"])
+            text = seg["text"].strip()
+            if text:
+                lines.append(f"[{start_ts} - {end_ts}] {text}")
+        
+        transcript = "\n".join(lines)
+        self.log(f"  ✓ Transcription complete: {len(lines)} segments")
+        
+        return transcript
+    
+    def _whisper_transcribe_file(self, audio_path: str, time_offset: float = 0) -> list:
+        """Transcribe a single audio file with Whisper API.
+        
+        Uses raw httpx POST instead of OpenAI SDK for better proxy compatibility.
+        
+        Args:
+            audio_path: Path to audio file
+            time_offset: Offset in seconds to add to all timestamps (for chunked files)
+        
+        Returns:
+            list of dicts with 'start', 'end', 'text' keys
+        """
+        import time as _time
+        import requests as _requests
+        
+        file_size_mb = os.path.getsize(audio_path) / (1024 * 1024)
+        base_url = str(self.caption_client.base_url).rstrip("/")
+        api_key = self.caption_client.api_key
+        
+        self.log(f"    Uploading {file_size_mb:.1f}MB to Whisper API ({self.whisper_model})...")
+        self.log(f"    Base URL: {base_url}")
+        
+        # Build multipart form data
+        url = f"{base_url}/audio/transcriptions"
+        headers = {"Authorization": f"Bearer {api_key}"}
+        
+        form_data = {
+            "model": self.whisper_model,
+            "response_format": "verbose_json",
+        }
+        if self.subtitle_language and self.subtitle_language != "none":
+            form_data["language"] = self.subtitle_language
+        
+        # Run API call in a thread so we can log heartbeat while waiting
+        response_data = None
+        api_error = None
+        
+        def _call_api():
+            nonlocal response_data, api_error
+            try:
+                with open(audio_path, "rb") as f:
+                    files = {"file": (os.path.basename(audio_path), f, "audio/mpeg")}
+                    resp = _requests.post(url, headers=headers, data=form_data, files=files, timeout=600)
+                    resp.raise_for_status()
+                    response_data = resp.json()
+            except Exception as e:
+                api_error = e
+        
+        api_thread = threading.Thread(target=_call_api, daemon=True)
+        start_time = _time.time()
+        api_thread.start()
+        
+        # Heartbeat: log every 15s so user knows it's still working
+        TIMEOUT_SECONDS = 300  # 5 minutes max per chunk
+        while api_thread.is_alive():
+            api_thread.join(timeout=15)
+            if api_thread.is_alive():
+                elapsed = _time.time() - start_time
+                
+                # Check cancellation
+                if self.is_cancelled():
+                    self.log(f"    ⚠️ Cancelled by user during Whisper API call")
+                    return []
+                
+                if elapsed > TIMEOUT_SECONDS:
+                    self.log(f"    ⏱️ Whisper API timed out after {TIMEOUT_SECONDS}s")
+                    raise Exception(
+                        f"Whisper API timed out after {TIMEOUT_SECONDS}s.\n\n"
+                        "Possible causes:\n"
+                        "1. Your AI API provider may not support the Whisper audio endpoint\n"
+                        "2. The server may be overloaded or unreachable\n"
+                        "3. Network connection issue\n\n"
+                        "Try:\n"
+                        "- Check if your Caption Maker API supports audio transcription\n"
+                        "- Try again later\n"
+                        "- Use a different API provider for Caption Maker"
+                    )
+                self.log(f"    ⏳ Waiting for Whisper API response... ({elapsed:.0f}s elapsed)")
+                self.set_progress(f"Transcribing with AI... waiting for response ({elapsed:.0f}s)", 0.35)
+        
+        elapsed = _time.time() - start_time
+        
+        if api_error:
+            self.log(f"  ❌ Whisper API error after {elapsed:.1f}s: {api_error}")
+            raise Exception(f"Whisper transcription failed:\n{str(api_error)}")
+        
+        if response_data is None:
+            self.log(f"  ❌ Whisper API returned no response after {elapsed:.1f}s")
+            raise Exception("Whisper API returned no response. The endpoint may not support audio transcription.")
+        
+        self.log(f"    ✓ Whisper API responded in {elapsed:.1f}s")
+        
+        segments = []
+        if "segments" in response_data and response_data["segments"]:
+            for seg in response_data["segments"]:
+                segments.append({
+                    "start": seg.get("start", 0) + time_offset,
+                    "end": seg.get("end", 0) + time_offset,
+                    "text": seg.get("text", "")
+                })
+        
+        return segments
+    
+    @staticmethod
+    def _seconds_to_srt_timestamp(seconds: float) -> str:
+        """Convert seconds to SRT timestamp format HH:MM:SS,mmm"""
+        h = int(seconds // 3600)
+        m = int((seconds % 3600) // 60)
+        s = seconds % 60
+        ms = int((s - int(s)) * 1000)
+        return f"{h:02d}:{m:02d}:{int(s):02d},{ms:03d}"
+    
+    def find_highlights_with_transcription(self, video_path: str, video_info: dict, 
+                                            num_clips: int, session_dir: str = None) -> dict:
+        """Find highlights by first transcribing the video with Whisper API.
+        
+        This is the fallback path when no subtitle is available.
+        Uses Caption Maker (Whisper) to generate transcript, then feeds it
+        to Highlight Finder (GPT) as usual.
+        
+        Returns:
+            dict: Same session_data format as find_highlights_only
+        """
+        from datetime import datetime
+        
+        # Use existing session_dir or create new one
+        if session_dir:
+            session_dir = Path(session_dir)
+        else:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            session_dir = self.output_dir / "sessions" / timestamp
+            session_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Update temp_dir to session-specific temp
+        self.temp_dir = session_dir / "_temp"
+        self.temp_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Step 1: Transcribe with Whisper
+        self.set_progress("Transcribing video with AI...", 0.3)
+        transcript = self.transcribe_full_video(video_path)
+        
+        if self.is_cancelled():
+            return None
+        
+        # Step 2: Find highlights using the transcript
+        self.set_progress("Finding highlights with AI...", 0.6)
+        highlights = self.find_highlights(transcript, video_info, num_clips)
+        
+        if self.is_cancelled():
+            return None
+        
+        if not highlights:
+            raise Exception(
+                "No valid highlights found!\n\n"
+                "Possible causes:\n"
+                "1. AI model failed to generate highlights\n"
+                "2. Video transcript too short or not suitable\n"
+                "3. AI model configuration issue\n\n"
+                "Try:\n"
+                "- Using a different AI model\n"
+                "- Checking AI API settings\n"
+                "- Using a longer video with more content"
+            )
+        
+        self.set_progress("Highlights found!", 1.0)
+        self.log(f"\n✅ Found {len(highlights)} highlights (via AI transcription)")
+        
+        # Save session data
+        session_data_file = session_dir / "session_data.json"
+        session_data = {
+            "session_dir": str(session_dir),
+            "video_path": video_path,
+            "srt_path": None,
+            "highlights": highlights,
+            "video_info": video_info,
+            "created_at": datetime.now().isoformat(),
+            "status": "highlights_found",
+            "transcription_method": "whisper_api"
+        }
+        
+        with open(session_data_file, "w", encoding="utf-8") as f:
+            json.dump(session_data, f, indent=2, ensure_ascii=False)
+        
+        self.log(f"Session data saved to: {session_data_file}")
+        
+        return session_data
     
     def _call_gemini_api(self, prompt: str) -> str:
         """Call Google Gemini API directly (not via OpenAI SDK)"""
@@ -3624,18 +3977,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             return None
         
         if not srt_path:
-            raise Exception(
-                f"❌ ERROR: Subtitle tidak tersedia\n\n"
-                f"Video ini tidak memiliki subtitle bahasa: {self.subtitle_language.upper()}\n\n"
-                f"SOLUSI:\n"
-                f"1. Cek subtitle yang tersedia untuk video ini:\n"
-                f"   - Klik tombol 'Check Subtitles' di aplikasi\n"
-                f"   - Atau buka video di YouTube dan cek CC/subtitle\n\n"
-                f"2. Pilih bahasa subtitle lain yang tersedia\n"
-                f"   (contoh: en - English, es - Spanish)\n\n"
-                f"3. Atau gunakan video lain yang punya subtitle Indonesia\n\n"
-                f"💡 TIP: Video podcast/interview biasanya punya auto-generated subtitle\n"
-                f"dalam berbagai bahasa. Pilih yang paling mendekati."
+            raise SubtitleNotFoundError(
+                f"No subtitle available for language: {self.subtitle_language.upper()}",
+                video_path=video_path,
+                video_info=video_info,
+                session_dir=str(session_dir)
             )
         
         # Step 2: Find highlights

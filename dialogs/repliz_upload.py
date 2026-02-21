@@ -342,6 +342,20 @@ Return JSON format:
         ctk.CTkLabel(header, text=f"{len(accounts)} account(s)", 
             font=ctk.CTkFont(size=10), text_color="gray").pack(side="right")
         
+        # Select All / Deselect All buttons
+        btn_row = ctk.CTkFrame(self.accounts_container, fg_color="transparent")
+        btn_row.pack(fill="x", pady=(0, 5))
+        
+        ctk.CTkButton(btn_row, text="Select All", height=28, width=100,
+            font=ctk.CTkFont(size=11), fg_color=("gray70", "gray30"),
+            hover_color=("gray60", "gray40"), text_color=("gray10", "gray90"),
+            command=self._select_all_accounts).pack(side="left", padx=(0, 5))
+        
+        ctk.CTkButton(btn_row, text="Deselect All", height=28, width=100,
+            font=ctk.CTkFont(size=11), fg_color=("gray70", "gray30"),
+            hover_color=("gray60", "gray40"), text_color=("gray10", "gray90"),
+            command=self._deselect_all_accounts).pack(side="left")
+        
         # Accounts list frame
         accounts_list = ctk.CTkFrame(self.accounts_container, fg_color="transparent")
         accounts_list.pack(fill="x")
@@ -352,6 +366,17 @@ Return JSON format:
         
         # Enable upload button
         self.upload_btn.configure(state="normal")
+
+    def _select_all_accounts(self):
+        """Select all connected accounts"""
+        for account, var in self.account_checkboxes:
+            if account.get("isConnected", False):
+                var.set(True)
+
+    def _deselect_all_accounts(self):
+        """Deselect all accounts"""
+        for _, var in self.account_checkboxes:
+            var.set(False)
     
     def _create_account_checkbox(self, parent, account):
         """Create checkbox for account selection"""

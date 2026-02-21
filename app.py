@@ -25,6 +25,7 @@ from utils.logger import debug_log, setup_error_logging, log_error, get_error_lo
 from config.config_manager import ConfigManager
 from dialogs.model_selector import SearchableModelDropdown
 from dialogs.youtube_upload import YouTubeUploadDialog
+from dialogs.terms_of_service import TermsOfServiceDialog
 from components.progress_step import ProgressStep
 from pages.settings_page import SettingsPage
 from pages.browse_page import BrowsePage
@@ -111,6 +112,17 @@ class YTShortClipperApp(ctk.CTk):
         
         # Check for updates on startup
         threading.Thread(target=self.check_update_silent, daemon=True).start()
+        
+        # Show Terms of Service if not yet accepted
+        if not self.config.get("tos_accepted", False):
+            self.after(300, self._show_tos_dialog)
+    
+    def _show_tos_dialog(self):
+        """Show Terms of Service dialog and block app usage until accepted."""
+        def on_accept():
+            self.config.set("tos_accepted", True)
+        
+        TermsOfServiceDialog(self, on_accept)
     
     def set_app_icon(self):
         """Set window icon"""
@@ -823,7 +835,8 @@ class YTShortClipperApp(ctk.CTk):
                 debug_log(f"Total subtitles found: {len(all_subs)}")
                 
                 if not all_subs:
-                    self.after(0, lambda: self.on_subtitle_error("No subtitles available"))
+                    # No subtitles — allow proceeding with AI transcription fallback
+                    self.after(0, lambda: self.show_no_subtitle_fallback())
                     return
                 
                 self.after(0, lambda: self.show_subtitle_selector(all_subs))
@@ -876,6 +889,26 @@ class YTShortClipperApp(ctk.CTk):
         self.subtitle_loaded = True
         
         # Update start button state (subtitles loaded successfully)
+        self.update_start_button_state()
+    
+    def show_no_subtitle_fallback(self):
+        """Handle case where no subtitles are available.
+        
+        Shows a special dropdown option indicating AI transcription will be used,
+        and still allows the user to proceed with Find Highlights.
+        """
+        # Hide loading
+        self.subtitle_loading.pack_forget()
+        
+        # Set dropdown to show AI transcription option
+        fallback_option = "none - No subtitle (AI transcription)"
+        self.subtitle_var.set(fallback_option)
+        self.subtitle_dropdown.configure(values=[fallback_option], state="disabled")
+        
+        # Still mark as loaded so Find Highlights button is enabled
+        self.subtitle_loaded = True
+        
+        # Update start button state
         self.update_start_button_state()
     
     def load_thumbnail(self, video_id: str):
@@ -1065,6 +1098,23 @@ class YTShortClipperApp(ctk.CTk):
         subtitle_selection = self.subtitle_var.get()
         subtitle_lang = subtitle_selection.split(" - ")[0] if " - " in subtitle_selection else "id"
         
+        # Check if user already knows there's no subtitle (selected AI transcription)
+        use_ai_transcription = subtitle_lang == "none"
+        
+        if use_ai_transcription:
+            # Validate Caption Maker is configured before starting
+            ai_providers = self.config.get("ai_providers", {})
+            cm_config = ai_providers.get("caption_maker", {})
+            cm_api_key = cm_config.get("api_key", "").strip()
+            
+            if not cm_api_key:
+                messagebox.showerror("Error", 
+                    "Caption Maker is not configured!\n\n"
+                    "AI transcription requires Caption Maker (Whisper API).\n\n"
+                    "Please set it up in:\n"
+                    "Settings → AI API Settings → Caption Maker")
+                return
+        
         # Reset UI
         self.processing = True
         self.cancelled = False
@@ -1072,6 +1122,11 @@ class YTShortClipperApp(ctk.CTk):
         
         # Reset processing page UI
         self.pages["processing"].reset_ui()
+        
+        # If AI transcription mode, switch to 3-step layout immediately
+        if use_ai_transcription:
+            self.pages["processing"].switch_to_transcription_mode()
+            self.steps = self.pages["processing"].steps
         
         self.show_page("processing")
         
@@ -1165,41 +1220,45 @@ class YTShortClipperApp(ctk.CTk):
         status_lower = status.lower()
         
         # Parse progress percentage from status if available
-        # Try multiple formats: (51%) or 51.2% or 51%
         progress_match = re.search(r'\((\d+(?:\.\d+)?)%\)|(\d+(?:\.\d+)?)%', status)
         if progress_match:
-            # Get the first non-None group
             step_progress = float(progress_match.group(1) or progress_match.group(2)) / 100
         else:
             step_progress = None
         
         print(f"[DEBUG] Parsed step_progress: {step_progress}")
         
-        if "download" in status_lower:
+        num_steps = len(self.steps)
+        
+        if "download" in status_lower or "processing downloaded" in status_lower:
             if step_progress is None:
                 step_progress = 0.0
             self.steps[0].set_active(status, step_progress)
-            self.steps[1].reset()
-            self.steps[2].reset()
+            for s in self.steps[1:]:
+                s.reset()
+        elif "transcrib" in status_lower:
+            # AI transcription step (3-step mode: step index 1)
+            self.steps[0].set_done("Downloaded")
+            if num_steps >= 3:
+                # 3-step mode: transcription is step 2
+                if step_progress is None:
+                    step_progress = 0.0
+                self.steps[1].set_active(status, step_progress)
+                self.steps[2].reset()
+            elif num_steps >= 2:
+                # 2-step mode fallback
+                if step_progress is None:
+                    step_progress = 0.0
+                self.steps[1].set_active(status, step_progress)
         elif "highlight" in status_lower or "finding" in status_lower:
             self.steps[0].set_done("Downloaded")
-            self.steps[1].set_active(status, step_progress)
-            self.steps[2].reset()
-        elif "clip" in status_lower or "clean" in status_lower:
-            self.steps[0].set_done("Downloaded")
-            self.steps[1].set_done("Found highlights")
-            
-            if step_progress is None:
-                step_progress = 0.0
-            
-            # Extract clip number to show progress
-            match = re.search(r'Clip (\d+)/(\d+)', status)
-            if match:
-                current, total = int(match.group(1)), int(match.group(2))
-                percent = current / total
-                self.steps[2].set_active(f"Clip {current}/{total}", percent)
-            else:
+            if num_steps >= 3:
+                # 3-step mode: highlights is step 3
+                self.steps[1].set_done("Transcribed")
                 self.steps[2].set_active(status, step_progress)
+            elif num_steps >= 2:
+                # 2-step mode: highlights is step 2
+                self.steps[1].set_active(status, step_progress)
         elif "complete" in status_lower:
             for step in self.steps:
                 step.set_done("Complete")
@@ -1219,7 +1278,7 @@ class YTShortClipperApp(ctk.CTk):
     def run_find_highlights(self, url, num_clips, output_dir, model, subtitle_lang="id"):
         """NEW: Phase 1 - Find highlights only (don't process yet)"""
         try:
-            from clipper_core import AutoClipperCore
+            from clipper_core import AutoClipperCore, SubtitleNotFoundError
             
             # Wrapper for log callback
             def log_with_debug(msg):
@@ -1249,8 +1308,25 @@ class YTShortClipperApp(ctk.CTk):
                 cancel_check=lambda: self.cancelled
             )
             
-            # Call find_highlights_only (returns session data)
-            result = core.find_highlights_only(url, num_clips)
+            try:
+                # Call find_highlights_only (returns session data)
+                result = core.find_highlights_only(url, num_clips)
+            except SubtitleNotFoundError as snf:
+                # No subtitle found
+                if self.cancelled:
+                    self.after(0, self.on_cancelled)
+                    return
+                
+                if subtitle_lang == "none":
+                    # User already chose AI transcription from home page — skip dialog
+                    self._run_whisper_transcription(
+                        core, snf.video_path, snf.video_info, 
+                        num_clips, snf.session_dir)
+                else:
+                    # Unexpected: user selected a subtitle language but it wasn't found
+                    self.after(0, lambda: self._show_whisper_fallback_dialog(
+                        core, snf, num_clips))
+                return
             
             if not self.cancelled and result:
                 # Store session data for later processing
@@ -1265,6 +1341,89 @@ class YTShortClipperApp(ctk.CTk):
             error_msg = str(e)
             debug_log(f"ERROR: {error_msg}")
             log_error(f"Find highlights failed for URL: {url}", e)
+            
+            if self.cancelled or "cancel" in error_msg.lower():
+                self.after(0, self.on_cancelled)
+            else:
+                self.after(0, lambda: self.on_error(error_msg))
+    
+    def _show_whisper_fallback_dialog(self, core, snf_error, num_clips: int):
+        """Show dialog asking user if they want to use Whisper API for transcription.
+        
+        Called on the main thread when SubtitleNotFoundError is caught.
+        """
+        # Update processing page to show no subtitle found
+        self.steps[0].set_done("Downloaded (no subtitle)")
+        self.pages["processing"].update_status("No subtitle found for this video.")
+        
+        # Check if Caption Maker is configured
+        ai_providers = self.config.get("ai_providers", {})
+        cm_config = ai_providers.get("caption_maker", {})
+        cm_api_key = cm_config.get("api_key", "").strip()
+        
+        if not cm_api_key:
+            self.on_error(
+                "No subtitle found for this video.\n\n"
+                "You can use AI transcription (Whisper API) as a fallback,\n"
+                "but Caption Maker is not configured yet.\n\n"
+                "Please set it up in:\n"
+                "Settings → AI API Settings → Caption Maker"
+            )
+            return
+        
+        # Bring window to front so dialog is visible
+        self.lift()
+        self.focus_force()
+        
+        # Show confirmation dialog
+        result = messagebox.askyesno(
+            "No Subtitle Found",
+            "No subtitle available for this video.\n\n"
+            "Would you like to use AI transcription (Whisper API) instead?\n\n"
+            "This will use your Caption Maker API to transcribe the full video audio.\n"
+            "Note: This may take a while and will consume Whisper API credits.",
+            icon="question"
+        )
+        
+        if result:
+            # Switch processing page to 3-step transcription mode
+            self.pages["processing"].switch_to_transcription_mode()
+            # Refresh self.steps reference
+            self.steps = self.pages["processing"].steps
+            
+            threading.Thread(
+                target=self._run_whisper_transcription,
+                args=(core, snf_error.video_path, snf_error.video_info, 
+                      num_clips, snf_error.session_dir),
+                daemon=True
+            ).start()
+        else:
+            self.on_error(
+                "No subtitle available for this video.\n\n"
+                "Tips:\n"
+                "1. Check available subtitles using 'Check Subtitles'\n"
+                "2. Try a different subtitle language\n"
+                "3. Use a video that has subtitles"
+            )
+    
+    def _run_whisper_transcription(self, core, video_path: str, video_info: dict, 
+                                    num_clips: int, session_dir: str):
+        """Run Whisper transcription fallback in background thread."""
+        try:
+            result = core.find_highlights_with_transcription(
+                video_path, video_info, num_clips, session_dir
+            )
+            
+            if not self.cancelled and result:
+                self.session_data = result
+                self.after(0, self.show_highlight_selection)
+            elif self.cancelled:
+                self.after(0, self.on_cancelled)
+                
+        except Exception as e:
+            error_msg = str(e)
+            debug_log(f"ERROR (Whisper fallback): {error_msg}")
+            log_error(f"Whisper transcription fallback failed", e)
             
             if self.cancelled or "cancel" in error_msg.lower():
                 self.after(0, self.on_cancelled)
