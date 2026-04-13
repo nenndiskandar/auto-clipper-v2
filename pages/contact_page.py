@@ -156,7 +156,8 @@ class ContactPage(ctk.CTkFrame):
                         self.after(0, lambda: self.on_submit_error(f"Server error: {response.status}"))
             
             except Exception as e:
-                self.after(0, lambda: self.on_submit_error(str(e)))
+                err_msg = str(e)
+                self.after(0, lambda msg=err_msg: self.on_submit_error(msg))
         
         threading.Thread(target=submit, daemon=True).start()
     

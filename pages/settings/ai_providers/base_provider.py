@@ -177,7 +177,8 @@ class BaseProviderSettingsPage(BaseSettingsSubPage):
                 
                 self.after(0, lambda: self._on_models_loaded(models))
             except Exception as e:
-                self.after(0, lambda: self._on_models_error(str(e)))
+                err_msg = str(e)
+                self.after(0, lambda msg=err_msg: self._on_models_error(msg))
         
         threading.Thread(target=do_load, daemon=True).start()
     

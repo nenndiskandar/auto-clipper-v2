@@ -9,8 +9,19 @@ from pathlib import Path
 
 
 def get_app_dir():
-    """Get application directory"""
+    """Get application data directory
+    
+    On macOS (.app bundle): ~/Library/Application Support/YTShortClipper/
+    On Windows/Linux or dev mode: directory containing the executable/script
+    
+    This ensures user data (config, downloads, output) persists across app updates on macOS.
+    """
     if getattr(sys, 'frozen', False):
+        if sys.platform == "darwin":
+            # macOS: use Application Support (survives .app replacement)
+            app_support = Path.home() / "Library" / "Application Support" / "YTShortClipper"
+            app_support.mkdir(parents=True, exist_ok=True)
+            return app_support
         return Path(sys.executable).parent
     return Path(__file__).parent.parent
 

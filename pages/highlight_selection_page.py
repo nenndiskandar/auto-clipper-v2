@@ -264,10 +264,11 @@ class HighlightSelectionPage(ctk.CTkFrame):
                 
                 if not ffplay_path:
                     # ffplay not found in ffmpeg directory
+                    exe_suffix = ".exe" if sys.platform == "win32" else ""
                     messagebox.showerror("Preview Error", 
-                        "ffplay.exe not found!\n\n"
-                        "ffplay is required for video preview.\n"
-                        "Please ensure ffplay.exe is in the same folder as ffmpeg.exe")
+                        f"ffplay{exe_suffix} not found!\n\n"
+                        f"ffplay is required for video preview.\n"
+                        f"Please ensure ffplay{exe_suffix} is in the same folder as ffmpeg{exe_suffix}")
                     return
             else:
                 # Try system PATH
@@ -294,10 +295,11 @@ class HighlightSelectionPage(ctk.CTkFrame):
                 subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             
         except FileNotFoundError as e:
+            exe_suffix = ".exe" if sys.platform == "win32" else ""
             messagebox.showerror("Preview Error", 
                 f"Failed to launch ffplay:\n\n"
-                f"ffplay.exe not found in system PATH or ffmpeg directory.\n\n"
-                f"Please ensure ffplay.exe is available.")
+                f"ffplay{exe_suffix} not found in system PATH or ffmpeg directory.\n\n"
+                f"Please ensure ffplay{exe_suffix} is available.")
         except Exception as e:
             messagebox.showerror("Preview Error", f"Failed to preview video:\n{str(e)}")
     

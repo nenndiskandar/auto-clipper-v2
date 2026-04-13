@@ -92,9 +92,9 @@ def get_ffmpeg_download_url():
             return None, None
         url = base_url + filename
     elif os_type == 'darwin':
-        # FFmpeg-Builds doesn't have macOS builds, return None
-        # User needs to install via homebrew: brew install ffmpeg
-        return None, None
+        # Use evermeet.cx static builds (x86_64, runs on Apple Silicon via Rosetta 2)
+        url = "https://evermeet.cx/ffmpeg/getrelease/zip"
+        filename = "ffmpeg-evermeet.zip"
     else:
         return None, None
     
@@ -345,9 +345,42 @@ def setup_ffmpeg(app_dir: Path, progress_callback=None) -> bool:
             debug_log("FFmpeg executable not found in extracted files")
             return False
         
+        # Set executable permissions on Unix systems
+        if os_type != 'windows':
+            for name in [exe_name, "ffprobe", "ffplay"]:
+                bin_path = ffmpeg_dir / name
+                if bin_path.exists():
+                    os.chmod(bin_path, 0o755)
+        
         # Cleanup
         shutil.rmtree(extract_dir, ignore_errors=True)
         download_path.unlink(missing_ok=True)
+        
+        # macOS: Also download ffprobe separately from evermeet.cx
+        # Note: ffplay is not available from evermeet.cx (requires SDL2)
+        if os_type == 'darwin':
+            tool = 'ffprobe'
+            tool_path = ffmpeg_dir / tool
+            if not tool_path.exists():
+                try:
+                    tool_url = f"https://evermeet.cx/ffmpeg/getrelease/{tool}/zip"
+                    tool_dl = app_dir / "_temp" / f"{tool}-evermeet.zip"
+                    tool_extract = app_dir / "_temp" / f"{tool}_extract"
+                    
+                    debug_log(f"Downloading {tool} from evermeet.cx...")
+                    if download_file(tool_url, tool_dl):
+                        if extract_zip(tool_dl, tool_extract):
+                            for root, dirs, files in os.walk(tool_extract):
+                                if tool in files:
+                                    src = Path(root) / tool
+                                    shutil.copy2(src, tool_path)
+                                    os.chmod(tool_path, 0o755)
+                                    debug_log(f"{tool} copied to: {tool_path}")
+                                    break
+                        shutil.rmtree(tool_extract, ignore_errors=True)
+                        tool_dl.unlink(missing_ok=True)
+                except Exception as e:
+                    debug_log(f"{tool} download error (non-critical): {e}")
         
         return True
         

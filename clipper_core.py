@@ -205,6 +205,47 @@ class AutoClipperCore:
         self.log(f"  🎬 {description} Command:")
         self.log(f"     {cmd_str}")
     
+    def _find_system_font_bold(self) -> str:
+        """Find a bold system font across platforms"""
+        if sys.platform == "win32":
+            candidates = [
+                "C:/Windows/Fonts/arialbd.ttf",
+                "C:/Windows/Fonts/arial.ttf",
+                "C:/Windows/Fonts/segoeui.ttf",
+            ]
+        elif sys.platform == "darwin":
+            candidates = [
+                "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+                "/System/Library/Fonts/Supplemental/Arial.ttf",
+                "/Library/Fonts/Arial Bold.ttf",
+                "/Library/Fonts/Arial.ttf",
+                "/System/Library/Fonts/Helvetica.ttc",
+                "/System/Library/Fonts/SFNS.ttf",
+            ]
+        else:
+            candidates = [
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+                "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+                "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf",
+            ]
+        
+        for font in candidates:
+            if os.path.exists(font):
+                return font
+        return None
+    
+    def _get_ffmpeg_font_path(self) -> str:
+        """Get fontfile argument for FFmpeg drawtext filter, platform-aware"""
+        font = self._find_system_font_bold()
+        if font:
+            if sys.platform == "win32":
+                # Escape colon for FFmpeg filter on Windows
+                escaped = font.replace("\\", "/").replace(":", "\\:")
+                return f"fontfile='{escaped}':"
+            else:
+                return f"fontfile='{font}':"
+        # Fallback: let FFmpeg use fontconfig default
+        return "font='Arial':"
     
     @staticmethod
     def get_default_prompt():
@@ -2444,9 +2485,10 @@ Transcript:
             y_pos = start_y + (i * line_height)
             
             # Yellow/gold text with white box background
+            font_path = self._get_ffmpeg_font_path()
             drawtext_filters.append(
                 f"drawtext=text='{escaped_line}':"
-                f"fontfile='C\\:/Windows/Fonts/arialbd.ttf':"
+                f"{font_path}"
                 f"fontsize={font_size}:"
                 f"fontcolor=#FFD700:"  # Golden yellow
                 f"box=1:"
@@ -3417,11 +3459,13 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         if not os.path.exists(bg_video) or os.path.getsize(bg_video) < 1000:
             raise Exception("Background video was not created properly")
         
-        # Copy font to temp dir to avoid Windows path colon issues in FFmpeg filter
+        # Copy font to temp dir to avoid path issues in FFmpeg filter
         import shutil
         temp_font = str(self.temp_dir / "arial_bold.ttf")
         if not os.path.exists(temp_font):
-            shutil.copy2("C:/Windows/Fonts/arialbd.ttf", temp_font)
+            font_src = self._find_system_font_bold()
+            if font_src:
+                shutil.copy(font_src, temp_font)
         
         # Now add text overlays one by one
         current_video = bg_video

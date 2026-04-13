@@ -51,6 +51,7 @@ MANIFEST
 *.spec
 !build.spec
 !build_web.spec
+!build_macos.spec
 
 # Installer logs
 pip-log.txt
@@ -289,6 +290,10 @@ debug.log
 *.tar.gz
 *.rar
 *.7z
+*.dmg
+
+# Build scripts (local only)
+scripts/
 
 # Database
 *.db

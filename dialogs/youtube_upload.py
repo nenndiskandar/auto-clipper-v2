@@ -324,7 +324,8 @@ class YouTubeUploadDialog(ctk.CTkToplevel):
                 self.after(0, lambda: self.on_upload_complete(result))
                 
             except Exception as e:
-                self.after(0, lambda: self.on_upload_error(str(e)))
+                err_msg = str(e)
+                self.after(0, lambda msg=err_msg: self.on_upload_error(msg))
         
         threading.Thread(target=do_upload, daemon=True).start()
     

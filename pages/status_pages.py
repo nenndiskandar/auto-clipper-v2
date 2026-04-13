@@ -241,8 +241,9 @@ class APIStatusPage(ctk.CTkFrame):
                         self.after(0, lambda: self.yt_info_label.configure(text=""))
                         self.after(0, lambda: self.yt_connect_btn.pack(side="right"))
                 except Exception as e:
+                    err_msg = str(e)[:40]
                     self.after(0, lambda: self.yt_status_label.configure(text="✗ Error", text_color="red"))
-                    self.after(0, lambda: self.yt_info_label.configure(text=f"{str(e)[:40]}"))
+                    self.after(0, lambda msg=err_msg: self.yt_info_label.configure(text=msg))
             
             # Check Repliz API status
             repliz_config = config.get("repliz", {})
@@ -419,8 +420,9 @@ class LibStatusPage(ctk.CTkFrame):
                     self.after(0, lambda: self.ytdlp_status_label.configure(text="✓ Installed", text_color="green"))
                     self.after(0, lambda: self.ytdlp_info_label.configure(text=f"v{version}"))
                 except Exception as e:
+                    err_msg = str(e)[:30]
                     self.after(0, lambda: self.ytdlp_status_label.configure(text="✗ Error", text_color="red"))
-                    self.after(0, lambda: self.ytdlp_info_label.configure(text=f"{str(e)[:30]}"))
+                    self.after(0, lambda msg=err_msg: self.ytdlp_info_label.configure(text=msg))
             else:
                 # Fallback to executable check
                 ytdlp_path = get_ytdlp_path()
@@ -437,8 +439,9 @@ class LibStatusPage(ctk.CTkFrame):
                     self.after(0, lambda: self.ytdlp_status_label.configure(text="✗ Not found", text_color="red"))
                     self.after(0, lambda: self.ytdlp_info_label.configure(text="pip install yt-dlp"))
                 except Exception as e:
+                    err_msg = str(e)[:30]
                     self.after(0, lambda: self.ytdlp_status_label.configure(text="✗ Error", text_color="red"))
-                    self.after(0, lambda: self.ytdlp_info_label.configure(text=f"{str(e)[:30]}"))
+                    self.after(0, lambda msg=err_msg: self.ytdlp_info_label.configure(text=msg))
             
             # Check FFmpeg
             ffmpeg_installed = check_dependency("ffmpeg", app_dir)
@@ -480,16 +483,29 @@ class LibStatusPage(ctk.CTkFrame):
                             text=f"  {'✓' if has_ffprobe else '✗'} ffprobe", 
                             text_color="green" if has_ffprobe else "red"
                         ))
-                        self.after(0, lambda: self.ffplay_exe_label.configure(
-                            text=f"  {'✓' if has_ffplay else '✗'} ffplay (for preview)", 
-                            text_color="green" if has_ffplay else "orange"
-                        ))
+                        
+                        # ffplay not available on macOS (evermeet.cx doesn't provide it)
+                        is_macos = sys.platform == "darwin"
+                        if is_macos and not has_ffplay:
+                            self.after(0, lambda: self.ffplay_exe_label.configure(
+                                text=f"  ⊘ ffplay (not available on macOS)", 
+                                text_color="gray"
+                            ))
+                        else:
+                            self.after(0, lambda: self.ffplay_exe_label.configure(
+                                text=f"  {'✓' if has_ffplay else '✗'} ffplay (for preview)", 
+                                text_color="green" if has_ffplay else "orange"
+                            ))
                         
                         # Determine overall status
-                        if has_ffmpeg and has_ffprobe and has_ffplay:
+                        # On macOS, ffplay is optional so ffmpeg+ffprobe = complete
+                        core_complete = has_ffmpeg and has_ffprobe
+                        fully_complete = core_complete and (has_ffplay or is_macos)
+                        
+                        if fully_complete:
                             self.after(0, lambda: self.ffmpeg_status_label.configure(text="✓ Complete", text_color="green"))
                             self.after(0, lambda: self.ffmpeg_info_label.configure(text=f"v{version}"))
-                        elif has_ffmpeg and has_ffprobe:
+                        elif core_complete:
                             self.after(0, lambda: self.ffmpeg_status_label.configure(text="⚠ Incomplete", text_color="orange"))
                             self.after(0, lambda: self.ffmpeg_info_label.configure(text=f"v{version} (missing ffplay)"))
                             self.after(0, lambda: self.ffmpeg_reinstall_btn.pack(fill="x", padx=10, pady=(5, 10)))
@@ -501,8 +517,9 @@ class LibStatusPage(ctk.CTkFrame):
                         self.after(0, lambda: self.ffmpeg_status_label.configure(text="✗ Error", text_color="red"))
                         self.after(0, lambda: self.ffmpeg_info_label.configure(text="Failed to get version"))
                 except Exception as e:
+                    err_msg = str(e)[:30]
                     self.after(0, lambda: self.ffmpeg_status_label.configure(text="✗ Error", text_color="red"))
-                    self.after(0, lambda: self.ffmpeg_info_label.configure(text=f"{str(e)[:30]}"))
+                    self.after(0, lambda msg=err_msg: self.ffmpeg_info_label.configure(text=msg))
             else:
                 self.after(0, lambda: self.ffmpeg_status_label.configure(text="✗ Not found", text_color="orange"))
                 self.after(0, lambda: self.ffmpeg_info_label.configure(text="Click to download"))
@@ -525,8 +542,9 @@ class LibStatusPage(ctk.CTkFrame):
                         self.after(0, lambda: self.deno_status_label.configure(text="✗ Error", text_color="red"))
                         self.after(0, lambda: self.deno_info_label.configure(text="Failed to get version"))
                 except Exception as e:
+                    err_msg = str(e)[:30]
                     self.after(0, lambda: self.deno_status_label.configure(text="✗ Error", text_color="red"))
-                    self.after(0, lambda: self.deno_info_label.configure(text=f"{str(e)[:30]}"))
+                    self.after(0, lambda msg=err_msg: self.deno_info_label.configure(text=msg))
             else:
                 self.after(0, lambda: self.deno_status_label.configure(text="✗ Not found", text_color="orange"))
                 self.after(0, lambda: self.deno_info_label.configure(text="Click to download"))

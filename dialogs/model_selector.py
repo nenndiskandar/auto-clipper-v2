@@ -26,7 +26,7 @@ class SearchableModelDropdown(ctk.CTkToplevel):
         self.set_dialog_icon()
         
         self.search_var = ctk.StringVar()
-        self.search_var.trace("w", self.filter_models)
+        self.search_var.trace_add("write", self.filter_models)
         
         search_entry = ctk.CTkEntry(self, textvariable=self.search_var, 
             placeholder_text="🔍 Search models...", height=40)

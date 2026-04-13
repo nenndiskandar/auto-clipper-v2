@@ -246,8 +246,8 @@ Return JSON format:
                 self.after(0, lambda: self._on_metadata_generated(result))
                 
             except Exception as e:
-                # Fallback to original title
-                self.after(0, lambda: self._on_metadata_error(str(e)))
+                err_msg = str(e)
+                self.after(0, lambda msg=err_msg: self._on_metadata_error(msg))
         
         threading.Thread(target=do_generate, daemon=True).start()
     
@@ -307,7 +307,8 @@ Return JSON format:
                     self.after(0, lambda: self._on_load_error(error_msg))
                     
             except Exception as e:
-                self.after(0, lambda: self._on_load_error(str(e)))
+                err_msg = str(e)
+                self.after(0, lambda msg=err_msg: self._on_load_error(msg))
         
         threading.Thread(target=do_load, daemon=True).start()
     
@@ -629,7 +630,8 @@ Return JSON format:
                 self.after(0, lambda: close_btn.configure(state="normal", text="Done"))
                 
             except Exception as e:
-                self.after(0, lambda: self._update_all_status(status_labels, f"❌ Error: {str(e)}", "red"))
+                err_msg = f"❌ Error: {str(e)}"
+                self.after(0, lambda msg=err_msg: self._update_all_status(status_labels, msg, "red"))
                 self.after(0, lambda: close_btn.configure(state="normal"))
         
         threading.Thread(target=do_upload, daemon=True).start()

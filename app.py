@@ -229,7 +229,7 @@ class YTShortClipperApp(ctk.CTk):
         url_input_container.pack(fill="x", pady=(0, 8))
         
         self.url_var = ctk.StringVar()
-        self.url_var.trace("w", self.on_url_change)
+        self.url_var.trace_add("write", self.on_url_change)
         self.url_entry = ctk.CTkEntry(url_input_container, textvariable=self.url_var, 
             placeholder_text="Paste YouTube link...", width=220, height=32, border_width=1,
             border_color=("#3a3a3a", "#2a2a2a"), fg_color=("#1a1a1a", "#0a0a0a"))
@@ -845,7 +845,8 @@ class YTShortClipperApp(ctk.CTk):
                 debug_log(f"Exception in load_subtitles: {str(e)}")
                 import traceback
                 debug_log(traceback.format_exc())
-                self.after(0, lambda: self.on_subtitle_error(str(e)))
+                err_msg = str(e)
+                self.after(0, lambda msg=err_msg: self.on_subtitle_error(msg))
         
         threading.Thread(target=fetch, daemon=True).start()
     
@@ -1064,7 +1065,8 @@ class YTShortClipperApp(ctk.CTk):
                 self.after(0, self._start_processing_validated)
                 
             except Exception as e:
-                self.after(0, lambda: self._on_validation_failed(f"Validation error: {str(e)[:100]}"))
+                err_msg = f"Validation error: {str(e)[:100]}"
+                self.after(0, lambda msg=err_msg: self._on_validation_failed(msg))
         
         threading.Thread(target=validate_and_start, daemon=True).start()
     

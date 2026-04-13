@@ -59,6 +59,13 @@ class GPUDetector:
             self._gpu_info = intel
             return intel
         
+        # macOS: Try Apple GPU (Apple Silicon or integrated)
+        if sys.platform == "darwin":
+            apple = self._detect_apple()
+            if apple['available']:
+                self._gpu_info = apple
+                return apple
+        
         self._gpu_info = gpu_info
         return gpu_info
     
@@ -161,7 +168,7 @@ class GPUDetector:
                 pass
         
         # Linux: Try lspci
-        else:
+        elif sys.platform.startswith('linux'):
             try:
                 result = subprocess.run(
                     ['lspci'],
@@ -181,6 +188,29 @@ class GPUDetector:
                                     'name': match.group(1).strip(),
                                     'available': True
                                 }
+            except (FileNotFoundError, subprocess.TimeoutExpired):
+                pass
+        
+        # macOS: Try system_profiler
+        elif sys.platform == "darwin":
+            try:
+                result = subprocess.run(
+                    ['system_profiler', 'SPDisplaysDataType'],
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                
+                if result.returncode == 0:
+                    for line in result.stdout.split('\n'):
+                        line = line.strip()
+                        if ('AMD' in line or 'Radeon' in line) and ':' in line:
+                            name = line.split(':', 1)[-1].strip() if ':' in line else line
+                            return {
+                                'type': 'amd',
+                                'name': name,
+                                'available': True
+                            }
             except (FileNotFoundError, subprocess.TimeoutExpired):
                 pass
         
@@ -238,7 +268,7 @@ class GPUDetector:
                 pass
         
         # Linux: Try lspci
-        else:
+        elif sys.platform.startswith('linux'):
             try:
                 result = subprocess.run(
                     ['lspci'],
@@ -259,6 +289,57 @@ class GPUDetector:
                                 }
             except (FileNotFoundError, subprocess.TimeoutExpired):
                 pass
+        
+        # macOS: Try system_profiler
+        elif sys.platform == "darwin":
+            try:
+                result = subprocess.run(
+                    ['system_profiler', 'SPDisplaysDataType'],
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                
+                if result.returncode == 0:
+                    for line in result.stdout.split('\n'):
+                        line = line.strip()
+                        if 'Intel' in line and ('HD' in line or 'UHD' in line or 'Iris' in line):
+                            name = line.split(':', 1)[-1].strip() if ':' in line else line
+                            return {
+                                'type': 'intel',
+                                'name': name,
+                                'available': True
+                            }
+            except (FileNotFoundError, subprocess.TimeoutExpired):
+                pass
+        
+        return {'type': None, 'name': '', 'available': False}
+    
+    def _detect_apple(self) -> dict:
+        """Detect Apple GPU (Apple Silicon or integrated) on macOS"""
+        try:
+            result = subprocess.run(
+                ['system_profiler', 'SPDisplaysDataType'],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            
+            if result.returncode == 0:
+                output = result.stdout
+                # Look for Apple Silicon GPU (M1, M2, M3, M4, etc.)
+                for line in output.split('\n'):
+                    line = line.strip()
+                    if 'Chipset Model' in line or 'Chip' in line:
+                        name = line.split(':', 1)[-1].strip()
+                        if 'Apple' in name or name.startswith('M'):
+                            return {
+                                'type': 'apple',
+                                'name': name,
+                                'available': True
+                            }
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            pass
         
         return {'type': None, 'name': '', 'available': False}
     
@@ -290,7 +371,7 @@ class GPUDetector:
                 for line in output.split('\n'):
                     line = line.strip()
                     # Look for hardware encoder lines
-                    if any(enc in line for enc in ['h264_nvenc', 'h264_amf', 'h264_qsv', 'h264_mf']):
+                    if any(enc in line for enc in ['h264_nvenc', 'h264_amf', 'h264_qsv', 'h264_mf', 'h264_videotoolbox']):
                         # Extract encoder name (format: " V....D h264_nvenc ...")
                         parts = line.split()
                         if len(parts) >= 2:
@@ -333,13 +414,15 @@ class GPUDetector:
         encoder_map = {
             'nvidia': 'h264_nvenc',
             'amd': 'h264_amf',
-            'intel': 'h264_qsv'
+            'intel': 'h264_qsv',
+            'apple': 'h264_videotoolbox'
         }
         
         preset_map = {
             'nvidia': 'p4',  # p1-p7, p4 is balanced
             'amd': 'balanced',
-            'intel': 'balanced'
+            'intel': 'balanced',
+            'apple': None  # VideoToolbox doesn't use presets
         }
         
         recommended_encoder = encoder_map.get(gpu['type'])
@@ -414,6 +497,14 @@ class GPUDetector:
                 '-c:v', 'h264_qsv',
                 '-preset', preset,
                 '-global_quality', '19',
+                '-pix_fmt', 'yuv420p'
+            ]
+        
+        elif encoder == 'h264_videotoolbox':
+            # Apple VideoToolbox (macOS)
+            return [
+                '-c:v', 'h264_videotoolbox',
+                '-q:v', '65',  # Quality 1-100, 65 is good balance
                 '-pix_fmt', 'yuv420p'
             ]
         
