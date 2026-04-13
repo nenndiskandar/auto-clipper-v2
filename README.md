@@ -3,6 +3,7 @@
 [![Discord](https://img.shields.io/badge/Join-Discord-5865F2?logo=discord&logoColor=white)](https://s.id/ytsdiscord)
 [![GitHub Stars](https://img.shields.io/github/stars/jipraks/yt-short-clipper?style=social)](https://github.com/jipraks/yt-short-clipper)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey)]()
 
 🎬 **Automated YouTube to Short-Form Content Pipeline**
 
@@ -10,11 +11,18 @@ Transform long-form YouTube videos (podcasts, interviews, vlogs) into engaging s
 
 ---
 
-## � Getting Started
+## 🚀 Getting Started
 
 ### For Users (Non-Technical)
 
-Download the desktop app and follow the complete setup guide:
+Download the desktop app for your platform:
+
+| Platform | Download | Notes |
+|----------|----------|-------|
+| **Windows** | [Latest Release (.exe)](https://github.com/jipraks/yt-short-clipper/releases) | Windows 10+ |
+| **macOS** | [Latest Release (.dmg)](https://github.com/jipraks/yt-short-clipper/releases) | macOS Catalina+, Apple Silicon & Intel |
+
+Then follow the complete setup guide:
 
 - 📖 **[English Guide](GUIDE.md)** - Complete setup guide with screenshots
 - 📖 **[Panduan Indonesia](PANDUAN.md)** - Panduan lengkap dengan screenshot
@@ -32,11 +40,11 @@ If you want to contribute or run from source:
 
 1. See [Installation](#-installation-for-development) below for development setup
 2. See [Contributing](#-contributing) for contribution guidelines
-3. See [BUILD.md](BUILD.md) for building the desktop app from source
+3. See [Building from Source](#-building-from-source) for packaging the app
 
 ## ✨ Features
 
-- **🎥 Auto Download** - Downloads YouTube videos with Indonesian subtitles using yt-dlp
+- **🎥 Auto Download** - Downloads YouTube videos with subtitles using yt-dlp
 - **🔍 AI Highlight Detection** - Uses GPT-4 to identify the most engaging segments (60-120 seconds)
 - **✂️ Smart Clipping** - Automatically cuts video at optimal timestamps
 - **📱 Portrait Conversion** - Converts landscape (16:9) to portrait (9:16) with intelligent speaker tracking
@@ -47,6 +55,8 @@ If you want to contribute or run from source:
 - **📝 Auto Captions** - Adds CapCut-style word-by-word highlighted captions using Whisper
 - **🖼️ Watermark Support** - Add custom watermark with adjustable position, size, and opacity
 - **📊 SEO Metadata** - Generates optimized titles and descriptions for each clip
+- **🖥️ Cross-Platform** - Runs on Windows and macOS (Apple Silicon + Intel)
+- **⚡ GPU Acceleration** - NVENC (NVIDIA), AMF (AMD), QSV (Intel), VideoToolbox (macOS)
 
 ## 🏗️ Architecture
 
@@ -62,8 +72,8 @@ If you want to contribute or run from source:
 │                                              │                  │
 │                                              ▼                  │
 │                                    ┌─────────────────┐         │
-│                                    │ Highlight Finder│         │
-│                                    │    (GPT-4)      │         │
+│                                    │ Highlight Finder │         │
+│                                    │    (GPT-4)       │         │
 │                                    └─────────────────┘         │
 │                                              │                  │
 │                                              ▼                  │
@@ -72,19 +82,19 @@ If you want to contribute or run from source:
 │  │  ┌────────────┐  ┌────────────┐  ┌────────────────────┐  │  │
 │  │  │   Clipper  │─▶│  Portrait  │─▶│  Hook Generator    │  │  │
 │  │  │  (FFmpeg)  │  │ Converter  │  │  (TTS + Overlay)   │  │  │
-│  │  └────────────┘  └────────────┘  └────────────────────┘  │  │
-│  │                                              │            │  │
-│  │                                              ▼            │  │
+│  │  └────────────┘  │ OpenCV /   │  └────────────────────┘  │  │
+│  │                   │ MediaPipe  │             │            │  │
+│  │                   └────────────┘             ▼            │  │
 │  │                                    ┌────────────────┐     │  │
 │  │                                    │Caption Generator│    │  │
-│  │                                    │   (Whisper)    │     │  │
+│  │                                    │   (Whisper)     │    │  │
 │  │                                    └────────────────┘     │  │
 │  └──────────────────────────────────────────────────────────┘  │
 │                                              │                  │
 │                                              ▼                  │
 │                                    ┌─────────────────┐         │
 │                                    │  Output Clips   │         │
-│                                    │  + Metadata     │         │
+│                                    │  + Metadata      │         │
 │                                    └─────────────────┘         │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -100,8 +110,11 @@ If you want to contribute or run from source:
 | Python | 3.10+ | Runtime |
 | FFmpeg | 4.4+ | Video processing |
 | yt-dlp | Latest | YouTube downloading |
+| Deno | 2.x | Required by yt-dlp for some extractors |
 
 ### Python Dependencies
+
+See [requirements.txt](requirements.txt) for the full list. Key dependencies:
 
 ```
 customtkinter>=5.2.0
@@ -109,9 +122,12 @@ openai>=1.0.0
 opencv-python>=4.8.0
 numpy>=1.24.0
 Pillow>=10.0.0
+mediapipe>=0.10.0
+requests>=2.31.0
+yt-dlp>=2026.3.17
+google-generativeai>=0.7.0
 google-api-python-client>=2.100.0
 google-auth-oauthlib>=1.1.0
-google-auth-httplib2>=0.1.1
 ```
 
 > **Note:** The app uses OpenAI Whisper API instead of local Whisper model.
@@ -137,7 +153,7 @@ See [GUIDE.md](GUIDE.md) or [PANDUAN.md](PANDUAN.md) for detailed API setup inst
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/yt-short-clipper.git
+git clone https://github.com/jipraks/yt-short-clipper.git
 cd yt-short-clipper
 ```
 
@@ -180,25 +196,68 @@ The app will create a `config.json` file on first run where you can save your AI
 
 ```
 yt-short-clipper/
-├── app.py                      # Main GUI application
-├── clipper_core.py             # Core processing logic
+├── app.py                      # Main GUI application (entry point)
+├── clipper_core.py             # Core processing logic (download, AI, video)
+├── version.py                  # Version info and update URL
 ├── youtube_uploader.py         # YouTube upload functionality
+├── tiktok_uploader.py          # TikTok upload functionality
 ├── requirements.txt            # Python dependencies
-├── build.spec                  # PyInstaller build config
-├── config.json                 # App settings (auto-created)
-├── SYSTEM_PROMPT.md            # AI prompt customization guide
-├── BUILD.md                    # Build instructions
-├── DEBUG.md                    # Debugging guide
-├── assets/                     # App icons
-│   ├── icon.png
-│   └── icon.ico
-└── output/                     # Output clips (auto-created)
-    ├── _temp/                  # Temporary files
-    │   ├── source.mp4
-    │   └── source.id.srt
-    └── 20240115-143001/        # Clip folder (timestamp-based)
-        ├── master.mp4          # Final clip
-        └── data.json           # Metadata
+├── build.spec                  # PyInstaller build config (Windows)
+├── build_macos.spec            # PyInstaller build config (macOS)
+├── build_web.spec              # PyInstaller build config (Web version)
+├── components/                 # Reusable UI widgets
+│   ├── ai_provider_card.py     # AI provider configuration card
+│   ├── page_layout.py          # Page layout components
+│   └── progress_step.py        # Progress step indicator
+├── config/                     # Configuration management
+│   ├── ai_provider_config.py   # AI provider definitions
+│   └── config_manager.py       # Config file read/write
+├── dialogs/                    # Modal dialogs
+│   ├── model_selector.py       # AI model search/select dialog
+│   ├── repliz_upload.py        # Repliz upload dialog
+│   ├── terms_of_service.py     # ToS dialog
+│   ├── tiktok_upload.py        # TikTok upload dialog
+│   └── youtube_upload.py       # YouTube upload dialog
+├── pages/                      # GUI pages
+│   ├── browse_page.py          # Browse output clips
+│   ├── clipping_page.py        # Clipping progress
+│   ├── contact_page.py         # Contact/feedback
+│   ├── highlight_selection_page.py  # Select highlights to process
+│   ├── processing_page.py      # Processing progress
+│   ├── results_page.py         # Results display
+│   ├── session_browser_page.py # Browse previous sessions
+│   ├── settings_page.py        # Settings hub
+│   ├── status_pages.py         # API & Library status pages
+│   └── settings/               # Settings sub-pages
+│       ├── ai_api_settings.py  # AI API configuration
+│       ├── ai_providers/       # Per-provider settings
+│       ├── output_settings.py  # Output directory settings
+│       ├── performance_settings.py  # GPU & performance
+│       ├── watermark_settings.py    # Watermark configuration
+│       └── ...
+├── utils/                      # Utility modules
+│   ├── dependency_manager.py   # Auto-download FFmpeg, Deno
+│   ├── gpu_detector.py         # GPU detection & encoder selection
+│   ├── helpers.py              # Path helpers, platform detection
+│   └── logger.py               # Logging utilities
+├── assets/                     # App icons and images
+│   ├── icon.png                # App icon (PNG)
+│   ├── icon.ico                # App icon (Windows)
+│   └── icon.icns               # App icon (macOS)
+└── web/                        # Web UI (experimental)
+    ├── index.html
+    ├── app.js
+    ├── css/
+    └── components/
+```
+
+### Output Structure
+
+```
+output/
+└── 20240115-143001/            # Session folder (timestamp-based)
+    ├── master.mp4              # Final clip
+    └── data.json               # Metadata
 ```
 
 ### data.json Structure
@@ -216,9 +275,7 @@ Each clip folder contains a `data.json` file with metadata:
   "has_captions": true,
   "youtube_title": "🔥 Momen Kocak Saat Pembully Datang Minta Maaf",
   "youtube_description": "Siapa sangka mantan pembully malah datang minta endorse! 😂 #podcast #viral #fyp",
-  "youtube_tags": ["shorts", "viral", "podcast"],
-  "youtube_url": "https://youtube.com/watch?v=xxxxx",
-  "youtube_video_id": "xxxxx"
+  "youtube_tags": ["shorts", "viral", "podcast"]
 }
 ```
 
@@ -229,20 +286,8 @@ Each clip folder contains a `data.json` file with metadata:
 All settings can be configured through the GUI Settings page (⚙️ button in the app).
 
 For complete setup instructions with screenshots, see:
-- [English Guide](GUIDE.md#5-ai-api-configuration)
-- [Panduan Indonesia](PANDUAN.md#5-konfigurasi-ai-api)
-
-### AI Provider Selection
-
-The app supports **10+ AI providers** with intelligent auto-fill:
-- YT Clip AI (Recommended)
-- OpenAI
-- Google Gemini
-- Groq
-- Anthropic Claude
-- And more...
-
-For detailed provider comparison and setup, see: [AI_PROVIDER_SELECTOR.md](AI_PROVIDER_SELECTOR.md)
+- [English Guide](GUIDE.md)
+- [Panduan Indonesia](PANDUAN.md)
 
 ### Highlight Detection Parameters
 
@@ -284,7 +329,7 @@ For detailed provider comparison and setup, see: [AI_PROVIDER_SELECTOR.md](AI_PR
 
 ### 1. Video Download
 - Uses yt-dlp to download video in best quality (max 1080p)
-- Automatically fetches Indonesian auto-generated subtitles
+- Automatically fetches auto-generated subtitles
 - Extracts video metadata (title, description, channel)
 
 ### 2. Highlight Detection
@@ -299,8 +344,8 @@ For detailed provider comparison and setup, see: [AI_PROVIDER_SELECTOR.md](AI_PR
 - Generates hook text for each highlight
 
 ### 3. Portrait Conversion
-- Uses OpenCV Haar Cascade for face detection
-- Tracks lip movement to identify active speaker
+- **OpenCV mode:** Uses Haar Cascade for face detection, crops to largest face
+- **MediaPipe mode:** Tracks lip movement to identify active speaker
 - Implements "camera cut" style switching (not smooth panning)
 - Stabilizes crop position within each "shot"
 - Maintains 9:16 aspect ratio at 1080x1920
@@ -315,7 +360,7 @@ For detailed provider comparison and setup, see: [AI_PROVIDER_SELECTOR.md](AI_PR
 - Concatenates hook with main clip
 
 ### 5. Caption Generation
-- Transcribes audio using OpenAI Whisper
+- Transcribes audio using OpenAI Whisper API
 - Creates ASS subtitle file with:
   - Word-by-word timing
   - Yellow highlight on current word
@@ -329,18 +374,18 @@ For detailed provider comparison and setup, see: [AI_PROVIDER_SELECTOR.md](AI_PR
 The captions use CapCut-style formatting:
 
 ```
-Font: Arial Black
-Size: 70px
+Font: Arial Black (platform-dependent fallback)
+Size: 65px
 Color: White (#FFFFFF)
 Highlight: Yellow (#00FFFF)
 Outline: 4px Black
 Shadow: 2px
-Position: Lower third (350px from bottom)
+Position: Lower third (400px from bottom)
 ```
 
 ---
 
-## � API Usage & Costs 
+## 💰 API Usage & Costs
 
 Estimated OpenAI API costs per video (5 clips):
 
@@ -356,25 +401,51 @@ The desktop app shows real-time token usage and cost estimation during processin
 
 ---
 
-## 🤝 Contributing
+## 🔨 Building from Source
 
-Contributions are welcome! We greatly appreciate contributions from anyone.
+### Windows
 
-### 🔨 Building Desktop App from Source
-
-For developers who want to build the .exe themselves, see the complete guide in [BUILD.md](BUILD.md).
-
-Quick steps:
 ```bash
-# Install dependencies
 pip install -r requirements.txt
 pip install pyinstaller
 
-# Build
 pyinstaller build.spec
-
-# Output: dist/AutoClipper.exe
+# Output: dist/YTShortClipper.exe
 ```
+
+### macOS
+
+Requires Python 3.10+ and `create-dmg` (`brew install create-dmg`).
+
+```bash
+pip install -r requirements.txt
+pip install pyinstaller
+
+# Build .app bundle
+python -m PyInstaller build_macos.spec --clean --noconfirm
+
+# Create DMG (optional)
+create-dmg \
+    --volname "YTShortClipper" \
+    --volicon "assets/icon.icns" \
+    --window-size 600 400 \
+    --icon "YTShortClipper.app" 150 185 \
+    --app-drop-link 450 185 \
+    "dist/YTShortClipper.dmg" \
+    "dist/YTShortClipper.app"
+```
+
+**macOS notes:**
+- User data is stored in `~/Library/Application Support/YTShortClipper/` (persists across app updates)
+- FFmpeg is auto-downloaded from [evermeet.cx](https://evermeet.cx/ffmpeg/) (x86_64, runs on Apple Silicon via Rosetta 2)
+- GPU acceleration uses VideoToolbox (hardware encoding on all Macs)
+- ffplay is not available on macOS; video preview requires system player
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! We greatly appreciate contributions from anyone.
 
 ### Quick Start for Contributors
 
@@ -386,7 +457,7 @@ git clone https://github.com/YOUR-USERNAME/yt-short-clipper.git
 cd yt-short-clipper
 
 # 3. Add upstream remote
-git remote add upstream https://github.com/OWNER/yt-short-clipper.git
+git remote add upstream https://github.com/jipraks/yt-short-clipper.git
 
 # 4. Create a new branch
 git checkout -b feature/your-new-feature
@@ -430,6 +501,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp) - YouTube downloading
 - [OpenAI Whisper](https://github.com/openai/whisper) - Speech recognition
 - [OpenCV](https://opencv.org/) - Computer vision
+- [MediaPipe](https://mediapipe.dev/) - Face & lip tracking
 - [FFmpeg](https://ffmpeg.org/) - Video processing
 - [OpenAI API](https://openai.com/) - GPT-4 and TTS
 
