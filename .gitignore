@@ -49,6 +49,8 @@ MANIFEST
 # PyInstaller
 *.manifest
 *.spec
+!build.spec
+!build_web.spec
 
 # Installer logs
 pip-log.txt
