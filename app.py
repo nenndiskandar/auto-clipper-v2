@@ -26,6 +26,7 @@ from config.config_manager import ConfigManager
 from dialogs.model_selector import SearchableModelDropdown
 from dialogs.youtube_upload import YouTubeUploadDialog
 from dialogs.terms_of_service import TermsOfServiceDialog
+from dialogs.autoklip_promo import AutoKlipPromoDialog
 from components.progress_step import ProgressStep
 from pages.settings_page import SettingsPage
 from pages.browse_page import BrowsePage
@@ -116,13 +117,30 @@ class YTShortClipperApp(ctk.CTk):
         # Show Terms of Service if not yet accepted
         if not self.config.get("tos_accepted", False):
             self.after(300, self._show_tos_dialog)
+        else:
+            # ToS already accepted in a previous session — show AutoKlip promo
+            # one time only.
+            self.after(500, self._maybe_show_autoklip_promo)
     
     def _show_tos_dialog(self):
         """Show Terms of Service dialog and block app usage until accepted."""
         def on_accept():
             self.config.set("tos_accepted", True)
+            # Queue the AutoKlip promo right after ToS acceptance
+            self.after(400, self._maybe_show_autoklip_promo)
         
         TermsOfServiceDialog(self, on_accept)
+    
+    def _maybe_show_autoklip_promo(self):
+        """Show AutoKlip promo modal exactly once per install."""
+        if self.config.get("autoklip_promo_shown", False):
+            return
+        try:
+            AutoKlipPromoDialog(self)
+        finally:
+            # Persist immediately so it never shows again, even if user
+            # closes the app without clicking the CTA.
+            self.config.set("autoklip_promo_shown", True)
     
     def set_app_icon(self):
         """Set window icon"""
@@ -895,21 +913,21 @@ class YTShortClipperApp(ctk.CTk):
     def show_no_subtitle_fallback(self):
         """Handle case where no subtitles are available.
         
-        Shows a special dropdown option indicating AI transcription will be used,
-        and still allows the user to proceed with Find Highlights.
+        Since the new flow requires subtitles (no video download for Whisper),
+        we disable the Find Highlights button and inform the user.
         """
         # Hide loading
         self.subtitle_loading.pack_forget()
         
-        # Set dropdown to show AI transcription option
-        fallback_option = "none - No subtitle (AI transcription)"
-        self.subtitle_var.set(fallback_option)
-        self.subtitle_dropdown.configure(values=[fallback_option], state="disabled")
+        # Set dropdown to show no subtitle message
+        no_sub_option = "none - No subtitle available"
+        self.subtitle_var.set(no_sub_option)
+        self.subtitle_dropdown.configure(values=[no_sub_option], state="disabled")
         
-        # Still mark as loaded so Find Highlights button is enabled
-        self.subtitle_loaded = True
+        # Do NOT mark as loaded — this prevents Find Highlights button from enabling
+        self.subtitle_loaded = False
         
-        # Update start button state
+        # Update start button state (will be disabled)
         self.update_start_button_state()
     
     def load_thumbnail(self, video_id: str):
@@ -1100,23 +1118,6 @@ class YTShortClipperApp(ctk.CTk):
         subtitle_selection = self.subtitle_var.get()
         subtitle_lang = subtitle_selection.split(" - ")[0] if " - " in subtitle_selection else "id"
         
-        # Check if user already knows there's no subtitle (selected AI transcription)
-        use_ai_transcription = subtitle_lang == "none"
-        
-        if use_ai_transcription:
-            # Validate Caption Maker is configured before starting
-            ai_providers = self.config.get("ai_providers", {})
-            cm_config = ai_providers.get("caption_maker", {})
-            cm_api_key = cm_config.get("api_key", "").strip()
-            
-            if not cm_api_key:
-                messagebox.showerror("Error", 
-                    "Caption Maker is not configured!\n\n"
-                    "AI transcription requires Caption Maker (Whisper API).\n\n"
-                    "Please set it up in:\n"
-                    "Settings → AI API Settings → Caption Maker")
-                return
-        
         # Reset UI
         self.processing = True
         self.cancelled = False
@@ -1125,17 +1126,12 @@ class YTShortClipperApp(ctk.CTk):
         # Reset processing page UI
         self.pages["processing"].reset_ui()
         
-        # If AI transcription mode, switch to 3-step layout immediately
-        if use_ai_transcription:
-            self.pages["processing"].switch_to_transcription_mode()
-            self.steps = self.pages["processing"].steps
-        
         self.show_page("processing")
         
         output_dir = self.config.get("output_dir", str(OUTPUT_DIR))
         model = self.config.get("model", "gpt-4.1")
         
-        # NEW FLOW: Only find highlights (don't process yet)
+        # NEW FLOW: Only download subtitle + find highlights (no video download)
         threading.Thread(target=self.run_find_highlights, 
                         args=(url, num_clips, output_dir, model, subtitle_lang), 
                         daemon=True).start()
@@ -1232,7 +1228,7 @@ class YTShortClipperApp(ctk.CTk):
         
         num_steps = len(self.steps)
         
-        if "download" in status_lower or "processing downloaded" in status_lower:
+        if "download" in status_lower or "processing downloaded" in status_lower or "subtitle" in status_lower:
             if step_progress is None:
                 step_progress = 0.0
             self.steps[0].set_active(status, step_progress)
@@ -1311,23 +1307,21 @@ class YTShortClipperApp(ctk.CTk):
             )
             
             try:
-                # Call find_highlights_only (returns session data)
+                # Call find_highlights_only (returns session data - subtitle only, no video)
                 result = core.find_highlights_only(url, num_clips)
             except SubtitleNotFoundError as snf:
-                # No subtitle found
+                # No subtitle found - can't proceed without video for Whisper
                 if self.cancelled:
                     self.after(0, self.on_cancelled)
                     return
                 
-                if subtitle_lang == "none":
-                    # User already chose AI transcription from home page — skip dialog
-                    self._run_whisper_transcription(
-                        core, snf.video_path, snf.video_info, 
-                        num_clips, snf.session_dir)
-                else:
-                    # Unexpected: user selected a subtitle language but it wasn't found
-                    self.after(0, lambda: self._show_whisper_fallback_dialog(
-                        core, snf, num_clips))
+                self.after(0, lambda: self.on_error(
+                    f"No subtitle available for language: {subtitle_lang.upper()}\n\n"
+                    "This video doesn't have the selected subtitle.\n\n"
+                    "Tips:\n"
+                    "1. Go back and select a different subtitle language\n"
+                    "2. Try a video that has subtitles available"
+                ))
                 return
             
             if not self.cancelled and result:
@@ -1439,10 +1433,9 @@ class YTShortClipperApp(ctk.CTk):
             self.show_page("home")
             return
         
-        # Set highlights in selection page
+        # Set highlights in selection page (no video_path needed)
         self.pages["highlight_selection"].set_highlights(
             self.session_data["highlights"],
-            self.session_data["video_path"],
             self.session_data["session_dir"]
         )
         
@@ -1477,6 +1470,25 @@ class YTShortClipperApp(ctk.CTk):
         if not self.session_data:
             messagebox.showerror("Error", "No session data available")
             return
+        
+        # Check if session has URL (new flow) or video_path (old flow)
+        has_url = bool(self.session_data.get("url", ""))
+        has_video = bool(self.session_data.get("video_path", ""))
+        
+        if not has_url and not has_video:
+            messagebox.showerror("Error", 
+                "This session is missing both URL and video path.\n\n"
+                "Please start a new session from the home page.")
+            return
+        
+        if not has_url and has_video:
+            # Old session format — check if video file still exists
+            video_path = self.session_data["video_path"]
+            if not Path(video_path).exists():
+                messagebox.showerror("Error", 
+                    "This is an old session and the video file no longer exists.\n\n"
+                    "Please start a new session from the home page.")
+                return
         
         # Store enhancement options
         self.add_captions = add_captions
@@ -1558,13 +1570,24 @@ class YTShortClipperApp(ctk.CTk):
                 core.enable_gpu_acceleration(True)
             
             # Process selected highlights
-            core.process_selected_highlights(
-                self.session_data["video_path"],
-                selected_highlights,
-                self.session_data["session_dir"],
-                add_captions=self.add_captions,
-                add_hook=self.add_hook
-            )
+            # New flow: download sections per clip using URL
+            # Old flow (backward compat): use existing video_path
+            session_url = self.session_data.get("url", "")
+            session_video_path = self.session_data.get("video_path", "")
+            
+            if session_url:
+                # New flow: download video sections per clip
+                core.process_selected_highlights(
+                    session_url,
+                    selected_highlights,
+                    self.session_data["session_dir"],
+                    add_captions=self.add_captions,
+                    add_hook=self.add_hook
+                )
+            elif session_video_path:
+                # Old flow (backward compat): process from existing video
+                # Use the old method signature with video_path
+                self._process_old_session(core, session_video_path, selected_highlights)
             
             if not self.cancelled:
                 self.after(0, self.on_clipping_complete)
@@ -1578,6 +1601,36 @@ class YTShortClipperApp(ctk.CTk):
                 self.after(0, self.on_clipping_cancelled)
             else:
                 self.after(0, lambda: self.on_clipping_error(error_msg))
+    
+    def _process_old_session(self, core, video_path: str, selected_highlights: list):
+        """Backward compatibility: process clips from an already-downloaded video (old session format)"""
+        from pathlib import Path
+        
+        session_dir = Path(self.session_data["session_dir"])
+        clips_dir = session_dir / "clips"
+        clips_dir.mkdir(parents=True, exist_ok=True)
+        
+        total_clips = len(selected_highlights)
+        for i, highlight in enumerate(selected_highlights, 1):
+            if self.cancelled:
+                return
+            
+            clip_folder = clips_dir / f"clip_{i:03d}"
+            clip_folder.mkdir(parents=True, exist_ok=True)
+            
+            original_output_dir = core.output_dir
+            core.output_dir = clip_folder.parent
+            
+            try:
+                core.process_clip(video_path, highlight, i, total_clips,
+                                add_captions=self.add_captions, add_hook=self.add_hook,
+                                pre_cut=False)
+            finally:
+                core.output_dir = original_output_dir
+        
+        core.set_progress("Cleaning up...", 0.95)
+        core.cleanup()
+        core.set_progress("Complete!", 1.0)
     
     def update_clipping_status(self, msg: str):
         """Update clipping page status"""

@@ -194,11 +194,15 @@ class SessionBrowserPage(ctk.CTkFrame):
             delete_btn.pack(side="left")
     
     def resume_session(self, session_data: dict):
-        """Resume a session"""
+        """Resume a session (supports both old and new format)"""
         # Convert paths back to Path objects
         session_data["session_dir"] = Path(session_data["session_dir"])
-        session_data["video_path"] = session_data["video_path"]
-        session_data["srt_path"] = session_data["srt_path"]
+        if session_data.get("srt_path"):
+            session_data["srt_path"] = session_data["srt_path"]
+        
+        # Backward compatibility: old sessions have video_path, new ones have url
+        if "video_path" in session_data:
+            session_data["video_path"] = session_data["video_path"]
         
         # Call resume callback
         self.on_resume(session_data)
