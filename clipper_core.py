@@ -15,7 +15,7 @@ import sys
 import time
 from pathlib import Path
 from datetime import datetime
-from openai import OpenAI
+from openai import OpenAI, APIError, APIConnectionError, RateLimitError, APIStatusError
 from utils.logger import debug_log
 from utils.helpers import get_deno_path, get_ffmpeg_path, is_ytdlp_module_available
 
@@ -48,11 +48,6 @@ try:
 except ImportError:
     YTDLP_MODULE_AVAILABLE = False
 
-try:
-    import google.generativeai as genai
-    GOOGLE_GENAI_AVAILABLE = True
-except ImportError:
-    GOOGLE_GENAI_AVAILABLE = False
 
 # Hide console window on Windows
 SUBPROCESS_FLAGS = 0
@@ -65,10 +60,10 @@ class SubtitleNotFoundError(Exception):
     
     Carries context needed to offer Whisper transcription fallback.
     """
-    def __init__(self, message: str, video_path: str, video_info: dict, session_dir: str = None):
+    def __init__(self, message: str, video_path: str = None, video_info: dict = None, session_dir: str = None):
         super().__init__(message)
         self.video_path = video_path
-        self.video_info = video_info
+        self.video_info = video_info or {}
         self.session_dir = session_dir
 
 
@@ -1085,19 +1080,23 @@ Transcript:
             if not video_data:
                 return {"error": "Failed to fetch video info", "subtitles": [], "automatic_captions": []}
             
-            # Extract subtitles
+            # Extract subtitles (exclude live_chat)
             subtitles = []
             auto_captions = []
             
             # Get manual subtitles
             if "subtitles" in video_data and video_data["subtitles"]:
                 for lang_code in video_data["subtitles"].keys():
+                    if "live_chat" in lang_code:
+                        continue
                     lang_name = lang_names.get(lang_code, lang_code.upper())
                     subtitles.append({"code": lang_code, "name": lang_name})
             
             # Get automatic captions
             if "automatic_captions" in video_data and video_data["automatic_captions"]:
                 for lang_code in video_data["automatic_captions"].keys():
+                    if "live_chat" in lang_code:
+                        continue
                     lang_name = lang_names.get(lang_code, lang_code.upper())
                     auto_captions.append({"code": lang_code, "name": lang_name})
             
@@ -1189,19 +1188,23 @@ Transcript:
             # Parse JSON output
             video_data = json.loads(result.stdout)
             
-            # Extract subtitles
+            # Extract subtitles (exclude live_chat)
             subtitles = []
             auto_captions = []
             
             # Get manual subtitles
             if "subtitles" in video_data and video_data["subtitles"]:
                 for lang_code in video_data["subtitles"].keys():
+                    if "live_chat" in lang_code:
+                        continue
                     lang_name = lang_names.get(lang_code, lang_code.upper())
                     subtitles.append({"code": lang_code, "name": lang_name})
             
             # Get automatic captions
             if "automatic_captions" in video_data and video_data["automatic_captions"]:
                 for lang_code in video_data["automatic_captions"].keys():
+                    if "live_chat" in lang_code:
+                        continue
                     lang_name = lang_names.get(lang_code, lang_code.upper())
                     auto_captions.append({"code": lang_code, "name": lang_name})
             
@@ -1232,6 +1235,464 @@ Transcript:
             lines.append(f"[{start} - {end}] {clean_text}")
         
         return "\n".join(lines)
+    
+    def extract_transcript_for_highlight(self, srt_path: str, highlight: dict) -> str:
+        """Extract subtitle text within a highlight's time range.
+        
+        Args:
+            srt_path: Path to SRT file
+            highlight: Dict with start_time and end_time keys
+            
+        Returns:
+            str: Concatenated subtitle text within the time range
+        """
+        with open(srt_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        
+        pattern = r"(\d+)\n(\d{2}:\d{2}:\d{2},\d{3}) --> (\d{2}:\d{2}:\d{2},\d{3})\n(.*?)(?=\n\n|\Z)"
+        matches = re.findall(pattern, content, re.DOTALL)
+        
+        start_sec = self.parse_timestamp(highlight["start_time"])
+        end_sec = self.parse_timestamp(highlight["end_time"])
+        
+        lines = []
+        for idx, start, end, text in matches:
+            sub_start = self.parse_timestamp(start)
+            sub_end = self.parse_timestamp(end)
+            
+            # Include subtitle if it overlaps with highlight range
+            if sub_end >= start_sec and sub_start <= end_sec:
+                clean_text = text.replace("\n", " ").strip()
+                if clean_text:
+                    lines.append(clean_text)
+        
+        return " ".join(lines)
+    
+    def download_subtitle_only(self, url: str) -> tuple:
+        """Download only subtitle (no video) using yt-dlp.
+        
+        Returns:
+            tuple: (srt_path, video_info) where srt_path is str or None
+        """
+        self.log("[1/2] Downloading subtitle only...")
+        
+        use_module = YTDLP_MODULE_AVAILABLE and self.ytdlp_path == "yt_dlp_module"
+        
+        if use_module:
+            return self._download_subtitle_only_module(url)
+        else:
+            return self._download_subtitle_only_subprocess(url)
+    
+    def _download_subtitle_only_module(self, url: str) -> tuple:
+        """Download subtitle only using yt-dlp Python module API"""
+        self.log(f"  Using yt-dlp module v{yt_dlp.version.__version__}")
+        
+        video_info = {}
+        
+        # Get Deno path
+        deno_path = get_deno_path()
+        ffmpeg_path = get_ffmpeg_path()
+        
+        # Setup environment with Deno in PATH
+        if deno_path and Path(deno_path).exists():
+            deno_dir = str(Path(deno_path).parent)
+            if "PATH" in os.environ:
+                os.environ["PATH"] = f"{deno_dir}{os.pathsep}{os.environ['PATH']}"
+            else:
+                os.environ["PATH"] = deno_dir
+        
+        # yt-dlp options: skip video download, only get subtitle
+        ydl_opts = {
+            'skip_download': True,
+            'writesubtitles': True,
+            'writeautomaticsub': True,
+            'subtitleslangs': [self.subtitle_language],
+            'subtitlesformat': 'srt',
+            'outtmpl': str(self.temp_dir / 'source.%(ext)s'),
+            'quiet': True,
+            'no_warnings': False,
+        }
+        
+        # Add Deno JS runtime if available
+        if deno_path and Path(deno_path).exists():
+            ydl_opts['js_runtimes'] = {'deno': {'path': deno_path}}
+            ydl_opts['remote_components'] = ['ejs:github']
+        
+        # Add FFmpeg location for subtitle conversion
+        if ffmpeg_path and Path(ffmpeg_path).exists():
+            ydl_opts['ffmpeg_location'] = str(Path(ffmpeg_path).parent)
+            ydl_opts['postprocessors'] = [{
+                'key': 'FFmpegSubtitlesConvertor',
+                'format': 'srt',
+            }]
+        
+        # Add cookies
+        from utils.helpers import get_app_dir
+        app_dir = get_app_dir()
+        cookies_locations = [
+            Path("cookies.txt"),
+            app_dir / "cookies.txt",
+        ]
+        
+        cookies_path = None
+        for loc in cookies_locations:
+            if loc.exists():
+                cookies_path = loc
+                break
+        
+        if not cookies_path:
+            raise Exception("cookies.txt not found!\n\nPlease upload cookies.txt file from home page.")
+        
+        ydl_opts['cookiefile'] = str(cookies_path)
+        
+        try:
+            self.log(f"  Downloading {self.subtitle_language} subtitle...")
+            
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                # Get video info + download subtitle
+                info = ydl.extract_info(url, download=True)
+                
+                if info:
+                    video_info = {
+                        "title": info.get("title", ""),
+                        "description": (info.get("description", "") or "")[:2000],
+                        "channel": info.get("channel", ""),
+                    }
+                    self.log(f"  Title: {video_info['title'][:50]}...")
+            
+            self.log(f"  ✓ Subtitle download complete!")
+            
+        except Exception as e:
+            last_error = str(e)
+            self.log(f"  ✗ Failed: {last_error[:100]}")
+            
+            if "403" in last_error or "Forbidden" in last_error:
+                raise Exception(
+                    "❌ ERROR: YouTube menolak akses (HTTP 403 Forbidden)\n\n"
+                    "Cookies sudah EXPIRED. Silakan export cookies baru.\n\n"
+                    "📖 Lihat COOKIES.md untuk panduan lengkap"
+                )
+            else:
+                raise Exception(f"Subtitle download failed!\n\n{last_error}")
+        
+        # Find downloaded subtitle file
+        srt_path = self.temp_dir / f"source.{self.subtitle_language}.srt"
+        
+        if not srt_path.exists():
+            available_subs = list(self.temp_dir.glob("source.*.srt"))
+            if available_subs:
+                srt_path = available_subs[0]
+                detected_lang = srt_path.stem.split('.')[-1]
+                self.log(f"  ⚠ {self.subtitle_language} subtitle not found, using {detected_lang} instead")
+            else:
+                srt_path = None
+                self.log(f"  ✗ No subtitle found for language: {self.subtitle_language}")
+        
+        return str(srt_path) if srt_path else None, video_info
+    
+    def _download_subtitle_only_subprocess(self, url: str) -> tuple:
+        """Download subtitle only using yt-dlp subprocess (fallback)"""
+        # Validate yt-dlp
+        try:
+            version_check = subprocess.run(
+                [self.ytdlp_path, "--version"],
+                capture_output=True, text=True,
+                creationflags=SUBPROCESS_FLAGS, timeout=5
+            )
+            if version_check.returncode != 0:
+                raise Exception(f"yt-dlp not working properly. Path: {self.ytdlp_path}")
+            self.log(f"  Using yt-dlp version: {version_check.stdout.strip()}")
+        except FileNotFoundError:
+            raise Exception(f"yt-dlp not found at: {self.ytdlp_path}")
+        
+        # Get video metadata first
+        self.log("  Fetching video info...")
+        meta_cmd = [self.ytdlp_path, "--dump-json", "--no-download", url]
+        
+        # Add cookies
+        from utils.helpers import get_app_dir
+        app_dir = get_app_dir()
+        cookies_path = None
+        for loc in [Path("cookies.txt"), app_dir / "cookies.txt"]:
+            if loc.exists():
+                cookies_path = str(loc)
+                break
+        
+        if cookies_path:
+            meta_cmd.extend(["--cookies", cookies_path])
+        
+        result = subprocess.run(
+            meta_cmd, capture_output=True, text=True,
+            creationflags=SUBPROCESS_FLAGS, timeout=30
+        )
+        
+        video_info = {}
+        if result.returncode == 0:
+            try:
+                yt_data = json.loads(result.stdout)
+                video_info = {
+                    "title": yt_data.get("title", ""),
+                    "description": yt_data.get("description", "")[:2000],
+                    "channel": yt_data.get("channel", ""),
+                }
+                self.log(f"  Title: {video_info['title'][:50]}...")
+            except json.JSONDecodeError:
+                self.log("  Warning: Could not parse metadata")
+        
+        # Download subtitle only
+        self.log(f"  Downloading {self.subtitle_language} subtitle...")
+        cmd = [
+            self.ytdlp_path,
+            "--skip-download",
+            "--write-sub", "--write-auto-sub",
+            "--sub-lang", self.subtitle_language,
+            "--convert-subs", "srt",
+            "-o", str(self.temp_dir / "source.%(ext)s"),
+        ]
+        
+        if cookies_path:
+            cmd.extend(["--cookies", cookies_path])
+        
+        cmd.append(url)
+        
+        result = subprocess.run(
+            cmd, capture_output=True, text=True,
+            creationflags=SUBPROCESS_FLAGS, timeout=30
+        )
+        
+        if result.returncode != 0:
+            error_msg = result.stderr.strip() if result.stderr else "Unknown error"
+            self.log(f"  ✗ Failed: {error_msg[:100]}")
+            raise Exception(f"Subtitle download failed!\n\n{error_msg}")
+        
+        self.log(f"  ✓ Subtitle download complete!")
+        
+        # Find downloaded subtitle file
+        srt_path = self.temp_dir / f"source.{self.subtitle_language}.srt"
+        
+        if not srt_path.exists():
+            available_subs = list(self.temp_dir.glob("source.*.srt"))
+            if available_subs:
+                srt_path = available_subs[0]
+                detected_lang = srt_path.stem.split('.')[-1]
+                self.log(f"  ⚠ {self.subtitle_language} subtitle not found, using {detected_lang} instead")
+            else:
+                srt_path = None
+                self.log(f"  ✗ No subtitle found for language: {self.subtitle_language}")
+        
+        return str(srt_path) if srt_path else None, video_info
+    
+    def download_video_section(self, url: str, start_time: str, end_time: str, output_path: str) -> str:
+        """Download a specific section of a video using yt-dlp --download-sections.
+        
+        Args:
+            url: YouTube video URL
+            start_time: Start timestamp (HH:MM:SS,mmm or HH:MM:SS.mmm)
+            end_time: End timestamp (HH:MM:SS,mmm or HH:MM:SS.mmm)
+            output_path: Path to save the downloaded section
+            
+        Returns:
+            str: Path to downloaded video file
+        """
+        # Normalize timestamps (replace comma with dot for yt-dlp)
+        start_clean = start_time.replace(",", ".")
+        end_clean = end_time.replace(",", ".")
+        
+        use_module = YTDLP_MODULE_AVAILABLE and self.ytdlp_path == "yt_dlp_module"
+        
+        if use_module:
+            return self._download_section_module(url, start_clean, end_clean, output_path)
+        else:
+            return self._download_section_subprocess(url, start_clean, end_clean, output_path)
+    
+    def _download_section_module(self, url: str, start_time: str, end_time: str, output_path: str) -> str:
+        """Download video section using yt-dlp Python module"""
+        self.log(f"  Downloading section {start_time} → {end_time}...")
+        
+        # Get paths
+        ffmpeg_path = get_ffmpeg_path()
+        deno_path = get_deno_path()
+        
+        # Setup Deno in PATH
+        if deno_path and Path(deno_path).exists():
+            deno_dir = str(Path(deno_path).parent)
+            if "PATH" in os.environ:
+                if deno_dir not in os.environ["PATH"]:
+                    os.environ["PATH"] = f"{deno_dir}{os.pathsep}{os.environ['PATH']}"
+            else:
+                os.environ["PATH"] = deno_dir
+        
+        # Progress hook
+        def progress_hook(d):
+            if self.is_cancelled():
+                raise Exception("Cancelled by user")
+            
+            if d['status'] == 'downloading':
+                percent_str = d.get('_percent_str', '0%').strip()
+                match = re.search(r'(\d+\.?\d*)%', percent_str)
+                if match:
+                    percent = float(match.group(1))
+                    self.set_progress(f"Downloading video section... {percent:.1f}%", 0)
+            elif d['status'] == 'finished':
+                self.log("  Section download finished, processing...")
+        
+        # Format selector
+        format_selector = "bestvideo[height>=720][height<=2160]+bestaudio/best[height>=720][height<=2160]/bestvideo+bestaudio/best"
+        
+        ydl_opts = {
+            'format': format_selector,
+            'format_sort': ['res', 'br'],
+            'merge_output_format': 'mp4',
+            'outtmpl': output_path,
+            'progress_hooks': [progress_hook],
+            'quiet': True,
+            'no_warnings': False,
+            'download_ranges': yt_dlp.utils.download_range_func(None, [(
+                self.parse_timestamp(start_time),
+                self.parse_timestamp(end_time)
+            )]),
+            'force_keyframes_at_cuts': True,
+        }
+        
+        # Add Deno JS runtime
+        if deno_path and Path(deno_path).exists():
+            ydl_opts['js_runtimes'] = {'deno': {'path': deno_path}}
+            ydl_opts['remote_components'] = ['ejs:github']
+        
+        # Add FFmpeg location
+        if ffmpeg_path and Path(ffmpeg_path).exists():
+            ydl_opts['ffmpeg_location'] = str(Path(ffmpeg_path).parent)
+        
+        # Add cookies
+        from utils.helpers import get_app_dir
+        app_dir = get_app_dir()
+        cookies_path = None
+        for loc in [Path("cookies.txt"), app_dir / "cookies.txt"]:
+            if loc.exists():
+                cookies_path = loc
+                break
+        
+        if not cookies_path:
+            raise Exception("cookies.txt not found!")
+        
+        ydl_opts['cookiefile'] = str(cookies_path)
+        
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([url])
+            
+            self.log(f"  ✓ Section downloaded!")
+            
+        except Exception as e:
+            last_error = str(e)
+            self.log(f"  ✗ Section download failed: {last_error[:100]}")
+            raise Exception(f"Failed to download video section!\n\n{last_error}")
+        
+        # Find the actual output file (yt-dlp may add extension)
+        output_dir = Path(output_path).parent
+        output_stem = Path(output_path).stem
+        
+        # Check for exact match first
+        if Path(output_path).exists():
+            return output_path
+        
+        # Check for .mp4 variant
+        mp4_path = output_dir / f"{output_stem}.mp4"
+        if mp4_path.exists():
+            return str(mp4_path)
+        
+        # Search for any file with the stem
+        candidates = list(output_dir.glob(f"{output_stem}.*"))
+        video_candidates = [c for c in candidates if c.suffix in ('.mp4', '.mkv', '.webm')]
+        if video_candidates:
+            return str(video_candidates[0])
+        
+        raise Exception(f"Downloaded section file not found at: {output_path}")
+    
+    def _download_section_subprocess(self, url: str, start_time: str, end_time: str, output_path: str) -> str:
+        """Download video section using yt-dlp subprocess (fallback)"""
+        self.log(f"  Downloading section {start_time} → {end_time}...")
+        
+        # Build section string for yt-dlp
+        section_str = f"*{start_time}-{end_time}"
+        
+        format_selector = "bestvideo[height>=720][height<=2160]+bestaudio/best[height>=720][height<=2160]/bestvideo+bestaudio/best"
+        
+        cmd = [
+            self.ytdlp_path,
+            "-f", format_selector,
+            "--format-sort", "res,br",
+            "--download-sections", section_str,
+            "--force-keyframes-at-cuts",
+            "--merge-output-format", "mp4",
+            "-o", output_path,
+        ]
+        
+        # Add cookies
+        from utils.helpers import get_app_dir
+        app_dir = get_app_dir()
+        cookies_path = None
+        for loc in [Path("cookies.txt"), app_dir / "cookies.txt"]:
+            if loc.exists():
+                cookies_path = str(loc)
+                break
+        
+        if cookies_path:
+            cmd.extend(["--cookies", cookies_path])
+        
+        cmd.append(url)
+        
+        self.log(f"  Running: {' '.join(cmd[:6])}...")
+        
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            creationflags=SUBPROCESS_FLAGS
+        )
+        
+        while True:
+            if self.is_cancelled():
+                process.terminate()
+                process.wait()
+                raise Exception("Cancelled by user")
+            
+            line = process.stdout.readline()
+            if not line and process.poll() is not None:
+                break
+            
+            line = line.strip()
+            if "[download]" in line and "%" in line:
+                match = re.search(r'(\d+\.?\d*)%', line)
+                if match:
+                    percent = match.group(1)
+                    self.set_progress(f"Downloading video section... {percent}%", 0)
+        
+        if process.returncode != 0:
+            stderr_output = process.stderr.read() if process.stderr else ""
+            self.log(f"  ✗ Section download failed: {stderr_output[:200]}")
+            raise Exception(f"Failed to download video section!\n\n{stderr_output[:200]}")
+        
+        self.log(f"  ✓ Section downloaded!")
+        
+        # Find the actual output file
+        output_dir = Path(output_path).parent
+        output_stem = Path(output_path).stem
+        
+        if Path(output_path).exists():
+            return output_path
+        
+        mp4_path = output_dir / f"{output_stem}.mp4"
+        if mp4_path.exists():
+            return str(mp4_path)
+        
+        candidates = list(output_dir.glob(f"{output_stem}.*"))
+        video_candidates = [c for c in candidates if c.suffix in ('.mp4', '.mkv', '.webm')]
+        if video_candidates:
+            return str(video_candidates[0])
+        
+        raise Exception(f"Downloaded section file not found at: {output_path}")
     
     def transcribe_full_video(self, video_path: str) -> str:
         """Transcribe full video audio using Whisper API (Caption Maker).
@@ -1552,34 +2013,8 @@ Transcript:
         
         return session_data
     
-    def _call_gemini_api(self, prompt: str) -> str:
-        """Call Google Gemini API directly (not via OpenAI SDK)"""
-        try:
-            # Get API key from highlight_client config
-            # The API key should be set in base_url as part of the request
-            hf_config = self.ai_providers.get("highlight_finder", {})
-            api_key = hf_config.get("api_key", "")
-            
-            if not api_key:
-                raise Exception("No API key configured for Google Gemini")
-            
-            # Configure genai with API key
-            genai.configure(api_key=api_key)
-            
-            # Create model and call API
-            model = genai.GenerativeModel(self.model)
-            response = model.generate_content(prompt)
-            
-            if not response.text:
-                raise Exception(f"Empty response from Gemini: {response}")
-            
-            return response.text
-        except Exception as e:
-            self.log(f"  ❌ Google Gemini API Error: {e}")
-            raise
-    
     def find_highlights(self, transcript: str, video_info: dict, num_clips: int) -> list:
-        """Find highlights using GPT or Gemini"""
+        """Find highlights using AI (OpenAI-compatible API)"""
         self.log(f"[2/4] Finding highlights (using {self.model})...")
         
         request_clips = num_clips + 3
@@ -1602,67 +2037,64 @@ Transcript:
         if "{num_clips}" in self.system_prompt and "{num_clips}" in prompt:
             self.log("  ⚠ Warning: {num_clips} placeholder not replaced - check your system prompt")
 
-        # Check if using Google Gemini
-        if "gemini" in self.model.lower() and GOOGLE_GENAI_AVAILABLE:
-            result = self._call_gemini_api(prompt)
-        else:
-            # Use OpenAI SDK for OpenAI, Groq, Anthropic, etc.
-            try:
-                response = self.highlight_client.chat.completions.create(
-                    model=self.model,
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=self.temperature,
-                )
-                
-                # Validate response structure
-                if not response:
-                    raise Exception("API returned empty response")
-                
-                if not hasattr(response, 'choices') or not response.choices:
-                    # Log response structure for debugging
-                    self.log(f"  ⚠ Unexpected API response structure: {type(response)}")
-                    self.log(f"  Response attributes: {dir(response)}")
-                    raise Exception(
-                        "API response missing 'choices' field.\n\n"
-                        "This usually happens with custom API providers that don't follow OpenAI format.\n\n"
-                        "Please check:\n"
-                        "1. API key is valid and has credits\n"
-                        "2. Base URL is correct for your provider\n"
-                        "3. Model name is supported by your provider\n"
-                        "4. Provider follows OpenAI-compatible API format"
-                    )
-                
-                if not response.choices[0].message or not response.choices[0].message.content:
-                    raise Exception(
-                        "API returned empty content.\n\n"
-                        "Possible causes:\n"
-                        "1. Model refused to generate content (content filter)\n"
-                        "2. API quota exceeded\n"
-                        "3. Model doesn't support this type of request"
-                    )
-                
-                # Report token usage (input and output separately)
-                if hasattr(response, 'usage') and response.usage:
-                    self.report_tokens(response.usage.prompt_tokens, response.usage.completion_tokens, 0, 0)
-                
-                result = response.choices[0].message.content.strip()
-                
-            except Exception as e:
-                # Check if it's our custom exception
-                if "API response missing" in str(e) or "API returned empty" in str(e):
-                    raise
-                
-                # Otherwise, wrap with more context
-                self.log(f"  ❌ API Error: {e}")
+        # Use OpenAI-compatible API for all providers
+        self.log(f"  Using API: {self.highlight_client.base_url}")
+        try:
+            response = self.highlight_client.chat.completions.create(
+                model=self.model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=self.temperature,
+            )
+            
+            # Validate response structure
+            if not response:
+                raise Exception("API returned empty response")
+            
+            if not hasattr(response, 'choices') or not response.choices:
+                # Log response structure for debugging
+                self.log(f"  ⚠ Unexpected API response structure: {type(response)}")
+                self.log(f"  Response attributes: {dir(response)}")
                 raise Exception(
-                    f"Failed to get highlights from AI model.\n\n"
-                    f"Error: {str(e)}\n\n"
-                    f"Please check:\n"
-                    f"1. API key is valid: {self.highlight_client.api_key[:20]}...\n"
-                    f"2. Base URL is correct: {self.highlight_client.base_url}\n"
-                    f"3. Model exists: {self.model}\n"
-                    f"4. You have sufficient credits/quota"
+                    "API response missing 'choices' field.\n\n"
+                    "This usually happens with custom API providers that don't follow OpenAI format.\n\n"
+                    "Please check:\n"
+                    "1. API key is valid and has credits\n"
+                    "2. Base URL is correct for your provider\n"
+                    "3. Model name is supported by your provider\n"
+                    "4. Provider follows OpenAI-compatible API format"
                 )
+            
+            if not response.choices[0].message or not response.choices[0].message.content:
+                raise Exception(
+                    "API returned empty content.\n\n"
+                    "Possible causes:\n"
+                    "1. Model refused to generate content (content filter)\n"
+                    "2. API quota exceeded\n"
+                    "3. Model doesn't support this type of request"
+                )
+            
+            # Report token usage (input and output separately)
+            if hasattr(response, 'usage') and response.usage:
+                self.report_tokens(response.usage.prompt_tokens, response.usage.completion_tokens, 0, 0)
+            
+            result = response.choices[0].message.content.strip()
+            
+        except Exception as e:
+            # Check if it's our custom exception
+            if "API response missing" in str(e) or "API returned empty" in str(e):
+                raise
+            
+            # Otherwise, wrap with more context
+            self.log(f"  ❌ API Error: {e}")
+            raise Exception(
+                f"Failed to get highlights from AI model.\n\n"
+                f"Error: {str(e)}\n\n"
+                f"Please check:\n"
+                f"1. API key is valid: {self.highlight_client.api_key[:20]}...\n"
+                f"2. Base URL is correct: {self.highlight_client.base_url}\n"
+                f"3. Model exists: {self.model}\n"
+                f"4. You have sufficient credits/quota"
+            )
         
         # Log raw response for debugging
         self.log(f"  Raw AI response (first 500 chars):\n{result[:500]}")
@@ -1721,8 +2153,18 @@ Transcript:
         
         return valid[:num_clips]
     
-    def process_clip(self, video_path: str, highlight: dict, index: int, total_clips: int = 1, add_captions: bool = True, add_hook: bool = True):
-        """Process a single clip: cut, portrait, hook (optional), captions (optional)"""
+    def process_clip(self, video_path: str, highlight: dict, index: int, total_clips: int = 1, add_captions: bool = True, add_hook: bool = True, pre_cut: bool = False):
+        """Process a single clip: cut, portrait, hook (optional), captions (optional)
+        
+        Args:
+            video_path: Path to source video (full video or pre-cut section)
+            highlight: Highlight dict with metadata
+            index: Clip index (1-based)
+            total_clips: Total number of clips being processed
+            add_captions: Whether to add captions
+            add_hook: Whether to add hook
+            pre_cut: If True, video_path is already a pre-cut section (skip cutting step)
+        """
         
         # Check cancel before starting
         if self.is_cancelled():
@@ -1741,7 +2183,8 @@ Transcript:
         self.log(f"\n[Clip {index}] {highlight['title']}")
         
         # Calculate total steps based on options
-        total_steps = 2  # Cut + Portrait (always)
+        total_steps = 1  # Re-encode/Cut is always 1 step
+        total_steps += 1  # Portrait conversion always
         if add_hook:
             total_steps += 1
         if add_captions:
@@ -1767,35 +2210,57 @@ Transcript:
         
         current_step = 0
         
-        # Step 1: Cut video with progress tracking
+        # Step 1: Cut video (skip if pre-cut section from --download-sections)
         if self.is_cancelled():
             return
-        clip_progress("Cutting video...", current_step, 0)
-        landscape_file = clip_dir / "temp_landscape.mp4"
         
-        # Get video duration for progress calculation
+        landscape_file = clip_dir / "temp_landscape.mp4"
         duration = self.parse_timestamp(end) - self.parse_timestamp(start)
         
-        # Get encoder args (GPU or CPU)
-        encoder_args = self.get_video_encoder_args()
+        if pre_cut:
+            # Video is already cut to the right section, just re-encode for consistency
+            clip_progress("Re-encoding video...", current_step, 0)
+            
+            encoder_args = self.get_video_encoder_args()
+            
+            cmd = [
+                self.ffmpeg_path, "-y",
+                "-i", video_path,
+                *encoder_args,
+                "-c:a", "aac", "-b:a", "192k",
+                "-progress", "pipe:1",
+                str(landscape_file)
+            ]
+            
+            self.log_ffmpeg_command(cmd, "Re-encode Pre-cut Section")
+            
+            self.run_ffmpeg_with_progress(cmd, duration, 
+                lambda p: clip_progress("Re-encoding video...", current_step, p))
+            
+            self.log("  ✓ Re-encoded pre-cut section")
+        else:
+            # Original flow: cut from full video
+            clip_progress("Cutting video...", current_step, 0)
+            
+            encoder_args = self.get_video_encoder_args()
+            
+            cmd = [
+                self.ffmpeg_path, "-y",
+                "-i", video_path,
+                "-ss", start, "-to", end,
+                *encoder_args,
+                "-c:a", "aac", "-b:a", "192k",
+                "-progress", "pipe:1",
+                str(landscape_file)
+            ]
+            
+            self.log_ffmpeg_command(cmd, "Cut Video")
+            
+            self.run_ffmpeg_with_progress(cmd, duration, 
+                lambda p: clip_progress("Cutting video...", current_step, p))
+            
+            self.log("  ✓ Cut video")
         
-        cmd = [
-            self.ffmpeg_path, "-y",
-            "-i", video_path,
-            "-ss", start, "-to", end,
-            *encoder_args,  # Use GPU or CPU encoder
-            "-c:a", "aac", "-b:a", "192k",
-            "-progress", "pipe:1",  # Enable progress output
-            str(landscape_file)
-        ]
-        
-        # Log command for debugging
-        self.log_ffmpeg_command(cmd, "Cut Video")
-        
-        self.run_ffmpeg_with_progress(cmd, duration, 
-            lambda p: clip_progress("Cutting video...", current_step, p))
-        
-        self.log("  ✓ Cut video")
         current_step += 1
         
         # Step 2: Convert to portrait with progress
@@ -2413,12 +2878,33 @@ Transcript:
         self.report_tokens(0, 0, 0, len(hook_text))
         
         # Generate TTS audio
-        tts_response = self.tts_client.audio.speech.create(
-            model=self.tts_model,
-            voice="nova",
-            input=hook_text,
-            speed=1.0
-        )
+        try:
+            tts_response = self.tts_client.audio.speech.create(
+                model=self.tts_model,
+                voice="nova",
+                input=hook_text,
+                speed=1.0
+            )
+        except APIConnectionError as e:
+            self.log(f"  ❌ TTS API Connection Error: Could not connect to {self.tts_client.base_url}")
+            raise Exception(f"TTS API connection failed!\n\nCould not connect to: {self.tts_client.base_url}\nError: {e}")
+        except RateLimitError as e:
+            self.log(f"  ❌ TTS API Rate Limit: {e}")
+            raise Exception(f"TTS API rate limit exceeded!\n\nPlease wait a moment and try again.\nDetails: {e}")
+        except APIStatusError as e:
+            self.log(f"  ❌ TTS API Error (HTTP {e.status_code}): {e.message}")
+            self.log(f"     Model: {self.tts_model}, Base URL: {self.tts_client.base_url}")
+            raise Exception(
+                f"TTS (Hook) API Error!\n\n"
+                f"Status: {e.status_code}\n"
+                f"Message: {e.message}\n"
+                f"Model: {self.tts_model}\n"
+                f"Base URL: {self.tts_client.base_url}\n\n"
+                f"Check your Hook Maker API settings."
+            )
+        except Exception as e:
+            self.log(f"  ❌ TTS API Unexpected Error: {type(e).__name__}: {e}")
+            raise Exception(f"TTS (Hook) generation failed!\n\nError: {type(e).__name__}: {e}\nModel: {self.tts_model}")
         
         tts_file = tempfile.NamedTemporaryFile(suffix='.mp3', delete=False).name
         with open(tts_file, 'wb') as f:
@@ -3362,12 +3848,33 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         
         # Generate TTS audio (10% progress)
         progress_callback(0.1)
-        tts_response = self.tts_client.audio.speech.create(
-            model=self.tts_model,
-            voice="nova",
-            input=hook_text,
-            speed=1.0
-        )
+        try:
+            tts_response = self.tts_client.audio.speech.create(
+                model=self.tts_model,
+                voice="nova",
+                input=hook_text,
+                speed=1.0
+            )
+        except APIConnectionError as e:
+            self.log(f"  ❌ TTS API Connection Error: Could not connect to {self.tts_client.base_url}")
+            raise Exception(f"TTS API connection failed!\n\nCould not connect to: {self.tts_client.base_url}\nError: {e}")
+        except RateLimitError as e:
+            self.log(f"  ❌ TTS API Rate Limit: {e}")
+            raise Exception(f"TTS API rate limit exceeded!\n\nPlease wait a moment and try again.\nDetails: {e}")
+        except APIStatusError as e:
+            self.log(f"  ❌ TTS API Error (HTTP {e.status_code}): {e.message}")
+            self.log(f"     Model: {self.tts_model}, Base URL: {self.tts_client.base_url}")
+            raise Exception(
+                f"TTS (Hook) API Error!\n\n"
+                f"Status: {e.status_code}\n"
+                f"Message: {e.message}\n"
+                f"Model: {self.tts_model}\n"
+                f"Base URL: {self.tts_client.base_url}\n\n"
+                f"Check your Hook Maker API settings."
+            )
+        except Exception as e:
+            self.log(f"  ❌ TTS API Unexpected Error: {type(e).__name__}: {e}")
+            raise Exception(f"TTS (Hook) generation failed!\n\nError: {type(e).__name__}: {e}\nModel: {self.tts_model}")
         
         tts_file = tempfile.NamedTemporaryFile(suffix='.mp3', delete=False).name
         with open(tts_file, 'wb') as f:
@@ -3988,14 +4495,14 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             raise Exception("Failed to apply credit watermark")
 
     def find_highlights_only(self, url: str, num_clips: int = 5) -> dict:
-        """Phase 1: Download video and find highlights (without processing)
+        """Phase 1: Download subtitle only and find highlights (no video download)
         
         Returns:
             dict with keys:
                 - 'session_dir': Path to session directory
-                - 'video_path': Path to downloaded video
+                - 'url': YouTube video URL (for later section download)
                 - 'srt_path': Path to subtitle file
-                - 'highlights': List of highlight dicts with metadata
+                - 'highlights': List of highlight dicts with metadata + transcript
                 - 'video_info': Video metadata (title, channel, etc.)
         """
         # Create session directory with timestamp
@@ -4010,9 +4517,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         
         self.log(f"Session directory: {session_dir}")
         
-        # Step 1: Download video
-        self.set_progress("Downloading video...", 0.1)
-        video_path, srt_path, video_info = self.download_video(url)
+        # Step 1: Download subtitle only (no video!)
+        self.set_progress("Downloading subtitle...", 0.1)
+        srt_path, video_info = self.download_subtitle_only(url)
         
         # Store channel name for credit watermark
         self.channel_name = video_info.get("channel", "") if video_info else ""
@@ -4023,7 +4530,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         if not srt_path:
             raise SubtitleNotFoundError(
                 f"No subtitle available for language: {self.subtitle_language.upper()}",
-                video_path=video_path,
+                video_path=None,
                 video_info=video_info,
                 session_dir=str(session_dir)
             )
@@ -4049,6 +4556,10 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 "- Using a longer video with more content"
             )
         
+        # Extract transcript text for each highlight
+        for h in highlights:
+            h["transcript_text"] = self.extract_transcript_for_highlight(srt_path, h)
+        
         self.set_progress("Highlights found!", 1.0)
         self.log(f"\n✅ Found {len(highlights)} highlights")
         
@@ -4056,7 +4567,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         session_data_file = session_dir / "session_data.json"
         session_data = {
             "session_dir": str(session_dir),
-            "video_path": video_path,
+            "url": url,
             "srt_path": srt_path,
             "highlights": highlights,
             "video_info": video_info,
@@ -4071,13 +4582,13 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         
         return session_data
     
-    def process_selected_highlights(self, video_path: str, selected_highlights: list, 
+    def process_selected_highlights(self, url: str, selected_highlights: list, 
                                    session_dir: Path, add_captions: bool = True, 
                                    add_hook: bool = True):
-        """Phase 2: Process only selected highlights
+        """Phase 2: Download video sections and process selected highlights
         
         Args:
-            video_path: Path to source video
+            url: YouTube video URL (for downloading sections)
             selected_highlights: List of highlight dicts to process
             session_dir: Session directory for output
             add_captions: Whether to add captions
@@ -4096,12 +4607,41 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         clips_dir = session_dir / "clips"
         clips_dir.mkdir(parents=True, exist_ok=True)
         
+        # Update temp_dir to session-specific temp
+        self.temp_dir = session_dir / "_temp"
+        self.temp_dir.mkdir(parents=True, exist_ok=True)
+        
         # Process each selected clip
         total_clips = len(selected_highlights)
         for i, highlight in enumerate(selected_highlights, 1):
             if self.is_cancelled():
                 return
             
+            # Step A: Download video section for this clip
+            self.set_progress(f"Clip {i}/{total_clips}: Downloading video section...", 
+                            0.05 + (0.9 * (i - 1) / total_clips))
+            self.log(f"\n[Clip {i}/{total_clips}] Downloading: {highlight.get('title', 'Untitled')}")
+            
+            section_filename = f"section_{i:03d}.mp4"
+            section_path = str(self.temp_dir / section_filename)
+            
+            try:
+                video_path = self.download_video_section(
+                    url, 
+                    highlight["start_time"], 
+                    highlight["end_time"],
+                    section_path
+                )
+            except Exception as e:
+                self.log(f"  ✗ Failed to download section: {e}")
+                raise Exception(
+                    f"Failed to download video section for clip {i}!\n\n"
+                    f"Title: {highlight.get('title', 'Untitled')}\n"
+                    f"Time: {highlight['start_time']} → {highlight['end_time']}\n\n"
+                    f"Error: {str(e)}"
+                )
+            
+            # Step B: Process the downloaded section
             # Create clip-specific folder
             clip_folder = clips_dir / f"clip_{i:03d}"
             clip_folder.mkdir(parents=True, exist_ok=True)
@@ -4111,11 +4651,20 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             self.output_dir = clip_folder.parent
             
             try:
+                # Pass pre_cut=True since we downloaded the section already
                 self.process_clip(video_path, highlight, i, total_clips, 
-                                add_captions=add_captions, add_hook=add_hook)
+                                add_captions=add_captions, add_hook=add_hook,
+                                pre_cut=True)
             finally:
                 # Restore original output_dir
                 self.output_dir = original_output_dir
+            
+            # Clean up section file after processing
+            try:
+                if Path(video_path).exists():
+                    os.remove(video_path)
+            except Exception:
+                pass
         
         # Cleanup temp files
         self.set_progress("Cleaning up...", 0.95)

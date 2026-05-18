@@ -2,9 +2,6 @@
 Highlight Selection Page - User selects which highlights to process
 """
 
-import os
-import sys
-import subprocess
 import customtkinter as ctk
 from pathlib import Path
 from tkinter import messagebox
@@ -19,7 +16,6 @@ class HighlightSelectionPage(ctk.CTkFrame):
         self.on_process = on_process_callback
         
         self.highlights = []
-        self.video_path = None
         self.session_dir = None
         self.checkboxes = []
         self.checkbox_vars = []
@@ -127,31 +123,11 @@ class HighlightSelectionPage(ctk.CTkFrame):
         footer = PageFooter(self, self)
         footer.pack(fill="x", padx=20, pady=(10, 15))
     
-    def set_highlights(self, highlights: list, video_path: str, session_dir: Path):
+    def set_highlights(self, highlights: list, session_dir):
         """Set highlights data and populate list"""
         self.highlights = highlights
-        self.video_path = video_path
         self.session_dir = session_dir
         self.populate_list()
-    
-    def is_ffplay_available(self) -> bool:
-        """Check if ffplay is available"""
-        try:
-            from utils.helpers import get_ffmpeg_path
-            ffmpeg_path = get_ffmpeg_path()
-            
-            if ffmpeg_path and Path(ffmpeg_path).exists():
-                ffmpeg_dir = Path(ffmpeg_path).parent
-                # Check for ffplay.exe or ffplay
-                for name in ["ffplay.exe", "ffplay"]:
-                    if (ffmpeg_dir / name).exists():
-                        return True
-            
-            # Try system PATH
-            import shutil
-            return shutil.which("ffplay") is not None
-        except:
-            return False
     
     def populate_list(self):
         """Populate the highlights list"""
@@ -192,23 +168,31 @@ class HighlightSelectionPage(ctk.CTkFrame):
             ctk.CTkLabel(top_row, text=f"#{i}. {title}", 
                 font=ctk.CTkFont(size=13, weight="bold"), anchor="w").pack(side="left", fill="x", expand=True)
             
-            # Virality score badge (always show)
+            # Virality score badge
             virality = highlight.get("virality_score", 0)
             if virality >= 7:
-                score_color = "#27ae60"  # Green - High viral potential
+                score_color = "#27ae60"
                 score_emoji = "🔥"
             elif virality >= 5:
-                score_color = "#f39c12"  # Orange - Medium viral potential
+                score_color = "#f39c12"
                 score_emoji = "⚡"
             elif virality > 0:
-                score_color = "#e74c3c"  # Red - Low viral potential
+                score_color = "#e74c3c"
                 score_emoji = "💫"
             else:
-                score_color = "#95a5a6"  # Gray - No score
+                score_color = "#95a5a6"
                 score_emoji = "❓"
             
             ctk.CTkLabel(top_row, text=f"{score_emoji} {virality}/10",
                 font=ctk.CTkFont(size=11, weight="bold"), text_color=score_color).pack(side="right", padx=(10, 0))
+            
+            # Hook text
+            hook_text = highlight.get("hook_text", "")
+            if hook_text:
+                hook_frame = ctk.CTkFrame(content, fg_color="transparent")
+                hook_frame.pack(fill="x", pady=(0, 3))
+                ctk.CTkLabel(hook_frame, text=f"🪝 {hook_text}", font=ctk.CTkFont(size=11, weight="bold"),
+                    text_color="#FFD700", anchor="w", wraplength=650, justify="left").pack(fill="x")
             
             # Description
             description = highlight.get("description", "")
@@ -216,7 +200,26 @@ class HighlightSelectionPage(ctk.CTkFrame):
                 ctk.CTkLabel(content, text=description, font=ctk.CTkFont(size=11),
                     text_color="gray", anchor="w", wraplength=650, justify="left").pack(fill="x", pady=(0, 5))
             
-            # Bottom row: Timestamp + Duration + Preview button (if ffplay available)
+            # Transcript text (conversation content)
+            transcript_text = highlight.get("transcript_text", "")
+            if transcript_text:
+                transcript_frame = ctk.CTkFrame(content, fg_color=("#222222", "#151515"), corner_radius=6)
+                transcript_frame.pack(fill="x", pady=(0, 5))
+                
+                ctk.CTkLabel(transcript_frame, text="💬 Isi Percakapan:", 
+                    font=ctk.CTkFont(size=10, weight="bold"), text_color="#aaaaaa",
+                    anchor="w").pack(fill="x", padx=10, pady=(8, 2))
+                
+                # Truncate long transcripts
+                display_text = transcript_text[:300]
+                if len(transcript_text) > 300:
+                    display_text += "..."
+                
+                ctk.CTkLabel(transcript_frame, text=display_text, 
+                    font=ctk.CTkFont(size=10), text_color="#cccccc",
+                    anchor="w", wraplength=630, justify="left").pack(fill="x", padx=10, pady=(0, 8))
+            
+            # Bottom row: Timestamp + Duration
             bottom_row = ctk.CTkFrame(content, fg_color="transparent")
             bottom_row.pack(fill="x")
             
@@ -231,77 +234,6 @@ class HighlightSelectionPage(ctk.CTkFrame):
             
             ctk.CTkLabel(bottom_row, text=f"⏱️ {start_display} → {end_display} ({duration:.0f}s)",
                 font=ctk.CTkFont(size=10), text_color="gray", anchor="w").pack(side="left")
-            
-            # Preview button (only if ffplay is available)
-            if self.is_ffplay_available():
-                preview_btn = ctk.CTkButton(bottom_row, text="▶ Preview", height=28, width=100,
-                    font=ctk.CTkFont(size=10), fg_color=("#3B8ED0", "#1F6AA5"),
-                    command=lambda h=highlight: self.preview_highlight(h))
-                preview_btn.pack(side="right")
-    
-    def preview_highlight(self, highlight: dict):
-        """Preview a highlight using ffplay"""
-        if not self.video_path or not Path(self.video_path).exists():
-            messagebox.showerror("Error", "Video file not found")
-            return
-        
-        try:
-            # Get ffplay path (should be in same dir as ffmpeg)
-            from utils.helpers import get_ffmpeg_path
-            ffmpeg_path = get_ffmpeg_path()
-            
-            if ffmpeg_path and Path(ffmpeg_path).exists():
-                ffmpeg_dir = Path(ffmpeg_path).parent
-                # Try different possible names
-                possible_names = ["ffplay.exe", "ffplay"]
-                ffplay_path = None
-                
-                for name in possible_names:
-                    candidate = ffmpeg_dir / name
-                    if candidate.exists():
-                        ffplay_path = str(candidate)
-                        break
-                
-                if not ffplay_path:
-                    # ffplay not found in ffmpeg directory
-                    exe_suffix = ".exe" if sys.platform == "win32" else ""
-                    messagebox.showerror("Preview Error", 
-                        f"ffplay{exe_suffix} not found!\n\n"
-                        f"ffplay is required for video preview.\n"
-                        f"Please ensure ffplay{exe_suffix} is in the same folder as ffmpeg{exe_suffix}")
-                    return
-            else:
-                # Try system PATH
-                ffplay_path = "ffplay"
-            
-            # Parse timestamps
-            start_time = highlight.get("start_time", "00:00:00,000").replace(",", ".")
-            duration = highlight.get("duration_seconds", 60)
-            
-            # Launch ffplay with start time and duration
-            cmd = [
-                ffplay_path,
-                "-ss", start_time,
-                "-t", str(duration),
-                "-autoexit",  # Close when done
-                "-window_title", f"Preview: {highlight.get('title', 'Highlight')}",
-                self.video_path
-            ]
-            
-            # Launch in background (don't wait)
-            if sys.platform == "win32":
-                subprocess.Popen(cmd, creationflags=subprocess.CREATE_NO_WINDOW)
-            else:
-                subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            
-        except FileNotFoundError as e:
-            exe_suffix = ".exe" if sys.platform == "win32" else ""
-            messagebox.showerror("Preview Error", 
-                f"Failed to launch ffplay:\n\n"
-                f"ffplay{exe_suffix} not found in system PATH or ffmpeg directory.\n\n"
-                f"Please ensure ffplay{exe_suffix} is available.")
-        except Exception as e:
-            messagebox.showerror("Preview Error", f"Failed to preview video:\n{str(e)}")
     
     def select_all(self):
         """Select all checkboxes"""
@@ -342,7 +274,7 @@ class HighlightSelectionPage(ctk.CTkFrame):
         if not messagebox.askyesno("Confirm Processing", 
             f"Process {count} selected clip{'s' if count > 1 else ''}?\n\n"
             f"Enhancements: {enhancement_text}\n\n"
-            "This will create short videos with portrait conversion."):
+            "Video sections will be downloaded individually for each clip."):
             return
         
         # Call process callback with selected highlights and options

@@ -183,11 +183,16 @@ class PageFooter(ctk.CTkFrame):
         api_key_link.pack(side="left", padx=(0, 15))
         api_key_link.bind("<Button-1>", lambda e: self.open_ai_api_key_page())
         
-        # Join Discord link (blurple)
-        discord_link = ctk.CTkLabel(links_frame, text="💬 Join Discord Server", 
+        # AutoKlip link (multi-platform companion)
+        autoklip_link = ctk.CTkLabel(links_frame, text="📱 Use AutoKlip (for Web, Android and iOS)", 
             font=ctk.CTkFont(size=11), text_color="#5865F2", cursor="hand2")
-        discord_link.pack(side="left")
-        discord_link.bind("<Button-1>", lambda e: self.app.open_discord())
+        autoklip_link.pack(side="left")
+        autoklip_link.bind("<Button-1>", lambda e: self.open_autoklip())
+
+    def open_autoklip(self):
+        """Open AutoKlip multi-platform link"""
+        import webbrowser
+        webbrowser.open("https://dub.sh/autoklip")
     
     def open_ai_api_key_page(self):
         """Open AI API Key page"""

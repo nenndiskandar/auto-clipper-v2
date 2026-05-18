@@ -59,7 +59,7 @@ class ProcessingPage(ctk.CTkFrame):
         
         self.steps = []
         step_titles = [
-            "Downloading Video & Subtitles",
+            "Downloading Subtitles",
             "Finding Highlights with AI"
         ]
         
