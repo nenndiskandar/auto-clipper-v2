@@ -71,11 +71,14 @@ class SettingsPage(ctk.CTkFrame):
         self._create_setting_card(cards_frame, 0, 2, "📁", "Output", "Output directory", "output")
         self._create_setting_card(cards_frame, 0, 3, "💧", "Watermark", "Video watermark", "watermark")
         
-        # Row 2: Credit Watermark, Repliz, YouTube API, About
+        # Row 2: Credit Watermark, Hook Style, Repliz, YouTube API
         self._create_setting_card(cards_frame, 1, 0, "📝", "Credit", "Channel name credit", "credit_watermark")
-        self._create_setting_card(cards_frame, 1, 1, "🎬", "Repliz", "Repliz integration", "repliz")
-        self._create_setting_card(cards_frame, 1, 2, "📺", "YouTube API", "YouTube OAuth", "youtube_api")
-        self._create_setting_card(cards_frame, 1, 3, "ℹ️", "About", "App info & updates", "about")
+        self._create_setting_card(cards_frame, 1, 1, "✨", "Hook Style", "Hook overlay design", "hook_style")
+        self._create_setting_card(cards_frame, 1, 2, "🎬", "Repliz", "Repliz integration", "repliz")
+        self._create_setting_card(cards_frame, 1, 3, "📺", "YouTube API", "YouTube OAuth", "youtube_api")
+
+        # Row 3: About
+        self._create_setting_card(cards_frame, 2, 0, "ℹ️", "About", "App info & updates", "about")
     
     def _create_setting_card(self, parent, row, col, icon, title, description, page_key):
         """Create a clickable settings card"""
@@ -135,6 +138,9 @@ class SettingsPage(ctk.CTkFrame):
         elif page_key == "credit_watermark":
             from pages.settings.credit_watermark_settings import CreditWatermarkSettingsSubPage
             CreditWatermarkSettingsSubPage(self.container, self.config, self._on_settings_saved, self.create_main_page)
+        elif page_key == "hook_style":
+            from pages.settings.hook_style_settings import HookStyleSettingsSubPage
+            HookStyleSettingsSubPage(self.container, self.config, self._on_settings_saved, self.create_main_page)
         elif page_key == "repliz":
             from pages.settings.repliz_settings import ReplizSettingsSubPage
             ReplizSettingsSubPage(self.container, self.config, self._on_settings_saved, self.create_main_page)
