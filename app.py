@@ -1155,6 +1155,7 @@ class YTShortClipperApp(ctk.CTk):
             tts_model = self.config.get("tts_model", "tts-1")
             watermark_settings = self.config.get("watermark", {"enabled": False})
             credit_watermark_settings = self.config.get("credit_watermark", {"enabled": False})
+            hook_style_settings = self.config.get("hook_style", {})
             
             # Get face tracking mode from config (set in settings page)
             face_tracking_mode = self.config.get("face_tracking_mode", "opencv")
@@ -1177,6 +1178,7 @@ class YTShortClipperApp(ctk.CTk):
                 system_prompt=system_prompt,
                 watermark_settings=watermark_settings,
                 credit_watermark_settings=credit_watermark_settings,
+                hook_style_settings=hook_style_settings,
                 face_tracking_mode=face_tracking_mode,
                 mediapipe_settings=mediapipe_settings,
                 ai_providers=self.config.get("ai_providers"),
@@ -1532,6 +1534,7 @@ class YTShortClipperApp(ctk.CTk):
             tts_model = self.config.get("tts_model", "tts-1")
             watermark_settings = self.config.get("watermark", {"enabled": False})
             credit_watermark_settings = self.config.get("credit_watermark", {"enabled": False})
+            hook_style_settings = self.config.get("hook_style", {})
             face_tracking_mode = self.config.get("face_tracking_mode", "opencv")
             mediapipe_settings = self.config.get("mediapipe_settings", {
                 "lip_activity_threshold": 0.15,
@@ -1554,6 +1557,7 @@ class YTShortClipperApp(ctk.CTk):
                 system_prompt=system_prompt,
                 watermark_settings=watermark_settings,
                 credit_watermark_settings=credit_watermark_settings,
+                hook_style_settings=hook_style_settings,
                 face_tracking_mode=face_tracking_mode,
                 mediapipe_settings=mediapipe_settings,
                 ai_providers=self.config.get("ai_providers"),

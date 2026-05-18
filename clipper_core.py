@@ -67,6 +67,21 @@ class SubtitleNotFoundError(Exception):
         self.session_dir = session_dir
 
 
+def _hex_to_rgb(hex_color: str):
+    """Convert a #RRGGBB or #RGB string to an (R, G, B) tuple. Falls back to white on bad input."""
+    if not isinstance(hex_color, str):
+        return (255, 255, 255)
+    s = hex_color.strip().lstrip("#")
+    if len(s) == 3:
+        s = "".join(ch * 2 for ch in s)
+    if len(s) != 6:
+        return (255, 255, 255)
+    try:
+        return (int(s[0:2], 16), int(s[2:4], 16), int(s[4:6], 16))
+    except ValueError:
+        return (255, 255, 255)
+
+
 class AutoClipperCore:
     """Core processing logic for Auto Clipper"""
     
@@ -82,6 +97,7 @@ class AutoClipperCore:
         system_prompt: str = None,
         watermark_settings: dict = None,
         credit_watermark_settings: dict = None,
+        hook_style_settings: dict = None,
         face_tracking_mode: str = "opencv",
         mediapipe_settings: dict = None,
         ai_providers: dict = None,
@@ -139,6 +155,7 @@ class AutoClipperCore:
         self.system_prompt = system_prompt or self.get_default_prompt()
         self.watermark_settings = watermark_settings or {"enabled": False}
         self.credit_watermark_settings = credit_watermark_settings or {"enabled": False}
+        self.hook_style_settings = hook_style_settings or {}
         self.channel_name = ""  # Will be set after download
         self.face_tracking_mode = face_tracking_mode
         self.mediapipe_settings = mediapipe_settings or {
@@ -3928,14 +3945,6 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         # Create hook video in our temp directory
         hook_video = str(self.temp_dir / f"hook_{int(time.time() * 1000)}.mp4")
         
-        # Create text file for drawtext filter (avoid escaping issues)
-        text_file = str(self.temp_dir / f"hook_text_{int(time.time() * 1000)}.txt")
-        
-        # Write text lines to file
-        text_content = '\n'.join(lines)
-        with open(text_file, 'w', encoding='utf-8') as f:
-            f.write(text_content)
-        
         # Use a simpler approach: create static image with text, then combine with audio
         # This avoids complex FFmpeg filter escaping issues
         
@@ -3966,121 +3975,140 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         if not os.path.exists(bg_video) or os.path.getsize(bg_video) < 1000:
             raise Exception("Background video was not created properly")
         
-        # Copy font to temp dir to avoid path issues in FFmpeg filter
-        import shutil
-        temp_font = str(self.temp_dir / "arial_bold.ttf")
-        if not os.path.exists(temp_font):
-            font_src = self._find_system_font_bold()
-            if font_src:
-                shutil.copy(font_src, temp_font)
-        
-        # Now add text overlays one by one
-        current_video = bg_video
-        line_height = 85
-        font_size = 58
-        total_text_height = len(lines) * line_height
-        start_y = (height // 3) - (total_text_height // 2)
-        
-        for i, line in enumerate(lines):
-            # Normalize unicode characters
-            normalized_line = line.encode('ascii', 'ignore').decode('ascii')
-            if not normalized_line.strip():
-                normalized_line = line.replace('\u2026', '...').replace('\u2013', '-').replace('\u2018', "'").replace('\u2019', "'").replace('\u201c', '"').replace('\u201d', '"')
-            
-            y_pos = start_y + (i * line_height)
-            
-            next_video = str(self.temp_dir / f"hook_text_{int(time.time() * 1000)}_{i}.mp4")
-            
-            # Use OpenCV to add text overlay instead of FFmpeg drawtext
-            # This avoids all Windows path escaping issues
-            self.log(f"Adding text overlay with OpenCV: {normalized_line}")
-            
-            # Read input video
-            cap = cv2.VideoCapture(current_video)
-            fps = int(cap.get(cv2.CAP_PROP_FPS))
-            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            
-            # Setup video writer
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-            out = cv2.VideoWriter(next_video, fourcc, fps, (width, height))
-            
-            # Process each frame
-            frame_count = 0
-            while True:
-                ret, frame = cap.read()
-                if not ret:
-                    break
-                
-                # Add text overlay using cv2.putText
-                # Calculate text size for centering
-                font = cv2.FONT_HERSHEY_SIMPLEX  # Fixed: use SIMPLEX instead of BOLD
-                font_scale = 2.0
-                thickness = 4
-                
-                # Get text size
-                (text_width, text_height), baseline = cv2.getTextSize(
-                    normalized_line, font, font_scale, thickness
+        # === Render hook overlay using PIL (supports user-customized font, colors, corners) ===
+        from PIL import Image, ImageDraw, ImageFont
+
+        style = self.hook_style_settings or {}
+        font_size_frac = float(style.get("font_size", 0.054))
+        font_color_hex = style.get("font_color", "#FFD700")
+        bg_color_hex = style.get("bg_color", "#FFFFFF")
+        corner_radius = int(style.get("corner_radius", 0))
+        pos_x = float(style.get("position_x", 0.5))
+        pos_y = float(style.get("position_y", 0.333))
+        user_font_path = style.get("font_path") or ""
+
+        # Resolve font path with sensible fallbacks
+        font_candidates = [user_font_path, self._find_system_font_bold()]
+        pil_font = None
+        font_px = max(20, int(font_size_frac * width))
+        for candidate in font_candidates:
+            if not candidate or not os.path.exists(candidate):
+                continue
+            try:
+                pil_font = ImageFont.truetype(candidate, font_px)
+                self.log(f"  Hook font: {candidate} @ {font_px}px")
+                break
+            except Exception as e:
+                self.log(f"  ⚠ Failed to load font {candidate}: {e}")
+        if pil_font is None:
+            self.log("  ⚠ No usable TTF font found, using PIL default (will look basic)")
+            pil_font = ImageFont.load_default()
+
+        font_color_rgb = _hex_to_rgb(font_color_hex)
+        bg_color_rgb = _hex_to_rgb(bg_color_hex)
+
+        # Per-line geometry
+        padding = max(10, int(font_px * 0.22))
+        line_spacing = max(6, int(font_px * 0.25))
+
+        line_metrics = []
+        for line in lines:
+            try:
+                bbox = pil_font.getbbox(line)
+            except AttributeError:
+                w, h = pil_font.getsize(line)
+                bbox = (0, 0, w, h)
+            text_w = bbox[2] - bbox[0]
+            text_h = bbox[3] - bbox[1]
+            line_metrics.append({
+                "text": line,
+                "bbox": bbox,
+                "box_w": text_w + padding * 2,
+                "box_h": text_h + padding * 2,
+            })
+
+        total_h = sum(m["box_h"] for m in line_metrics)
+        if len(line_metrics) > 1:
+            total_h += line_spacing * (len(line_metrics) - 1)
+
+        center_x = int(pos_x * width)
+        center_y = int(pos_y * height)
+        block_top = center_y - total_h // 2
+
+        # Compose the static overlay (transparent everywhere except the hook boxes)
+        overlay_img = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(overlay_img)
+
+        cur_y = block_top
+        for m in line_metrics:
+            box_w = m["box_w"]
+            box_h = m["box_h"]
+            box_x1 = center_x - box_w // 2
+            box_y1 = cur_y
+            box_x2 = box_x1 + box_w
+            box_y2 = box_y1 + box_h
+
+            if corner_radius > 0 and hasattr(draw, "rounded_rectangle"):
+                # Clamp radius so it never exceeds half the smaller dimension
+                r = min(corner_radius, box_w // 2, box_h // 2)
+                draw.rounded_rectangle(
+                    [box_x1, box_y1, box_x2, box_y2],
+                    radius=r,
+                    fill=(*bg_color_rgb, 255),
                 )
-                
-                # Calculate position (centered horizontally, at y_pos vertically)
-                text_x = (width - text_width) // 2
-                text_y = y_pos + text_height
-                
-                # Draw white background box
-                box_padding = 12
-                box_x1 = text_x - box_padding
-                box_y1 = text_y - text_height - box_padding
-                box_x2 = text_x + text_width + box_padding
-                box_y2 = text_y + baseline + box_padding
-                
-                # Draw semi-transparent white box
-                overlay = frame.copy()
-                cv2.rectangle(overlay, (box_x1, box_y1), (box_x2, box_y2), (255, 255, 255), -1)
-                cv2.addWeighted(overlay, 0.95, frame, 0.05, 0, frame)
-                
-                # Draw yellow/gold text (#FFD700 = RGB(255, 215, 0))
-                cv2.putText(frame, normalized_line, (text_x, text_y),
-                           font, font_scale, (0, 215, 255), thickness, cv2.LINE_AA)
-                
-                out.write(frame)
-                frame_count += 1
-            
-            cap.release()
-            out.release()
-            
-            self.log(f"Processed {frame_count} frames with text overlay")
-            
-            # Verify output was created
-            if not os.path.exists(next_video) or os.path.getsize(next_video) < 1000:
-                raise Exception(f"Text overlay video {i} was not created properly")
-            
-            # Clean up previous temp file
-            if current_video != bg_video:
-                try:
-                    os.unlink(current_video)
-                except:
-                    pass
-            
-            current_video = next_video
-        
-        # Re-encode OpenCV output to proper H.264 before adding audio using GPU/CPU encoder
-        # OpenCV mp4v codec is not compatible with copy codec
-        reencoded_video = str(self.temp_dir / f"hook_reenc_{int(time.time() * 1000)}.mp4")
+            else:
+                draw.rectangle(
+                    [box_x1, box_y1, box_x2, box_y2],
+                    fill=(*bg_color_rgb, 255),
+                )
+
+            # PIL draws text at the top-left of the glyph bounding box;
+            # subtract bbox[0]/[1] so the glyphs sit cleanly inside the padding.
+            text_x = box_x1 + padding - m["bbox"][0]
+            text_y = box_y1 + padding - m["bbox"][1]
+            draw.text(
+                (text_x, text_y),
+                m["text"],
+                font=pil_font,
+                fill=(*font_color_rgb, 255),
+            )
+
+            cur_y = box_y2 + line_spacing
+
+        overlay_png = str(self.temp_dir / f"hook_overlay_{int(time.time() * 1000)}.png")
+        overlay_img.save(overlay_png, "PNG")
+        progress_callback(0.4)
+
+        # Composite overlay on the (frozen) background video in one FFmpeg pass
+        overlay_video = str(self.temp_dir / f"hook_overlay_video_{int(time.time() * 1000)}.mp4")
         encoder_args = self.get_video_encoder_args()
-        reencode_cmd = [
+        overlay_cmd = [
             self.ffmpeg_path, "-y",
-            "-i", current_video,
+            "-i", bg_video,
+            "-i", overlay_png,
+            "-filter_complex", "[0:v][1:v]overlay=0:0[v]",
+            "-map", "[v]",
             *encoder_args,
             "-pix_fmt", "yuv420p",
-            "-an",  # No audio yet
-            reencoded_video
+            "-an",
+            overlay_video,
         ]
-        self.log_ffmpeg_command(reencode_cmd, "Re-encode Hook Text Overlay")
-        result = subprocess.run(reencode_cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
+        self.log_ffmpeg_command(overlay_cmd, "Composite Hook Overlay (PIL)")
+        result = subprocess.run(overlay_cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
         if result.returncode != 0:
-            self.log(f"Failed to re-encode OpenCV output: {result.stderr}")
-            raise Exception("Failed to re-encode text overlay video")
+            self.log(f"Failed to composite hook overlay: {result.stderr}")
+            raise Exception("Failed to composite hook overlay video")
+
+        if not os.path.exists(overlay_video) or os.path.getsize(overlay_video) < 1000:
+            raise Exception("Hook overlay video was not created properly")
+
+        progress_callback(0.55)
+
+        # Both names point at the same file so the rest of the pipeline (audio mux,
+        # cleanup) keeps working without further changes.
+        current_video = overlay_video
+        reencoded_video = overlay_video
+
         
         # Finally, add audio to re-encoded video
         cmd = [
@@ -4175,16 +4203,13 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             progress_callback(1.0)
         
         # Cleanup
-        try:
-            os.unlink(tts_file)
-            os.unlink(hook_video)
-            os.unlink(main_reencoded)
-            os.unlink(concat_list)
-            os.unlink(text_file)
-            os.unlink(bg_video)
-            os.unlink(current_video)
-        except:
-            pass
+        for path in (tts_file, hook_video, main_reencoded, concat_list,
+                     bg_video, overlay_video, overlay_png):
+            try:
+                if path and os.path.exists(path):
+                    os.unlink(path)
+            except Exception:
+                pass
         
         return hook_duration
     
