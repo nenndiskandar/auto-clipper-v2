@@ -209,7 +209,148 @@ class AutoClipperCore:
         else:
             # Default CPU encoding
             return ['-c:v', 'libx264', '-preset', 'fast', '-crf', '18']
-    
+
+    # ------------------------------------------------------------------
+    # GPU encoder safety net
+    # ------------------------------------------------------------------
+    # Some GPU encoders (h264_qsv, h264_nvenc, h264_amf) reject specific
+    # preset/option combinations depending on the FFmpeg build, driver
+    # version, or GPU model. When that happens, the FFmpeg call fails very
+    # early with messages like:
+    #   "Unable to parse "preset" option value ..."
+    #   "Error setting option preset to value ..."
+    #   "Error applying encoder options"
+    # We detect these signatures, swap the GPU encoder args inside the
+    # command for plain libx264 (CPU), and retry once. Subsequent calls in
+    # the same session also fall back to CPU automatically.
+    _CPU_FALLBACK_ARGS = ['-c:v', 'libx264', '-preset', 'fast', '-crf', '18']
+
+    _GPU_ENCODER_NAMES = (
+        'h264_nvenc', 'hevc_nvenc',
+        'h264_qsv', 'hevc_qsv',
+        'h264_amf', 'hevc_amf',
+        'h264_videotoolbox', 'hevc_videotoolbox',
+        'h264_mf', 'hevc_mf',
+    )
+
+    @classmethod
+    def _is_gpu_encoder_error(cls, stderr: str) -> bool:
+        """Heuristically detect FFmpeg failures caused by GPU encoder options."""
+        if not stderr:
+            return False
+        text = stderr.lower()
+        # Mention of any hardware encoder + a known option/init failure phrase
+        mentions_hw = any(enc in text for enc in cls._GPU_ENCODER_NAMES)
+        failure_phrases = (
+            'error applying encoder options',
+            'error setting option',
+            'unable to parse',
+            'no nvenc capable devices found',
+            'cannot load nvcuda',
+            'cannot load nvencodeapi',
+            'failed loading nvenc',
+            'device creation failed',
+            'no device available',
+            'impossible to convert between',
+            'function not implemented',
+        )
+        mentions_failure = any(p in text for p in failure_phrases)
+        return mentions_hw and mentions_failure
+
+    @classmethod
+    def _swap_cmd_to_cpu_encoder(cls, cmd: list) -> list:
+        """Return a copy of cmd with any GPU encoder block replaced by CPU args.
+
+        This walks the command, finds every ``-c:v <hw_encoder>`` and removes
+        the encoder + any GPU-specific options that follow it (until the next
+        FFmpeg flag or input/output token). It then injects the CPU fallback
+        args in the same position. Audio codec args (``-c:a``) are preserved.
+        """
+        if not cmd:
+            return cmd
+
+        # Options that are known to belong to GPU encoders. We strip them
+        # together with their value so libx264 doesn't choke on them.
+        gpu_only_opts = {
+            '-preset', '-rc', '-cq', '-qp', '-qp_i', '-qp_p', '-qp_b',
+            '-quality', '-global_quality', '-look_ahead', '-rc_lookahead',
+            '-spatial_aq', '-temporal_aq', '-aq-strength', '-tune',
+            '-profile:v', '-level', '-b:v', '-maxrate', '-bufsize',
+            '-pix_fmt',
+        }
+
+        new_cmd = []
+        i = 0
+        replaced = False
+        while i < len(cmd):
+            token = cmd[i]
+            if token == '-c:v' and i + 1 < len(cmd) and cmd[i + 1] in cls._GPU_ENCODER_NAMES:
+                # Inject CPU fallback once
+                if not replaced:
+                    new_cmd.extend(cls._CPU_FALLBACK_ARGS)
+                    replaced = True
+                # Skip '-c:v <hw_encoder>'
+                i += 2
+                # Skip any trailing GPU-specific options
+                while i < len(cmd) - 1 and cmd[i] in gpu_only_opts:
+                    i += 2
+                continue
+            new_cmd.append(token)
+            i += 1
+
+        # If no GPU encoder was present in cmd but caller still asked for
+        # fallback, leave cmd untouched (nothing to swap).
+        return new_cmd if replaced else list(cmd)
+
+    def _disable_gpu_acceleration_runtime(self, reason: str = ""):
+        """Disable GPU encoding for the rest of this processing session."""
+        if not self.gpu_enabled:
+            return
+        self.gpu_enabled = False
+        self.gpu_encoder_args = []
+        msg = "  ⚠ GPU encoding disabled for the rest of this session"
+        if reason:
+            msg += f" ({reason})"
+        self.log(msg)
+        self.log("  💻 Continuing with CPU encoding (libx264)")
+
+    def _run_ffmpeg_subprocess(self, cmd: list, **kwargs):
+        """Run an FFmpeg command with automatic CPU fallback on GPU encoder errors.
+
+        Wraps ``subprocess.run`` and, if the command fails with a signature
+        that looks like a GPU encoder problem, rewrites the command to use
+        libx264 and retries once. Returns the final ``CompletedProcess``.
+        """
+        kwargs.setdefault('capture_output', True)
+        kwargs.setdefault('text', True)
+        kwargs.setdefault('creationflags', SUBPROCESS_FLAGS)
+
+        result = subprocess.run(cmd, **kwargs)
+        if result.returncode == 0:
+            return result
+
+        stderr = result.stderr or ''
+        if not self._is_gpu_encoder_error(stderr):
+            return result
+
+        # Looks like a GPU encoder issue: swap to CPU and retry once.
+        fallback_cmd = self._swap_cmd_to_cpu_encoder(cmd)
+        if fallback_cmd == list(cmd):
+            # No GPU encoder found in cmd to swap; return original failure.
+            return result
+
+        self.log("  ⚠ FFmpeg failed with GPU encoder error, retrying on CPU...")
+        # Pull a short reason line from stderr for the log
+        reason_line = next(
+            (ln.strip() for ln in stderr.splitlines()
+             if 'error' in ln.lower() or 'unable' in ln.lower()),
+            ''
+        )
+        self._disable_gpu_acceleration_runtime(reason_line[:120])
+
+        retry = subprocess.run(fallback_cmd, **kwargs)
+        return retry
+
     def log_ffmpeg_command(self, cmd: list, description: str = "FFmpeg"):
         """Log FFmpeg command for debugging"""
         # Format command nicely
@@ -2554,7 +2695,7 @@ Transcript:
             output_path
         ]
         self.log_ffmpeg_command(cmd, "Portrait Merge Audio (OpenCV)")
-        subprocess.run(cmd, capture_output=True, creationflags=SUBPROCESS_FLAGS)
+        self._run_ffmpeg_subprocess(cmd)
         os.unlink(temp_video)
     
     def stabilize_positions(self, positions: list) -> list:
@@ -2795,7 +2936,7 @@ Transcript:
             output_path
         ]
         self.log_ffmpeg_command(cmd, "Portrait Merge Audio (MediaPipe)")
-        subprocess.run(cmd, capture_output=True, creationflags=SUBPROCESS_FLAGS)
+        self._run_ffmpeg_subprocess(cmd)
         
         # Cleanup
         try:
@@ -3029,7 +3170,7 @@ Transcript:
             hook_video
         ]
         self.log_ffmpeg_command(cmd, "Create Hook Video")
-        result = subprocess.run(cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
+        result = self._run_ffmpeg_subprocess(cmd)
         
         if result.returncode != 0:
             error_lines = result.stderr.split('\n') if result.stderr else []
@@ -3053,7 +3194,7 @@ Transcript:
             main_reencoded
         ]
         self.log_ffmpeg_command(cmd, "Re-encode Main Video")
-        result = subprocess.run(cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
+        result = self._run_ffmpeg_subprocess(cmd)
         
         if result.returncode != 0:
             error_lines = result.stderr.split('\n') if result.stderr else []
@@ -3101,7 +3242,7 @@ Transcript:
                 output_path
             ]
             self.log_ffmpeg_command(cmd, "Concat Hook (filter_complex fallback)")
-            result = subprocess.run(cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
+            result = self._run_ffmpeg_subprocess(cmd)
             
             if result.returncode != 0:
                 # Extract actual error, not version info
@@ -3226,7 +3367,7 @@ Transcript:
         ]
         
         self.log_ffmpeg_command(cmd, "Burn Captions")
-        result = subprocess.run(cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
+        result = self._run_ffmpeg_subprocess(cmd)
         os.unlink(ass_file)
         
         if result.returncode != 0:
@@ -3340,12 +3481,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         
         # Just run ffmpeg normally without progress parsing for now
         # Progress parsing from ffmpeg is complex due to carriage returns
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            creationflags=SUBPROCESS_FLAGS
-        )
+        # _run_ffmpeg_subprocess auto-falls-back to libx264 if a GPU encoder
+        # error is detected (e.g. invalid preset on h264_qsv).
+        result = self._run_ffmpeg_subprocess(cmd)
         
         # Set to 100% when done
         progress_callback(1.0)
@@ -3583,7 +3721,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         sys.stdout.flush()
         
         self.log_ffmpeg_command(cmd, "Portrait Merge Audio (with progress)")
-        result = subprocess.run(cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
+        result = self._run_ffmpeg_subprocess(cmd)
         
         if result.returncode != 0:
             print(f"[FFMPEG ERROR] {result.stderr}")
@@ -3834,7 +3972,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         ]
         
         self.log_ffmpeg_command(cmd, "MediaPipe Portrait Merge Audio")
-        result = subprocess.run(cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
+        result = self._run_ffmpeg_subprocess(cmd)
         
         if result.returncode != 0:
             print(f"[FFMPEG ERROR] {result.stderr}")
@@ -3966,7 +4104,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         ]
         
         self.log_ffmpeg_command(bg_cmd, "Create Hook Background")
-        result = subprocess.run(bg_cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
+        result = self._run_ffmpeg_subprocess(bg_cmd)
         if result.returncode != 0:
             self.log(f"Failed to create background video: {result.stderr}")
             raise Exception("Failed to create background video")
@@ -4094,7 +4232,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             overlay_video,
         ]
         self.log_ffmpeg_command(overlay_cmd, "Composite Hook Overlay (PIL)")
-        result = subprocess.run(overlay_cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
+        result = self._run_ffmpeg_subprocess(overlay_cmd)
         if result.returncode != 0:
             self.log(f"Failed to composite hook overlay: {result.stderr}")
             raise Exception("Failed to composite hook overlay video")
