@@ -419,10 +419,10 @@ class GPUDetector:
         }
         
         preset_map = {
-            'nvidia': 'p4',  # p1-p7, p4 is balanced
-            'amd': 'balanced',
-            'intel': 'balanced',
-            'apple': None  # VideoToolbox doesn't use presets
+            'nvidia': 'p4',       # p1-p7, p4 is balanced
+            'amd': 'balanced',    # h264_amf -quality: speed | balanced | quality
+            'intel': 'faster',    # h264_qsv -preset: veryfast..veryslow (NOT 'balanced')
+            'apple': None         # VideoToolbox doesn't use presets
         }
         
         recommended_encoder = encoder_map.get(gpu['type'])
