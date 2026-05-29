@@ -2087,6 +2087,123 @@ Transcript:
         
         return segments
     
+    def _whisper_transcribe_words_api(self, audio_path: str):
+        """Transcribe an audio file with word-level timestamps using raw HTTP.
+
+        Compresses the audio to MP3 before uploading (the ytclip proxy drops
+        connections for large WAV files >~1MB). Uses ``requests`` instead of
+        the OpenAI SDK for proxy compatibility. Tries with
+        ``timestamp_granularities[]=word`` first; if the proxy rejects it
+        (400), retries without that field (still gets segments).
+
+        Returns an object exposing ``.words`` and ``.segments`` (mirroring the
+        SDK response shape consumed by ``create_ass_subtitle_capcut``), or
+        raises on failure.
+        """
+        import requests as _requests
+        from types import SimpleNamespace
+
+        base_url = str(self.caption_client.base_url).rstrip("/")
+        api_key = self.caption_client.api_key
+        url = f"{base_url}/audio/transcriptions"
+        headers = {"Authorization": f"Bearer {api_key}"}
+
+        lang = getattr(self, "subtitle_language", None) or "id"
+
+        # Compress WAV → MP3 to reduce upload size (proxy rejects large bodies)
+        upload_path = audio_path
+        mp3_tmp = None
+        if audio_path.lower().endswith(".wav"):
+            mp3_tmp = audio_path.rsplit(".", 1)[0] + "_upload.mp3"
+            cmd = [
+                self.ffmpeg_path, "-y",
+                "-i", audio_path,
+                "-acodec", "libmp3lame",
+                "-b:a", "64k",
+                "-ar", "16000",
+                "-ac", "1",
+                mp3_tmp
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True,
+                                    creationflags=SUBPROCESS_FLAGS)
+            if result.returncode == 0 and os.path.exists(mp3_tmp):
+                upload_path = mp3_tmp
+                self.log(f"  [Caption] Compressed WAV→MP3: "
+                         f"{os.path.getsize(audio_path)/1024:.0f}KB → "
+                         f"{os.path.getsize(mp3_tmp)/1024:.0f}KB")
+            else:
+                self.log("  [Caption] MP3 compression failed, uploading WAV as-is")
+                mp3_tmp = None
+
+        file_size_mb = os.path.getsize(upload_path) / (1024 * 1024)
+        mime = "audio/mpeg" if upload_path.endswith(".mp3") else "audio/wav"
+        self.log(f"  [Caption] Uploading {file_size_mb:.2f}MB to Whisper ({self.whisper_model})...")
+
+        # Attempt 1: with word-level granularity
+        form_data = [
+            ("model", self.whisper_model),
+            ("response_format", "verbose_json"),
+            ("timestamp_granularities[]", "word"),
+            ("timestamp_granularities[]", "segment"),
+        ]
+        if lang and lang != "none":
+            form_data.append(("language", lang))
+
+        resp = None
+        for attempt in range(2):
+            with open(upload_path, "rb") as f:
+                files = {"file": (os.path.basename(upload_path), f, mime)}
+                resp = _requests.post(url, headers=headers, data=form_data,
+                                      files=files, timeout=600)
+
+            if resp.status_code == 200:
+                break
+
+            # Log the actual error body for debugging
+            self.log(f"  [Caption] Attempt {attempt+1} failed: HTTP {resp.status_code}")
+            try:
+                self.log(f"  [Caption] Response: {resp.text[:300]}")
+            except Exception:
+                pass
+
+            if attempt == 0:
+                # Retry without timestamp_granularities (proxy may not support it)
+                self.log("  [Caption] Retrying without timestamp_granularities...")
+                form_data = [
+                    ("model", self.whisper_model),
+                    ("response_format", "verbose_json"),
+                ]
+                if lang and lang != "none":
+                    form_data.append(("language", lang))
+            else:
+                # Both attempts failed — clean up and raise
+                if mp3_tmp and os.path.exists(mp3_tmp):
+                    os.unlink(mp3_tmp)
+                raise Exception(
+                    f"Whisper API returned HTTP {resp.status_code}: "
+                    f"{resp.text[:300]}"
+                )
+
+        # Clean up temp mp3
+        if mp3_tmp and os.path.exists(mp3_tmp):
+            os.unlink(mp3_tmp)
+
+        data = resp.json()
+        self.log(f"  [Caption] Whisper OK, text length: {len(data.get('text', ''))}")
+
+        words = [
+            SimpleNamespace(
+                word=w.get("word", ""),
+                start=w.get("start", 0.0),
+                end=w.get("end", 0.0),
+            )
+            for w in (data.get("words") or [])
+        ]
+        segments = data.get("segments") or []
+        self.log(f"  [Caption] Got {len(words)} words, {len(segments)} segments")
+        return SimpleNamespace(words=words, segments=segments,
+                               text=data.get("text", ""))
+    
     @staticmethod
     def _seconds_to_srt_timestamp(seconds: float) -> str:
         """Convert seconds to SRT timestamp format HH:MM:SS,mmm"""
@@ -3329,16 +3446,10 @@ Transcript:
             audio_duration = int(h) * 3600 + int(m) * 60 + float(s)
             self.report_tokens(0, 0, audio_duration, 0)
         
-        # Transcribe using OpenAI Whisper API with word-level timestamps
+        # Transcribe using Whisper API with word-level timestamps
+        # (raw HTTP for proxy compatibility)
         try:
-            with open(audio_file, "rb") as f:
-                transcript = self.caption_client.audio.transcriptions.create(
-                    model=self.whisper_model,
-                    file=f,
-                    language="id",
-                    response_format="verbose_json",
-                    timestamp_granularities=["word"]
-                )
+            transcript = self._whisper_transcribe_words_api(audio_file)
         except Exception as e:
             self.log(f"  Warning: Whisper API error: {e}")
             import shutil
@@ -4404,16 +4515,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         if progress_callback:
             progress_callback(0.3)
         
-        # Transcribe using OpenAI Whisper API
+        # Transcribe using Whisper API (raw HTTP for proxy compatibility)
         try:
-            with open(audio_file, "rb") as f:
-                transcript = self.caption_client.audio.transcriptions.create(
-                    model=self.whisper_model,
-                    file=f,
-                    language="id",
-                    response_format="verbose_json",
-                    timestamp_granularities=["word"]
-                )
+            transcript = self._whisper_transcribe_words_api(audio_file)
         except Exception as e:
             self.log(f"  Warning: Whisper API error: {e}")
             import shutil
