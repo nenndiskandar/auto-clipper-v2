@@ -180,16 +180,16 @@ class TermsOfServiceDialog(ctk.CTkToplevel):
     def _build_ui(self):
         # Main container
         main = ctk.CTkFrame(self, fg_color="transparent")
-        main.pack(fill="both", expand=True, padx=20, pady=15)
+        main.pack(fill="both", expand=True, padx=4, pady=4)
         
         # Header
         header_frame = ctk.CTkFrame(main, fg_color="transparent")
-        header_frame.pack(fill="x", pady=(0, 10))
+        header_frame.pack(fill="x", pady=(0, 6))
         
         ctk.CTkLabel(
             header_frame,
             text="📜 Terms of Service",
-            font=ctk.CTkFont(size=18, weight="bold")
+            font=ctk.CTkFont(size=15, weight="bold")
         ).pack(side="left")
         
         # Language toggle
@@ -197,19 +197,19 @@ class TermsOfServiceDialog(ctk.CTkToplevel):
         lang_frame.pack(side="right")
         
         self.en_btn = ctk.CTkButton(
-            lang_frame, text="English", width=80, height=28,
+            lang_frame, text="English", width=80, height=18,
             font=ctk.CTkFont(size=11),
             fg_color=("#1f538d", "#14375e"),
-            command=lambda: self._switch_lang("en")
-        )
-        self.en_btn.pack(side="left", padx=(0, 5))
+            command=lambda: self._switch_lang("en"),
+            text_color=("#FFFFFF", "#FFFFFF"))
+        self.en_btn.pack(side="left", padx=(0, 4))
         
         self.id_btn = ctk.CTkButton(
-            lang_frame, text="Indonesia", width=80, height=28,
+            lang_frame, text="Indonesia", width=80, height=18,
             font=ctk.CTkFont(size=11),
-            fg_color=("#3a3a3a", "#2a2a2a"),
+            fg_color=("#3a3a40", "#2a2a30"),
             command=lambda: self._switch_lang("id")
-        )
+        , border_width=1, border_color=("#3a3a40", "#2a2a30"), text_color=("#FFFFFF", "#FFFFFF"))
         self.id_btn.pack(side="left")
         
         # Subtitle
@@ -219,18 +219,18 @@ class TermsOfServiceDialog(ctk.CTkToplevel):
             font=ctk.CTkFont(size=11),
             text_color="gray"
         )
-        self.subtitle_label.pack(fill="x", pady=(0, 8))
+        self.subtitle_label.pack(fill="x", pady=(0, 6))
         
         # Terms text area
         self.terms_textbox = ctk.CTkTextbox(
             main, width=660, height=380,
-            font=ctk.CTkFont(size=12),
-            fg_color=("#1a1a1a", "#0a0a0a"),
+            font=ctk.CTkFont(size=11),
+            fg_color=("#ffffff", "#0b0b0c"),
             border_width=1,
-            border_color=("#3a3a3a", "#2a2a2a"),
+            border_color=("#3a3a40", "#2a2a30"),
             wrap="word"
         )
-        self.terms_textbox.pack(fill="both", expand=True, pady=(0, 10))
+        self.terms_textbox.pack(fill="both", expand=True, pady=(0, 6))
         self.terms_textbox.insert("1.0", TERMS_EN)
         self.terms_textbox.configure(state="disabled")
         
@@ -243,28 +243,28 @@ class TermsOfServiceDialog(ctk.CTkToplevel):
             font=ctk.CTkFont(size=11),
             command=self._on_checkbox_toggle
         )
-        self.agree_check.pack(fill="x", pady=(0, 10))
+        self.agree_check.pack(fill="x", pady=(0, 6))
         
         # Buttons
         btn_frame = ctk.CTkFrame(main, fg_color="transparent")
         btn_frame.pack(fill="x")
         
         self.decline_btn = ctk.CTkButton(
-            btn_frame, text="Decline / Tolak", width=140, height=38,
-            font=ctk.CTkFont(size=12),
+            btn_frame, text="Decline / Tolak", width=140, height=22,
+            font=ctk.CTkFont(size=11),
             fg_color=("#6c757d", "#5a6268"),
             hover_color=("#5a6268", "#4e555b"),
-            command=self._on_close
-        )
+            command=self._on_close,
+            text_color=("#FFFFFF", "#FFFFFF"))
         self.decline_btn.pack(side="left")
         
         self.accept_btn = ctk.CTkButton(
-            btn_frame, text="I Agree / Saya Setuju", width=200, height=38,
-            font=ctk.CTkFont(size=12, weight="bold"),
+            btn_frame, text="I Agree / Saya Setuju", width=200, height=22,
+            font=ctk.CTkFont(size=11, weight="bold"),
             fg_color="gray", hover_color="gray",
             state="disabled",
-            command=self._on_accept
-        )
+            command=self._on_accept,
+            text_color=("#FFFFFF", "#FFFFFF"))
         self.accept_btn.pack(side="right")
     
     def _switch_lang(self, lang: str):
@@ -272,7 +272,7 @@ class TermsOfServiceDialog(ctk.CTkToplevel):
         
         # Update button styles
         active_color = ("#1f538d", "#14375e")
-        inactive_color = ("#3a3a3a", "#2a2a2a")
+        inactive_color = ("#3a3a40", "#2a2a30")
         
         if lang == "en":
             self.en_btn.configure(fg_color=active_color)

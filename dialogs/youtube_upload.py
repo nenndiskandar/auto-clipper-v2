@@ -65,28 +65,28 @@ class YouTubeUploadDialog(ctk.CTkToplevel):
     
     def create_ui(self):
         """Create the dialog UI"""
-        main = ctk.CTkFrame(self)
-        main.pack(fill="both", expand=True, padx=20, pady=20)
+        main = ctk.CTkFrame(self, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        main.pack(fill="both", expand=True, padx=4, pady=4)
         
         # Header
         ctk.CTkLabel(main, text="📤 Upload to YouTube", 
-            font=ctk.CTkFont(size=18, weight="bold")).pack(pady=(0, 15))
+            font=ctk.CTkFont(size=15, weight="bold")).pack(pady=(0, 8))
         
         # Video info
-        info_frame = ctk.CTkFrame(main, fg_color=("gray85", "gray20"))
-        info_frame.pack(fill="x", pady=(0, 15))
+        info_frame = ctk.CTkFrame(main, fg_color=("gray85", "gray20"), border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        info_frame.pack(fill="x", pady=(0, 8))
         ctk.CTkLabel(info_frame, text=f"📹 {self.clip['title'][:50]}", 
-            anchor="w").pack(fill="x", padx=10, pady=10)
+            anchor="w").pack(fill="x", padx=4, pady=4)
         
         # Scrollable content area
         scroll_frame = ctk.CTkScrollableFrame(main, height=400)
-        scroll_frame.pack(fill="both", expand=True, pady=(0, 10))
+        scroll_frame.pack(fill="both", expand=True, pady=(0, 6))
         
         # Title
         ctk.CTkLabel(scroll_frame, text="Title (max 100 chars)", anchor="w", 
-            font=ctk.CTkFont(weight="bold")).pack(fill="x", pady=(5, 0))
-        self.title_entry = ctk.CTkEntry(scroll_frame, height=40)
-        self.title_entry.pack(fill="x", pady=(5, 0))
+            font=ctk.CTkFont(weight="bold")).pack(fill="x", pady=(4, 0))
+        self.title_entry = ctk.CTkEntry(scroll_frame, height=24)
+        self.title_entry.pack(fill="x", pady=(4, 0))
         self.title_count = ctk.CTkLabel(scroll_frame, text="0/100", 
             text_color="gray", anchor="e")
         self.title_count.pack(fill="x")
@@ -94,9 +94,9 @@ class YouTubeUploadDialog(ctk.CTkToplevel):
         
         # Description
         ctk.CTkLabel(scroll_frame, text="Description", anchor="w", 
-            font=ctk.CTkFont(weight="bold")).pack(fill="x", pady=(10, 0))
+            font=ctk.CTkFont(weight="bold")).pack(fill="x", pady=(4, 0))
         self.desc_text = ctk.CTkTextbox(scroll_frame, height=120)
-        self.desc_text.pack(fill="x", pady=(5, 0))
+        self.desc_text.pack(fill="x", pady=(4, 0))
         self.desc_count = ctk.CTkLabel(scroll_frame, text="0/5000", 
             text_color="gray", anchor="e")
         self.desc_count.pack(fill="x")
@@ -104,17 +104,17 @@ class YouTubeUploadDialog(ctk.CTkToplevel):
         
         # Privacy
         privacy_frame = ctk.CTkFrame(scroll_frame, fg_color="transparent")
-        privacy_frame.pack(fill="x", pady=(15, 10))
+        privacy_frame.pack(fill="x", pady=(6, 6))
         ctk.CTkLabel(privacy_frame, text="Privacy:", 
             font=ctk.CTkFont(weight="bold")).pack(side="left")
         self.privacy_var = ctk.StringVar(value="private")
         for val, text in [("private", "Private"), ("unlisted", "Unlisted"), ("public", "Public")]:
             ctk.CTkRadioButton(privacy_frame, text=text, variable=self.privacy_var, 
-                value=val).pack(side="left", padx=10)
+                value=val).pack(side="left", padx=4)
         
         # Schedule option
         schedule_frame = ctk.CTkFrame(scroll_frame, fg_color="transparent")
-        schedule_frame.pack(fill="x", pady=(0, 10))
+        schedule_frame.pack(fill="x", pady=(0, 6))
         
         self.schedule_var = ctk.BooleanVar(value=False)
         self.schedule_check = ctk.CTkCheckBox(schedule_frame, text="Schedule publish", 
@@ -122,58 +122,58 @@ class YouTubeUploadDialog(ctk.CTkToplevel):
         self.schedule_check.pack(side="left")
         
         # Schedule datetime inputs (hidden by default)
-        self.schedule_inputs = ctk.CTkFrame(scroll_frame, fg_color=("gray90", "gray17"))
+        self.schedule_inputs = ctk.CTkFrame(scroll_frame, fg_color=("gray90", "gray17"), border_width=1, border_color=("#2a2a30", "#2a2a30"))
         
         schedule_inner = ctk.CTkFrame(self.schedule_inputs, fg_color="transparent")
-        schedule_inner.pack(fill="x", padx=10, pady=10)
+        schedule_inner.pack(fill="x", padx=4, pady=4)
         
         # Date
         date_frame = ctk.CTkFrame(schedule_inner, fg_color="transparent")
-        date_frame.pack(side="left", fill="x", expand=True, padx=(0, 5))
+        date_frame.pack(side="left", fill="x", expand=True, padx=(0, 4))
         ctk.CTkLabel(date_frame, text="Date (YYYY-MM-DD)", 
-            font=ctk.CTkFont(size=10)).pack(anchor="w")
+            font=ctk.CTkFont(size=11)).pack(anchor="w")
         self.date_entry = ctk.CTkEntry(date_frame, placeholder_text="2026-01-20", height=35)
         self.date_entry.pack(fill="x")
         
         # Time
         time_frame = ctk.CTkFrame(schedule_inner, fg_color="transparent")
-        time_frame.pack(side="left", fill="x", expand=True, padx=(5, 0))
+        time_frame.pack(side="left", fill="x", expand=True, padx=(4, 0))
         ctk.CTkLabel(time_frame, text="Time (HH:MM)", 
-            font=ctk.CTkFont(size=10)).pack(anchor="w")
+            font=ctk.CTkFont(size=11)).pack(anchor="w")
         self.time_entry = ctk.CTkEntry(time_frame, placeholder_text="14:00", height=35)
         self.time_entry.pack(fill="x")
         
         ctk.CTkLabel(self.schedule_inputs, text="⚠️ Time in UTC timezone", 
-            font=ctk.CTkFont(size=10), text_color="orange").pack(pady=(0, 5))
+            font=ctk.CTkFont(size=11), text_color="orange").pack(pady=(0, 4))
         
         # Generate button
-        self.generate_btn = ctk.CTkButton(scroll_frame, text="🔄 Regenerate SEO", 
-            height=35, fg_color="gray", command=self.generate_seo_metadata)
-        self.generate_btn.pack(fill="x", pady=(10, 0))
+        self.generate_btn = ctk.CTkButton(scroll_frame, font=ctk.CTkFont(size=11), text="Regenerate SEO", 
+            height=18, fg_color="gray", command=self.generate_seo_metadata, text_color=("#FFFFFF", "#FFFFFF"))
+        self.generate_btn.pack(fill="x", pady=(4, 0))
         
         # Progress (outside scroll)
         self.progress_frame = ctk.CTkFrame(main, fg_color="transparent")
         self.progress_label = ctk.CTkLabel(self.progress_frame, text="", text_color="gray")
         self.progress_label.pack()
         self.progress_bar = ctk.CTkProgressBar(self.progress_frame)
-        self.progress_bar.pack(fill="x", pady=5)
+        self.progress_bar.pack(fill="x", pady=4)
         self.progress_bar.set(0)
         
         # Buttons (outside scroll)
         btn_frame = ctk.CTkFrame(main, fg_color="transparent")
-        btn_frame.pack(fill="x", pady=(10, 0))
+        btn_frame.pack(fill="x", pady=(4, 0))
         
-        ctk.CTkButton(btn_frame, text="Cancel", height=45, fg_color="gray",
-            command=self.destroy).pack(side="left", fill="x", expand=True, padx=(0, 5))
+        ctk.CTkButton(btn_frame, font=ctk.CTkFont(size=11), text="Cancel", height=22, fg_color="gray",
+            command=self.destroy, text_color=("#FFFFFF", "#FFFFFF")).pack(side="left", fill="x", expand=True, padx=(0, 4))
         
-        self.upload_btn = ctk.CTkButton(btn_frame, text="⬆️ Upload", height=45, 
-            fg_color="#c4302b", hover_color="#ff0000", command=self.start_upload)
-        self.upload_btn.pack(side="left", fill="x", expand=True, padx=(5, 0))
+        self.upload_btn = ctk.CTkButton(btn_frame, font=ctk.CTkFont(size=11), text="Upload", height=22, 
+            fg_color="#c4302b", hover_color="#ff0000", command=self.start_upload, text_color=("#FFFFFF", "#FFFFFF"))
+        self.upload_btn.pack(side="left", fill="x", expand=True, padx=(4, 0))
     
     def toggle_schedule(self):
         """Show/hide schedule inputs"""
         if self.schedule_var.get():
-            self.schedule_inputs.pack(fill="x", pady=(0, 10))
+            self.schedule_inputs.pack(fill="x", pady=(0, 6))
             # Set default to tomorrow at current time
             from datetime import datetime, timedelta
             tomorrow = datetime.utcnow() + timedelta(days=1)
@@ -302,7 +302,7 @@ class YouTubeUploadDialog(ctk.CTkToplevel):
         self.upload_btn.configure(state="disabled", text="Uploading...")
         self.generate_btn.configure(state="disabled")
         self.schedule_check.configure(state="disabled")
-        self.progress_frame.pack(fill="x", pady=5)
+        self.progress_frame.pack(fill="x", pady=4)
         self.progress_label.configure(text="Starting upload...")
         
         def do_upload():

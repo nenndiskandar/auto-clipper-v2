@@ -138,6 +138,13 @@ def get_deno_download_url():
     return base_url + filename, filename
 
 
+def get_mediapipe_model_download_url():
+    """Get MediaPipe Face Landmarker model download URL"""
+    url = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task"
+    filename = "face_landmarker.task"
+    return url, filename
+
+
 def download_file(url: str, dest_path: Path, progress_callback=None):
     """Download file with progress tracking
     
@@ -446,11 +453,82 @@ def setup_deno(app_dir: Path, progress_callback=None) -> bool:
         return False
 
 
+def setup_mediapipe_model(app_dir: Path, progress_callback=None) -> bool:
+    """Download and setup MediaPipe Face Landmarker model"""
+    try:
+        url, filename = get_mediapipe_model_download_url()
+        
+        # Download to bin directory
+        dest_path = app_dir / "bin" / filename
+        
+        if not download_file(url, dest_path, progress_callback):
+            debug_log("Failed to download MediaPipe model")
+            return False
+            
+        debug_log(f"MediaPipe model saved to: {dest_path}")
+        return True
+        
+    except Exception as e:
+        debug_log(f"MediaPipe model setup error: {e}")
+        return False
+
+
+def install_python_packages(packages: list) -> bool:
+    """Install Python packages using pip"""
+    try:
+        import subprocess
+        cmd = [sys.executable, "-m", "pip", "install", *packages]
+        debug_log(f"Running command: {' '.join(cmd)}")
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode == 0:
+            debug_log(f"Successfully installed packages: {packages}")
+            return True
+        else:
+            debug_log(f"Failed to install packages: {result.stderr}")
+            return False
+    except Exception as e:
+        debug_log(f"Error installing packages: {e}")
+        return False
+
+
+def get_faster_whisper_model_dir(app_dir: Path, size: str = "small") -> Path:
+    """Return the directory where the faster-whisper model of given size is stored.
+    The model will be downloaded into <app_dir>/faster_whisper_models/<size>/.
+    """
+    return app_dir / "faster_whisper_models" / size
+
+def setup_faster_whisper_model(app_dir: Path, size: str = "small") -> bool:
+    """Download the faster-whisper model of the specified size using huggingface_hub.
+    Returns True on success, False otherwise.
+    """
+    try:
+        from huggingface_hub import snapshot_download
+    except ImportError:
+        debug_log("huggingface_hub not installed. Installing now...")
+        if not install_python_packages(["huggingface_hub"]):
+            debug_log("Failed to install huggingface_hub.")
+            return False
+        from huggingface_hub import snapshot_download
+
+    model_dir = get_faster_whisper_model_dir(app_dir, size)
+    model_dir.mkdir(parents=True, exist_ok=True)
+    repo_id = f"Systran/faster-whisper-{size}"
+    debug_log(f"Downloading faster-whisper model '{size}' from {repo_id}...")
+    try:
+        # faster-whisper models on HF usually have model.bin and config.json or vocabulary.txt
+        snapshot_download(repo_id=repo_id, local_dir=model_dir, allow_patterns=["*.bin", "*.json", "*.txt"], revision="main")
+        debug_log(f"faster-whisper model '{size}' downloaded to {model_dir}")
+        return True
+    except Exception as e:
+        debug_log(f"Error downloading faster-whisper model '{size}': {e}")
+        return False
+
+
 def check_dependency(name: str, app_dir: Path) -> bool:
-    """Check if dependency is installed
+    """Check if a dependency is installed or a model is downloaded.
     
     Args:
-        name: Dependency name ('ffmpeg' or 'deno')
+        name: Dependency name ('ffmpeg', 'deno', 'mediapipe_model', or 'faster_whisper_model_<size>')
         app_dir: Application directory
     
     Returns:
@@ -468,4 +546,56 @@ def check_dependency(name: str, app_dir: Path) -> bool:
         path = app_dir / "bin" / exe_name
         return path.exists()
     
+    elif name == 'mediapipe_model':
+        path = app_dir / "bin" / "face_landmarker.task"
+        return path.exists()
+        
+    elif name.startswith("faster_whisper_model"):
+        # name format: faster_whisper_model_<size>
+        size = name.split("_")[-1]
+        path = get_faster_whisper_model_dir(app_dir, size)
+        # Check if model.bin and config.json exist
+        return path.exists() and (path / "model.bin").exists() and (path / "config.json").exists()
+    
     return False
+
+
+if __name__ == '__main__':
+    # This allows running the script directly for testing/setup
+    
+    if getattr(sys, 'frozen', False):
+        app_dir = Path(sys.executable).parent
+    else:
+        app_dir = Path(__file__).parent.parent
+        
+    print(f"App directory: {app_dir}")
+    
+    # Check and setup FFmpeg
+    if not check_dependency('ffmpeg', app_dir):
+        print("FFmpeg not found, attempting to download...")
+        if setup_ffmpeg(app_dir):
+            print("FFmpeg setup successful.")
+        else:
+            print("FFmpeg setup failed. Please install it manually.")
+    else:
+        print("FFmpeg is already installed.")
+        
+    # Check and setup Deno
+    if not check_dependency('deno', app_dir):
+        print("Deno not found, attempting to download...")
+        if setup_deno(app_dir):
+            print("Deno setup successful.")
+        else:
+            print("Deno setup failed.")
+    else:
+        print("Deno is already installed.")
+        
+    # Check and setup MediaPipe model
+    if not check_dependency('mediapipe_model', app_dir):
+        print("MediaPipe model not found, attempting to download...")
+        if setup_mediapipe_model(app_dir):
+            print("MediaPipe model setup successful.")
+        else:
+            print("MediaPipe model setup failed.")
+    else:
+        print("MediaPipe model is already installed.")

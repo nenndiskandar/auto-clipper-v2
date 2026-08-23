@@ -37,32 +37,32 @@ class SettingsPage(ctk.CTkFrame):
         self.current_subpage = None
         
         # Main frame
-        main_frame = ctk.CTkFrame(self.container, fg_color=("#1a1a1a", "#0a0a0a"))
+        main_frame = ctk.CTkFrame(self.container, fg_color="transparent")
         main_frame.pack(fill="both", expand=True)
         
         from components.page_layout import PageHeader, PageFooter
         
         # Header with back button
-        header = PageHeader(main_frame, self, show_nav_buttons=False, show_back_button=True, page_title="Settings")
-        header.pack(fill="x", padx=20, pady=(15, 10))
+        header = PageHeader(main_frame, self, show_nav_buttons=False, show_back_button=False, page_title="Settings")
+        header.pack(fill="x", padx=4, pady=(6, 6))
         
         # Footer (pack first to stay at bottom)
         footer = PageFooter(main_frame, self)
-        footer.pack(fill="x", padx=20, pady=(0, 15), side="bottom")
+        footer.pack(fill="x", padx=4, pady=(0, 8), side="bottom")
         
         # Scrollable main content
         main = ctk.CTkScrollableFrame(main_frame, fg_color="transparent")
-        main.pack(fill="both", expand=True, padx=20, pady=(0, 10))
+        main.pack(fill="both", expand=True, padx=4, pady=(0, 6))
         
         # Settings cards container
-        cards_section = ctk.CTkFrame(main, fg_color=("gray90", "gray17"))
-        cards_section.pack(fill="x", pady=(15, 10))
+        cards_section = ctk.CTkFrame(main, fg_color=("gray90", "gray17"), border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        cards_section.pack(fill="x", pady=(6, 6))
         
-        ctk.CTkLabel(cards_section, text="Settings", font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", padx=15, pady=(12, 8))
+        ctk.CTkLabel(cards_section, text="Settings", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=4, pady=(6, 6))
         
         # Cards grid - 4 cards per row
         cards_frame = ctk.CTkFrame(cards_section, fg_color="transparent")
-        cards_frame.pack(fill="x", padx=10, pady=(0, 12))
+        cards_frame.pack(fill="x", padx=4, pady=(0, 8))
         cards_frame.grid_columnconfigure((0, 1, 2, 3), weight=1, uniform="settings")
         
         # Row 1: AI API, Performance, Output, Watermark
@@ -82,25 +82,25 @@ class SettingsPage(ctk.CTkFrame):
     
     def _create_setting_card(self, parent, row, col, icon, title, description, page_key):
         """Create a clickable settings card"""
-        card = ctk.CTkFrame(parent, fg_color=("gray85", "gray20"), corner_radius=8, cursor="hand2")
-        card.grid(row=row, column=col, padx=5, pady=5, sticky="nsew")
+        card = ctk.CTkFrame(parent, fg_color=("gray85", "gray20"), corner_radius=5, cursor="hand2", border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        card.grid(row=row, column=col, padx=4, pady=4, sticky="nsew")
         
         # Make entire card clickable
         card.bind("<Button-1>", lambda e, k=page_key: self.navigate_to_subpage(k))
         
         # Icon
-        icon_label = ctk.CTkLabel(card, text=icon, font=ctk.CTkFont(size=24))
-        icon_label.pack(anchor="w", padx=12, pady=(12, 5))
+        icon_label = ctk.CTkLabel(card, text=icon, font=ctk.CTkFont(size=15))
+        icon_label.pack(anchor="w", padx=4, pady=(6, 4))
         icon_label.bind("<Button-1>", lambda e, k=page_key: self.navigate_to_subpage(k))
         
         # Title
-        title_label = ctk.CTkLabel(card, text=title, font=ctk.CTkFont(size=12, weight="bold"))
-        title_label.pack(anchor="w", padx=12)
+        title_label = ctk.CTkLabel(card, text=title, font=ctk.CTkFont(size=11, weight="bold"))
+        title_label.pack(anchor="w", padx=4)
         title_label.bind("<Button-1>", lambda e, k=page_key: self.navigate_to_subpage(k))
         
         # Description
-        desc_label = ctk.CTkLabel(card, text=description, font=ctk.CTkFont(size=9), text_color="gray")
-        desc_label.pack(anchor="w", padx=12, pady=(2, 12))
+        desc_label = ctk.CTkLabel(card, text=description, font=ctk.CTkFont(size=11), text_color="gray")
+        desc_label.pack(anchor="w", padx=4, pady=(4, 8))
         desc_label.bind("<Button-1>", lambda e, k=page_key: self.navigate_to_subpage(k))
         
         # Hover effect

@@ -27,14 +27,14 @@ class HookMakerSettingsPage(BaseProviderSettingsPage):
     def create_provider_content(self):
         """Create provider settings content with additional info"""
         # Info box
-        info_frame = ctk.CTkFrame(self.content, fg_color=("gray85", "gray20"), corner_radius=8)
-        info_frame.pack(fill="x", pady=(0, 10))
+        info_frame = ctk.CTkFrame(self.content, fg_color=("gray85", "gray20"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        info_frame.pack(fill="x", pady=(0, 6))
         
         ctk.CTkLabel(info_frame, text="🎤 About Hook Maker", 
-            font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=12, pady=(10, 5))
+            font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=4, pady=(4, 4))
         ctk.CTkLabel(info_frame, 
             text="Uses TTS (Text-to-Speech) API to generate engaging\nhook audio for the beginning of your clips.", 
-            font=ctk.CTkFont(size=10), text_color="gray", justify="left").pack(anchor="w", padx=12, pady=(0, 10))
+            font=ctk.CTkFont(size=11), text_color="gray", justify="left").pack(anchor="w", padx=4, pady=(0, 6))
         
         # Call parent to create standard fields
         super().create_provider_content()

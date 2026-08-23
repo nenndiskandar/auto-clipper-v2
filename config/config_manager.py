@@ -18,7 +18,7 @@ class ConfigManager:
     def load(self):
         """Load configuration from file"""
         if self.config_file.exists():
-            with open(self.config_file, "r") as f:
+            with open(self.config_file, "r", encoding="utf-8") as f:
                 config = json.load(f)
                 
                 # Migrate old config to new multi-provider structure
@@ -48,13 +48,24 @@ class ConfigManager:
                 # Add default face tracking mode if not exists
                 if "face_tracking_mode" not in config:
                     config["face_tracking_mode"] = "opencv"  # "opencv" or "mediapipe"
+                # Add default portrait mode if not exists
+                if "portrait_mode" not in config:
+                    config["portrait_mode"] = "crop"  # "crop" (smart crop) or "blur" (blurred background)
+                # Add default subtitle style if not exists
+                if "subtitle_style" not in config:
+                    config["subtitle_style"] = "pop"  # "pop" (word pop highlight), "karaoke", "bounce", or "animated"
+                # Add default aspect ratio if not exists
+                if "aspect_ratio" not in config:
+                    config["aspect_ratio"] = "9:16"  # "9:16", "1:1", "4:5", or "16:9"
                 # Add default MediaPipe settings if not exists
                 if "mediapipe_settings" not in config:
                     config["mediapipe_settings"] = {
                         "lip_activity_threshold": 0.15,
                         "switch_threshold": 0.3,
                         "min_shot_duration": 90,
-                        "center_weight": 0.3
+                        "center_weight": 0.3,
+                        "smooth_follow": True,
+                        "pan_speed_limit": 2.5,
                     }
                 # Generate installation_id if not exists
                 if "installation_id" not in config:
@@ -102,11 +113,16 @@ class ConfigManager:
                 "scale": 0.15
             },
             "face_tracking_mode": "opencv",
+            "portrait_mode": "crop",
+            "subtitle_style": "pop",
+            "aspect_ratio": "9:16",
             "mediapipe_settings": {
                 "lip_activity_threshold": 0.15,
                 "switch_threshold": 0.3,
                 "min_shot_duration": 90,
-                "center_weight": 0.3
+                "center_weight": 0.3,
+                "smooth_follow": True,
+                "pan_speed_limit": 2.5
             },
             "repliz": {
                 "access_key": "",
@@ -130,7 +146,11 @@ class ConfigManager:
             "caption_maker": {
                 "base_url": "https://api.openai.com/v1",
                 "api_key": "",
-                "model": "whisper-1"
+                "model": "whisper-1",
+                "faster_whisper": {
+                    "mode": "api",
+                    "model_size": "small"
+                }
             },
             "hook_maker": {
                 "base_url": "https://api.openai.com/v1",
@@ -182,7 +202,7 @@ class ConfigManager:
     
     def save_config(self, config):
         """Save configuration dict to file"""
-        with open(self.config_file, "w") as f:
+        with open(self.config_file, "w", encoding="utf-8") as f:
             json.dump(config, f, indent=2)
     
     def get(self, key, default=None):

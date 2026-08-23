@@ -1,4 +1,4 @@
-﻿"""
+"""
 Watermark Settings Sub-Page with Canvas Drag & Drop
 """
 
@@ -32,12 +32,12 @@ class WatermarkSettingsSubPage(BaseSettingsSubPage):
         """Create page content with canvas for drag & drop positioning"""
         # Enable watermark toggle
         enable_frame = ctk.CTkFrame(self.content, fg_color="transparent")
-        enable_frame.pack(fill="x", pady=(0, 15))
+        enable_frame.pack(fill="x", pady=(0, 8))
         
         self.watermark_enabled = ctk.BooleanVar(value=False)
         ctk.CTkSwitch(enable_frame, text="Enable Watermark", 
             variable=self.watermark_enabled,
-            font=ctk.CTkFont(size=14, weight="bold"), 
+            font=ctk.CTkFont(size=11, weight="bold"), 
             command=self.toggle_watermark).pack(side="left")
         
         # Watermark settings container
@@ -46,35 +46,35 @@ class WatermarkSettingsSubPage(BaseSettingsSubPage):
         
         # Image selection
         ctk.CTkLabel(self.watermark_settings_frame, text="Watermark Image", 
-            font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", pady=(5, 5))
+            font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", pady=(4, 4))
         
         image_frame = ctk.CTkFrame(self.watermark_settings_frame, fg_color="transparent")
-        image_frame.pack(fill="x", pady=(5, 15))
+        image_frame.pack(fill="x", pady=(4, 8))
         
         self.watermark_path_var = ctk.StringVar(value="")
         self.watermark_path_entry = ctk.CTkEntry(image_frame, 
             textvariable=self.watermark_path_var, 
             placeholder_text="Select PNG image...")
-        self.watermark_path_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        self.watermark_path_entry.pack(side="left", fill="x", expand=True, padx=(0, 6))
         
-        ctk.CTkButton(image_frame, text="Browse", width=100,
+        ctk.CTkButton(image_frame, font=ctk.CTkFont(size=11), text="Browse", width=100,
             command=self.browse_watermark).pack(side="right")
         
         # Position simulator with Canvas
         ctk.CTkLabel(self.watermark_settings_frame, text="Position", 
-            font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", pady=(10, 5))
+            font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", pady=(4, 4))
         ctk.CTkLabel(self.watermark_settings_frame, 
             text="Drag the watermark to position it on the video", 
-            font=ctk.CTkFont(size=11), text_color="gray").pack(anchor="w", pady=(0, 10))
+            font=ctk.CTkFont(size=11), text_color="gray").pack(anchor="w", pady=(0, 6))
         
         # Canvas for 9:16 simulator
         self.canvas_frame = ctk.CTkFrame(self.watermark_settings_frame, 
-            fg_color=("gray85", "gray20"))
-        self.canvas_frame.pack(fill="x", pady=(5, 15))
+            fg_color=("gray85", "gray20"), border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        self.canvas_frame.pack(fill="x", pady=(4, 8))
         
         self.canvas = tk.Canvas(self.canvas_frame, width=270, height=480, 
-            bg="#1a1a1a", highlightthickness=1, highlightbackground="gray")
-        self.canvas.pack(padx=10, pady=10)
+            bg="#17171b", highlightthickness=1, highlightbackground="gray")
+        self.canvas.pack(padx=4, pady=4)
         
         # Draw 9:16 frame
         self.canvas.create_rectangle(0, 0, 270, 480, outline="gray", width=2)
@@ -92,32 +92,32 @@ class WatermarkSettingsSubPage(BaseSettingsSubPage):
         
         # Opacity slider
         ctk.CTkLabel(self.watermark_settings_frame, text="Opacity", 
-            font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", pady=(10, 5))
+            font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", pady=(4, 4))
         
         opacity_frame = ctk.CTkFrame(self.watermark_settings_frame, fg_color="transparent")
-        opacity_frame.pack(fill="x", pady=(5, 15))
+        opacity_frame.pack(fill="x", pady=(4, 8))
         
         self.watermark_opacity = ctk.DoubleVar(value=0.8)
         ctk.CTkSlider(opacity_frame, from_=0.0, to=1.0, 
             variable=self.watermark_opacity,
             command=self.update_watermark_preview, number_of_steps=20).pack(
-            side="left", fill="x", expand=True, padx=(0, 10))
+            side="left", fill="x", expand=True, padx=(0, 6))
         
         self.opacity_label = ctk.CTkLabel(opacity_frame, text="80%", width=50, anchor="e")
         self.opacity_label.pack(side="right")
         
         # Scale slider
         ctk.CTkLabel(self.watermark_settings_frame, text="Size", 
-            font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", pady=(10, 5))
+            font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", pady=(4, 4))
         
         scale_frame = ctk.CTkFrame(self.watermark_settings_frame, fg_color="transparent")
-        scale_frame.pack(fill="x", pady=(5, 15))
+        scale_frame.pack(fill="x", pady=(4, 8))
         
         self.watermark_scale = ctk.DoubleVar(value=0.15)
         ctk.CTkSlider(scale_frame, from_=0.05, to=0.5, 
             variable=self.watermark_scale,
             command=self.update_watermark_preview, number_of_steps=45).pack(
-            side="left", fill="x", expand=True, padx=(0, 10))
+            side="left", fill="x", expand=True, padx=(0, 6))
         
         self.scale_label = ctk.CTkLabel(scale_frame, text="15%", width=50, anchor="e")
         self.scale_label.pack(side="right")

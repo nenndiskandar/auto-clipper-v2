@@ -1,4 +1,4 @@
-﻿"""
+"""
 AI API Settings Sub-Page - Card-based navigation to individual providers
 """
 
@@ -26,7 +26,7 @@ class AIAPISettingsSubPage(BaseSettingsSubPage):
         providers_section = self.create_section("AI Providers")
         
         cards_frame = ctk.CTkFrame(providers_section, fg_color="transparent")
-        cards_frame.pack(fill="x", padx=10, pady=(0, 12))
+        cards_frame.pack(fill="x", padx=4, pady=(0, 8))
         cards_frame.grid_columnconfigure((0, 1), weight=1, uniform="provider")
         
         # Row 1
@@ -43,27 +43,27 @@ class AIAPISettingsSubPage(BaseSettingsSubPage):
     
     def _create_provider_card(self, parent, row, col, title, desc, key):
         """Create a clickable provider card"""
-        card = ctk.CTkFrame(parent, fg_color=("gray85", "gray20"), corner_radius=8, cursor="hand2")
-        card.grid(row=row, column=col, padx=5, pady=5, sticky="nsew")
+        card = ctk.CTkFrame(parent, fg_color=("gray85", "gray20"), corner_radius=5, cursor="hand2", border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        card.grid(row=row, column=col, padx=4, pady=4, sticky="nsew")
         card.bind("<Button-1>", lambda e, k=key: self.navigate_to_provider(k))
         
         header = ctk.CTkFrame(card, fg_color="transparent")
-        header.pack(fill="x", padx=12, pady=(12, 5))
+        header.pack(fill="x", padx=4, pady=(6, 4))
         header.bind("<Button-1>", lambda e, k=key: self.navigate_to_provider(k))
         
         ctk.CTkLabel(header, text=title, 
-            font=ctk.CTkFont(size=12, weight="bold")).pack(side="left")
+            font=ctk.CTkFont(size=11, weight="bold")).pack(side="left")
         
-        status = ctk.CTkLabel(header, text="", font=ctk.CTkFont(size=10))
+        status = ctk.CTkLabel(header, text="", font=ctk.CTkFont(size=11))
         status.pack(side="right")
         setattr(self, f"{key}_status", status)
         
-        d = ctk.CTkLabel(card, text=desc, font=ctk.CTkFont(size=9), text_color="gray")
-        d.pack(anchor="w", padx=12, pady=(0, 5))
+        d = ctk.CTkLabel(card, text=desc, font=ctk.CTkFont(size=11), text_color="gray")
+        d.pack(anchor="w", padx=4, pady=(0, 4))
         d.bind("<Button-1>", lambda e, k=key: self.navigate_to_provider(k))
         
-        m = ctk.CTkLabel(card, text="", font=ctk.CTkFont(size=9), text_color="gray")
-        m.pack(anchor="w", padx=12, pady=(0, 12))
+        m = ctk.CTkLabel(card, text="", font=ctk.CTkFont(size=11), text_color="gray")
+        m.pack(anchor="w", padx=4, pady=(0, 8))
         m.bind("<Button-1>", lambda e, k=key: self.navigate_to_provider(k))
         setattr(self, f"{key}_model", m)
         

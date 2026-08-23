@@ -37,70 +37,41 @@ class BrowsePage(ctk.CTkFrame):
         from components.page_layout import PageFooter
         
         # Set background color to match home page
-        self.configure(fg_color=("#1a1a1a", "#0a0a0a"))
+        self.configure(fg_color=("#ffffff", "#0b0b0c"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
         
         # Header with back button
         header_frame = ctk.CTkFrame(self, fg_color="transparent")
-        header_frame.pack(fill="x", padx=20, pady=(15, 10))
+        header_frame.pack(fill="x", padx=4, pady=(6, 6))
         
         # Left side: Back button + title
         left_header = ctk.CTkFrame(header_frame, fg_color="transparent")
         left_header.pack(side="left")
         
-        ctk.CTkButton(left_header, text="←", width=40, fg_color="transparent", 
-            hover_color=("gray75", "gray25"), command=self.on_back).pack(side="left")
-        ctk.CTkLabel(left_header, text="Browse Videos", font=ctk.CTkFont(size=22, weight="bold")).pack(side="left", padx=10)
-        
-        # Right side: Logo + tagline
-        right_header = ctk.CTkFrame(header_frame, fg_color="transparent")
-        right_header.pack(side="right")
-        
-        # Logo + tagline
-        try:
-            from utils.helpers import get_bundle_dir
-            BUNDLE_DIR = get_bundle_dir()
-            ASSETS_DIR = BUNDLE_DIR / "assets"
-            ICON_PATH = ASSETS_DIR / "icon.png"
-            
-            if ICON_PATH.exists():
-                icon_img = Image.open(ICON_PATH)
-                icon_img.thumbnail((32, 32), Image.Resampling.LANCZOS)
-                header_icon = ctk.CTkImage(light_image=icon_img, dark_image=icon_img, size=(32, 32))
-                ctk.CTkLabel(right_header, image=header_icon, text="").pack(side="left", padx=(0, 10))
-                # Keep reference
-                self.header_icon = header_icon
-        except:
-            pass
-        
-        tagline_col = ctk.CTkFrame(right_header, fg_color="transparent")
-        tagline_col.pack(side="left")
-        ctk.CTkLabel(tagline_col, text="YT Short Clipper", font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w")
-        ctk.CTkLabel(tagline_col, text="Turn long YouTube videos into viral shorts — Powered by AI", 
-            font=ctk.CTkFont(size=9), text_color="gray").pack(anchor="w")
+        ctk.CTkLabel(left_header, text="Browse Videos", font=ctk.CTkFont(size=15, weight="bold")).pack(side="left", padx=4)
         
         # Main content
         main = ctk.CTkFrame(self, fg_color="transparent")
-        main.pack(fill="both", expand=True, padx=20, pady=(0, 10))
+        main.pack(fill="both", expand=True, padx=4, pady=(0, 6))
         
         # Video list (scrollable) - full height
         self.list_frame = ctk.CTkScrollableFrame(main)
-        self.list_frame.pack(fill="both", expand=True, pady=(10, 10))
+        self.list_frame.pack(fill="both", expand=True, pady=(4, 6))
         
         # Bottom buttons
         btn_frame = ctk.CTkFrame(main, fg_color="transparent")
         btn_frame.pack(fill="x", side="bottom")
         
-        self.refresh_btn = ctk.CTkButton(btn_frame, text="🔄 Refresh", height=45, image=self.refresh_icon, compound="left",
-            font=ctk.CTkFont(size=13), command=self.refresh_list)
-        self.refresh_btn.pack(side="left", fill="x", expand=True, padx=(0, 5))
+        self.refresh_btn = ctk.CTkButton(btn_frame, text="Refresh", height=22, compound="left",
+            font=ctk.CTkFont(size=11), command=self.refresh_list)
+        self.refresh_btn.pack(side="left", fill="x", expand=True, padx=(0, 4))
         
-        self.folder_btn = ctk.CTkButton(btn_frame, text="📂 Open Output Folder", height=45,
-            font=ctk.CTkFont(size=13), fg_color="gray", command=self.open_output_folder)
-        self.folder_btn.pack(side="left", fill="x", expand=True, padx=(5, 0))
+        self.folder_btn = ctk.CTkButton(btn_frame, text="Open Output Folder", height=22,
+            font=ctk.CTkFont(size=11), fg_color="gray", command=self.open_output_folder, text_color=("#FFFFFF", "#FFFFFF"))
+        self.folder_btn.pack(side="left", fill="x", expand=True, padx=(4, 0))
         
         # Footer
         footer = PageFooter(self, self)
-        footer.pack(fill="x", padx=20, pady=(10, 15))
+        footer.pack(fill="x", padx=4, pady=(4, 8))
     
     def refresh_list(self):
         """Refresh the list of videos in output folder"""
@@ -113,37 +84,44 @@ class BrowsePage(ctk.CTkFrame):
         
         if not output_dir.exists():
             ctk.CTkLabel(self.list_frame, text="📂 Output folder not found", 
-                font=ctk.CTkFont(size=13), text_color="gray").pack(pady=30)
+                font=ctk.CTkFont(size=11), text_color="gray").pack(pady=18)
             return
         
-        # Find all clip folders
-        clip_folders = sorted([d for d in output_dir.iterdir() if d.is_dir() and not d.name.startswith("_")], reverse=True)
+        # Find all clip folders (sorted by modification date, newest first)
+        clip_folders = sorted(
+            [d for d in output_dir.iterdir() if d.is_dir() and not d.name.startswith("_")],
+            key=lambda x: x.stat().st_mtime,
+            reverse=True
+        )
         
         if not clip_folders:
             ctk.CTkLabel(self.list_frame, text="📹 No videos found\n\nProcess a video to see it here", 
-                font=ctk.CTkFont(size=13), text_color="gray", justify="center").pack(pady=30)
+                font=ctk.CTkFont(size=11), text_color="gray", justify="center").pack(pady=18)
             return
         
         # Create list items with thumbnails
         for folder in clip_folders[:50]:  # Limit to 50
             data_file = folder / "data.json"
             master_file = folder / "master.mp4"
+            if not master_file.exists():
+                videos = sorted(folder.glob("*.mp4"))
+                master_file = videos[0] if videos else None
             
-            if data_file.exists() and master_file.exists():
+            if data_file.exists() and master_file:
                 try:
                     with open(data_file, "r", encoding="utf-8") as f:
                         data = json.load(f)
                     
                     # Create list item
-                    item = ctk.CTkFrame(self.list_frame, fg_color=("gray85", "gray20"), corner_radius=10)
-                    item.pack(fill="x", pady=5, padx=5)
+                    item = ctk.CTkFrame(self.list_frame, fg_color=("gray85", "gray20"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+                    item.pack(fill="x", pady=4, padx=4)
                     
                     # Main content frame (horizontal layout)
                     content_frame = ctk.CTkFrame(item, fg_color="transparent")
-                    content_frame.pack(fill="x", padx=12, pady=12)
+                    content_frame.pack(fill="x", padx=4, pady=4)
                     
                     # Thumbnail on left
-                    thumb_frame = ctk.CTkFrame(content_frame, width=140, height=80, fg_color=("gray75", "gray30"), corner_radius=8)
+                    thumb_frame = ctk.CTkFrame(content_frame, width=140, height=80, fg_color=("gray75", "gray30"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
                     thumb_frame.pack(side="left")
                     thumb_frame.pack_propagate(False)
                     
@@ -152,22 +130,22 @@ class BrowsePage(ctk.CTkFrame):
                     
                     # Info in middle
                     info = ctk.CTkFrame(content_frame, fg_color="transparent")
-                    info.pack(side="left", fill="both", expand=True, padx=(12, 12))
+                    info.pack(side="left", fill="both", expand=True, padx=(6, 8))
                     
                     # Title with YouTube badge if uploaded
                     title_frame = ctk.CTkFrame(info, fg_color="transparent")
                     title_frame.pack(fill="x")
                     
                     title = data.get("title", "Untitled")[:50]
-                    title_label = ctk.CTkLabel(title_frame, text=title, font=ctk.CTkFont(size=13, weight="bold"), 
+                    title_label = ctk.CTkLabel(title_frame, text=title, font=ctk.CTkFont(size=11, weight="bold"), 
                         anchor="w")
                     title_label.pack(side="left", fill="x", expand=True)
                     
                     # YouTube badge if uploaded
                     if data.get("youtube_url"):
-                        yt_badge = ctk.CTkLabel(title_frame, text="▶️", font=ctk.CTkFont(size=12), 
+                        yt_badge = ctk.CTkLabel(title_frame, text="▶️", font=ctk.CTkFont(size=11), 
                             text_color="#c4302b", cursor="hand2")
-                        yt_badge.pack(side="right", padx=(5, 0))
+                        yt_badge.pack(side="right", padx=(4, 0))
                         
                         # Make badge clickable to open YouTube
                         yt_url = data.get("youtube_url")
@@ -177,39 +155,39 @@ class BrowsePage(ctk.CTkFrame):
                     hook = data.get("hook_text", "")[:40]
                     subtitle_label = ctk.CTkLabel(info, text=f"⏱️ {duration:.0f}s • {hook}...", 
                         font=ctk.CTkFont(size=11), text_color="gray", anchor="w")
-                    subtitle_label.pack(fill="x", pady=(3, 0))
+                    subtitle_label.pack(fill="x", pady=(4, 0))
                     
                     date_label = ctk.CTkLabel(info, text=f"📅 {folder.name}", 
-                        font=ctk.CTkFont(size=10), text_color="gray", anchor="w")
-                    date_label.pack(fill="x", pady=(2, 0))
+                        font=ctk.CTkFont(size=11), text_color="gray", anchor="w")
+                    date_label.pack(fill="x", pady=(4, 0))
                     
                     # Action buttons below date (horizontal layout)
                     btn_row = ctk.CTkFrame(info, fg_color="transparent")
-                    btn_row.pack(fill="x", pady=(8, 0))
+                    btn_row.pack(fill="x", pady=(4, 0))
                     
                     # Play button
-                    play_btn = ctk.CTkButton(btn_row, text="▶ Play Video", height=32,
-                        font=ctk.CTkFont(size=11), fg_color=("#3B8ED0", "#1F6AA5"),
-                        command=lambda v=master_file: self.play_video(v))
-                    play_btn.pack(side="left", padx=(0, 5))
+                    play_btn = ctk.CTkButton(btn_row, text="Play Video", height=22,
+                        font=ctk.CTkFont(size=11), fg_color=("#00A878", "#00A878"),
+                        command=lambda v=master_file: self.play_video(v), text_color=("#0B0B0C", "#0B0B0C"))
+                    play_btn.pack(side="left", padx=(0, 4))
                     
                     # YouTube upload button (or uploaded indicator)
                     if data.get("youtube_url"):
-                        yt_btn = ctk.CTkButton(btn_row, text="✓ Uploaded to YouTube", height=32,
+                        yt_btn = ctk.CTkButton(btn_row, text="Uploaded to YouTube", height=22,
                             font=ctk.CTkFont(size=11), fg_color="#27ae60", text_color="white",
                             state="disabled", hover_color="#27ae60")
-                        yt_btn.pack(side="left", padx=(0, 5))
+                        yt_btn.pack(side="left", padx=(0, 4))
                     else:
-                        yt_btn = ctk.CTkButton(btn_row, text="⬆ Upload to YouTube", height=32,
+                        yt_btn = ctk.CTkButton(btn_row, text="Upload to YouTube", height=22,
                             font=ctk.CTkFont(size=11), fg_color="#c4302b", hover_color="#ff0000",
-                            command=lambda f=folder, v=master_file, d=data: self.upload_video_from_card(f, v, d))
-                        yt_btn.pack(side="left", padx=(0, 5))
+                            command=lambda f=folder, v=master_file, d=data: self.upload_video_from_card(f, v, d), text_color=("#FFFFFF", "#FFFFFF"))
+                        yt_btn.pack(side="left", padx=(0, 4))
                     
                     # Repliz upload button
-                    repliz_btn = ctk.CTkButton(btn_row, text="📤 Upload via Repliz", height=32,
-                        font=ctk.CTkFont(size=11), fg_color=("#2196F3", "#1976D2"), 
-                        hover_color=("#1976D2", "#1565C0"),
-                        command=lambda f=folder, v=master_file, d=data: self.upload_via_repliz(f, v, d))
+                    repliz_btn = ctk.CTkButton(btn_row, text="Upload via Repliz", height=22,
+                        font=ctk.CTkFont(size=11), fg_color=("#00A878", "#00A878"), 
+                        hover_color=("#008F66", "#008F66"),
+                        command=lambda f=folder, v=master_file, d=data: self.upload_via_repliz(f, v, d), text_color=("#0B0B0C", "#0B0B0C"))
                     repliz_btn.pack(side="left", padx=(0, 0))
                     
                 except:

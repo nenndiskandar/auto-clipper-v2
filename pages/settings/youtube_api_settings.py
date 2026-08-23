@@ -1,4 +1,4 @@
-﻿"""
+"""
 YouTube API Settings Sub-Page
 """
 
@@ -27,53 +27,53 @@ class YouTubeAPISettingsSubPage(BaseSettingsSubPage):
         """Create page content"""
         # YouTube header
         header_frame = ctk.CTkFrame(self.content, fg_color="transparent")
-        header_frame.pack(fill="x", pady=(0, 15))
+        header_frame.pack(fill="x", pady=(0, 8))
         
         ctk.CTkLabel(header_frame, text="YouTube", 
-            font=ctk.CTkFont(size=16, weight="bold")).pack(side="left")
+            font=ctk.CTkFont(size=12, weight="bold")).pack(side="left")
         
         self.status_badge = ctk.CTkLabel(header_frame, text="Not connected", 
             text_color="gray", font=ctk.CTkFont(size=11))
         self.status_badge.pack(side="right")
         
         # Connection Status Section
-        status_section = ctk.CTkFrame(self.content, fg_color=("gray90", "gray17"), corner_radius=10)
-        status_section.pack(fill="x", pady=(0, 15))
+        status_section = ctk.CTkFrame(self.content, fg_color=("gray90", "gray17"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        status_section.pack(fill="x", pady=(0, 8))
         
         ctk.CTkLabel(status_section, text="Connection Status", 
-            font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=15, pady=(15, 10))
+            font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=4, pady=(6, 6))
         
         status_frame = ctk.CTkFrame(status_section, fg_color="transparent")
-        status_frame.pack(fill="x", padx=15, pady=(0, 15))
+        status_frame.pack(fill="x", padx=4, pady=(0, 8))
         
         self.status_label = ctk.CTkLabel(status_frame, text="Checking...", 
-            font=ctk.CTkFont(size=12), text_color="gray")
+            font=ctk.CTkFont(size=11), text_color="gray")
         self.status_label.pack(anchor="w")
         
         self.channel_label = ctk.CTkLabel(status_frame, text="", 
             font=ctk.CTkFont(size=11), text_color="gray")
-        self.channel_label.pack(anchor="w", pady=(5, 0))
+        self.channel_label.pack(anchor="w", pady=(4, 0))
         
         # Action Buttons
         btn_frame = ctk.CTkFrame(self.content, fg_color="transparent")
-        btn_frame.pack(fill="x", pady=(0, 15))
+        btn_frame.pack(fill="x", pady=(0, 8))
         
-        self.connect_btn = ctk.CTkButton(btn_frame, text="Connect YouTube", height=40, 
+        self.connect_btn = ctk.CTkButton(btn_frame, font=ctk.CTkFont(size=11), text="Connect YouTube", height=22, 
             fg_color=("#c4302b", "#FF0000"), hover_color=("#ff0000", "#CC0000"),
-            command=self.connect_youtube)
-        self.connect_btn.pack(fill="x", pady=(0, 10))
+            command=self.connect_youtube, text_color=("#FFFFFF", "#FFFFFF"))
+        self.connect_btn.pack(fill="x", pady=(0, 6))
         
-        self.disconnect_btn = ctk.CTkButton(btn_frame, text="Disconnect", height=35,
-            fg_color="gray", hover_color="#c0392b", command=self.disconnect_youtube)
+        self.disconnect_btn = ctk.CTkButton(btn_frame, font=ctk.CTkFont(size=11), text="Disconnect", height=18,
+            fg_color="gray", hover_color="#c0392b", command=self.disconnect_youtube, text_color=("#FFFFFF", "#FFFFFF"))
         self.disconnect_btn.pack(fill="x")
         self.disconnect_btn.pack_forget()
         
         # Setup Instructions
-        info_section = ctk.CTkFrame(self.content, fg_color=("gray90", "gray17"), corner_radius=10)
-        info_section.pack(fill="x", pady=(0, 15))
+        info_section = ctk.CTkFrame(self.content, fg_color=("gray90", "gray17"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        info_section.pack(fill="x", pady=(0, 8))
         
         ctk.CTkLabel(info_section, text="Setup Instructions", 
-            font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=15, pady=(15, 10))
+            font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=4, pady=(6, 6))
         
         info_text = """1. Set up Google Cloud project
 2. Enable YouTube Data API v3
@@ -83,12 +83,12 @@ class YouTubeAPISettingsSubPage(BaseSettingsSubPage):
 See README for detailed setup guide."""
         
         ctk.CTkLabel(info_section, text=info_text, justify="left", anchor="w",
-            font=ctk.CTkFont(size=11), text_color="gray", wraplength=450).pack(anchor="w", padx=15, pady=(0, 15))
+            font=ctk.CTkFont(size=11), text_color="gray", wraplength=450).pack(anchor="w", padx=4, pady=(0, 8))
         
         # Open Google Console button
-        ctk.CTkButton(info_section, text="Open Google Cloud Console", height=38,
+        ctk.CTkButton(info_section, font=ctk.CTkFont(size=11), text="Open Google Cloud Console", height=22,
             fg_color="gray", hover_color=("gray70", "gray30"),
-            command=lambda: webbrowser.open("https://console.cloud.google.com/")).pack(fill="x", padx=15, pady=(0, 15))
+            command=lambda: webbrowser.open("https://console.cloud.google.com/"), text_color=("#FFFFFF", "#FFFFFF")).pack(fill="x", padx=4, pady=(0, 8))
     
     def check_status(self):
         """Check YouTube connection status"""
@@ -226,7 +226,7 @@ See README for detailed setup guide."""
                 os.remove(creds_file)
             
             self._update_status("not_connected")
-            self.connect_btn.pack(fill="x", pady=(0, 10))
+            self.connect_btn.pack(fill="x", pady=(0, 6))
             messagebox.showinfo("Success", "YouTube account disconnected")
             
             # Update main app status if available

@@ -78,71 +78,71 @@ class ReplizUploadDialog(ctk.CTkToplevel):
         """Create dialog UI"""
         # Main scrollable content
         main_scroll = ctk.CTkScrollableFrame(self)
-        main_scroll.pack(fill="both", expand=True, padx=20, pady=(20, 10))
+        main_scroll.pack(fill="both", expand=True, padx=4, pady=(6, 6))
         
         # Header
         header = ctk.CTkFrame(main_scroll, fg_color="transparent")
-        header.pack(fill="x", pady=(0, 10))
+        header.pack(fill="x", pady=(0, 6))
         
         ctk.CTkLabel(header, text="📤 Upload via Repliz", 
-            font=ctk.CTkFont(size=18, weight="bold")).pack(anchor="w")
+            font=ctk.CTkFont(size=15, weight="bold")).pack(anchor="w")
         ctk.CTkLabel(header, text="Upload to multiple platforms at once", 
-            font=ctk.CTkFont(size=11), text_color="gray").pack(anchor="w", pady=(5, 0))
+            font=ctk.CTkFont(size=11), text_color="gray").pack(anchor="w", pady=(4, 0))
         
         # Video info
-        info_frame = ctk.CTkFrame(main_scroll, fg_color=("gray90", "gray17"), corner_radius=10)
-        info_frame.pack(fill="x", pady=(0, 15))
+        info_frame = ctk.CTkFrame(main_scroll, fg_color=("gray90", "gray17"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        info_frame.pack(fill="x", pady=(0, 8))
         
         title = self.clip_data.get("title", "Untitled")
         if len(title) > 50:
             title = title[:47] + "..."
         
         ctk.CTkLabel(info_frame, text=f"📹 {title}", 
-            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x", padx=15, pady=(12, 5))
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(fill="x", padx=4, pady=(6, 4))
         
         duration = self.clip_data.get("duration", 0)
         ctk.CTkLabel(info_frame, text=f"⏱️ Duration: {duration:.0f}s", 
-            font=ctk.CTkFont(size=11), text_color="gray", anchor="w").pack(fill="x", padx=15, pady=(0, 12))
+            font=ctk.CTkFont(size=11), text_color="gray", anchor="w").pack(fill="x", padx=4, pady=(0, 8))
         
         # Metadata section (Title & Description)
-        metadata_frame = ctk.CTkFrame(main_scroll, fg_color=("gray90", "gray17"), corner_radius=10)
-        metadata_frame.pack(fill="x", pady=(0, 15))
+        metadata_frame = ctk.CTkFrame(main_scroll, fg_color=("gray90", "gray17"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        metadata_frame.pack(fill="x", pady=(0, 8))
         
         ctk.CTkLabel(metadata_frame, text="📝 Post Details", 
-            font=ctk.CTkFont(size=13, weight="bold"), anchor="w").pack(fill="x", padx=15, pady=(12, 10))
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(fill="x", padx=4, pady=(6, 6))
         
         # Title
         ctk.CTkLabel(metadata_frame, text="Title", 
-            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(fill="x", padx=15)
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(fill="x", padx=4)
         self.title_entry = ctk.CTkEntry(metadata_frame, height=35, 
             placeholder_text="Generating...")
-        self.title_entry.pack(fill="x", padx=15, pady=(5, 10))
+        self.title_entry.pack(fill="x", padx=4, pady=(4, 6))
         
         # Description
         ctk.CTkLabel(metadata_frame, text="Description", 
-            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(fill="x", padx=15)
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(fill="x", padx=4)
         self.desc_text = ctk.CTkTextbox(metadata_frame, height=100, wrap="word")
-        self.desc_text.pack(fill="x", padx=15, pady=(5, 12))
+        self.desc_text.pack(fill="x", padx=4, pady=(4, 8))
         self.desc_text.insert("1.0", "Generating SEO metadata...")
         self.desc_text.configure(state="disabled")
         
         # Schedule section
-        schedule_frame = ctk.CTkFrame(main_scroll, fg_color=("gray90", "gray17"), corner_radius=10)
-        schedule_frame.pack(fill="x", pady=(0, 15))
+        schedule_frame = ctk.CTkFrame(main_scroll, fg_color=("gray90", "gray17"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        schedule_frame.pack(fill="x", pady=(0, 8))
         
         ctk.CTkLabel(schedule_frame, text="📅 Schedule Publishing", 
-            font=ctk.CTkFont(size=13, weight="bold"), anchor="w").pack(fill="x", padx=15, pady=(12, 5))
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(fill="x", padx=4, pady=(6, 4))
         
         ctk.CTkLabel(schedule_frame, text="Set when to publish (must be in the future, max 7 days)", 
-            font=ctk.CTkFont(size=10), text_color="gray", anchor="w").pack(fill="x", padx=15, pady=(0, 10))
+            font=ctk.CTkFont(size=11), text_color="gray", anchor="w").pack(fill="x", padx=4, pady=(0, 6))
         
         # Date & Time inputs
         schedule_inputs = ctk.CTkFrame(schedule_frame, fg_color="transparent")
-        schedule_inputs.pack(fill="x", padx=15, pady=(0, 12))
+        schedule_inputs.pack(fill="x", padx=4, pady=(0, 8))
         
         # Date
         date_frame = ctk.CTkFrame(schedule_inputs, fg_color="transparent")
-        date_frame.pack(fill="x", pady=(0, 10))
+        date_frame.pack(fill="x", pady=(0, 6))
         
         ctk.CTkLabel(date_frame, text="Date:", width=60, anchor="w", 
             font=ctk.CTkFont(size=11, weight="bold")).pack(side="left")
@@ -155,13 +155,13 @@ class ReplizUploadDialog(ctk.CTkToplevel):
         self.year_var = ctk.StringVar(value=str(tomorrow.year))
         
         ctk.CTkEntry(date_frame, textvariable=self.day_var, width=50, 
-            placeholder_text="DD").pack(side="left", padx=(0, 5))
+            placeholder_text="DD").pack(side="left", padx=(0, 4))
         ctk.CTkLabel(date_frame, text="/").pack(side="left")
         ctk.CTkEntry(date_frame, textvariable=self.month_var, width=50, 
-            placeholder_text="MM").pack(side="left", padx=5)
+            placeholder_text="MM").pack(side="left", padx=4)
         ctk.CTkLabel(date_frame, text="/").pack(side="left")
         ctk.CTkEntry(date_frame, textvariable=self.year_var, width=70, 
-            placeholder_text="YYYY").pack(side="left", padx=(5, 0))
+            placeholder_text="YYYY").pack(side="left", padx=(4, 0))
         
         # Time
         time_frame = ctk.CTkFrame(schedule_inputs, fg_color="transparent")
@@ -174,19 +174,19 @@ class ReplizUploadDialog(ctk.CTkToplevel):
         self.minute_var = ctk.StringVar(value="00")
         
         ctk.CTkEntry(time_frame, textvariable=self.hour_var, width=50, 
-            placeholder_text="HH").pack(side="left", padx=(0, 5))
+            placeholder_text="HH").pack(side="left", padx=(0, 4))
         ctk.CTkLabel(time_frame, text=":").pack(side="left")
         ctk.CTkEntry(time_frame, textvariable=self.minute_var, width=50, 
-            placeholder_text="MM").pack(side="left", padx=(5, 0))
+            placeholder_text="MM").pack(side="left", padx=(4, 0))
         ctk.CTkLabel(time_frame, text="(GMT+7)", 
-            font=ctk.CTkFont(size=10, weight="bold"), text_color=("gray40", "gray60")).pack(side="left", padx=(10, 0))
+            font=ctk.CTkFont(size=11, weight="bold"), text_color=("gray40", "gray60")).pack(side="left", padx=(4, 0))
         
         # Loading state for accounts
         self.loading_frame = ctk.CTkFrame(main_scroll, fg_color="transparent")
-        self.loading_frame.pack(fill="x", pady=(0, 15))
+        self.loading_frame.pack(fill="x", pady=(0, 8))
         
         ctk.CTkLabel(self.loading_frame, text="⏳ Loading accounts...", 
-            font=ctk.CTkFont(size=13), text_color="gray").pack()
+            font=ctk.CTkFont(size=11), text_color="gray").pack()
         
         # Accounts list (will be shown after loading)
         self.accounts_container = ctk.CTkFrame(main_scroll, fg_color="transparent")
@@ -194,16 +194,16 @@ class ReplizUploadDialog(ctk.CTkToplevel):
         
         # Bottom buttons
         btn_frame = ctk.CTkFrame(self, fg_color="transparent")
-        btn_frame.pack(fill="x", padx=20, pady=(0, 20), side="bottom")
+        btn_frame.pack(fill="x", padx=4, pady=(0, 8), side="bottom")
         
-        ctk.CTkButton(btn_frame, text="Cancel", height=40, 
+        ctk.CTkButton(btn_frame, font=ctk.CTkFont(size=11), text="Cancel", height=22, 
             fg_color="gray", hover_color=("gray70", "gray30"),
-            command=self.destroy).pack(side="left", fill="x", expand=True, padx=(0, 5))
+            command=self.destroy, text_color=("#FFFFFF", "#FFFFFF")).pack(side="left", fill="x", expand=True, padx=(0, 4))
         
-        self.upload_btn = ctk.CTkButton(btn_frame, text="Upload to Selected", height=40,
+        self.upload_btn = ctk.CTkButton(btn_frame, font=ctk.CTkFont(size=11), text="Upload to Selected", height=22,
             fg_color=("#27ae60", "#27ae60"), hover_color=("#229954", "#229954"),
-            command=self.start_upload, state="disabled")
-        self.upload_btn.pack(side="right", fill="x", expand=True, padx=(5, 0))
+            command=self.start_upload, state="disabled", text_color=("#FFFFFF", "#FFFFFF"))
+        self.upload_btn.pack(side="right", fill="x", expand=True, padx=(4, 0))
         
         # Start generating metadata
         if self.openai_client:
@@ -326,33 +326,33 @@ Return JSON format:
             
             ctk.CTkLabel(no_accounts_frame, 
                 text="⚠️ No connected accounts found\n\nPlease connect your social media accounts\nin Repliz dashboard first.", 
-                font=ctk.CTkFont(size=12), text_color="gray", justify="center").pack(expand=True)
-            self.accounts_container.pack(fill="x", pady=(0, 15))
+                font=ctk.CTkFont(size=11), text_color="gray", justify="center").pack(expand=True)
+            self.accounts_container.pack(fill="x", pady=(0, 8))
             return
         
         # Show accounts section
-        self.accounts_container.pack(fill="x", pady=(0, 15))
+        self.accounts_container.pack(fill="x", pady=(0, 8))
         
         # Header
         header = ctk.CTkFrame(self.accounts_container, fg_color="transparent")
-        header.pack(fill="x", pady=(0, 10))
+        header.pack(fill="x", pady=(0, 6))
         
         ctk.CTkLabel(header, text="Select Platforms:", 
-            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(side="left")
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(side="left")
         
         ctk.CTkLabel(header, text=f"{len(accounts)} account(s)", 
-            font=ctk.CTkFont(size=10), text_color="gray").pack(side="right")
+            font=ctk.CTkFont(size=11), text_color="gray").pack(side="right")
         
         # Select All / Deselect All buttons
         btn_row = ctk.CTkFrame(self.accounts_container, fg_color="transparent")
-        btn_row.pack(fill="x", pady=(0, 5))
+        btn_row.pack(fill="x", pady=(0, 4))
         
-        ctk.CTkButton(btn_row, text="Select All", height=28, width=100,
+        ctk.CTkButton(btn_row, text="Select All", height=18, width=100,
             font=ctk.CTkFont(size=11), fg_color=("gray70", "gray30"),
             hover_color=("gray60", "gray40"), text_color=("gray10", "gray90"),
-            command=self._select_all_accounts).pack(side="left", padx=(0, 5))
+            command=self._select_all_accounts).pack(side="left", padx=(0, 4))
         
-        ctk.CTkButton(btn_row, text="Deselect All", height=28, width=100,
+        ctk.CTkButton(btn_row, text="Deselect All", height=18, width=100,
             font=ctk.CTkFont(size=11), fg_color=("gray70", "gray30"),
             hover_color=("gray60", "gray40"), text_color=("gray10", "gray90"),
             command=self._deselect_all_accounts).pack(side="left")
@@ -392,8 +392,8 @@ Return JSON format:
         icon = platform_icons.get(platform_type, "🔗")
         
         # Account card
-        card = ctk.CTkFrame(parent, fg_color=("gray90", "gray20"), corner_radius=8)
-        card.pack(fill="x", pady=5)
+        card = ctk.CTkFrame(parent, fg_color=("gray90", "gray20"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        card.pack(fill="x", pady=4)
         
         # Checkbox variable
         var = ctk.BooleanVar(value=False)
@@ -401,11 +401,11 @@ Return JSON format:
         
         # Content
         content = ctk.CTkFrame(card, fg_color="transparent")
-        content.pack(fill="x", padx=12, pady=10)
+        content.pack(fill="x", padx=4, pady=4)
         
         # Checkbox on left
         checkbox = ctk.CTkCheckBox(content, text="", variable=var, width=24)
-        checkbox.pack(side="left", padx=(0, 10))
+        checkbox.pack(side="left", padx=(0, 6))
         
         # Account info
         info = ctk.CTkFrame(content, fg_color="transparent")
@@ -414,7 +414,7 @@ Return JSON format:
         # Platform + name
         name_label = ctk.CTkLabel(info, 
             text=f"{icon} {account.get('name', 'Unknown')}", 
-            font=ctk.CTkFont(size=12, weight="bold"), anchor="w")
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w")
         name_label.pack(anchor="w")
         
         # Username + platform type
@@ -423,18 +423,18 @@ Return JSON format:
             username_text = f"@{username}" if not username.startswith("@") else username
             detail_label = ctk.CTkLabel(info, 
                 text=f"{username_text} • {platform_type.upper()}", 
-                font=ctk.CTkFont(size=10), text_color="gray", anchor="w")
-            detail_label.pack(anchor="w", pady=(2, 0))
+                font=ctk.CTkFont(size=11), text_color="gray", anchor="w")
+            detail_label.pack(anchor="w", pady=(4, 0))
         
         # Connection status on right
         is_connected = account.get("isConnected", False)
         if is_connected:
             status_label = ctk.CTkLabel(content, text="✓", 
-                font=ctk.CTkFont(size=14), text_color="green")
+                font=ctk.CTkFont(size=11), text_color="green")
             status_label.pack(side="right")
         else:
             status_label = ctk.CTkLabel(content, text="✗", 
-                font=ctk.CTkFont(size=14), text_color="red")
+                font=ctk.CTkFont(size=11), text_color="red")
             status_label.pack(side="right")
             # Disable checkbox if not connected
             checkbox.configure(state="disabled")
@@ -446,11 +446,11 @@ Return JSON format:
         
         # Show error
         error_frame = ctk.CTkFrame(self, fg_color="transparent")
-        error_frame.pack(fill="both", expand=True, padx=20, pady=(0, 15))
+        error_frame.pack(fill="both", expand=True, padx=4, pady=(0, 8))
         
         ctk.CTkLabel(error_frame, 
             text=f"❌ Failed to load accounts\n\n{error}", 
-            font=ctk.CTkFont(size=12), text_color="red", justify="center").pack(expand=True)
+            font=ctk.CTkFont(size=11), text_color="red", justify="center").pack(expand=True)
     
     def start_upload(self):
         """Start upload to selected accounts"""
@@ -537,17 +537,17 @@ Return JSON format:
         
         # Header
         ctk.CTkLabel(progress_win, text="📤 Uploading to Repliz", 
-            font=ctk.CTkFont(size=16, weight="bold")).pack(pady=(20, 10))
+            font=ctk.CTkFont(size=12, weight="bold")).pack(pady=(6, 6))
         
         # Progress list
         progress_frame = ctk.CTkScrollableFrame(progress_win, height=250)
-        progress_frame.pack(fill="both", expand=True, padx=20, pady=(0, 10))
+        progress_frame.pack(fill="both", expand=True, padx=4, pady=(0, 6))
         
         # Status labels for each account
         status_labels = {}
         for account in accounts:
-            card = ctk.CTkFrame(progress_frame, fg_color=("gray90", "gray20"), corner_radius=8)
-            card.pack(fill="x", pady=5)
+            card = ctk.CTkFrame(progress_frame, fg_color=("gray90", "gray20"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+            card.pack(fill="x", pady=4)
             
             platform_type = account.get("type", "unknown")
             platform_icons = {
@@ -563,15 +563,15 @@ Return JSON format:
             username = account.get("username", "")
             
             ctk.CTkLabel(card, text=f"{icon} {name}", 
-                font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x", padx=12, pady=(10, 2))
+                font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(fill="x", padx=4, pady=(4, 4))
             
             if username:
                 ctk.CTkLabel(card, text=f"@{username}", 
-                    font=ctk.CTkFont(size=10), text_color="gray", anchor="w").pack(fill="x", padx=12, pady=(0, 5))
+                    font=ctk.CTkFont(size=11), text_color="gray", anchor="w").pack(fill="x", padx=4, pady=(0, 4))
             
             status_label = ctk.CTkLabel(card, text="⏳ Waiting...", 
                 font=ctk.CTkFont(size=11), text_color="gray", anchor="w")
-            status_label.pack(fill="x", padx=12, pady=(0, 10))
+            status_label.pack(fill="x", padx=4, pady=(0, 6))
             
             status_labels[account.get("_id")] = status_label
         
@@ -588,9 +588,9 @@ Return JSON format:
             progress_win.destroy()
             self.destroy()  # Close main dialog too
         
-        close_btn = ctk.CTkButton(progress_win, text="Close", height=40, state="disabled",
+        close_btn = ctk.CTkButton(progress_win, font=ctk.CTkFont(size=11), text="Close", height=22, state="disabled",
             command=on_done)
-        close_btn.pack(fill="x", padx=20, pady=(0, 20))
+        close_btn.pack(fill="x", padx=4, pady=(0, 8))
         
         # Start upload process
         def do_upload():

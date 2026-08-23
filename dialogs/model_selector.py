@@ -29,12 +29,12 @@ class SearchableModelDropdown(ctk.CTkToplevel):
         self.search_var.trace_add("write", self.filter_models)
         
         search_entry = ctk.CTkEntry(self, textvariable=self.search_var, 
-            placeholder_text="🔍 Search models...", height=40)
-        search_entry.pack(fill="x", padx=10, pady=10)
+            placeholder_text="🔍 Search models...", height=24)
+        search_entry.pack(fill="x", padx=4, pady=4)
         search_entry.focus()
         
         self.list_frame = ctk.CTkScrollableFrame(self, height=400)
-        self.list_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        self.list_frame.pack(fill="both", expand=True, padx=4, pady=(0, 6))
         
         self.model_buttons = []
         self.current_value = current_value
@@ -77,8 +77,7 @@ class SearchableModelDropdown(ctk.CTkToplevel):
         
         for model in self.filtered_models:
             is_selected = model == self.current_value
-            btn = ctk.CTkButton(
-                self.list_frame, 
+            btn = ctk.CTkButton(self.list_frame, font=ctk.CTkFont(size=11), 
                 text=model, 
                 anchor="w",
                 fg_color=("gray75", "gray25") if is_selected else "transparent",

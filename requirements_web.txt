@@ -1,2 +1,0 @@
--r requirements.txt
-pywebview>=4.4.1

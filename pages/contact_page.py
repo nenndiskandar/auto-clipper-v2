@@ -25,63 +25,61 @@ class ContactPage(ctk.CTkFrame):
         """Create the contact form UI"""
         # Header with back button
         header = ctk.CTkFrame(self, fg_color="transparent")
-        header.pack(fill="x", padx=20, pady=(15, 10))
+        header.pack(fill="x", padx=4, pady=(6, 6))
         
-        ctk.CTkButton(header, text="←", width=40, fg_color="transparent", 
-            hover_color=("gray75", "gray25"), command=self.on_back).pack(side="left")
-        ctk.CTkLabel(header, text="Contact Developer", font=ctk.CTkFont(size=22, weight="bold")).pack(side="left", padx=10)
+        ctk.CTkLabel(header, text="Contact Developer", font=ctk.CTkFont(size=15, weight="bold")).pack(side="left")
         
         # Scrollable main content
-        main = ctk.CTkScrollableFrame(self)
-        main.pack(fill="both", expand=True, padx=20, pady=(0, 20))
+        main = ctk.CTkScrollableFrame(self, fg_color="transparent")
+        main.pack(fill="both", expand=True, padx=4, pady=(0, 8))
         
         # Description
         desc_text = "Have questions, suggestions, or feature requests? Send us a message!"
-        ctk.CTkLabel(main, text=desc_text, font=ctk.CTkFont(size=13), 
-            text_color="gray", wraplength=450).pack(pady=(10, 20))
+        ctk.CTkLabel(main, text=desc_text, font=ctk.CTkFont(size=11), 
+            text_color="gray", wraplength=450).pack(pady=(4, 8))
         
         # Name (Required)
-        ctk.CTkLabel(main, text="Name *", font=ctk.CTkFont(size=13, weight="bold"), 
-            anchor="w").pack(fill="x", pady=(0, 5))
-        self.nama_entry = ctk.CTkEntry(main, height=40, placeholder_text="Enter your name")
-        self.nama_entry.pack(fill="x", pady=(0, 15))
+        ctk.CTkLabel(main, text="Name *", font=ctk.CTkFont(size=11, weight="bold"), 
+            anchor="w").pack(fill="x", pady=(0, 4))
+        self.nama_entry = ctk.CTkEntry(main, height=24, placeholder_text="Enter your name")
+        self.nama_entry.pack(fill="x", pady=(0, 8))
         
         # Email (Required)
-        ctk.CTkLabel(main, text="Email *", font=ctk.CTkFont(size=13, weight="bold"), 
-            anchor="w").pack(fill="x", pady=(0, 5))
-        self.email_entry = ctk.CTkEntry(main, height=40, placeholder_text="example@email.com")
-        self.email_entry.pack(fill="x", pady=(0, 15))
+        ctk.CTkLabel(main, text="Email *", font=ctk.CTkFont(size=11, weight="bold"), 
+            anchor="w").pack(fill="x", pady=(0, 4))
+        self.email_entry = ctk.CTkEntry(main, height=24, placeholder_text="example@email.com")
+        self.email_entry.pack(fill="x", pady=(0, 8))
         
         # Phone (Optional)
-        ctk.CTkLabel(main, text="Phone (Optional)", font=ctk.CTkFont(size=13, weight="bold"), 
-            anchor="w").pack(fill="x", pady=(0, 5))
-        self.phone_entry = ctk.CTkEntry(main, height=40, placeholder_text="+1234567890")
-        self.phone_entry.pack(fill="x", pady=(0, 15))
+        ctk.CTkLabel(main, text="Phone (Optional)", font=ctk.CTkFont(size=11, weight="bold"), 
+            anchor="w").pack(fill="x", pady=(0, 4))
+        self.phone_entry = ctk.CTkEntry(main, height=24, placeholder_text="+1234567890")
+        self.phone_entry.pack(fill="x", pady=(0, 8))
         
         # Type (Dropdown)
-        ctk.CTkLabel(main, text="Type *", font=ctk.CTkFont(size=13, weight="bold"), 
-            anchor="w").pack(fill="x", pady=(0, 5))
-        self.jenis_dropdown = ctk.CTkOptionMenu(main, height=40, 
+        ctk.CTkLabel(main, text="Type *", font=ctk.CTkFont(size=11, weight="bold"), 
+            anchor="w").pack(fill="x", pady=(0, 4))
+        self.jenis_dropdown = ctk.CTkOptionMenu(main, height=26, 
             values=["Question", "Suggestion", "Feature Request"])
         self.jenis_dropdown.set("Question")
-        self.jenis_dropdown.pack(fill="x", pady=(0, 15))
+        self.jenis_dropdown.pack(fill="x", pady=(0, 8))
         
         # Message (Required)
-        ctk.CTkLabel(main, text="Message *", font=ctk.CTkFont(size=13, weight="bold"), 
-            anchor="w").pack(fill="x", pady=(0, 5))
+        ctk.CTkLabel(main, text="Message *", font=ctk.CTkFont(size=11, weight="bold"), 
+            anchor="w").pack(fill="x", pady=(0, 4))
         self.message_textbox = ctk.CTkTextbox(main, height=150)
-        self.message_textbox.pack(fill="x", pady=(0, 15))
+        self.message_textbox.pack(fill="x", pady=(0, 8))
         
         # Submit button
-        self.submit_btn = ctk.CTkButton(main, text="Send Message", height=45, 
-            font=ctk.CTkFont(size=14, weight="bold"),
+        self.submit_btn = ctk.CTkButton(main, text="Send Message", height=22, 
+            font=ctk.CTkFont(size=11, weight="bold"),
             fg_color="#2ecc71", hover_color="#27ae60",
-            command=self.submit_form)
-        self.submit_btn.pack(fill="x", pady=(10, 0))
+            command=self.submit_form, text_color=("#FFFFFF", "#FFFFFF"))
+        self.submit_btn.pack(fill="x", pady=(4, 0))
         
         # Status label
-        self.status_label = ctk.CTkLabel(main, text="", font=ctk.CTkFont(size=12))
-        self.status_label.pack(pady=(10, 0))
+        self.status_label = ctk.CTkLabel(main, text="", font=ctk.CTkFont(size=11))
+        self.status_label.pack(pady=(4, 0))
     
     def validate_email(self, email: str) -> bool:
         """Simple email validation"""

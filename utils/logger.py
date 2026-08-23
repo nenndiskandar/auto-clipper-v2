@@ -4,9 +4,17 @@ Logging utilities for YT Short Clipper
 
 import sys
 import os
+import re
 import traceback
 from datetime import datetime
 from pathlib import Path
+
+ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def strip_ansi(text: str) -> str:
+    """Remove ANSI escape sequences from a string (for plain-text targets)."""
+    return ANSI_RE.sub("", text)
 
 
 # Enable console logging when running from terminal (not frozen)
@@ -14,6 +22,28 @@ DEBUG_MODE = not getattr(sys, 'frozen', False)
 
 # Error log file path (will be set by setup_error_logging)
 ERROR_LOG_FILE = None
+
+# Optional GUI sink callback: receives every debug/error line (for in-app console)
+LOG_SINK = None
+
+
+def set_log_sink(callback):
+    """Register a callback that receives debug/error lines for in-app display.
+
+    Args:
+        callback: callable(msg: str) invoked with each formatted log line.
+    """
+    global LOG_SINK
+    LOG_SINK = callback
+
+
+def _emit_sink(msg: str):
+    """Push a line to the registered GUI sink, ignoring sink failures."""
+    if LOG_SINK is not None:
+        try:
+            LOG_SINK(msg)
+        except Exception:
+            pass
 
 
 def setup_error_logging(app_dir: Path):
@@ -58,9 +88,12 @@ class ErrorLogWriter:
 
 
 def debug_log(msg):
-    """Log to console only in debug mode (running from terminal)"""
+    """Log to console only in debug mode (running from terminal).
+    ANSI colors are kept for the GUI sink (LogPanel renders them) but
+    stripped for plain-text console/file output."""
     if DEBUG_MODE:
-        print(f"[DEBUG] {msg}")
+        print(f"[DEBUG] {strip_ansi(msg)}")
+    _emit_sink(msg)
 
 
 def log_error(error_msg: str, exception: Exception = None):
@@ -90,6 +123,7 @@ def log_error(error_msg: str, exception: Exception = None):
             f.write(f"{'='*80}\n\n")
     except Exception:
         pass  # Silently fail if can't write to log
+    _emit_sink(f"[ERROR] {error_msg}")
 
 
 def get_error_log_path() -> Path:

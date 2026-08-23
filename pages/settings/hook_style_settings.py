@@ -19,7 +19,7 @@ from utils.font_scanner import (
 
 
 # Defaults match the previous hard-coded look (white BG, gold text, sharp corners)
-DEFAULT_FONT_COLOR = "#FFD700"
+DEFAULT_FONT_COLOR = "#FFD166"
 DEFAULT_BG_COLOR = "#FFFFFF"
 DEFAULT_CORNER_RADIUS = 0
 DEFAULT_POS_X = 0.5      # horizontal center
@@ -64,7 +64,7 @@ class HookStyleSettingsSubPage(BaseSettingsSubPage):
             text_color="gray",
             wraplength=600,
             justify="left",
-        ).pack(anchor="w", pady=(0, 15))
+        ).pack(anchor="w", pady=(0, 8))
 
         # Two-column layout: preview on the left, controls on the right
         body = ctk.CTkFrame(self.content, fg_color="transparent")
@@ -72,26 +72,26 @@ class HookStyleSettingsSubPage(BaseSettingsSubPage):
 
         # --- Preview column ---
         preview_col = ctk.CTkFrame(body, fg_color="transparent")
-        preview_col.pack(side="left", padx=(0, 20), anchor="n")
+        preview_col.pack(side="left", padx=(0, 8), anchor="n")
 
         ctk.CTkLabel(
             preview_col,
             text="Preview",
-            font=ctk.CTkFont(size=13, weight="bold"),
-        ).pack(anchor="w", pady=(0, 5))
+            font=ctk.CTkFont(size=11, weight="bold"),
+        ).pack(anchor="w", pady=(0, 4))
 
-        canvas_frame = ctk.CTkFrame(preview_col, fg_color=("gray85", "gray20"))
+        canvas_frame = ctk.CTkFrame(preview_col, fg_color=("gray85", "gray20"), border_width=1, border_color=("#2a2a30", "#2a2a30"))
         canvas_frame.pack()
 
         self.canvas = tk.Canvas(
             canvas_frame,
             width=self.CANVAS_W,
             height=self.CANVAS_H,
-            bg="#1a1a1a",
+            bg="#17171b",
             highlightthickness=1,
             highlightbackground="gray",
         )
-        self.canvas.pack(padx=10, pady=10)
+        self.canvas.pack(padx=4, pady=4)
 
         # 9:16 frame outline + label
         self.canvas.create_rectangle(
@@ -113,9 +113,9 @@ class HookStyleSettingsSubPage(BaseSettingsSubPage):
         ctk.CTkLabel(
             preview_col,
             text="Tip: drag the hook box to reposition.",
-            font=ctk.CTkFont(size=10),
+            font=ctk.CTkFont(size=11),
             text_color="gray",
-        ).pack(anchor="w", pady=(8, 0))
+        ).pack(anchor="w", pady=(4, 0))
 
         # --- Controls column ---
         controls = ctk.CTkFrame(body, fg_color="transparent")
@@ -123,8 +123,8 @@ class HookStyleSettingsSubPage(BaseSettingsSubPage):
 
         # Font family
         ctk.CTkLabel(
-            controls, text="Font", font=ctk.CTkFont(size=13, weight="bold")
-        ).pack(anchor="w", pady=(0, 5))
+            controls, text="Font", font=ctk.CTkFont(size=11, weight="bold")
+        ).pack(anchor="w", pady=(0, 4))
 
         font_names = get_font_names()
         if not font_names:
@@ -136,16 +136,16 @@ class HookStyleSettingsSubPage(BaseSettingsSubPage):
             variable=self.font_var,
             command=lambda _v: self._update_preview(),
             state="readonly",
-            height=36,
+            height=26,
         )
-        self.font_dropdown.pack(fill="x", pady=(0, 15))
+        self.font_dropdown.pack(fill="x", pady=(0, 8))
 
         # Font size (as fraction of video width)
         ctk.CTkLabel(
-            controls, text="Font Size", font=ctk.CTkFont(size=13, weight="bold")
-        ).pack(anchor="w", pady=(0, 5))
+            controls, text="Font Size", font=ctk.CTkFont(size=11, weight="bold")
+        ).pack(anchor="w", pady=(0, 4))
         size_row = ctk.CTkFrame(controls, fg_color="transparent")
-        size_row.pack(fill="x", pady=(0, 15))
+        size_row.pack(fill="x", pady=(0, 8))
         self.font_size_var = ctk.DoubleVar(value=DEFAULT_FONT_SIZE)
         ctk.CTkSlider(
             size_row,
@@ -154,69 +154,67 @@ class HookStyleSettingsSubPage(BaseSettingsSubPage):
             variable=self.font_size_var,
             command=lambda _v: self._update_preview(),
             number_of_steps=30,
-        ).pack(side="left", fill="x", expand=True, padx=(0, 10))
+        ).pack(side="left", fill="x", expand=True, padx=(0, 6))
         self.font_size_label = ctk.CTkLabel(size_row, text="5.4%", width=50, anchor="e")
         self.font_size_label.pack(side="right")
 
         # Font color
         ctk.CTkLabel(
-            controls, text="Font Color", font=ctk.CTkFont(size=13, weight="bold")
-        ).pack(anchor="w", pady=(0, 5))
+            controls, text="Font Color", font=ctk.CTkFont(size=11, weight="bold")
+        ).pack(anchor="w", pady=(0, 4))
         font_color_row = ctk.CTkFrame(controls, fg_color="transparent")
-        font_color_row.pack(fill="x", pady=(0, 15))
+        font_color_row.pack(fill="x", pady=(0, 8))
         self.font_color = DEFAULT_FONT_COLOR
         self.font_color_swatch = tk.Frame(
             font_color_row, bg=self.font_color, width=36, height=36,
             highlightthickness=1, highlightbackground="gray",
         )
-        self.font_color_swatch.pack(side="left", padx=(0, 10))
+        self.font_color_swatch.pack(side="left", padx=(0, 6))
         self.font_color_swatch.pack_propagate(False)
-        self.font_color_entry = ctk.CTkEntry(font_color_row, width=120, height=36)
+        self.font_color_entry = ctk.CTkEntry(font_color_row, width=120, height=26)
         self.font_color_entry.insert(0, self.font_color)
         self.font_color_entry.bind("<Return>", lambda _e: self._apply_color_entry("font"))
         self.font_color_entry.bind("<FocusOut>", lambda _e: self._apply_color_entry("font"))
-        self.font_color_entry.pack(side="left", padx=(0, 10))
-        ctk.CTkButton(
-            font_color_row, text="Pick...", width=80, height=36,
+        self.font_color_entry.pack(side="left", padx=(0, 6))
+        ctk.CTkButton(font_color_row, font=ctk.CTkFont(size=11), text="Pick...", width=80, height=22,
             command=lambda: self._pick_color("font"),
         ).pack(side="left")
 
         # Background color
         ctk.CTkLabel(
-            controls, text="Background Color", font=ctk.CTkFont(size=13, weight="bold")
-        ).pack(anchor="w", pady=(0, 5))
+            controls, text="Background Color", font=ctk.CTkFont(size=11, weight="bold")
+        ).pack(anchor="w", pady=(0, 4))
         bg_color_row = ctk.CTkFrame(controls, fg_color="transparent")
-        bg_color_row.pack(fill="x", pady=(0, 15))
+        bg_color_row.pack(fill="x", pady=(0, 8))
         self.bg_color = DEFAULT_BG_COLOR
         self.bg_color_swatch = tk.Frame(
             bg_color_row, bg=self.bg_color, width=36, height=36,
             highlightthickness=1, highlightbackground="gray",
         )
-        self.bg_color_swatch.pack(side="left", padx=(0, 10))
+        self.bg_color_swatch.pack(side="left", padx=(0, 6))
         self.bg_color_swatch.pack_propagate(False)
-        self.bg_color_entry = ctk.CTkEntry(bg_color_row, width=120, height=36)
+        self.bg_color_entry = ctk.CTkEntry(bg_color_row, width=120, height=26)
         self.bg_color_entry.insert(0, self.bg_color)
         self.bg_color_entry.bind("<Return>", lambda _e: self._apply_color_entry("bg"))
         self.bg_color_entry.bind("<FocusOut>", lambda _e: self._apply_color_entry("bg"))
-        self.bg_color_entry.pack(side="left", padx=(0, 10))
-        ctk.CTkButton(
-            bg_color_row, text="Pick...", width=80, height=36,
+        self.bg_color_entry.pack(side="left", padx=(0, 6))
+        ctk.CTkButton(bg_color_row, font=ctk.CTkFont(size=11), text="Pick...", width=80, height=22,
             command=lambda: self._pick_color("bg"),
         ).pack(side="left")
 
         # Corner radius
         ctk.CTkLabel(
             controls, text="Corner Radius (px)",
-            font=ctk.CTkFont(size=13, weight="bold"),
-        ).pack(anchor="w", pady=(0, 5))
+            font=ctk.CTkFont(size=11, weight="bold"),
+        ).pack(anchor="w", pady=(0, 4))
         ctk.CTkLabel(
             controls,
             text="In output video pixels (0 = sharp corners).",
-            font=ctk.CTkFont(size=10),
+            font=ctk.CTkFont(size=11),
             text_color="gray",
-        ).pack(anchor="w", pady=(0, 5))
+        ).pack(anchor="w", pady=(0, 4))
         radius_row = ctk.CTkFrame(controls, fg_color="transparent")
-        radius_row.pack(fill="x", pady=(0, 15))
+        radius_row.pack(fill="x", pady=(0, 8))
         self.corner_radius_var = ctk.IntVar(value=DEFAULT_CORNER_RADIUS)
         ctk.CTkSlider(
             radius_row,
@@ -225,30 +223,29 @@ class HookStyleSettingsSubPage(BaseSettingsSubPage):
             variable=self.corner_radius_var,
             command=lambda _v: self._update_preview(),
             number_of_steps=80,
-        ).pack(side="left", fill="x", expand=True, padx=(0, 10))
+        ).pack(side="left", fill="x", expand=True, padx=(0, 6))
         self.radius_label = ctk.CTkLabel(radius_row, text="0 px", width=60, anchor="e")
         self.radius_label.pack(side="right")
 
         # Position fields (read-only display, kept in sync with drag)
         ctk.CTkLabel(
-            controls, text="Position", font=ctk.CTkFont(size=13, weight="bold")
-        ).pack(anchor="w", pady=(0, 5))
+            controls, text="Position", font=ctk.CTkFont(size=11, weight="bold")
+        ).pack(anchor="w", pady=(0, 4))
         self.position_label = ctk.CTkLabel(
             controls,
             text="X: 50% Y: 33%",
             font=ctk.CTkFont(size=11),
             text_color="gray",
         )
-        self.position_label.pack(anchor="w", pady=(0, 10))
+        self.position_label.pack(anchor="w", pady=(0, 6))
 
-        ctk.CTkButton(
-            controls,
+        ctk.CTkButton(controls, font=ctk.CTkFont(size=11),
             text="Reset to Default",
-            height=32,
+            height=22,
             fg_color=("gray70", "gray30"),
             hover_color=("gray60", "gray35"),
             command=self._reset_defaults,
-        ).pack(fill="x", pady=(5, 0))
+            text_color=("#FFFFFF", "#FFFFFF")).pack(fill="x", pady=(4, 0))
 
         # Save button at bottom of content
         self.create_save_button(self.save_settings)
