@@ -30,12 +30,12 @@ class CreditWatermarkSettingsSubPage(BaseSettingsSubPage):
         """Create page content with canvas for drag & drop positioning"""
         # Enable credit watermark toggle
         enable_frame = ctk.CTkFrame(self.content, fg_color="transparent")
-        enable_frame.pack(fill="x", pady=(0, 15))
+        enable_frame.pack(fill="x", pady=(0, 8))
         
         self.credit_enabled = ctk.BooleanVar(value=False)
         ctk.CTkSwitch(enable_frame, text="Enable Credit Watermark", 
             variable=self.credit_enabled,
-            font=ctk.CTkFont(size=14, weight="bold"), 
+            font=ctk.CTkFont(size=11, weight="bold"), 
             command=self.toggle_credit).pack(side="left")
         
         # Credit settings container
@@ -45,23 +45,23 @@ class CreditWatermarkSettingsSubPage(BaseSettingsSubPage):
         # Info text
         ctk.CTkLabel(self.credit_settings_frame, 
             text="Automatically adds channel name as credit text on generated clips", 
-            font=ctk.CTkFont(size=11), text_color="gray").pack(anchor="w", pady=(0, 15))
+            font=ctk.CTkFont(size=11), text_color="gray").pack(anchor="w", pady=(0, 8))
         
         # Position simulator with Canvas
         ctk.CTkLabel(self.credit_settings_frame, text="Position", 
-            font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", pady=(10, 5))
+            font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", pady=(4, 4))
         ctk.CTkLabel(self.credit_settings_frame, 
             text="Drag the text to position it on the video", 
-            font=ctk.CTkFont(size=11), text_color="gray").pack(anchor="w", pady=(0, 10))
+            font=ctk.CTkFont(size=11), text_color="gray").pack(anchor="w", pady=(0, 6))
         
         # Canvas for 9:16 simulator
         self.canvas_frame = ctk.CTkFrame(self.credit_settings_frame, 
-            fg_color=("gray85", "gray20"))
-        self.canvas_frame.pack(fill="x", pady=(5, 15))
+            fg_color=("gray85", "gray20"), border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        self.canvas_frame.pack(fill="x", pady=(4, 8))
         
         self.canvas = tk.Canvas(self.canvas_frame, width=270, height=480, 
-            bg="#1a1a1a", highlightthickness=1, highlightbackground="gray")
-        self.canvas.pack(padx=10, pady=10)
+            bg="#17171b", highlightthickness=1, highlightbackground="gray")
+        self.canvas.pack(padx=4, pady=4)
         
         # Draw 9:16 frame
         self.canvas.create_rectangle(0, 0, 270, 480, outline="gray", width=2)
@@ -79,32 +79,32 @@ class CreditWatermarkSettingsSubPage(BaseSettingsSubPage):
         
         # Size slider
         ctk.CTkLabel(self.credit_settings_frame, text="Text Size", 
-            font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", pady=(10, 5))
+            font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", pady=(4, 4))
         
         size_frame = ctk.CTkFrame(self.credit_settings_frame, fg_color="transparent")
-        size_frame.pack(fill="x", pady=(5, 15))
+        size_frame.pack(fill="x", pady=(4, 8))
         
         self.credit_size = ctk.DoubleVar(value=0.03)  # 3% of video height
         size_slider = ctk.CTkSlider(size_frame, from_=0.02, to=0.08, 
             variable=self.credit_size,
             command=self.update_preview, number_of_steps=30)
-        size_slider.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        size_slider.pack(side="left", fill="x", expand=True, padx=(0, 6))
         
         self.size_label = ctk.CTkLabel(size_frame, text="3%", width=50, anchor="e")
         self.size_label.pack(side="right")
         
         # Opacity slider
         ctk.CTkLabel(self.credit_settings_frame, text="Opacity", 
-            font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", pady=(10, 5))
+            font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", pady=(4, 4))
         
         opacity_frame = ctk.CTkFrame(self.credit_settings_frame, fg_color="transparent")
-        opacity_frame.pack(fill="x", pady=(5, 15))
+        opacity_frame.pack(fill="x", pady=(4, 8))
         
         self.credit_opacity = ctk.DoubleVar(value=0.7)
         opacity_slider = ctk.CTkSlider(opacity_frame, from_=0.1, to=1.0, 
             variable=self.credit_opacity,
             command=self.update_preview, number_of_steps=18)
-        opacity_slider.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        opacity_slider.pack(side="left", fill="x", expand=True, padx=(0, 6))
         
         self.opacity_label = ctk.CTkLabel(opacity_frame, text="70%", width=50, anchor="e")
         self.opacity_label.pack(side="right")

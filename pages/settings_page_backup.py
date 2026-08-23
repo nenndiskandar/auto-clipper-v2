@@ -38,23 +38,23 @@ class SettingsPage(ctk.CTkFrame):
         from components.page_layout import PageHeader, PageFooter
         
         # Set background color to match home page
-        self.configure(fg_color=("#1a1a1a", "#0a0a0a"))
+        self.configure(fg_color=("#17171b", "#0b0b0c"))
         
         # Header with back button
         header = PageHeader(self, self, show_nav_buttons=False, show_back_button=True, page_title="Settings")
-        header.pack(fill="x", padx=20, pady=(15, 10))
+        header.pack(fill="x", padx=4, pady=(6, 6))
         
         # Main content with tabs
         main = ctk.CTkFrame(self, fg_color="transparent")
-        main.pack(fill="both", expand=True, padx=20, pady=(0, 10))
+        main.pack(fill="both", expand=True, padx=4, pady=(0, 6))
         
         # Create tabview with custom styling
         self.tabview = ctk.CTkTabview(main, height=40, segmented_button_fg_color=("gray80", "gray20"),
-            segmented_button_selected_color=("#3B8ED0", "#1F6AA5"),
-            segmented_button_selected_hover_color=("#36719F", "#144870"),
+            segmented_button_selected_color=("#A8C42E", "#A8C42E"),
+            segmented_button_selected_hover_color=("#008F66", "#008F66"),
             segmented_button_unselected_color=("gray85", "gray25"),
             segmented_button_unselected_hover_color=("gray75", "gray30"))
-        self.tabview.pack(fill="both", expand=True, padx=10, pady=10)
+        self.tabview.pack(fill="both", expand=True, padx=4, pady=4)
         
         self.tabview.add("AI API Settings")
         self.tabview.add("Performance")
@@ -74,7 +74,7 @@ class SettingsPage(ctk.CTkFrame):
         
         # Footer
         footer = PageFooter(self, self)
-        footer.pack(fill="x", padx=20, pady=(0, 15), side="bottom")
+        footer.pack(fill="x", padx=4, pady=(0, 8), side="bottom")
     
     def create_openai_tab(self):
         """Create AI API settings tab with nested tabs for each provider"""
@@ -82,14 +82,14 @@ class SettingsPage(ctk.CTkFrame):
         
         # Header description
         header_frame = ctk.CTkFrame(main, fg_color="transparent")
-        header_frame.pack(fill="x", padx=15, pady=(15, 10))
+        header_frame.pack(fill="x", padx=4, pady=(6, 6))
         
         ctk.CTkLabel(header_frame, text="AI API Settings", 
-            font=ctk.CTkFont(size=16, weight="bold"), anchor="w").pack(fill="x")
+            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
         
         # Provider selector cards (YT CLIP AI, OPEN AI, CUSTOM)
         cards_frame = ctk.CTkFrame(main, fg_color="transparent")
-        cards_frame.pack(fill="x", padx=15, pady=(10, 15))
+        cards_frame.pack(fill="x", padx=4, pady=(4, 8))
         
         # Create variable to track selected provider type
         self.provider_type_var = ctk.StringVar(value="ytclip")
@@ -100,51 +100,51 @@ class SettingsPage(ctk.CTkFrame):
         
         # YT CLIP AI Card
         ytclip_card = ctk.CTkFrame(cards_container, fg_color=("gray85", "gray20"), 
-            corner_radius=10, border_width=2, border_color=("gray70", "gray30"))
-        ytclip_card.pack(side="left", fill="both", expand=True, padx=(0, 5))
+            corner_radius=5, border_width=2, border_color=("gray70", "gray30"))
+        ytclip_card.pack(side="left", fill="both", expand=True, padx=(0, 4))
         
         ytclip_btn = ctk.CTkButton(ytclip_card, text="🎬 YT CLIP AI", height=60,
-            font=ctk.CTkFont(size=14, weight="bold"),
-            fg_color="transparent", hover_color=("#3B8ED0", "#1F6AA5"),
-            command=lambda: self._select_provider_type("ytclip", ytclip_card, openai_card, custom_card))
-        ytclip_btn.pack(fill="both", expand=True, padx=3, pady=3)
+            font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color="transparent", hover_color=("#00A878", "#00A878"),
+            command=lambda: self._select_provider_type("ytclip", ytclip_card, openai_card, custom_card), text_color=("#FFFFFF", "#FFFFFF"))
+        ytclip_btn.pack(fill="both", expand=True, padx=4, pady=4)
         
         self.ytclip_card = ytclip_card
         
         # OPEN AI Card
         openai_card = ctk.CTkFrame(cards_container, fg_color=("gray85", "gray20"), 
-            corner_radius=10, border_width=2, border_color=("gray70", "gray30"))
-        openai_card.pack(side="left", fill="both", expand=True, padx=5)
+            corner_radius=5, border_width=2, border_color=("gray70", "gray30"))
+        openai_card.pack(side="left", fill="both", expand=True, padx=4)
         
         openai_btn = ctk.CTkButton(openai_card, text="🤖 OPEN AI", height=60,
-            font=ctk.CTkFont(size=14, weight="bold"),
-            fg_color="transparent", hover_color=("#3B8ED0", "#1F6AA5"),
-            command=lambda: self._select_provider_type("openai", ytclip_card, openai_card, custom_card))
-        openai_btn.pack(fill="both", expand=True, padx=3, pady=3)
+            font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color="transparent", hover_color=("#00A878", "#00A878"),
+            command=lambda: self._select_provider_type("openai", ytclip_card, openai_card, custom_card), text_color=("#FFFFFF", "#FFFFFF"))
+        openai_btn.pack(fill="both", expand=True, padx=4, pady=4)
         
         self.openai_card = openai_card
         
         # CUSTOM Card
         custom_card = ctk.CTkFrame(cards_container, fg_color=("gray85", "gray20"), 
-            corner_radius=10, border_width=2, border_color=("gray70", "gray30"))
-        custom_card.pack(side="left", fill="both", expand=True, padx=(5, 0))
+            corner_radius=5, border_width=2, border_color=("gray70", "gray30"))
+        custom_card.pack(side="left", fill="both", expand=True, padx=(4, 0))
         
         custom_btn = ctk.CTkButton(custom_card, text="⚙️ CUSTOM", height=60,
-            font=ctk.CTkFont(size=14, weight="bold"),
-            fg_color="transparent", hover_color=("#3B8ED0", "#1F6AA5"),
-            command=lambda: self._select_provider_type("custom", ytclip_card, openai_card, custom_card))
-        custom_btn.pack(fill="both", expand=True, padx=3, pady=3)
+            font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color="transparent", hover_color=("#00A878", "#00A878"),
+            command=lambda: self._select_provider_type("custom", ytclip_card, openai_card, custom_card), text_color=("#FFFFFF", "#FFFFFF"))
+        custom_btn.pack(fill="both", expand=True, padx=4, pady=4)
         
         self.custom_card = custom_card
         
         # Nested tabview for providers
         self.provider_tabview = ctk.CTkTabview(main, height=40,
             segmented_button_fg_color=("gray80", "gray20"),
-            segmented_button_selected_color=("#3B8ED0", "#1F6AA5"),
-            segmented_button_selected_hover_color=("#36719F", "#144870"),
+            segmented_button_selected_color=("#A8C42E", "#A8C42E"),
+            segmented_button_selected_hover_color=("#008F66", "#008F66"),
             segmented_button_unselected_color=("gray85", "gray25"),
             segmented_button_unselected_hover_color=("gray75", "gray30"))
-        self.provider_tabview.pack(fill="both", expand=True, padx=10, pady=(10, 10))
+        self.provider_tabview.pack(fill="both", expand=True, padx=4, pady=(4, 6))
         
         # Add tabs for each provider
         self.provider_tabview.add("🎯 Highlight Finder")
@@ -159,10 +159,10 @@ class SettingsPage(ctk.CTkFrame):
         self.create_youtube_title_tab()
         
         # Save button at bottom
-        ctk.CTkButton(main, text="💾 Save All Settings", height=45, 
-            font=ctk.CTkFont(size=14, weight="bold"),
+        ctk.CTkButton(main, text="💾 Save All Settings", height=22, 
+            font=ctk.CTkFont(size=11, weight="bold"),
             fg_color=("#27ae60", "#27ae60"), hover_color=("#229954", "#229954"),
-            command=self.save_settings).pack(fill="x", padx=15, pady=(10, 15))
+            command=self.save_settings, text_color=("#FFFFFF", "#FFFFFF")).pack(fill="x", padx=4, pady=(4, 8))
     
     
     def open_yt_model_selector(self):
@@ -596,13 +596,13 @@ class SettingsPage(ctk.CTkFrame):
         custom_card.configure(border_color=("gray70", "gray30"))
         
         if provider_type == "ytclip":
-            ytclip_card.configure(border_color=("#3B8ED0", "#1F6AA5"))
+            ytclip_card.configure(border_color=("#00A878", "#00A878"))
             base_url = "https://ai-api.ytclip.org/v1"
         elif provider_type == "openai":
-            openai_card.configure(border_color=("#3B8ED0", "#1F6AA5"))
+            openai_card.configure(border_color=("#00A878", "#00A878"))
             base_url = "https://api.openai.com/v1"
         else:  # custom
-            custom_card.configure(border_color=("#3B8ED0", "#1F6AA5"))
+            custom_card.configure(border_color=("#00A878", "#00A878"))
             base_url = self.hf_url_entry.get().strip() or "https://api.openai.com/v1"
         
         # Update all URL fields
@@ -632,13 +632,13 @@ class SettingsPage(ctk.CTkFrame):
         if show_custom:
             # Show URL frames
             if hasattr(self, 'hf_url_frame'):
-                self.hf_url_frame.pack(fill="x", padx=10, pady=(0, 15), before=self.hf_key_frame)
+                self.hf_url_frame.pack(fill="x", padx=4, pady=(0, 8), before=self.hf_key_frame)
             if hasattr(self, 'cm_url_frame'):
-                self.cm_url_frame.pack(fill="x", padx=10, pady=(0, 15), before=self.cm_key_frame)
+                self.cm_url_frame.pack(fill="x", padx=4, pady=(0, 8), before=self.cm_key_frame)
             if hasattr(self, 'hm_url_frame'):
-                self.hm_url_frame.pack(fill="x", padx=10, pady=(0, 15), before=self.hm_key_frame)
+                self.hm_url_frame.pack(fill="x", padx=4, pady=(0, 8), before=self.hm_key_frame)
             if hasattr(self, 'yt_url_frame'):
-                self.yt_url_frame.pack(fill="x", padx=10, pady=(0, 15), before=self.yt_key_frame)
+                self.yt_url_frame.pack(fill="x", padx=4, pady=(0, 8), before=self.yt_key_frame)
         else:
             # Hide URL frames
             if hasattr(self, 'hf_url_frame'):
@@ -654,63 +654,63 @@ class SettingsPage(ctk.CTkFrame):
         """Create Highlight Finder configuration tab"""
         tab = self.provider_tabview.tab("🎯 Highlight Finder")
         scroll = ctk.CTkScrollableFrame(tab)
-        scroll.pack(fill="both", expand=True, padx=5, pady=5)
+        scroll.pack(fill="both", expand=True, padx=4, pady=4)
         
         # Description
-        desc_frame = ctk.CTkFrame(scroll, fg_color=("gray85", "gray20"), corner_radius=10)
-        desc_frame.pack(fill="x", pady=(10, 15), padx=10)
+        desc_frame = ctk.CTkFrame(scroll, fg_color=("gray85", "gray20"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        desc_frame.pack(fill="x", pady=(4, 8), padx=4)
         
         ctk.CTkLabel(desc_frame, text="ℹ️ Highlight Finder", 
-            font=ctk.CTkFont(size=13, weight="bold"), anchor="w").pack(fill="x", padx=15, pady=(12, 5))
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(fill="x", padx=4, pady=(6, 4))
         ctk.CTkLabel(desc_frame, 
             text="AI model for analyzing video transcripts and finding viral moments. Recommended: GPT-4, GPT-4o, or compatible models.",
-            font=ctk.CTkFont(size=11), text_color="gray", anchor="w", wraplength=450).pack(fill="x", padx=15, pady=(0, 12))
+            font=ctk.CTkFont(size=11), text_color="gray", anchor="w", wraplength=450).pack(fill="x", padx=4, pady=(0, 8))
         
         # API Base URL (will be hidden for YT CLIP AI and OPEN AI)
         self.hf_url_frame = ctk.CTkFrame(scroll, fg_color="transparent")
         # Don't pack yet, will be shown/hidden by _toggle_url_fields
         
         ctk.CTkLabel(self.hf_url_frame, text="API Base URL", 
-            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
-        self.hf_url_entry = ctk.CTkEntry(self.hf_url_frame, height=38,
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(fill="x")
+        self.hf_url_entry = ctk.CTkEntry(self.hf_url_frame, height=24,
             placeholder_text="https://api.openai.com/v1")
-        self.hf_url_entry.pack(fill="x", pady=(5, 0))
+        self.hf_url_entry.pack(fill="x", pady=(4, 0))
         self.hf_url_entry.insert(0, "https://api.openai.com/v1")
         
         # API Key
         self.hf_key_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        self.hf_key_frame.pack(fill="x", padx=10, pady=(0, 15))
+        self.hf_key_frame.pack(fill="x", padx=4, pady=(0, 8))
         
         ctk.CTkLabel(self.hf_key_frame, text="API Key", 
-            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
-        self.hf_key_entry = ctk.CTkEntry(self.hf_key_frame, height=38, show="*",
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(fill="x")
+        self.hf_key_entry = ctk.CTkEntry(self.hf_key_frame, height=24, show="*",
             placeholder_text="sk-...")
-        self.hf_key_entry.pack(fill="x", pady=(5, 0))
+        self.hf_key_entry.pack(fill="x", pady=(4, 0))
         
         # Model
         model_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        model_frame.pack(fill="x", padx=10, pady=(0, 15))
+        model_frame.pack(fill="x", padx=4, pady=(0, 8))
         
         ctk.CTkLabel(model_frame, text="Model", 
-            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(fill="x")
         
         model_select_frame = ctk.CTkFrame(model_frame, fg_color="transparent")
-        model_select_frame.pack(fill="x", pady=(5, 0))
+        model_select_frame.pack(fill="x", pady=(4, 0))
         
         # Display current model
         self.hf_model_var = ctk.StringVar(value="gpt-4.1")
         self.hf_model_display = ctk.CTkLabel(model_select_frame, textvariable=self.hf_model_var,
-            height=38, anchor="w", fg_color=("gray85", "gray20"), corner_radius=6,
-            padx=12, font=ctk.CTkFont(size=13))
-        self.hf_model_display.pack(side="left", fill="x", expand=True, padx=(0, 10))
+            height=38, anchor="w", fg_color=("gray85", "gray20"), corner_radius=5,
+            padx=4, font=ctk.CTkFont(size=11))
+        self.hf_model_display.pack(side="left", fill="x", expand=True, padx=(0, 6))
         
         # Button to open model selector
-        self.hf_select_model_btn = ctk.CTkButton(model_select_frame, text="📋 Select", width=100, height=38,
-            fg_color="gray", command=self.open_hf_model_selector)
-        self.hf_select_model_btn.pack(side="right", padx=(0, 10))
+        self.hf_select_model_btn = ctk.CTkButton(model_select_frame, text="📋 Select", width=100, height=22,
+            fg_color="gray", command=self.open_hf_model_selector, text_color=("#FFFFFF", "#FFFFFF"))
+        self.hf_select_model_btn.pack(side="right", padx=(0, 6))
         
-        self.hf_load_models_btn = ctk.CTkButton(model_select_frame, text="🔄 Load", width=100, height=38,
-            fg_color="gray", command=self.load_hf_models)
+        self.hf_load_models_btn = ctk.CTkButton(model_select_frame, text="🔄 Load", width=100, height=22,
+            fg_color="gray", command=self.load_hf_models, text_color=("#FFFFFF", "#FFFFFF"))
         self.hf_load_models_btn.pack(side="right")
         
         # Store models list
@@ -718,48 +718,48 @@ class SettingsPage(ctk.CTkFrame):
         
         # Temperature
         temp_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        temp_frame.pack(fill="x", padx=10, pady=(0, 15))
+        temp_frame.pack(fill="x", padx=4, pady=(0, 8))
         
         ctk.CTkLabel(temp_frame, text="Temperature", 
-            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(fill="x")
         ctk.CTkLabel(temp_frame, 
             text="Control AI creativity (0.0 = consistent, 2.0 = creative)",
-            font=ctk.CTkFont(size=10), text_color="gray", anchor="w").pack(fill="x", pady=(2, 5))
+            font=ctk.CTkFont(size=11), text_color="gray", anchor="w").pack(fill="x", pady=(4, 4))
         
         temp_slider_frame = ctk.CTkFrame(temp_frame, fg_color="transparent")
-        temp_slider_frame.pack(fill="x", pady=(5, 0))
+        temp_slider_frame.pack(fill="x", pady=(4, 0))
         
         self.temp_var = ctk.DoubleVar(value=1.0)
         self.temp_slider = ctk.CTkSlider(temp_slider_frame, from_=0.0, to=2.0, variable=self.temp_var, 
             command=self.update_temp_label, number_of_steps=20)
-        self.temp_slider.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        self.temp_slider.pack(side="left", fill="x", expand=True, padx=(0, 6))
         
         self.temp_label = ctk.CTkLabel(temp_slider_frame, text="1.0", width=40, anchor="e",
-            font=ctk.CTkFont(size=13, weight="bold"))
+            font=ctk.CTkFont(size=11, weight="bold"))
         self.temp_label.pack(side="right")
         
         # System Prompt
         prompt_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        prompt_frame.pack(fill="x", padx=10, pady=(0, 15))
+        prompt_frame.pack(fill="x", padx=4, pady=(0, 8))
         
         ctk.CTkLabel(prompt_frame, text="System Prompt", 
-            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(fill="x")
         ctk.CTkLabel(prompt_frame, 
             text="Use {num_clips}, {video_context}, {transcript} as placeholders",
-            font=ctk.CTkFont(size=10), text_color="gray", anchor="w").pack(fill="x", pady=(2, 5))
+            font=ctk.CTkFont(size=11), text_color="gray", anchor="w").pack(fill="x", pady=(4, 4))
         
         self.prompt_text = ctk.CTkTextbox(prompt_frame, height=180, wrap="word")
-        self.prompt_text.pack(fill="both", expand=True, pady=(5, 5))
+        self.prompt_text.pack(fill="both", expand=True, pady=(4, 4))
         
         # Prompt buttons
         prompt_btn_frame = ctk.CTkFrame(prompt_frame, fg_color="transparent")
-        prompt_btn_frame.pack(fill="x", pady=(5, 0))
+        prompt_btn_frame.pack(fill="x", pady=(4, 0))
         
-        ctk.CTkButton(prompt_btn_frame, text="Reset to Default", width=130, height=32,
-            fg_color="gray", command=self.reset_prompt).pack(side="left")
+        ctk.CTkButton(prompt_btn_frame, text="Reset to Default", width=130, height=22,
+            fg_color="gray", command=self.reset_prompt, text_color=("#FFFFFF", "#FFFFFF")).pack(side="left")
         
         self.prompt_char_count = ctk.CTkLabel(prompt_btn_frame, text="0 chars", 
-            text_color="gray", font=ctk.CTkFont(size=10))
+            text_color="gray", font=ctk.CTkFont(size=11))
         self.prompt_char_count.pack(side="right")
         
         # Bind text change
@@ -767,192 +767,192 @@ class SettingsPage(ctk.CTkFrame):
         
         # Buttons
         btn_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        btn_frame.pack(fill="x", padx=10, pady=(0, 15))
+        btn_frame.pack(fill="x", padx=4, pady=(0, 8))
         
-        ctk.CTkButton(btn_frame, text="🔍 Validate Configuration", height=38,
-            fg_color=("#3B8ED0", "#1F6AA5"), 
-            command=self.validate_hf_config).pack(side="left", fill="x", expand=True, padx=(0, 5))
+        ctk.CTkButton(btn_frame, text="🔍 Validate Configuration", height=22,
+            fg_color=("#00A878", "#00A878"), 
+            command=self.validate_hf_config, text_color=("#0B0B0C", "#0B0B0C")).pack(side="left", fill="x", expand=True, padx=(0, 4))
         
-        ctk.CTkButton(btn_frame, text="📋 Apply URL & Key to All", height=38,
+        ctk.CTkButton(btn_frame, text="📋 Apply URL & Key to All", height=22,
             fg_color="gray",
-            command=lambda: self.apply_url_key_to_all_simple(self.hf_url_entry.get(), self.hf_key_entry.get())).pack(side="left", fill="x", expand=True, padx=(5, 0))
+            command=lambda: self.apply_url_key_to_all_simple(self.hf_url_entry.get(), self.hf_key_entry.get()), text_color=("#FFFFFF", "#FFFFFF")).pack(side="left", fill="x", expand=True, padx=(4, 0))
     
     def create_caption_maker_tab(self):
         """Create Caption Maker configuration tab"""
         tab = self.provider_tabview.tab("📝 Caption Maker")
         scroll = ctk.CTkScrollableFrame(tab)
-        scroll.pack(fill="both", expand=True, padx=5, pady=5)
+        scroll.pack(fill="both", expand=True, padx=4, pady=4)
         
         # Description
-        desc_frame = ctk.CTkFrame(scroll, fg_color=("gray85", "gray20"), corner_radius=10)
-        desc_frame.pack(fill="x", pady=(10, 15), padx=10)
+        desc_frame = ctk.CTkFrame(scroll, fg_color=("gray85", "gray20"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        desc_frame.pack(fill="x", pady=(4, 8), padx=4)
         
         ctk.CTkLabel(desc_frame, text="ℹ️ Caption Maker", 
-            font=ctk.CTkFont(size=13, weight="bold"), anchor="w").pack(fill="x", padx=15, pady=(12, 5))
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(fill="x", padx=4, pady=(6, 4))
         ctk.CTkLabel(desc_frame, 
             text="Whisper model for generating word-level captions with precise timestamps. Recommended: whisper-1 or compatible models.",
-            font=ctk.CTkFont(size=11), text_color="gray", anchor="w", wraplength=450).pack(fill="x", padx=15, pady=(0, 12))
+            font=ctk.CTkFont(size=11), text_color="gray", anchor="w", wraplength=450).pack(fill="x", padx=4, pady=(0, 8))
         
         # API Base URL (will be hidden for YT CLIP AI and OPEN AI)
         self.cm_url_frame = ctk.CTkFrame(scroll, fg_color="transparent")
         
         ctk.CTkLabel(self.cm_url_frame, text="API Base URL", 
-            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
-        self.cm_url_entry = ctk.CTkEntry(self.cm_url_frame, height=38,
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(fill="x")
+        self.cm_url_entry = ctk.CTkEntry(self.cm_url_frame, height=24,
             placeholder_text="https://api.openai.com/v1")
-        self.cm_url_entry.pack(fill="x", pady=(5, 0))
+        self.cm_url_entry.pack(fill="x", pady=(4, 0))
         self.cm_url_entry.insert(0, "https://api.openai.com/v1")
         
         # API Key
         self.cm_key_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        self.cm_key_frame.pack(fill="x", padx=10, pady=(0, 15))
+        self.cm_key_frame.pack(fill="x", padx=4, pady=(0, 8))
         
         ctk.CTkLabel(self.cm_key_frame, text="API Key", 
-            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
-        self.cm_key_entry = ctk.CTkEntry(self.cm_key_frame, height=38, show="*",
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(fill="x")
+        self.cm_key_entry = ctk.CTkEntry(self.cm_key_frame, height=24, show="*",
             placeholder_text="sk-...")
-        self.cm_key_entry.pack(fill="x", pady=(5, 0))
+        self.cm_key_entry.pack(fill="x", pady=(4, 0))
         
         # Model
         model_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        model_frame.pack(fill="x", padx=10, pady=(0, 15))
+        model_frame.pack(fill="x", padx=4, pady=(0, 8))
         
         ctk.CTkLabel(model_frame, text="Model", 
-            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
-        self.cm_model_entry = ctk.CTkEntry(model_frame, height=38,
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(fill="x")
+        self.cm_model_entry = ctk.CTkEntry(model_frame, height=24,
             placeholder_text="whisper-1")
-        self.cm_model_entry.pack(fill="x", pady=(5, 0))
+        self.cm_model_entry.pack(fill="x", pady=(4, 0))
         
         # Buttons
         btn_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        btn_frame.pack(fill="x", padx=10, pady=(0, 15))
+        btn_frame.pack(fill="x", padx=4, pady=(0, 8))
         
-        ctk.CTkButton(btn_frame, text="🔍 Validate Configuration", height=38,
-            fg_color=("#3B8ED0", "#1F6AA5"), 
-            command=lambda: self.validate_provider_simple("caption_maker", self.cm_url_entry, self.cm_key_entry, self.cm_model_entry)).pack(side="left", fill="x", expand=True, padx=(0, 5))
+        ctk.CTkButton(btn_frame, text="🔍 Validate Configuration", height=22,
+            fg_color=("#00A878", "#00A878"), 
+            command=lambda: self.validate_provider_simple("caption_maker", self.cm_url_entry, self.cm_key_entry, self.cm_model_entry), text_color=("#0B0B0C", "#0B0B0C")).pack(side="left", fill="x", expand=True, padx=(0, 4))
         
-        ctk.CTkButton(btn_frame, text="📋 Apply URL & Key to All", height=38,
+        ctk.CTkButton(btn_frame, text="📋 Apply URL & Key to All", height=22,
             fg_color="gray",
-            command=lambda: self.apply_url_key_to_all_simple(self.cm_url_entry.get(), self.cm_key_entry.get())).pack(side="left", fill="x", expand=True, padx=(5, 0))
+            command=lambda: self.apply_url_key_to_all_simple(self.cm_url_entry.get(), self.cm_key_entry.get()), text_color=("#FFFFFF", "#FFFFFF")).pack(side="left", fill="x", expand=True, padx=(4, 0))
     
     def create_hook_maker_tab(self):
         """Create Hook Maker configuration tab"""
         tab = self.provider_tabview.tab("🎤 Hook Maker")
         scroll = ctk.CTkScrollableFrame(tab)
-        scroll.pack(fill="both", expand=True, padx=5, pady=5)
+        scroll.pack(fill="both", expand=True, padx=4, pady=4)
         
         # Description
-        desc_frame = ctk.CTkFrame(scroll, fg_color=("gray85", "gray20"), corner_radius=10)
-        desc_frame.pack(fill="x", pady=(10, 15), padx=10)
+        desc_frame = ctk.CTkFrame(scroll, fg_color=("gray85", "gray20"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        desc_frame.pack(fill="x", pady=(4, 8), padx=4)
         
         ctk.CTkLabel(desc_frame, text="ℹ️ Hook Maker", 
-            font=ctk.CTkFont(size=13, weight="bold"), anchor="w").pack(fill="x", padx=15, pady=(12, 5))
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(fill="x", padx=4, pady=(6, 4))
         ctk.CTkLabel(desc_frame, 
             text="TTS model for generating audio hooks with natural voice. Recommended: tts-1, tts-1-hd, or compatible models.",
-            font=ctk.CTkFont(size=11), text_color="gray", anchor="w", wraplength=450).pack(fill="x", padx=15, pady=(0, 12))
+            font=ctk.CTkFont(size=11), text_color="gray", anchor="w", wraplength=450).pack(fill="x", padx=4, pady=(0, 8))
         
         # API Base URL (will be hidden for YT CLIP AI and OPEN AI)
         self.hm_url_frame = ctk.CTkFrame(scroll, fg_color="transparent")
         
         ctk.CTkLabel(self.hm_url_frame, text="API Base URL", 
-            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
-        self.hm_url_entry = ctk.CTkEntry(self.hm_url_frame, height=38,
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(fill="x")
+        self.hm_url_entry = ctk.CTkEntry(self.hm_url_frame, height=24,
             placeholder_text="https://api.openai.com/v1")
-        self.hm_url_entry.pack(fill="x", pady=(5, 0))
+        self.hm_url_entry.pack(fill="x", pady=(4, 0))
         self.hm_url_entry.insert(0, "https://api.openai.com/v1")
         
         # API Key
         self.hm_key_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        self.hm_key_frame.pack(fill="x", padx=10, pady=(0, 15))
+        self.hm_key_frame.pack(fill="x", padx=4, pady=(0, 8))
         
         ctk.CTkLabel(self.hm_key_frame, text="API Key", 
-            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
-        self.hm_key_entry = ctk.CTkEntry(self.hm_key_frame, height=38, show="*",
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(fill="x")
+        self.hm_key_entry = ctk.CTkEntry(self.hm_key_frame, height=24, show="*",
             placeholder_text="sk-...")
-        self.hm_key_entry.pack(fill="x", pady=(5, 0))
+        self.hm_key_entry.pack(fill="x", pady=(4, 0))
         
         # Model
         model_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        model_frame.pack(fill="x", padx=10, pady=(0, 15))
+        model_frame.pack(fill="x", padx=4, pady=(0, 8))
         
         ctk.CTkLabel(model_frame, text="Model", 
-            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
-        self.hm_model_entry = ctk.CTkEntry(model_frame, height=38,
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(fill="x")
+        self.hm_model_entry = ctk.CTkEntry(model_frame, height=24,
             placeholder_text="tts-1")
-        self.hm_model_entry.pack(fill="x", pady=(5, 0))
+        self.hm_model_entry.pack(fill="x", pady=(4, 0))
         
         # Buttons
         btn_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        btn_frame.pack(fill="x", padx=10, pady=(0, 15))
+        btn_frame.pack(fill="x", padx=4, pady=(0, 8))
         
-        ctk.CTkButton(btn_frame, text="🔍 Validate Configuration", height=38,
-            fg_color=("#3B8ED0", "#1F6AA5"), 
-            command=lambda: self.validate_provider_simple("hook_maker", self.hm_url_entry, self.hm_key_entry, self.hm_model_entry)).pack(side="left", fill="x", expand=True, padx=(0, 5))
+        ctk.CTkButton(btn_frame, text="🔍 Validate Configuration", height=22,
+            fg_color=("#00A878", "#00A878"), 
+            command=lambda: self.validate_provider_simple("hook_maker", self.hm_url_entry, self.hm_key_entry, self.hm_model_entry), text_color=("#0B0B0C", "#0B0B0C")).pack(side="left", fill="x", expand=True, padx=(0, 4))
         
-        ctk.CTkButton(btn_frame, text="📋 Apply URL & Key to All", height=38,
+        ctk.CTkButton(btn_frame, text="📋 Apply URL & Key to All", height=22,
             fg_color="gray",
-            command=lambda: self.apply_url_key_to_all_simple(self.hm_url_entry.get(), self.hm_key_entry.get())).pack(side="left", fill="x", expand=True, padx=(5, 0))
+            command=lambda: self.apply_url_key_to_all_simple(self.hm_url_entry.get(), self.hm_key_entry.get()), text_color=("#FFFFFF", "#FFFFFF")).pack(side="left", fill="x", expand=True, padx=(4, 0))
     
     def create_youtube_title_tab(self):
         """Create YouTube Title Maker configuration tab"""
         tab = self.provider_tabview.tab("📺 YouTube Title")
         scroll = ctk.CTkScrollableFrame(tab)
-        scroll.pack(fill="both", expand=True, padx=5, pady=5)
+        scroll.pack(fill="both", expand=True, padx=4, pady=4)
         
         # Description
-        desc_frame = ctk.CTkFrame(scroll, fg_color=("gray85", "gray20"), corner_radius=10)
-        desc_frame.pack(fill="x", pady=(10, 15), padx=10)
+        desc_frame = ctk.CTkFrame(scroll, fg_color=("gray85", "gray20"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        desc_frame.pack(fill="x", pady=(4, 8), padx=4)
         
         ctk.CTkLabel(desc_frame, text="ℹ️ YouTube Title Maker", 
-            font=ctk.CTkFont(size=13, weight="bold"), anchor="w").pack(fill="x", padx=15, pady=(12, 5))
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(fill="x", padx=4, pady=(6, 4))
         ctk.CTkLabel(desc_frame, 
             text="AI model for generating SEO-optimized titles, descriptions, and tags. Recommended: GPT-4, GPT-4o, or compatible models.",
-            font=ctk.CTkFont(size=11), text_color="gray", anchor="w", wraplength=450).pack(fill="x", padx=15, pady=(0, 12))
+            font=ctk.CTkFont(size=11), text_color="gray", anchor="w", wraplength=450).pack(fill="x", padx=4, pady=(0, 8))
         
         # API Base URL (will be hidden for YT CLIP AI and OPEN AI)
         self.yt_url_frame = ctk.CTkFrame(scroll, fg_color="transparent")
         
         ctk.CTkLabel(self.yt_url_frame, text="API Base URL", 
-            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
-        self.yt_url_entry = ctk.CTkEntry(self.yt_url_frame, height=38,
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(fill="x")
+        self.yt_url_entry = ctk.CTkEntry(self.yt_url_frame, height=24,
             placeholder_text="https://api.openai.com/v1")
-        self.yt_url_entry.pack(fill="x", pady=(5, 0))
+        self.yt_url_entry.pack(fill="x", pady=(4, 0))
         self.yt_url_entry.insert(0, "https://api.openai.com/v1")
         
         # API Key
         self.yt_key_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        self.yt_key_frame.pack(fill="x", padx=10, pady=(0, 15))
+        self.yt_key_frame.pack(fill="x", padx=4, pady=(0, 8))
         
         ctk.CTkLabel(self.yt_key_frame, text="API Key", 
-            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
-        self.yt_key_entry = ctk.CTkEntry(self.yt_key_frame, height=38, show="*",
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(fill="x")
+        self.yt_key_entry = ctk.CTkEntry(self.yt_key_frame, height=24, show="*",
             placeholder_text="sk-...")
-        self.yt_key_entry.pack(fill="x", pady=(5, 0))
+        self.yt_key_entry.pack(fill="x", pady=(4, 0))
         
         # Model
         model_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        model_frame.pack(fill="x", padx=10, pady=(0, 15))
+        model_frame.pack(fill="x", padx=4, pady=(0, 8))
         
         ctk.CTkLabel(model_frame, text="Model", 
-            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(fill="x")
         
         model_select_frame = ctk.CTkFrame(model_frame, fg_color="transparent")
-        model_select_frame.pack(fill="x", pady=(5, 0))
+        model_select_frame.pack(fill="x", pady=(4, 0))
         
         # Display current model
         self.yt_model_var = ctk.StringVar(value="gpt-4.1")
         self.yt_model_display = ctk.CTkLabel(model_select_frame, textvariable=self.yt_model_var,
-            height=38, anchor="w", fg_color=("gray85", "gray20"), corner_radius=6,
-            padx=12, font=ctk.CTkFont(size=13))
-        self.yt_model_display.pack(side="left", fill="x", expand=True, padx=(0, 10))
+            height=38, anchor="w", fg_color=("gray85", "gray20"), corner_radius=5,
+            padx=4, font=ctk.CTkFont(size=11))
+        self.yt_model_display.pack(side="left", fill="x", expand=True, padx=(0, 6))
         
         # Button to open model selector
-        self.yt_select_model_btn = ctk.CTkButton(model_select_frame, text="📋 Select", width=100, height=38,
-            fg_color="gray", command=self.open_yt_model_selector)
-        self.yt_select_model_btn.pack(side="right", padx=(0, 10))
+        self.yt_select_model_btn = ctk.CTkButton(model_select_frame, text="📋 Select", width=100, height=22,
+            fg_color="gray", command=self.open_yt_model_selector, text_color=("#FFFFFF", "#FFFFFF"))
+        self.yt_select_model_btn.pack(side="right", padx=(0, 6))
         
-        self.yt_load_models_btn = ctk.CTkButton(model_select_frame, text="🔄 Load", width=100, height=38,
-            fg_color="gray", command=self.load_yt_models)
+        self.yt_load_models_btn = ctk.CTkButton(model_select_frame, text="🔄 Load", width=100, height=22,
+            fg_color="gray", command=self.load_yt_models, text_color=("#FFFFFF", "#FFFFFF"))
         self.yt_load_models_btn.pack(side="right")
         
         # Store models list
@@ -960,15 +960,15 @@ class SettingsPage(ctk.CTkFrame):
         
         # Buttons
         btn_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        btn_frame.pack(fill="x", padx=10, pady=(0, 15))
+        btn_frame.pack(fill="x", padx=4, pady=(0, 8))
         
-        ctk.CTkButton(btn_frame, text="🔍 Validate Configuration", height=38,
-            fg_color=("#3B8ED0", "#1F6AA5"), 
-            command=self.validate_yt_config).pack(side="left", fill="x", expand=True, padx=(0, 5))
+        ctk.CTkButton(btn_frame, text="🔍 Validate Configuration", height=22,
+            fg_color=("#00A878", "#00A878"), 
+            command=self.validate_yt_config, text_color=("#0B0B0C", "#0B0B0C")).pack(side="left", fill="x", expand=True, padx=(0, 4))
         
-        ctk.CTkButton(btn_frame, text="📋 Apply URL & Key to All", height=38,
+        ctk.CTkButton(btn_frame, text="📋 Apply URL & Key to All", height=22,
             fg_color="gray",
-            command=lambda: self.apply_url_key_to_all_simple(self.yt_url_entry.get(), self.yt_key_entry.get())).pack(side="left", fill="x", expand=True, padx=(5, 0))
+            command=lambda: self.apply_url_key_to_all_simple(self.yt_url_entry.get(), self.yt_key_entry.get()), text_color=("#FFFFFF", "#FFFFFF")).pack(side="left", fill="x", expand=True, padx=(4, 0))
     
     def create_performance_tab(self):
         """Create performance settings tab with GPU detection"""
@@ -976,76 +976,76 @@ class SettingsPage(ctk.CTkFrame):
         
         # Scrollable frame
         scroll = ctk.CTkScrollableFrame(main)
-        scroll.pack(fill="both", expand=True, padx=5, pady=5)
+        scroll.pack(fill="both", expand=True, padx=4, pady=4)
         
         # Header
         header_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        header_frame.pack(fill="x", padx=10, pady=(15, 10))
+        header_frame.pack(fill="x", padx=4, pady=(6, 6))
         
         ctk.CTkLabel(header_frame, text="Hardware Acceleration", 
-            font=ctk.CTkFont(size=16, weight="bold"), anchor="w").pack(fill="x")
+            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
         ctk.CTkLabel(header_frame, 
             text="Use GPU to speed up video processing. GPU encoding is 3-5x faster than CPU.",
-            font=ctk.CTkFont(size=11), text_color="gray", anchor="w", wraplength=500).pack(fill="x", pady=(5, 0))
+            font=ctk.CTkFont(size=11), text_color="gray", anchor="w", wraplength=500).pack(fill="x", pady=(4, 0))
         
         # GPU Detection section
-        detection_frame = ctk.CTkFrame(scroll, fg_color=("gray85", "gray20"), corner_radius=10)
-        detection_frame.pack(fill="x", padx=10, pady=(10, 15))
+        detection_frame = ctk.CTkFrame(scroll, fg_color=("gray85", "gray20"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        detection_frame.pack(fill="x", padx=4, pady=(4, 8))
         
         ctk.CTkLabel(detection_frame, text="🔍 GPU Detection", 
-            font=ctk.CTkFont(size=14, weight="bold"), anchor="w").pack(fill="x", padx=15, pady=(15, 10))
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(fill="x", padx=4, pady=(6, 6))
         
         # GPU info display
-        self.gpu_info_frame = ctk.CTkFrame(detection_frame, fg_color=("gray90", "gray15"), corner_radius=8)
-        self.gpu_info_frame.pack(fill="x", padx=15, pady=(0, 10))
+        self.gpu_info_frame = ctk.CTkFrame(detection_frame, fg_color=("gray90", "gray15"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        self.gpu_info_frame.pack(fill="x", padx=4, pady=(0, 6))
         
         self.gpu_status_label = ctk.CTkLabel(self.gpu_info_frame, text="Detecting GPU...", 
-            font=ctk.CTkFont(size=12), anchor="w", justify="left")
-        self.gpu_status_label.pack(fill="x", padx=15, pady=15)
+            font=ctk.CTkFont(size=11), anchor="w", justify="left")
+        self.gpu_status_label.pack(fill="x", padx=4, pady=4)
         
         # Detect button
-        self.detect_gpu_btn = ctk.CTkButton(detection_frame, text="🔄 Detect GPU", height=38,
-            fg_color=("#3B8ED0", "#1F6AA5"), command=self.detect_gpu)
-        self.detect_gpu_btn.pack(fill="x", padx=15, pady=(0, 15))
+        self.detect_gpu_btn = ctk.CTkButton(detection_frame, text="🔄 Detect GPU", height=22,
+            fg_color=("#00A878", "#00A878"), command=self.detect_gpu, text_color=("#0B0B0C", "#0B0B0C"))
+        self.detect_gpu_btn.pack(fill="x", padx=4, pady=(0, 8))
         
         # GPU Acceleration toggle
         self.gpu_enabled_var = ctk.BooleanVar(value=False)
         
-        toggle_frame = ctk.CTkFrame(scroll, fg_color=("gray85", "gray20"), corner_radius=10)
-        toggle_frame.pack(fill="x", padx=10, pady=(0, 15))
+        toggle_frame = ctk.CTkFrame(scroll, fg_color=("gray85", "gray20"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        toggle_frame.pack(fill="x", padx=4, pady=(0, 8))
         
         ctk.CTkLabel(toggle_frame, text="⚡ GPU Acceleration", 
-            font=ctk.CTkFont(size=14, weight="bold"), anchor="w").pack(fill="x", padx=15, pady=(15, 10))
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(fill="x", padx=4, pady=(6, 6))
         
         self.gpu_switch = ctk.CTkSwitch(toggle_frame, text="Enable GPU Acceleration", 
-            variable=self.gpu_enabled_var, font=ctk.CTkFont(size=13),
+            variable=self.gpu_enabled_var, font=ctk.CTkFont(size=11),
             command=self.toggle_gpu_acceleration, state="disabled")
-        self.gpu_switch.pack(anchor="w", padx=15, pady=(0, 10))
+        self.gpu_switch.pack(anchor="w", padx=4, pady=(0, 6))
         
         # Info about GPU acceleration
         info_text = ctk.CTkLabel(toggle_frame, 
             text="When enabled, video encoding will use your GPU instead of CPU.\n" +
                  "This significantly speeds up processing but requires compatible hardware.",
             font=ctk.CTkFont(size=11), text_color="gray", anchor="w", justify="left", wraplength=480)
-        info_text.pack(fill="x", padx=15, pady=(0, 15))
+        info_text.pack(fill="x", padx=4, pady=(0, 8))
         
         # Technical details section
-        details_frame = ctk.CTkFrame(scroll, fg_color=("gray85", "gray20"), corner_radius=10)
-        details_frame.pack(fill="x", padx=10, pady=(0, 15))
+        details_frame = ctk.CTkFrame(scroll, fg_color=("gray85", "gray20"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        details_frame.pack(fill="x", padx=4, pady=(0, 8))
         
         ctk.CTkLabel(details_frame, text="ℹ️ Technical Details", 
-            font=ctk.CTkFont(size=14, weight="bold"), anchor="w").pack(fill="x", padx=15, pady=(15, 10))
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(fill="x", padx=4, pady=(6, 6))
         
         self.encoder_info_label = ctk.CTkLabel(details_frame, 
             text="Encoder: Not detected\nPreset: N/A\nStatus: Click 'Detect GPU' to check",
             font=ctk.CTkFont(size=11), text_color="gray", anchor="w", justify="left")
-        self.encoder_info_label.pack(fill="x", padx=15, pady=(0, 15))
+        self.encoder_info_label.pack(fill="x", padx=4, pady=(0, 8))
         
         # Save button
-        ctk.CTkButton(scroll, text="💾 Save Settings", height=45, 
-            font=ctk.CTkFont(size=14, weight="bold"),
+        ctk.CTkButton(scroll, text="💾 Save Settings", height=22, 
+            font=ctk.CTkFont(size=11, weight="bold"),
             fg_color=("#27ae60", "#27ae60"), hover_color=("#229954", "#229954"),
-            command=self.save_settings).pack(fill="x", padx=10, pady=(10, 15))
+            command=self.save_settings, text_color=("#FFFFFF", "#FFFFFF")).pack(fill="x", padx=4, pady=(4, 8))
         
         # Auto-detect on load
         self.after(500, self.detect_gpu)
@@ -1156,54 +1156,54 @@ class SettingsPage(ctk.CTkFrame):
         """Create output folder settings tab"""
         main = self.tabview.tab("Output")
         
-        ctk.CTkLabel(main, text="Output Folder", anchor="w", font=ctk.CTkFont(size=14, weight="bold")).pack(fill="x", pady=(15, 5))
+        ctk.CTkLabel(main, text="Output Folder", anchor="w", font=ctk.CTkFont(size=11, weight="bold")).pack(fill="x", pady=(6, 4))
         ctk.CTkLabel(main, text="Folder where video clips will be saved", anchor="w", 
-            font=ctk.CTkFont(size=11), text_color="gray").pack(fill="x", pady=(0, 10))
+            font=ctk.CTkFont(size=11), text_color="gray").pack(fill="x", pady=(0, 6))
         
         output_frame = ctk.CTkFrame(main, fg_color="transparent")
-        output_frame.pack(fill="x", pady=(5, 15))
+        output_frame.pack(fill="x", pady=(4, 8))
         self.output_var = ctk.StringVar(value=str(self.output_dir))
         self.output_entry = ctk.CTkEntry(output_frame, textvariable=self.output_var)
-        self.output_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        self.output_entry.pack(side="left", fill="x", expand=True, padx=(0, 6))
         ctk.CTkButton(output_frame, text="Browse", width=100, command=self.browse_output_folder).pack(side="right")
         
         # Open folder button
-        ctk.CTkButton(main, text="Open Output Folder", height=40, fg_color="gray",
-            command=lambda: self.open_folder(self.output_var.get())).pack(fill="x", pady=(0, 15))
+        ctk.CTkButton(main, text="Open Output Folder", height=22, fg_color="gray",
+            command=lambda: self.open_folder(self.output_var.get()), text_color=("#FFFFFF", "#FFFFFF")).pack(fill="x", pady=(0, 8))
         
         # Face Tracking Mode section
-        ctk.CTkLabel(main, text="Face Tracking Mode", anchor="w", font=ctk.CTkFont(size=14, weight="bold")).pack(fill="x", pady=(15, 5))
+        ctk.CTkLabel(main, text="Face Tracking Mode", anchor="w", font=ctk.CTkFont(size=11, weight="bold")).pack(fill="x", pady=(6, 4))
         ctk.CTkLabel(main, text="Choose how the video crops to speakers", anchor="w", 
-            font=ctk.CTkFont(size=11), text_color="gray").pack(fill="x", pady=(0, 10))
+            font=ctk.CTkFont(size=11), text_color="gray").pack(fill="x", pady=(0, 6))
         
         # Radio buttons for face tracking mode
         self.face_tracking_var = ctk.StringVar(value="opencv")
         
-        opencv_frame = ctk.CTkFrame(main, fg_color=("gray85", "gray20"))
-        opencv_frame.pack(fill="x", pady=(5, 10))
+        opencv_frame = ctk.CTkFrame(main, fg_color=("gray85", "gray20"), border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        opencv_frame.pack(fill="x", pady=(4, 6))
         opencv_radio = ctk.CTkRadioButton(opencv_frame, text="OpenCV (Fast)", variable=self.face_tracking_var, 
-            value="opencv", font=ctk.CTkFont(size=13, weight="bold"))
-        opencv_radio.pack(anchor="w", padx=15, pady=(10, 5))
+            value="opencv", font=ctk.CTkFont(size=11, weight="bold"))
+        opencv_radio.pack(anchor="w", padx=4, pady=(4, 4))
         ctk.CTkLabel(opencv_frame, text="• Crop to largest face", anchor="w", 
-            font=ctk.CTkFont(size=11), text_color="gray").pack(anchor="w", padx=35, pady=0)
+            font=ctk.CTkFont(size=11), text_color="gray").pack(anchor="w", padx=4, pady=0)
         ctk.CTkLabel(opencv_frame, text="• Faster processing", anchor="w", 
-            font=ctk.CTkFont(size=11), text_color="gray").pack(anchor="w", padx=35, pady=0)
+            font=ctk.CTkFont(size=11), text_color="gray").pack(anchor="w", padx=4, pady=0)
         ctk.CTkLabel(opencv_frame, text="• Recommended for most users", anchor="w", 
-            font=ctk.CTkFont(size=11), text_color="gray").pack(anchor="w", padx=35, pady=(0, 10))
+            font=ctk.CTkFont(size=11), text_color="gray").pack(anchor="w", padx=4, pady=(0, 6))
         
-        mediapipe_frame = ctk.CTkFrame(main, fg_color=("gray85", "gray20"))
-        mediapipe_frame.pack(fill="x", pady=(0, 10))
+        mediapipe_frame = ctk.CTkFrame(main, fg_color=("gray85", "gray20"), border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        mediapipe_frame.pack(fill="x", pady=(0, 6))
         mediapipe_radio = ctk.CTkRadioButton(mediapipe_frame, text="MediaPipe (Smart)", variable=self.face_tracking_var, 
-            value="mediapipe", font=ctk.CTkFont(size=13, weight="bold"))
-        mediapipe_radio.pack(anchor="w", padx=15, pady=(10, 5))
+            value="mediapipe", font=ctk.CTkFont(size=11, weight="bold"))
+        mediapipe_radio.pack(anchor="w", padx=4, pady=(4, 4))
         ctk.CTkLabel(mediapipe_frame, text="• Crop to active speaker (lip movement)", anchor="w", 
-            font=ctk.CTkFont(size=11), text_color="gray").pack(anchor="w", padx=35, pady=0)
+            font=ctk.CTkFont(size=11), text_color="gray").pack(anchor="w", padx=4, pady=0)
         ctk.CTkLabel(mediapipe_frame, text="• More accurate speaker tracking", anchor="w", 
-            font=ctk.CTkFont(size=11), text_color="gray").pack(anchor="w", padx=35, pady=0)
+            font=ctk.CTkFont(size=11), text_color="gray").pack(anchor="w", padx=4, pady=0)
         ctk.CTkLabel(mediapipe_frame, text="⚠ Slower processing (2-3x)", anchor="w", 
-            font=ctk.CTkFont(size=11), text_color="orange").pack(anchor="w", padx=35, pady=(0, 10))
+            font=ctk.CTkFont(size=11), text_color="orange").pack(anchor="w", padx=4, pady=(0, 6))
         
-        ctk.CTkButton(main, text="Save Settings", height=40, command=self.save_settings).pack(fill="x", pady=(10, 0))
+        ctk.CTkButton(main, text="Save Settings", height=22, command=self.save_settings).pack(fill="x", pady=(4, 0))
     
     def create_watermark_tab(self):
         """Create watermark settings tab"""
@@ -1211,15 +1211,15 @@ class SettingsPage(ctk.CTkFrame):
         
         # Scrollable frame
         scroll = ctk.CTkScrollableFrame(main)
-        scroll.pack(fill="both", expand=True, padx=5, pady=5)
+        scroll.pack(fill="both", expand=True, padx=4, pady=4)
         
         # Enable watermark toggle
         self.watermark_enabled = ctk.BooleanVar(value=False)
         enable_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        enable_frame.pack(fill="x", pady=(10, 15))
+        enable_frame.pack(fill="x", pady=(4, 8))
         
         ctk.CTkSwitch(enable_frame, text="Enable Watermark", variable=self.watermark_enabled,
-            font=ctk.CTkFont(size=14, weight="bold"), command=self.toggle_watermark).pack(side="left")
+            font=ctk.CTkFont(size=11, weight="bold"), command=self.toggle_watermark).pack(side="left")
         
         # Watermark settings container
         self.watermark_settings_frame = ctk.CTkFrame(scroll, fg_color="transparent")
@@ -1227,31 +1227,31 @@ class SettingsPage(ctk.CTkFrame):
         
         # Image selection
         ctk.CTkLabel(self.watermark_settings_frame, text="Watermark Image", anchor="w", 
-            font=ctk.CTkFont(size=13, weight="bold")).pack(fill="x", pady=(5, 5))
+            font=ctk.CTkFont(size=11, weight="bold")).pack(fill="x", pady=(4, 4))
         
         image_frame = ctk.CTkFrame(self.watermark_settings_frame, fg_color="transparent")
-        image_frame.pack(fill="x", pady=(5, 15))
+        image_frame.pack(fill="x", pady=(4, 8))
         
         self.watermark_path_var = ctk.StringVar(value="")
         self.watermark_path_entry = ctk.CTkEntry(image_frame, textvariable=self.watermark_path_var, 
             placeholder_text="Select PNG image...")
-        self.watermark_path_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        self.watermark_path_entry.pack(side="left", fill="x", expand=True, padx=(0, 6))
         ctk.CTkButton(image_frame, text="Browse", width=100, command=self.browse_watermark).pack(side="right")
         
         # Position simulator
         ctk.CTkLabel(self.watermark_settings_frame, text="Position", anchor="w", 
-            font=ctk.CTkFont(size=13, weight="bold")).pack(fill="x", pady=(10, 5))
+            font=ctk.CTkFont(size=11, weight="bold")).pack(fill="x", pady=(4, 4))
         ctk.CTkLabel(self.watermark_settings_frame, text="Drag the watermark to position it on the video", 
-            anchor="w", font=ctk.CTkFont(size=11), text_color="gray").pack(fill="x", pady=(0, 10))
+            anchor="w", font=ctk.CTkFont(size=11), text_color="gray").pack(fill="x", pady=(0, 6))
         
         # Canvas for 9:16 simulator
-        self.canvas_frame = ctk.CTkFrame(self.watermark_settings_frame, fg_color=("gray85", "gray20"))
-        self.canvas_frame.pack(fill="x", pady=(5, 15))
+        self.canvas_frame = ctk.CTkFrame(self.watermark_settings_frame, fg_color=("gray85", "gray20"), border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        self.canvas_frame.pack(fill="x", pady=(4, 8))
         
         import tkinter as tk
-        self.canvas = tk.Canvas(self.canvas_frame, width=270, height=480, bg="#1a1a1a", 
+        self.canvas = tk.Canvas(self.canvas_frame, width=270, height=480, bg="#17171b", 
             highlightthickness=1, highlightbackground="gray")
-        self.canvas.pack(padx=10, pady=10)
+        self.canvas.pack(padx=4, pady=4)
         
         # Draw 9:16 frame
         self.canvas.create_rectangle(0, 0, 270, 480, outline="gray", width=2)
@@ -1269,36 +1269,36 @@ class SettingsPage(ctk.CTkFrame):
         
         # Opacity slider
         ctk.CTkLabel(self.watermark_settings_frame, text="Opacity", anchor="w", 
-            font=ctk.CTkFont(size=13, weight="bold")).pack(fill="x", pady=(10, 5))
+            font=ctk.CTkFont(size=11, weight="bold")).pack(fill="x", pady=(4, 4))
         
         opacity_frame = ctk.CTkFrame(self.watermark_settings_frame, fg_color="transparent")
-        opacity_frame.pack(fill="x", pady=(5, 15))
+        opacity_frame.pack(fill="x", pady=(4, 8))
         
         self.watermark_opacity = ctk.DoubleVar(value=0.8)
         opacity_slider = ctk.CTkSlider(opacity_frame, from_=0.0, to=1.0, variable=self.watermark_opacity,
             command=self.update_watermark_preview, number_of_steps=20)
-        opacity_slider.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        opacity_slider.pack(side="left", fill="x", expand=True, padx=(0, 6))
         
         self.opacity_label = ctk.CTkLabel(opacity_frame, text="80%", width=50, anchor="e")
         self.opacity_label.pack(side="right")
         
         # Scale slider
         ctk.CTkLabel(self.watermark_settings_frame, text="Size", anchor="w", 
-            font=ctk.CTkFont(size=13, weight="bold")).pack(fill="x", pady=(10, 5))
+            font=ctk.CTkFont(size=11, weight="bold")).pack(fill="x", pady=(4, 4))
         
         scale_frame = ctk.CTkFrame(self.watermark_settings_frame, fg_color="transparent")
-        scale_frame.pack(fill="x", pady=(5, 15))
+        scale_frame.pack(fill="x", pady=(4, 8))
         
         self.watermark_scale = ctk.DoubleVar(value=0.15)
         scale_slider = ctk.CTkSlider(scale_frame, from_=0.05, to=0.5, variable=self.watermark_scale,
             command=self.update_watermark_preview, number_of_steps=45)
-        scale_slider.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        scale_slider.pack(side="left", fill="x", expand=True, padx=(0, 6))
         
         self.scale_label = ctk.CTkLabel(scale_frame, text="15%", width=50, anchor="e")
         self.scale_label.pack(side="right")
         
         # Save button
-        ctk.CTkButton(scroll, text="Save Settings", height=40, command=self.save_settings).pack(fill="x", pady=(10, 0))
+        ctk.CTkButton(scroll, text="Save Settings", height=22, command=self.save_settings).pack(fill="x", pady=(4, 0))
         
         # Initially disable watermark settings
         self.toggle_watermark()
@@ -1466,24 +1466,24 @@ class SettingsPage(ctk.CTkFrame):
         
         # Scrollable frame for content
         scroll = ctk.CTkScrollableFrame(main)
-        scroll.pack(fill="both", expand=True, padx=5, pady=5)
+        scroll.pack(fill="both", expand=True, padx=4, pady=4)
         
         # Header description
         header_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        header_frame.pack(fill="x", padx=15, pady=(15, 10))
+        header_frame.pack(fill="x", padx=4, pady=(6, 6))
         
         ctk.CTkLabel(header_frame, text="🚀 Repliz Integration", 
-            font=ctk.CTkFont(size=16, weight="bold"), anchor="w").pack(fill="x")
+            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
         ctk.CTkLabel(header_frame, 
             text="Multi-platform video scheduling made easy. Upload to YouTube, TikTok, Instagram Reels, and Facebook from one place.",
-            font=ctk.CTkFont(size=11), text_color="gray", anchor="w", wraplength=500).pack(fill="x", pady=(5, 0))
+            font=ctk.CTkFont(size=11), text_color="gray", anchor="w", wraplength=500).pack(fill="x", pady=(4, 0))
         
         # Why Repliz card
-        why_card = ctk.CTkFrame(scroll, fg_color=("#e8f5e9", "#1b5e20"), corner_radius=10)
-        why_card.pack(fill="x", padx=10, pady=(10, 15))
+        why_card = ctk.CTkFrame(scroll, fg_color=("#e8f5e9", "#1b5e20"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        why_card.pack(fill="x", padx=4, pady=(4, 8))
         
         ctk.CTkLabel(why_card, text="✨ Why Use Repliz?", 
-            font=ctk.CTkFont(size=13, weight="bold"), anchor="w").pack(fill="x", padx=15, pady=(15, 10))
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(fill="x", padx=4, pady=(6, 6))
         
         why_text = """• Upload to ALL platforms at once (YouTube, TikTok, Instagram, Facebook)
 • Official API integration - safe from bans
@@ -1494,33 +1494,33 @@ class SettingsPage(ctk.CTkFrame):
 Perfect for content creators who want to save time and reach more audiences!"""
         
         ctk.CTkLabel(why_card, text=why_text, justify="left", anchor="w",
-            font=ctk.CTkFont(size=11), wraplength=480).pack(fill="x", padx=15, pady=(0, 15))
+            font=ctk.CTkFont(size=11), wraplength=480).pack(fill="x", padx=4, pady=(0, 8))
         
         # Sign up CTA (for users without account)
-        signup_frame = ctk.CTkFrame(scroll, fg_color=("gray85", "gray20"), corner_radius=10)
-        signup_frame.pack(fill="x", padx=10, pady=(0, 15))
+        signup_frame = ctk.CTkFrame(scroll, fg_color=("gray85", "gray20"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        signup_frame.pack(fill="x", padx=4, pady=(0, 8))
         
         ctk.CTkLabel(signup_frame, text="🎯 Don't Have a Repliz Account Yet?", 
-            font=ctk.CTkFont(size=13, weight="bold"), anchor="w").pack(fill="x", padx=15, pady=(15, 10))
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(fill="x", padx=4, pady=(6, 6))
         
         ctk.CTkLabel(signup_frame, 
             text="Sign up now and get started with multi-platform scheduling. Premium plan required for API access.",
-            justify="left", anchor="w", font=ctk.CTkFont(size=11), text_color="gray", wraplength=480).pack(fill="x", padx=15, pady=(0, 10))
+            justify="left", anchor="w", font=ctk.CTkFont(size=11), text_color="gray", wraplength=480).pack(fill="x", padx=4, pady=(0, 6))
         
-        ctk.CTkButton(signup_frame, text="🌐 Sign Up for Repliz", height=40,
-            fg_color=("#2196F3", "#1976D2"), hover_color=("#1976D2", "#1565C0"),
-            command=lambda: self.open_url("https://s.id/ytrepliz")).pack(fill="x", padx=15, pady=(0, 15))
+        ctk.CTkButton(signup_frame, text="🌐 Sign Up for Repliz", height=22,
+            fg_color=("#00A878", "#00A878"), hover_color=("#008F66", "#008F66"),
+            command=lambda: self.open_url("https://s.id/ytrepliz"), text_color=("#0B0B0C", "#0B0B0C")).pack(fill="x", padx=4, pady=(0, 8))
         
         # Configuration section
-        config_section = ctk.CTkFrame(scroll, fg_color=("gray90", "gray17"), corner_radius=10)
-        config_section.pack(fill="x", padx=10, pady=(0, 15))
+        config_section = ctk.CTkFrame(scroll, fg_color=("gray90", "gray17"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        config_section.pack(fill="x", padx=4, pady=(0, 8))
         
         # Section header with status
         config_header = ctk.CTkFrame(config_section, fg_color="transparent")
-        config_header.pack(fill="x", padx=15, pady=(15, 10))
+        config_header.pack(fill="x", padx=4, pady=(6, 6))
         
         ctk.CTkLabel(config_header, text="API Configuration", 
-            font=ctk.CTkFont(size=14, weight="bold"), anchor="w").pack(side="left")
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(side="left")
         
         self.repliz_status_label = ctk.CTkLabel(config_header, text="Not configured", text_color="gray",
             font=ctk.CTkFont(size=11))
@@ -1528,53 +1528,53 @@ Perfect for content creators who want to save time and reach more audiences!"""
         
         # Access Key
         access_frame = ctk.CTkFrame(config_section, fg_color="transparent")
-        access_frame.pack(fill="x", padx=15, pady=(0, 15))
+        access_frame.pack(fill="x", padx=4, pady=(0, 8))
         
         ctk.CTkLabel(access_frame, text="Access Key", 
-            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(fill="x")
         ctk.CTkLabel(access_frame, text="Your Repliz API Access Key", 
-            font=ctk.CTkFont(size=10), text_color="gray", anchor="w").pack(fill="x", pady=(2, 5))
+            font=ctk.CTkFont(size=11), text_color="gray", anchor="w").pack(fill="x", pady=(4, 4))
         
-        self.repliz_access_key_entry = ctk.CTkEntry(access_frame, height=38,
+        self.repliz_access_key_entry = ctk.CTkEntry(access_frame, height=24,
             placeholder_text="Enter your Repliz Access Key")
         self.repliz_access_key_entry.pack(fill="x", pady=(0, 0))
         
         # Secret Key
         secret_frame = ctk.CTkFrame(config_section, fg_color="transparent")
-        secret_frame.pack(fill="x", padx=15, pady=(0, 15))
+        secret_frame.pack(fill="x", padx=4, pady=(0, 8))
         
         ctk.CTkLabel(secret_frame, text="Secret Key", 
-            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(fill="x")
         ctk.CTkLabel(secret_frame, text="Your Repliz API Secret Key (kept secure)", 
-            font=ctk.CTkFont(size=10), text_color="gray", anchor="w").pack(fill="x", pady=(2, 5))
+            font=ctk.CTkFont(size=11), text_color="gray", anchor="w").pack(fill="x", pady=(4, 4))
         
-        self.repliz_secret_key_entry = ctk.CTkEntry(secret_frame, height=38, show="*",
+        self.repliz_secret_key_entry = ctk.CTkEntry(secret_frame, height=24, show="*",
             placeholder_text="Enter your Repliz Secret Key")
         self.repliz_secret_key_entry.pack(fill="x", pady=(0, 0))
         
         # Buttons
         btn_frame = ctk.CTkFrame(config_section, fg_color="transparent")
-        btn_frame.pack(fill="x", padx=15, pady=(0, 15))
+        btn_frame.pack(fill="x", padx=4, pady=(0, 8))
         
-        self.repliz_validate_btn = ctk.CTkButton(btn_frame, text="🔍 Validate Keys", height=40,
-            fg_color=("#3B8ED0", "#1F6AA5"), hover_color=("#36719F", "#144870"),
-            command=self.validate_repliz_keys)
-        self.repliz_validate_btn.pack(side="left", fill="x", expand=True, padx=(0, 5))
+        self.repliz_validate_btn = ctk.CTkButton(btn_frame, text="🔍 Validate Keys", height=22,
+            fg_color=("#00A878", "#00A878"), hover_color=("#008F66", "#008F66"),
+            command=self.validate_repliz_keys, text_color=("#0B0B0C", "#0B0B0C"))
+        self.repliz_validate_btn.pack(side="left", fill="x", expand=True, padx=(0, 4))
         
-        self.repliz_save_btn = ctk.CTkButton(btn_frame, text="💾 Save Configuration", height=40,
+        self.repliz_save_btn = ctk.CTkButton(btn_frame, text="💾 Save Configuration", height=22,
             fg_color=("#27ae60", "#27ae60"), hover_color=("#229954", "#229954"),
-            command=self.save_repliz_config)
-        self.repliz_save_btn.pack(side="right", fill="x", expand=True, padx=(5, 0))
+            command=self.save_repliz_config, text_color=("#FFFFFF", "#FFFFFF"))
+        self.repliz_save_btn.pack(side="right", fill="x", expand=True, padx=(4, 0))
         
         # Connected Accounts section (initially hidden)
-        self.repliz_accounts_section = ctk.CTkFrame(scroll, fg_color=("gray90", "gray17"), corner_radius=10)
+        self.repliz_accounts_section = ctk.CTkFrame(scroll, fg_color=("gray90", "gray17"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
         # Don't pack yet - will be shown after successful validation
         
         accounts_header = ctk.CTkFrame(self.repliz_accounts_section, fg_color="transparent")
-        accounts_header.pack(fill="x", padx=15, pady=(15, 10))
+        accounts_header.pack(fill="x", padx=4, pady=(6, 6))
         
         ctk.CTkLabel(accounts_header, text="📱 Connected Social Media Accounts", 
-            font=ctk.CTkFont(size=14, weight="bold"), anchor="w").pack(side="left")
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(side="left")
         
         self.repliz_accounts_count = ctk.CTkLabel(accounts_header, text="0 accounts", text_color="gray",
             font=ctk.CTkFont(size=11))
@@ -1583,14 +1583,14 @@ Perfect for content creators who want to save time and reach more audiences!"""
         # Grid frame for accounts cards (non-scrollable)
         self.repliz_accounts_list = ctk.CTkFrame(self.repliz_accounts_section, 
             fg_color="transparent")
-        self.repliz_accounts_list.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+        self.repliz_accounts_list.pack(fill="both", expand=True, padx=4, pady=(0, 8))
         
         # How to get keys section
-        howto_section = ctk.CTkFrame(scroll, fg_color=("gray85", "gray20"), corner_radius=10)
-        howto_section.pack(fill="x", padx=10, pady=(0, 15))
+        howto_section = ctk.CTkFrame(scroll, fg_color=("gray85", "gray20"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        howto_section.pack(fill="x", padx=4, pady=(0, 8))
         
         ctk.CTkLabel(howto_section, text="📖 How to Get API Keys", 
-            font=ctk.CTkFont(size=13, weight="bold"), anchor="w").pack(fill="x", padx=15, pady=(15, 10))
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(fill="x", padx=4, pady=(6, 6))
         
         howto_text = """1. Log in to your Repliz account at https://repliz.com
 2. Go to Settings → Public API
@@ -1606,12 +1606,12 @@ Requirements:
 Note: Keep your Secret Key secure and never share it publicly."""
         
         ctk.CTkLabel(howto_section, text=howto_text, justify="left", anchor="w",
-            font=ctk.CTkFont(size=11), text_color="gray", wraplength=480).pack(fill="x", padx=15, pady=(0, 15))
+            font=ctk.CTkFont(size=11), text_color="gray", wraplength=480).pack(fill="x", padx=4, pady=(0, 8))
         
         # Open Repliz dashboard button
-        ctk.CTkButton(howto_section, text="🌐 Open Repliz Dashboard", height=38,
+        ctk.CTkButton(howto_section, text="🌐 Open Repliz Dashboard", height=22,
             fg_color="gray", hover_color=("gray70", "gray30"),
-            command=lambda: self.open_url("https://repliz.com")).pack(fill="x", padx=15, pady=(0, 15))
+            command=lambda: self.open_url("https://repliz.com"), text_color=("#FFFFFF", "#FFFFFF")).pack(fill="x", padx=4, pady=(0, 8))
         
         # Check status on load
         self.check_repliz_status()
@@ -1622,28 +1622,28 @@ Note: Keep your Secret Key secure and never share it publicly."""
         
         # Scrollable frame for content
         scroll = ctk.CTkScrollableFrame(main)
-        scroll.pack(fill="both", expand=True, padx=5, pady=5)
+        scroll.pack(fill="both", expand=True, padx=4, pady=4)
         
         # Header description
         header_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        header_frame.pack(fill="x", padx=15, pady=(15, 10))
+        header_frame.pack(fill="x", padx=4, pady=(6, 6))
         
         ctk.CTkLabel(header_frame, text="Social Accounts", 
-            font=ctk.CTkFont(size=16, weight="bold"), anchor="w").pack(fill="x")
+            font=ctk.CTkFont(size=12, weight="bold"), anchor="w").pack(fill="x")
         ctk.CTkLabel(header_frame, 
             text="Connect your social media accounts to upload clips directly from the app.",
-            font=ctk.CTkFont(size=11), text_color="gray", anchor="w", wraplength=500).pack(fill="x", pady=(5, 0))
+            font=ctk.CTkFont(size=11), text_color="gray", anchor="w", wraplength=500).pack(fill="x", pady=(4, 0))
         
         # ===== YOUTUBE SECTION =====
-        youtube_section = ctk.CTkFrame(scroll, fg_color=("gray85", "gray20"), corner_radius=10)
-        youtube_section.pack(fill="x", padx=10, pady=(10, 15))
+        youtube_section = ctk.CTkFrame(scroll, fg_color=("gray85", "gray20"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        youtube_section.pack(fill="x", padx=4, pady=(4, 8))
         
         # YouTube header
         yt_header = ctk.CTkFrame(youtube_section, fg_color="transparent")
-        yt_header.pack(fill="x", padx=15, pady=(15, 10))
+        yt_header.pack(fill="x", padx=4, pady=(6, 6))
         
         ctk.CTkLabel(yt_header, text="📺 YouTube", 
-            font=ctk.CTkFont(size=14, weight="bold"), anchor="w").pack(side="left")
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(side="left")
         
         # YouTube status
         self.yt_status_label = ctk.CTkLabel(yt_header, text="Not connected", text_color="gray",
@@ -1652,21 +1652,21 @@ Note: Keep your Secret Key secure and never share it publicly."""
         
         # YouTube buttons
         yt_btn_frame = ctk.CTkFrame(youtube_section, fg_color="transparent")
-        yt_btn_frame.pack(fill="x", padx=15, pady=(0, 10))
+        yt_btn_frame.pack(fill="x", padx=4, pady=(0, 6))
         
-        self.yt_connect_btn = ctk.CTkButton(yt_btn_frame, text="Connect YouTube", height=40, 
+        self.yt_connect_btn = ctk.CTkButton(yt_btn_frame, text="Connect YouTube", height=22, 
             fg_color=("#c4302b", "#FF0000"), hover_color=("#ff0000", "#CC0000"),
-            command=self.connect_youtube)
-        self.yt_connect_btn.pack(fill="x", pady=(0, 5))
+            command=self.connect_youtube, text_color=("#FFFFFF", "#FFFFFF"))
+        self.yt_connect_btn.pack(fill="x", pady=(0, 4))
         
-        self.yt_disconnect_btn = ctk.CTkButton(yt_btn_frame, text="Disconnect", height=35,
-            fg_color="gray", hover_color="#c0392b", command=self.disconnect_youtube)
+        self.yt_disconnect_btn = ctk.CTkButton(yt_btn_frame, text="Disconnect", height=18,
+            fg_color="gray", hover_color="#c0392b", command=self.disconnect_youtube, text_color=("#FFFFFF", "#FFFFFF"))
         self.yt_disconnect_btn.pack(fill="x")
         self.yt_disconnect_btn.pack_forget()  # Hide initially
         
         # YouTube info
-        yt_info_frame = ctk.CTkFrame(youtube_section, fg_color=("gray90", "gray17"), corner_radius=6)
-        yt_info_frame.pack(fill="x", padx=15, pady=(0, 15))
+        yt_info_frame = ctk.CTkFrame(youtube_section, fg_color=("gray90", "gray17"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        yt_info_frame.pack(fill="x", padx=4, pady=(0, 8))
         
         yt_info_text = """ℹ️ YouTube Setup:
 1. Set up Google Cloud project
@@ -1677,25 +1677,25 @@ Note: Keep your Secret Key secure and never share it publicly."""
 See README for detailed setup guide."""
         
         ctk.CTkLabel(yt_info_frame, text=yt_info_text, justify="left", anchor="w",
-            font=ctk.CTkFont(size=10), text_color="gray", wraplength=450).pack(padx=12, pady=12)
+            font=ctk.CTkFont(size=11), text_color="gray", wraplength=450).pack(padx=4, pady=4)
         
         # ===== TIKTOK SECTION (COMING SOON) =====
-        tiktok_section = ctk.CTkFrame(scroll, fg_color=("gray85", "gray20"), corner_radius=10)
-        tiktok_section.pack(fill="x", padx=10, pady=(0, 15))
+        tiktok_section = ctk.CTkFrame(scroll, fg_color=("gray85", "gray20"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        tiktok_section.pack(fill="x", padx=4, pady=(0, 8))
         
         # TikTok header
         tt_header = ctk.CTkFrame(tiktok_section, fg_color="transparent")
-        tt_header.pack(fill="x", padx=15, pady=(15, 10))
+        tt_header.pack(fill="x", padx=4, pady=(6, 6))
         
         ctk.CTkLabel(tt_header, text="🎵 TikTok", 
-            font=ctk.CTkFont(size=14, weight="bold"), anchor="w").pack(side="left")
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(side="left")
         
         ctk.CTkLabel(tt_header, text="🚧 Coming Soon", 
             text_color="orange", font=ctk.CTkFont(size=11, weight="bold")).pack(side="right")
         
         # Coming Soon message
-        coming_soon_frame = ctk.CTkFrame(tiktok_section, fg_color=("gray90", "gray17"))
-        coming_soon_frame.pack(fill="x", padx=15, pady=(0, 15))
+        coming_soon_frame = ctk.CTkFrame(tiktok_section, fg_color=("gray90", "gray17"), border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        coming_soon_frame.pack(fill="x", padx=4, pady=(0, 8))
         
         coming_soon_text = """🚧 TikTok Upload - Coming Soon
 
@@ -1714,7 +1714,7 @@ them to TikTok app directly.
 Stay tuned for updates! 🎵"""
         
         ctk.CTkLabel(coming_soon_frame, text=coming_soon_text, justify="left", anchor="w",
-            font=ctk.CTkFont(size=11), text_color="gray", wraplength=450).pack(padx=15, pady=15)
+            font=ctk.CTkFont(size=11), text_color="gray", wraplength=450).pack(padx=4, pady=4)
         
         # Check YouTube status
         self.check_youtube_status()
@@ -1738,7 +1738,7 @@ Stay tuned for updates! 🎵"""
                         text_color="green"
                     )
                     self.yt_connect_btn.pack_forget()
-                    self.yt_disconnect_btn.pack(fill="x", padx=10, pady=(0, 10))
+                    self.yt_disconnect_btn.pack(fill="x", padx=4, pady=(0, 6))
                     return
             
             self.yt_status_label.configure(text="Not connected", text_color="gray")
@@ -1779,7 +1779,7 @@ Stay tuned for updates! 🎵"""
                 text_color="green"
             )
             self.yt_connect_btn.pack_forget()
-            self.yt_disconnect_btn.pack(fill="x", padx=10, pady=(0, 10))
+            self.yt_disconnect_btn.pack(fill="x", padx=4, pady=(0, 6))
             # Update main app status
             if hasattr(self.master, 'master') and hasattr(self.master.master, 'update_connection_status'):
                 self.master.master.update_connection_status()
@@ -1791,7 +1791,7 @@ Stay tuned for updates! 🎵"""
                 text_color="green"
             )
             self.yt_connect_btn.pack_forget()
-            self.yt_disconnect_btn.pack(fill="x", padx=10, pady=(0, 10))
+            self.yt_disconnect_btn.pack(fill="x", padx=4, pady=(0, 6))
             if hasattr(self.master, 'master') and hasattr(self.master.master, 'update_connection_status'):
                 self.master.master.update_connection_status()
             messagebox.showinfo("Success", "Connected to YouTube!")
@@ -1810,7 +1810,7 @@ Stay tuned for updates! 🎵"""
             self.yt_status_label.configure(text="Not connected", text_color="gray")
             self.yt_disconnect_btn.pack_forget()
             self.yt_connect_btn.configure(state="normal", text="Connect YouTube")
-            self.yt_connect_btn.pack(fill="x", pady=(0, 5))
+            self.yt_connect_btn.pack(fill="x", pady=(0, 4))
             # Update main app status
             if hasattr(self.master, 'master') and hasattr(self.master.master, 'update_connection_status'):
                 self.master.master.update_connection_status()
@@ -1881,7 +1881,7 @@ Stay tuned for updates! 🎵"""
         
         if total_accounts > 0:
             # Show accounts section
-            self.repliz_accounts_section.pack(fill="x", padx=10, pady=(0, 15))
+            self.repliz_accounts_section.pack(fill="x", padx=4, pady=(0, 8))
             
             # Display each account in grid
             for idx, account in enumerate(accounts):
@@ -1965,7 +1965,7 @@ Stay tuned for updates! 🎵"""
         
         if total_accounts > 0:
             # Show accounts section
-            self.repliz_accounts_section.pack(fill="x", padx=10, pady=(0, 15))
+            self.repliz_accounts_section.pack(fill="x", padx=4, pady=(0, 8))
             
             # Display each account in grid
             for idx, account in enumerate(accounts):
@@ -2000,9 +2000,9 @@ Stay tuned for updates! 🎵"""
         
         # Create card with fixed width for grid layout
         card = ctk.CTkFrame(self.repliz_accounts_list, fg_color=("gray95", "gray25"), 
-            corner_radius=10, width=160, height=200)
+            corner_radius=5, width=160, height=200, border_width=1, border_color=("#2a2a30", "#2a2a30"))
         card.pack_propagate(False)  # Prevent card from shrinking
-        card.grid(row=row, column=col, padx=8, pady=8, sticky="nsew")
+        card.grid(row=row, column=col, padx=4, pady=4, sticky="nsew")
         
         # Profile picture frame (circular)
         picture_url = account.get("picture", "")
@@ -2013,17 +2013,17 @@ Stay tuned for updates! 🎵"""
         else:
             # Fallback: Show platform icon
             icon_label = ctk.CTkLabel(card, text=icon, 
-                font=ctk.CTkFont(size=48))
-            icon_label.pack(pady=(15, 5))
+                font=ctk.CTkFont(size=22))
+            icon_label.pack(pady=(6, 4))
         
         # Platform type badge
         platform_badge = ctk.CTkLabel(card, 
             text=platform_type.upper(), 
-            font=ctk.CTkFont(size=9, weight="bold"),
+            font=ctk.CTkFont(size=11, weight="bold"),
             fg_color=("gray80", "gray30"),
-            corner_radius=4,
-            padx=8, pady=2)
-        platform_badge.pack(pady=(5, 5))
+            corner_radius=5,
+            padx=4, pady=4)
+        platform_badge.pack(pady=(4, 4))
         
         # Account name (truncate if too long)
         account_name = account.get("name", "Unknown")
@@ -2032,9 +2032,9 @@ Stay tuned for updates! 🎵"""
         
         name_label = ctk.CTkLabel(card, 
             text=account_name,
-            font=ctk.CTkFont(size=12, weight="bold"),
+            font=ctk.CTkFont(size=11, weight="bold"),
             wraplength=140)
-        name_label.pack(pady=(0, 2))
+        name_label.pack(pady=(0, 4))
         
         # Username (truncate if too long)
         username = account.get("username", "")
@@ -2044,10 +2044,10 @@ Stay tuned for updates! 🎵"""
             username_text = f"@{username}" if not username.startswith("@") else username
             username_label = ctk.CTkLabel(card, 
                 text=username_text,
-                font=ctk.CTkFont(size=10),
+                font=ctk.CTkFont(size=11),
                 text_color="gray",
                 wraplength=140)
-            username_label.pack(pady=(0, 8))
+            username_label.pack(pady=(0, 6))
         
         # Connection status badge at bottom
         is_connected = account.get("isConnected", False)
@@ -2056,12 +2056,12 @@ Stay tuned for updates! 🎵"""
         
         status_badge = ctk.CTkLabel(card, 
             text=status_text,
-            font=ctk.CTkFont(size=9, weight="bold"),
+            font=ctk.CTkFont(size=11, weight="bold"),
             text_color="white",
             fg_color=status_color,
-            corner_radius=4,
-            padx=10, pady=4)
-        status_badge.pack(side="bottom", pady=(0, 10))
+            corner_radius=5,
+            padx=4, pady=4)
+        status_badge.pack(side="bottom", pady=(0, 6))
     
     def _load_profile_picture(self, parent, url, fallback_icon):
         """Load profile picture from URL and display in circular frame"""
@@ -2109,8 +2109,8 @@ Stay tuned for updates! 🎵"""
         
         # Show loading placeholder
         loading_label = ctk.CTkLabel(parent, text="⏳", 
-            font=ctk.CTkFont(size=40))
-        loading_label.pack(pady=(15, 5))
+            font=ctk.CTkFont(size=15))
+        loading_label.pack(pady=(6, 4))
         
         # Load in background thread
         threading.Thread(target=do_load, daemon=True).start()
@@ -2125,7 +2125,7 @@ Stay tuned for updates! 🎵"""
         
         # Display profile picture
         img_label = ctk.CTkLabel(parent, image=ctk_img, text="")
-        img_label.pack(pady=(15, 5))
+        img_label.pack(pady=(6, 4))
     
     def _display_fallback_icon(self, parent, icon):
         """Display fallback icon if image loading fails"""
@@ -2137,8 +2137,8 @@ Stay tuned for updates! 🎵"""
         
         # Display fallback icon
         icon_label = ctk.CTkLabel(parent, text=icon, 
-            font=ctk.CTkFont(size=48))
-        icon_label.pack(pady=(15, 5))
+            font=ctk.CTkFont(size=22))
+        icon_label.pack(pady=(6, 4))
     
     def _on_repliz_validate_error(self, error):
         """Handle Repliz validation error"""
@@ -2174,20 +2174,20 @@ Stay tuned for updates! 🎵"""
         
         # App info
         info_frame = ctk.CTkFrame(main, fg_color="transparent")
-        info_frame.pack(fill="x", pady=(20, 15))
+        info_frame.pack(fill="x", pady=(6, 8))
         
-        ctk.CTkLabel(info_frame, text="YT Short Clipper", font=ctk.CTkFont(size=20, weight="bold")).pack()
-        ctk.CTkLabel(info_frame, text=f"v{__version__}", font=ctk.CTkFont(size=12), text_color="gray").pack(pady=(5, 0))
+        ctk.CTkLabel(info_frame, text="YT Short Clipper", font=ctk.CTkFont(size=15, weight="bold")).pack()
+        ctk.CTkLabel(info_frame, text=f"v{__version__}", font=ctk.CTkFont(size=11), text_color="gray").pack(pady=(4, 0))
         
         # Check for updates button
         if self.check_update:
-            ctk.CTkButton(info_frame, text="Check for Updates", height=35, width=150,
+            ctk.CTkButton(info_frame, text="Check for Updates", height=18, width=150,
                 fg_color="gray", hover_color=("gray70", "gray30"),
-                command=self.check_update).pack(pady=(10, 0))
+                command=self.check_update, text_color=("#FFFFFF", "#FFFFFF")).pack(pady=(4, 0))
         
         # Description
-        desc_frame = ctk.CTkFrame(main, fg_color=("gray90", "gray17"))
-        desc_frame.pack(fill="x", pady=10, padx=5)
+        desc_frame = ctk.CTkFrame(main, fg_color=("gray90", "gray17"), border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        desc_frame.pack(fill="x", pady=4, padx=4)
         
         desc_text = """Automated YouTube to Short-Form Content Pipeline
 
@@ -2196,38 +2196,38 @@ short-form content for TikTok, Instagram Reels,
 and YouTube Shorts."""
         
         ctk.CTkLabel(desc_frame, text=desc_text, justify="center", 
-            font=ctk.CTkFont(size=11), wraplength=380).pack(padx=15, pady=15)
+            font=ctk.CTkFont(size=11), wraplength=380).pack(padx=4, pady=4)
         
         # Credits
         credits_frame = ctk.CTkFrame(main, fg_color="transparent")
-        credits_frame.pack(fill="x", pady=10)
+        credits_frame.pack(fill="x", pady=4)
         
         ctk.CTkLabel(credits_frame, text="Made with ☕ by", font=ctk.CTkFont(size=11), 
             text_color="gray").pack()
-        ctk.CTkLabel(credits_frame, text="Aji Prakoso", font=ctk.CTkFont(size=13, weight="bold")).pack(pady=(5, 0))
+        ctk.CTkLabel(credits_frame, text="Aji Prakoso", font=ctk.CTkFont(size=11, weight="bold")).pack(pady=(4, 0))
         
         # Links
         links_frame = ctk.CTkFrame(main, fg_color="transparent")
-        links_frame.pack(fill="x", pady=15)
+        links_frame.pack(fill="x", pady=4)
         
-        ctk.CTkButton(links_frame, text="⭐ GitHub Repository", height=40,
+        ctk.CTkButton(links_frame, text="⭐ GitHub Repository", height=22,
             fg_color=("#24292e", "#0d1117"), hover_color=("#2c3136", "#161b22"),
-            command=lambda: self.open_url("https://github.com/jipraks/yt-short-clipper")).pack(fill="x", pady=2)
+            command=lambda: self.open_url("https://github.com/jipraks/yt-short-clipper"), text_color=("#FFFFFF", "#FFFFFF")).pack(fill="x", pady=4)
         
-        ctk.CTkButton(links_frame, text="📸 @jipraks on Instagram", height=40,
+        ctk.CTkButton(links_frame, text="📸 @jipraks on Instagram", height=22,
             fg_color=("#E4405F", "#C13584"), hover_color=("#F56040", "#E1306C"),
-            command=lambda: self.open_url("https://instagram.com/jipraks")).pack(fill="x", pady=2)
+            command=lambda: self.open_url("https://instagram.com/jipraks"), text_color=("#FFFFFF", "#FFFFFF")).pack(fill="x", pady=4)
         
-        ctk.CTkButton(links_frame, text="🎬 YouTube Channel", height=40,
+        ctk.CTkButton(links_frame, text="🎬 YouTube Channel", height=22,
             fg_color=("#c4302b", "#FF0000"), hover_color=("#ff0000", "#CC0000"),
-            command=lambda: self.open_url("https://youtube.com/@jipraks")).pack(fill="x", pady=2)
+            command=lambda: self.open_url("https://youtube.com/@jipraks"), text_color=("#FFFFFF", "#FFFFFF")).pack(fill="x", pady=4)
         
         # Footer
         footer_frame = ctk.CTkFrame(main, fg_color="transparent")
-        footer_frame.pack(side="bottom", fill="x", pady=(10, 5))
+        footer_frame.pack(side="bottom", fill="x", pady=(4, 4))
         
         ctk.CTkLabel(footer_frame, text="Open Source • MIT License", 
-            font=ctk.CTkFont(size=10), text_color="gray").pack()
+            font=ctk.CTkFont(size=11), text_color="gray").pack()
     
     def open_url(self, url: str):
         """Open URL in browser"""
@@ -2254,17 +2254,17 @@ and YouTube Shorts."""
         
         # Update card selection visually
         if provider_type == "ytclip":
-            self.ytclip_card.configure(border_color=("#3B8ED0", "#1F6AA5"))
+            self.ytclip_card.configure(border_color=("#00A878", "#00A878"))
             self.openai_card.configure(border_color=("gray70", "gray30"))
             self.custom_card.configure(border_color=("gray70", "gray30"))
         elif provider_type == "openai":
             self.ytclip_card.configure(border_color=("gray70", "gray30"))
-            self.openai_card.configure(border_color=("#3B8ED0", "#1F6AA5"))
+            self.openai_card.configure(border_color=("#00A878", "#00A878"))
             self.custom_card.configure(border_color=("gray70", "gray30"))
         else:  # custom
             self.ytclip_card.configure(border_color=("gray70", "gray30"))
             self.openai_card.configure(border_color=("gray70", "gray30"))
-            self.custom_card.configure(border_color=("#3B8ED0", "#1F6AA5"))
+            self.custom_card.configure(border_color=("#00A878", "#00A878"))
         
         # Highlight Finder
         hf = ai_providers.get("highlight_finder", {})

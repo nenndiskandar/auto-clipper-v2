@@ -18,7 +18,7 @@ a = Analysis(
     pathex=[],
     binaries=[
         # Bundle yt-dlp executable
-        (r'C:\Users\jipra\AppData\Local\Programs\Python\Python313\Scripts\yt-dlp.exe', '.'),
+        # (r'C:\Users\jipra\AppData\Local\Programs\Python\Python313\Scripts\yt-dlp.exe', '.'),
         
         # Bundle Deno executable (required for yt-dlp --remote-components)
         # Download from: https://github.com/denoland/deno/releases

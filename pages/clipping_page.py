@@ -9,12 +9,13 @@ from utils.logger import get_error_log_path
 class ClippingPage(ctk.CTkFrame):
     """Clipping page - shows progress during video clipping"""
     
-    def __init__(self, parent, on_cancel_callback, on_back_callback, on_open_output_callback, on_browse_callback):
+    def __init__(self, parent, on_cancel_callback, on_back_callback, on_open_output_callback, on_browse_callback, on_view_clips_callback=None):
         super().__init__(parent)
         self.on_cancel = on_cancel_callback
         self.on_back = on_back_callback
         self.on_open_output = on_open_output_callback
         self.on_browse = on_browse_callback
+        self.on_view_clips = on_view_clips_callback or on_open_output_callback
         
         self.create_ui()
     
@@ -36,33 +37,32 @@ class ClippingPage(ctk.CTkFrame):
         """Create the clipping page UI"""
         from components.page_layout import PageHeader, PageFooter
         
-        self.configure(fg_color=("#1a1a1a", "#0a0a0a"))
+        self.configure(fg_color=("#ffffff", "#0b0b0c"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
         
         # Header
-        header = PageHeader(self, self, show_nav_buttons=False, show_back_button=True, page_title="✂️ Clipping Videos")
-        header.pack(fill="x", padx=20, pady=(15, 10))
-        
+        header = PageHeader(self, self, show_nav_buttons=False, show_back_button=False, page_title="✂️ Clipping Videos")
+        header.pack(fill="x", padx=4, pady=(6, 6))        
         main = ctk.CTkFrame(self, fg_color="transparent")
-        main.pack(fill="both", expand=True, padx=20, pady=(0, 20))
+        main.pack(fill="both", expand=True, padx=4, pady=(0, 8))
         
         # Progress section
-        progress_frame = ctk.CTkFrame(main, fg_color=("gray90", "gray17"))
-        progress_frame.pack(fill="x", padx=15, pady=15)
+        progress_frame = ctk.CTkFrame(main, fg_color=("gray90", "gray17"), border_width=1, border_color=("#2a2a30", "#2a2a30"), corner_radius=5)
+        progress_frame.pack(fill="x", padx=4, pady=4)
         
-        ctk.CTkLabel(progress_frame, text="Clipping Progress", font=ctk.CTkFont(size=12, weight="bold")).pack(anchor="w", padx=15, pady=(12, 8))
+        ctk.CTkLabel(progress_frame, text="Clipping Progress", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=4, pady=(6, 6))
         
         # Progress info
         info_frame = ctk.CTkFrame(progress_frame, fg_color="transparent")
-        info_frame.pack(fill="x", padx=15, pady=(0, 12))
+        info_frame.pack(fill="x", padx=4, pady=(0, 8))
         
         # Current clip info
         self.current_clip_label = ctk.CTkLabel(info_frame, text="Preparing...", 
-            font=ctk.CTkFont(size=14, weight="bold"))
-        self.current_clip_label.pack(anchor="w", pady=(0, 5))
+            font=ctk.CTkFont(size=11, weight="bold"))
+        self.current_clip_label.pack(anchor="w", pady=(0, 4))
         
         # Progress bar
         self.progress_bar = ctk.CTkProgressBar(info_frame, height=20)
-        self.progress_bar.pack(fill="x", pady=(0, 5))
+        self.progress_bar.pack(fill="x", pady=(0, 4))
         self.progress_bar.set(0)
         
         # Progress text (X of Y clips)
@@ -71,40 +71,49 @@ class ClippingPage(ctk.CTkFrame):
         self.progress_text.pack(anchor="w")
         
         # Current status
-        self.status_frame = ctk.CTkFrame(main)
-        self.status_frame.pack(fill="x", padx=15, pady=(0, 15))
+        self.status_frame = ctk.CTkFrame(main, fg_color=("gray85", "gray20"), border_width=1, border_color=("#2a2a30", "#2a2a30"), corner_radius=5)
+        self.status_frame.pack(fill="x", padx=4, pady=(0, 8))
         
-        self.status_label = ctk.CTkLabel(self.status_frame, text="Initializing...", 
-            font=ctk.CTkFont(size=12), wraplength=480)
-        self.status_label.pack(pady=12)
+        from components.loading_spinner import LoadingSpinner
+        status_row = ctk.CTkFrame(self.status_frame, fg_color="transparent")
+        status_row.pack(fill="x", padx=4, pady=4)
+        
+        self.spinner = LoadingSpinner(status_row, size=16)
+        self.spinner.pack(side="left", padx=(0, 6))
+        self.spinner.pack_forget()
+        
+        self.status_label = ctk.CTkLabel(status_row, text="Initializing...", 
+            font=ctk.CTkFont(size=11), wraplength=440, anchor="w", justify="left")
+        self.status_label.pack(side="left", fill="x", expand=True)
         
         # Buttons
         btn_frame = ctk.CTkFrame(main, fg_color="transparent")
-        btn_frame.pack(fill="x", padx=15, pady=(0, 15))
+        btn_frame.pack(fill="x", padx=4, pady=(0, 8))
         
         row1 = ctk.CTkFrame(btn_frame, fg_color="transparent")
-        row1.pack(fill="x", pady=(0, 5))
+        row1.pack(fill="x", pady=(0, 4))
         
-        self.cancel_btn = ctk.CTkButton(row1, text="❌ Cancel", height=45, fg_color="#c0392b", 
-            hover_color="#e74c3c", command=self.on_cancel)
-        self.cancel_btn.pack(side="left", fill="x", expand=True, padx=(0, 5))
-        
-        self.back_btn = ctk.CTkButton(row1, text="← Back", height=45, state="disabled", command=self.on_back)
-        self.back_btn.pack(side="left", fill="x", expand=True, padx=(5, 0))
+        self.cancel_btn = ctk.CTkButton(row1, font=ctk.CTkFont(size=11), text="Cancel", height=22, fg_color="#c0392b", 
+            hover_color="#e74c3c", command=self.on_cancel, text_color=("#FFFFFF", "#FFFFFF"))
+        self.cancel_btn.pack(side="left", fill="x", expand=True, padx=(0, 4))
         
         row2 = ctk.CTkFrame(btn_frame, fg_color="transparent")
         row2.pack(fill="x")
         
-        self.open_btn = ctk.CTkButton(row2, text="📂 Open Output", height=45, state="disabled", command=self.on_open_output)
-        self.open_btn.pack(side="left", fill="x", expand=True, padx=(0, 5))
+        self.open_btn = ctk.CTkButton(row2, font=ctk.CTkFont(size=11), text="Open Output", height=22, state="disabled", command=self.on_open_output)
+        self.open_btn.pack(side="left", fill="x", expand=True, padx=(0, 4))
         
-        self.results_btn = ctk.CTkButton(row2, text="📂 Browse Sessions", height=45, state="disabled", 
-            fg_color="#27ae60", hover_color="#2ecc71", command=self.on_browse)
-        self.results_btn.pack(side="left", fill="x", expand=True, padx=(5, 0))
+        self.view_clips_btn = ctk.CTkButton(row2, font=ctk.CTkFont(size=11), text="View Clips", height=22, state="disabled", 
+            fg_color="#00A878", hover_color="#008F66", text_color="#0B0B0C", command=self.on_view_clips)
+        self.view_clips_btn.pack(side="left", fill="x", expand=True, padx=(4, 4))
+        
+        self.results_btn = ctk.CTkButton(row2, font=ctk.CTkFont(size=11), text="Browse Sessions", height=22, state="disabled", 
+            fg_color="#27ae60", hover_color="#2ecc71", command=self.on_browse, text_color=("#FFFFFF", "#FFFFFF"))
+        self.results_btn.pack(side="left", fill="x", expand=True, padx=(4, 0))
         
         # Footer
         footer = PageFooter(self, self)
-        footer.pack(fill="x", padx=20, pady=(10, 15), side="bottom")
+        footer.pack(fill="x", padx=4, pady=(4, 8), side="bottom")
     
     def reset_ui(self):
         """Reset UI for new clipping"""
@@ -112,10 +121,22 @@ class ClippingPage(ctk.CTkFrame):
         self.current_clip_label.configure(text="Preparing...")
         self.progress_text.configure(text="0 / 0 clips processed")
         self.status_label.configure(text="Initializing...")
+        self.spinner.pack(side="left", padx=(0, 6))
+        self.spinner.start()
         self.cancel_btn.configure(state="normal")
         self.open_btn.configure(state="disabled")
-        self.back_btn.configure(state="disabled")
+        self.view_clips_btn.configure(state="disabled")
         self.results_btn.configure(state="disabled")
+    
+    def start_loading(self):
+        """Start the animated loading spinner"""
+        self.spinner.pack(side="left", padx=(0, 6))
+        self.spinner.start()
+    
+    def stop_loading(self):
+        """Stop the animated loading spinner"""
+        self.spinner.stop()
+        self.spinner.pack_forget()
     
     def update_progress(self, current: int, total: int, clip_title: str = ""):
         """Update progress bar and text"""
@@ -134,22 +155,24 @@ class ClippingPage(ctk.CTkFrame):
     
     def on_complete(self):
         """Called when clipping completes successfully"""
+        self.stop_loading()
         self.status_label.configure(text="✅ All clips created successfully!")
         self.cancel_btn.configure(state="disabled")
         self.open_btn.configure(state="normal")
-        self.back_btn.configure(state="normal")
+        self.view_clips_btn.configure(state="normal")
         self.results_btn.configure(state="normal")
         self.current_clip_label.configure(text="✓ Complete")
     
     def on_cancelled(self):
         """Called when clipping is cancelled"""
+        self.stop_loading()
         self.status_label.configure(text="⚠️ Cancelled by user")
         self.cancel_btn.configure(state="disabled")
-        self.back_btn.configure(state="normal")
         self.current_clip_label.configure(text="⚠ Cancelled")
     
     def on_error(self, error: str):
         """Called when clipping encounters an error"""
+        self.stop_loading()
         error_log = get_error_log_path()
         
         if error_log:
@@ -159,5 +182,4 @@ class ClippingPage(ctk.CTkFrame):
         
         self.status_label.configure(text=error_msg)
         self.cancel_btn.configure(state="disabled")
-        self.back_btn.configure(state="normal")
         self.current_clip_label.configure(text="✗ Failed")

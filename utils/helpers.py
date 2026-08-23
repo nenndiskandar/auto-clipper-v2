@@ -131,6 +131,31 @@ def get_deno_path():
     return None
 
 
+def get_mediapipe_model_path():
+    """Get path to face_landmarker.task model, auto-downloading if missing"""
+    app_dir = get_app_dir()
+    model_path = app_dir / "bin" / "face_landmarker.task"
+    
+    if model_path.exists():
+        return str(model_path)
+    
+    # Check bundle dir (e.g. PyInstaller temp dir)
+    bundle_model = get_bundle_dir() / "bin" / "face_landmarker.task"
+    if bundle_model.exists():
+        return str(bundle_model)
+    
+    # Auto-download using dependency manager if missing
+    try:
+        from utils.dependency_manager import setup_mediapipe_model
+        if setup_mediapipe_model(app_dir):
+            if model_path.exists():
+                return str(model_path)
+    except Exception as e:
+        print(f"Error auto-downloading MediaPipe model: {e}")
+        
+    return str(model_path)
+
+
 def extract_video_id(url: str) -> str:
     """Extract YouTube video ID from URL"""
     patterns = [

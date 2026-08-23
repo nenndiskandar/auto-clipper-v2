@@ -9,13 +9,13 @@ class ProgressStep(ctk.CTkFrame):
     """A single step card in the progress indicator"""
     
     def __init__(self, parent, step_num: int, title: str):
-        super().__init__(parent, fg_color=("gray85", "gray20"), corner_radius=8)
+        super().__init__(parent, fg_color=("gray85", "gray20"), corner_radius=5)
         self.step_num = step_num
         self.status = "pending"  # pending, active, done, error
         
         # Main content frame
         content = ctk.CTkFrame(self, fg_color="transparent")
-        content.pack(fill="both", expand=True, padx=12, pady=10)
+        content.pack(fill="both", expand=True, padx=4, pady=4)
         
         # Step indicator circle
         self.indicator = ctk.CTkLabel(
@@ -24,10 +24,10 @@ class ProgressStep(ctk.CTkFrame):
             width=30, 
             height=30,
             fg_color=("gray70", "gray30"), 
-            corner_radius=15, 
-            font=ctk.CTkFont(size=12, weight="bold")
+            corner_radius=5, 
+            font=ctk.CTkFont(size=11, weight="bold")
         )
-        self.indicator.pack(pady=(0, 8))
+        self.indicator.pack(pady=(0, 6))
         
         # Step title
         self.title_label = ctk.CTkLabel(
@@ -43,7 +43,7 @@ class ProgressStep(ctk.CTkFrame):
         self.status_label = ctk.CTkLabel(
             content, 
             text="Waiting...", 
-            font=ctk.CTkFont(size=10), 
+            font=ctk.CTkFont(size=11), 
             text_color="gray"
         )
         self.status_label.pack(pady=(4, 0))
@@ -56,13 +56,13 @@ class ProgressStep(ctk.CTkFrame):
     def set_active(self, status_text: str = "Processing...", progress: float = None):
         """Set step to active state with optional progress"""
         self.status = "active"
-        self.indicator.configure(fg_color=("#3498db", "#2980b9"), text="●")
-        self.status_label.configure(text=status_text, text_color=("#3498db", "#5dade2"))
+        self.indicator.configure(fg_color=("#00A878", "#008F66"), text="●")
+        self.status_label.configure(text=status_text, text_color=("#00A878", "#008F66"))
         
         if progress is None:
             progress = 0.0
         
-        self.progress_bar.pack(pady=(6, 0))
+        self.progress_bar.pack(pady=(4, 0))
         self.progress_bar.set(progress)
     
     def set_done(self, status_text: str = "Complete"):

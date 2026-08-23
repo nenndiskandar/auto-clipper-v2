@@ -15,19 +15,22 @@ from pathlib import Path
 from tkinter import filedialog, messagebox
 from openai import OpenAI
 from PIL import Image, ImageTk
+from clipper_core import AutoClipperCore
 
 # Import version info
 from version import __version__, UPDATE_CHECK_URL
 
 # Import utilities
 from utils.helpers import get_app_dir, get_bundle_dir, get_ffmpeg_path, get_ytdlp_path, extract_video_id
-from utils.logger import debug_log, setup_error_logging, log_error, get_error_log_path
+from utils.logger import debug_log, setup_error_logging, log_error, get_error_log_path, set_log_sink, strip_ansi
 from config.config_manager import ConfigManager
 from dialogs.model_selector import SearchableModelDropdown
 from dialogs.youtube_upload import YouTubeUploadDialog
-from dialogs.terms_of_service import TermsOfServiceDialog
-from dialogs.autoklip_promo import AutoKlipPromoDialog
+#from dialogs.terms_of_service import TermsOfServiceDialog
+#from dialogs.autoklip_promo import AutoKlipPromoDialog
 from components.progress_step import ProgressStep
+from components.log_panel import LogPanel
+from components.animated_background import AnimatedBackground
 from pages.settings_page import SettingsPage
 from pages.browse_page import BrowsePage
 from pages.results_page import ResultsPage
@@ -77,19 +80,49 @@ class YTShortClipperApp(ctk.CTk):
         
         # Session data for highlight selection flow
         self.session_data = None  # Will store result from find_highlights_only
+        self._retry_context = None  # (url, num_clips, output_dir, model, subtitle_lang, title, session_dir)
         
         self.title("YT Short Clipper")
-        self.geometry("780x620")
-        self.resizable(False, False)
+        self.geometry("960x640")
+        self.minsize(880, 540)
+        self.resizable(True, True)
         
-        ctk.set_appearance_mode("dark")
-        ctk.set_default_color_theme("blue")
+        ctk.set_appearance_mode("light")
+        theme_file = ASSETS_DIR / "theme_lokaclip.json"
+        if theme_file.exists():
+            ctk.set_default_color_theme(str(theme_file))
+        else:
+            ctk.set_default_color_theme("blue")
+
+        # Global button styling: consistent fonts, no icons/emoji on buttons
+        from components.button_style import apply as apply_button_style
+        apply_button_style()
         
         # Set app icon after window is created
         self.after(200, self.set_app_icon)
         
-        self.container = ctk.CTkFrame(self)
+        # Animated background color drift (drives fg_color of background frames)
+        self.animated_bg = AnimatedBackground(self)
+        self.animated_bg.start()
+
+        # Left sidebar navigation
+        self.sidebar = ctk.CTkFrame(self, width=210, fg_color=("#ffffff", "#ffffff"),
+            border_width=0)
+        self.sidebar.pack(side="left", fill="y")
+        self.sidebar.pack_propagate(False)
+        self.create_sidebar()
+
+        # In-app scrollable log console (collapsible right-side panel).
+        # Packed BEFORE the container so the page area takes the remaining space.
+        self.log_panel = LogPanel(self)
+        self.log_panel.pack(side="right", fill="y")
+        set_log_sink(self.log_panel.append)
+        self.bind("<Control-l>", lambda e: self.toggle_log_panel())
+        self.log_panel.append(f"YT Short Clipper v{__version__} started")
+
+        self.container = ctk.CTkFrame(self, fg_color="transparent")
         self.container.pack(fill="both", expand=True)
+        self.animated_bg.attach(self.container)
         
         self.pages = {}
         self.create_home_page()
@@ -165,9 +198,27 @@ class YTShortClipperApp(ctk.CTk):
             print(f"Icon error: {e}")
     
     def show_page(self, name):
+        if name == "processing":
+            self.show_processing_embed()
+            return
         for page in self.pages.values():
             page.pack_forget()
-        self.pages[name].pack(fill="both", expand=True)
+        # Add padding to every page
+        if name == "home":
+            self.pages[name].pack(fill="both", expand=True, padx=12, pady=8)
+        else:
+            self.pages[name].pack(fill="both", expand=True, padx=12, pady=8)
+        # Keep background-role frames following the animated color
+        self.animated_bg.clear_attached()
+        self.animated_bg.attach(self.container)
+        self.animated_bg.attach(self.pages[name])
+        self.animated_bg.attach_transparent_children(self.pages[name])
+        
+        # Sidebar active state
+        if name in getattr(self, "sidebar_buttons", {}):
+            self.set_sidebar_active(name)
+        else:
+            self.set_sidebar_active(None)
         
         # Refresh browse list when showing browse page
         if name == "browse":
@@ -185,10 +236,129 @@ class YTShortClipperApp(ctk.CTk):
         if name == "home":
             self.reset_home_page()
     
+    def create_sidebar(self):
+        """Create the left sidebar navigation menu."""
+        # Right border separator (sidebar frame uses no border; draw a thin line)
+        right_border = ctk.CTkFrame(self.sidebar, width=2, corner_radius=0, fg_color=("#d9dbe0", "#2a2a30"))
+        right_border.pack(side="right", fill="y")
+        
+        inner = ctk.CTkFrame(self.sidebar, fg_color="transparent")
+        inner.pack(fill="x", padx=6, pady=(8, 6))
+        
+        # App logo
+        try:
+            icon_img = Image.open(ASSETS_DIR / "icon.png")
+            icon_img.thumbnail((32, 32), Image.Resampling.LANCZOS)
+            self._sidebar_icon = ctk.CTkImage(light_image=icon_img, dark_image=icon_img, size=(32, 32))
+            ctk.CTkLabel(inner, image=self._sidebar_icon, text="").pack(pady=(0, 6))
+        except Exception:
+            pass
+        
+        # App title
+        ctk.CTkLabel(inner, text="YT SHORT CLIPPER",
+            font=ctk.CTkFont(size=15, weight="bold"),
+            text_color=("#00A878", "#00A878"),
+            anchor="w").pack(fill="x", padx=2, pady=(0, 4))
+        
+        # Tagline
+        ctk.CTkLabel(inner,
+            text="Turn long YouTube videos\ninto viral shorts — Powered by AI",
+            font=ctk.CTkFont(size=11),
+            text_color=("#8a8a8a", "#8a8a8a"),
+            anchor="w", justify="left", wraplength=180).pack(fill="x", padx=2, pady=(0, 12))
+        # Sidebar icon helper
+        sidebar_icons_dir = ASSETS_DIR / "sidebar_icons"
+        def load_icon(name, size=20):
+            try:
+                img = Image.open(sidebar_icons_dir / f"{name}.png")
+                return ctk.CTkImage(light_image=img, dark_image=img, size=(size, size))
+            except Exception:
+                return None
+        
+        # Separator
+        ctk.CTkFrame(inner, height=1, fg_color=("#d9dbe0", "#2a2a30")).pack(fill="x", pady=(0, 8))
+        
+        # Navigation buttons
+        self.sidebar_buttons = {}
+        items = [
+            ("Home", "home", "home"),
+            ("Processing", "processing", "processing"),
+            ("Result Find Highlight", "highlight_selection", "highlight"),
+            ("Processing Clip", "clipping", "clipping"),
+            ("Result", "results", "results"),
+            ("Result Session", "session_browser", "session"),
+        ]
+        for label, name, icon_name in items:
+            btn = ctk.CTkButton(inner, text=label, anchor="w", height=34, corner_radius=5,
+                fg_color="transparent", hover_color=("#e8eaee", "#2a2a30"),
+                border_width=0, font=ctk.CTkFont(size=13),
+                image=load_icon(icon_name), compound="left", _keep_image=True,
+                text_color=("#1a1a1e", "#FFFFFF"),
+                command=lambda n=name: self.show_page(n))
+            btn.pack(fill="x", pady=2)
+            self.sidebar_buttons[name] = btn
+        
+        # Utility navigation
+        ctk.CTkFrame(inner, height=1, fg_color=("#d9dbe0", "#2a2a30")).pack(fill="x", pady=(8, 6))
+        
+        nav_items = [
+            ("Settings", "settings", "settings"),
+            ("API Status", "api_status", "api"),
+            ("Library", "lib_status", "library"),
+        ]
+        for label, name, icon_name in nav_items:
+            btn = ctk.CTkButton(inner, text=label, anchor="w", height=34, corner_radius=5,
+                fg_color="transparent", hover_color=("#e8eaee", "#2a2a30"),
+                border_width=0, font=ctk.CTkFont(size=13),
+                image=load_icon(icon_name), compound="left", _keep_image=True,
+                text_color=("#5a5a5e", "#a3a3a3"),
+                command=lambda n=name: self.show_page(n))
+            btn.pack(fill="x", pady=2)
+            self.sidebar_buttons[name] = btn
+    
+    def set_sidebar_active(self, name):
+        """Highlight the active sidebar menu item (None = none active)."""
+        for n, btn in self.sidebar_buttons.items():
+            if n == name:
+                btn.configure(fg_color=("#00A878", "#00A878"), hover_color=("#008F66", "#008F66"),
+                              text_color=("#0B0B0C", "#0B0B0C"), border_width=0)
+            else:
+                btn.configure(fg_color="transparent", hover_color=("#e8eaee", "#2a2a30"),
+                              text_color=("#1a1a1e", "#FFFFFF"), border_width=0)
+    
+    def show_processing_embed(self):
+        """Show the processing progress view embedded on the home page."""
+        # Ensure the home page is visible when navigating here from another page
+        if self.pages["home"] not in self.container.winfo_children() or not self.pages["home"].winfo_ismapped():
+            for p in self.pages.values():
+                p.pack_forget()
+            self.animated_bg.clear_attached()
+            self.animated_bg.attach(self.container)
+            self.pages["home"].pack(fill="both", expand=True, padx=16, pady=12)
+            self.animated_bg.attach(self.pages["home"])
+        self.home_form.pack_forget()
+        self.pages["processing"].pack(fill="both", expand=True, padx=4, pady=(6, 4))
+        self.set_sidebar_active("processing")
+    
+    def show_home_form(self):
+        """Restore the home page input form (hide the embedded processing view)."""
+        self.pages["processing"].pack_forget()
+        self.home_form.pack(fill="both", expand=True)
+        self.set_sidebar_active("home")
+    
     def reset_home_page(self):
         """Reset home page to initial state"""
+        # Show the embedded processing view while a job is running
+        if self.processing:
+            self.show_processing_embed()
+        else:
+            self.show_home_form()
+        
         # Clear URL input
         self.url_var.set("")
+        
+        # Clear title input
+        self.video_title_var.set("")
         
         # Reset thumbnail - recreate preview placeholder
         self.current_thumbnail = None
@@ -201,21 +371,22 @@ class YTShortClipperApp(ctk.CTk):
         self.subtitle_var.set("id - Indonesian")
         
         # Reset clips input to default
-        self.clips_var.set("5")
+        self.clips_var.set("1")
         
         # Update start button state
         self.update_start_button_state()
 
     def create_home_page(self):
-        page = ctk.CTkFrame(self.container, fg_color=("#1a1a1a", "#0a0a0a"))
+        page = ctk.CTkFrame(self.container, fg_color=("#ffffff", "#0b0b0c"), border_width=1, border_color=("#2a2a30", "#2a2a30"), corner_radius=5)
         self.pages["home"] = page
         
         # Import header and footer components
         from components.page_layout import PageHeader, PageFooter
         
-        # Top header
-        header = PageHeader(page, self, show_nav_buttons=True)
-        header.pack(fill="x", padx=20, pady=(15, 10))
+        # Home page is header-less: logo/title + nav menu live in the sidebar.
+        # Form area (hidden while the processing view is embedded on this page)
+        self.home_form = ctk.CTkFrame(page, fg_color="transparent")
+        self.home_form.pack(fill="both", expand=True, padx=4, pady=4)
         
         # Load icons for buttons
         try:
@@ -232,64 +403,78 @@ class YTShortClipperApp(ctk.CTk):
             self.refresh_icon = None
         
         # ===== TOP ROW: Left config + Right thumbnail =====
-        top_row = ctk.CTkFrame(page, fg_color="transparent")
-        top_row.pack(fill="x", padx=20, pady=(5, 10))
+        top_row = ctk.CTkFrame(self.home_form, fg_color="transparent")
+        top_row.pack(fill="x", padx=4, pady=(4, 6))
         
         # Left column - URL, Subtitle, Clip Count
         left_col = ctk.CTkFrame(top_row, fg_color="transparent")
-        left_col.pack(side="left", fill="y", padx=(0, 20))
+        left_col.pack(side="left", fill="y", padx=(0, 8))
         
         # YouTube URL
-        ctk.CTkLabel(left_col, text="YouTube URL", font=ctk.CTkFont(size=11, weight="bold"), 
-            anchor="w").pack(fill="x", pady=(0, 3))
+        ctk.CTkLabel(left_col, text="YOUTUBE URL", font=ctk.CTkFont(size=11, weight="bold"), 
+            text_color=("#6b6b6b", "#a3a3a3"),
+            anchor="w").pack(fill="x", pady=(0, 4))
         
+        # URL input container
         url_input_container = ctk.CTkFrame(left_col, fg_color="transparent")
-        url_input_container.pack(fill="x", pady=(0, 8))
+        url_input_container.pack(fill="x", pady=(0, 6))
         
         self.url_var = ctk.StringVar()
         self.url_var.trace_add("write", self.on_url_change)
         self.url_entry = ctk.CTkEntry(url_input_container, textvariable=self.url_var, 
-            placeholder_text="Paste YouTube link...", width=220, height=32, border_width=1,
-            border_color=("#3a3a3a", "#2a2a2a"), fg_color=("#1a1a1a", "#0a0a0a"))
-        self.url_entry.pack(side="left", padx=(0, 5))
+            placeholder_text="Paste YouTube link...", width=220, height=24, border_width=1,
+            corner_radius=5,
+            border_color=("#c9ccd1", "#2a2a30"), fg_color=("#ffffff", "#0b0b0c"))
+        self.url_entry.pack(side="left", padx=(0, 6))
         
-        self.paste_btn = ctk.CTkButton(url_input_container, text="📋 Paste", width=65, height=32,
-            fg_color=("#3a3a3a", "#2a2a2a"), hover_color=("#4a4a4a", "#3a3a3a"),
-            font=ctk.CTkFont(size=10), command=self.paste_url)
+        self.paste_btn = ctk.CTkButton(url_input_container, text="Paste", width=70, height=22,
+            fg_color=("#17171b", "#17171b"), hover_color=("#2a2a30", "#2a2a30"),
+            border_width=1, border_color=("#3a3a40", "#2a2a30"), corner_radius=5,
+            font=ctk.CTkFont(size=11), command=self.paste_url, text_color=("#FFFFFF", "#FFFFFF"))
         self.paste_btn.pack(side="left")
         
+        # Detected video title (auto-filled from yt-dlp)
+        self.video_title_var = ctk.StringVar(value="")
+        self.video_title_label = ctk.CTkLabel(left_col, textvariable=self.video_title_var, 
+            font=ctk.CTkFont(size=11), text_color="gray", anchor="w", wraplength=290, justify="left")
+        self.video_title_label.pack(fill="x", pady=(0, 4))
+        
         # Subtitle Language
-        ctk.CTkLabel(left_col, text="Subtitle Language", font=ctk.CTkFont(size=11, weight="bold"), 
-            anchor="w").pack(fill="x", pady=(3, 3))
+        ctk.CTkLabel(left_col, text="SUBTITLE LANGUAGE", font=ctk.CTkFont(size=11, weight="bold"), 
+            text_color=("#6b6b6b", "#a3a3a3"),
+            anchor="w").pack(fill="x", pady=(4, 4))
         
         self.subtitle_frame = ctk.CTkFrame(left_col, fg_color="transparent")
-        self.subtitle_frame.pack(fill="x", pady=(0, 8))
+        self.subtitle_frame.pack(fill="x", pady=(0, 6))
         self.subtitle_loaded = False
         
         self.subtitle_var = ctk.StringVar(value="id - Indonesian")
         self.subtitle_dropdown = ctk.CTkOptionMenu(self.subtitle_frame, 
-            variable=self.subtitle_var, values=["id - Indonesian"], width=290,
-            height=32, fg_color=("#2b2b2b", "#1a1a1a"),
-            button_color=("#3a3a3a", "#2a2a2a"), button_hover_color=("#4a4a4a", "#3a3a3a"),
+            variable=self.subtitle_var, values=["id - Indonesian"], width=298,
+            height=26, corner_radius=5,
+            fg_color=("#ffffff", "#0b0b0c"),
+            button_color=("#e8eaee", "#17171b"), button_hover_color=("#d9dbe0", "#2a2a30"),
             state="disabled")
         self.subtitle_dropdown.pack(anchor="w")
         
         self.subtitle_loading = ctk.CTkLabel(self.subtitle_frame, text="⏳ Loading...", 
-            font=ctk.CTkFont(size=10), text_color="gray")
+            font=ctk.CTkFont(size=11), text_color="gray")
         
         # Clip Count
-        ctk.CTkLabel(left_col, text="Clip Count", font=ctk.CTkFont(size=11, weight="bold"), 
-            anchor="w").pack(fill="x", pady=(3, 3))
+        ctk.CTkLabel(left_col, text="CLIP COUNT", font=ctk.CTkFont(size=11, weight="bold"), 
+            text_color=("#6b6b6b", "#a3a3a3"),
+            anchor="w").pack(fill="x", pady=(4, 4))
         
         clips_input_frame = ctk.CTkFrame(left_col, fg_color="transparent")
-        clips_input_frame.pack(fill="x", pady=(0, 5))
+        clips_input_frame.pack(fill="x", pady=(0, 4))
         
         self.clips_var = ctk.StringVar(value="5")
-        clips_entry = ctk.CTkEntry(clips_input_frame, textvariable=self.clips_var, width=60, height=32,
-            fg_color=("#2b2b2b", "#1a1a1a"), border_width=1, border_color=("#3a3a3a", "#2a2a2a"), justify="center")
-        clips_entry.pack(side="left", padx=(0, 8))
+        clips_entry = ctk.CTkEntry(clips_input_frame, textvariable=self.clips_var, width=60, height=24,
+            fg_color=("#ffffff", "#0b0b0c"), border_width=1, corner_radius=5,
+            border_color=("#c9ccd1", "#2a2a30"), justify="center")
+        clips_entry.pack(side="left", padx=(0, 6))
         
-        ctk.CTkLabel(clips_input_frame, text="(1-10)", font=ctk.CTkFont(size=10), 
+        ctk.CTkLabel(clips_input_frame, text="(1-10)", font=ctk.CTkFont(size=11), 
             text_color="gray").pack(side="left")
         
         # Right column - Thumbnail 16:9
@@ -298,53 +483,55 @@ class YTShortClipperApp(ctk.CTk):
         
         # Video preview frame 16:9 (400x225)
         self.thumb_frame = ctk.CTkFrame(right_col, width=400, height=225, 
-            fg_color=("#2b2b2b", "#1a1a1a"), corner_radius=8)
+            fg_color=("#f5f6f8", "#0b0b0c"), corner_radius=5,
+            border_width=1, border_color=("#c9ccd1", "#2a2a30"))
         self.thumb_frame.pack(anchor="ne")
         self.thumb_frame.pack_propagate(False)
         
         self.create_preview_placeholder()
         
         # ===== MIDDLE ROW: Cookies only (full width) =====
-        middle_row = ctk.CTkFrame(page, fg_color="transparent")
-        middle_row.pack(fill="x", padx=20, pady=(0, 10))
+        middle_row = ctk.CTkFrame(self.home_form, fg_color="transparent")
+        middle_row.pack(fill="x", padx=4, pady=(0, 6))
         
         # YouTube Cookies card (full width)
-        cookies_frame = ctk.CTkFrame(middle_row, fg_color=("#2b2b2b", "#1a1a1a"), corner_radius=8)
+        cookies_frame = ctk.CTkFrame(middle_row, fg_color=("#f5f6f8", "#0b0b0c"), corner_radius=5,
+            border_width=1, border_color=("#c9ccd1", "#2a2a30"))
         cookies_frame.pack(fill="x")
         
-        ctk.CTkLabel(cookies_frame, text="YouTube Cookies", font=ctk.CTkFont(size=11, weight="bold"), 
-            anchor="w").pack(fill="x", padx=12, pady=(10, 5))
+        cookies_header = ctk.CTkFrame(cookies_frame, fg_color="transparent")
+        cookies_header.pack(fill="x", padx=4, pady=(4, 4))
+        
+        ctk.CTkLabel(cookies_header, text="YOUTUBE COOKIES", font=ctk.CTkFont(size=11, weight="bold"), 
+            text_color=("#6b6b6b", "#a3a3a3"),
+            anchor="w").pack(side="left")
+        
+        upload_cookies_btn = ctk.CTkButton(cookies_header, text="Upload", height=18, width=140,
+            fg_color=("#17171b", "#17171b"), hover_color=("#2a2a30", "#2a2a30"),
+            border_width=1, border_color=("#3a3a40", "#2a2a30"), corner_radius=5,
+            font=ctk.CTkFont(size=11), command=self.upload_cookies, text_color=("#FFFFFF", "#FFFFFF"))
+        upload_cookies_btn.pack(side="right")
         
         self.cookies_status_label = ctk.CTkLabel(cookies_frame, text="🍪 No cookies", 
-            font=ctk.CTkFont(size=10), anchor="w", text_color="gray")
-        self.cookies_status_label.pack(fill="x", padx=12, pady=(0, 5))
-        
-        upload_cookies_btn = ctk.CTkButton(cookies_frame, text="📁 Upload", height=28,
-            fg_color=("#3a3a3a", "#2a2a2a"), hover_color=("#4a4a4a", "#3a3a3a"),
-            font=ctk.CTkFont(size=10), command=self.upload_cookies)
-        upload_cookies_btn.pack(fill="x", padx=12, pady=(0, 10))
+            font=ctk.CTkFont(size=11), anchor="w", text_color="gray")
+        self.cookies_status_label.pack(fill="x", padx=4, pady=(0, 6))
         
         # ===== BOTTOM: Generate button + Browse =====
-        bottom_section = ctk.CTkFrame(page, fg_color="transparent")
-        bottom_section.pack(fill="x", padx=20, pady=(0, 5))
+        bottom_section = ctk.CTkFrame(self.home_form, fg_color="transparent")
+        bottom_section.pack(fill="x", padx=4, pady=(0, 4))
         
-        self.start_btn = ctk.CTkButton(bottom_section, text="Find Highlights", image=self.play_icon, 
-            compound="left", font=ctk.CTkFont(size=13, weight="bold"),
-            height=40, command=self.start_processing, state="disabled", 
-            fg_color="gray", hover_color="gray", corner_radius=8)
-        self.start_btn.pack(fill="x", pady=(0, 5))
-        
-        sessions_link = ctk.CTkLabel(bottom_section, text="📋 Browse Sessions", 
-            font=ctk.CTkFont(size=10), text_color=("#3B8ED0", "#1F6AA5"), cursor="hand2")
-        sessions_link.pack()
-        sessions_link.bind("<Button-1>", lambda e: self.show_page("session_browser"))
+        self.start_btn = ctk.CTkButton(bottom_section, text="Find Highlights", 
+            font=ctk.CTkFont(size=11, weight="bold"),
+            width=180, height=26, command=self.start_processing, state="disabled", 
+            fg_color="gray", hover_color="gray", corner_radius=5, text_color=("#FFFFFF", "#FFFFFF"))
+        self.start_btn.pack(pady=(0, 4))
         
         # ===== LIB STATUS =====
-        self.lib_status_frame = ctk.CTkFrame(page, fg_color="transparent")
-        self.lib_status_frame.pack(fill="x", padx=20, pady=(5, 0))
+        self.lib_status_frame = ctk.CTkFrame(self.home_form, fg_color="transparent")
+        self.lib_status_frame.pack(fill="x", padx=4, pady=(4, 0))
         
         self.lib_status_label = ctk.CTkLabel(self.lib_status_frame, text="", 
-            font=ctk.CTkFont(size=10), cursor="hand2")
+            font=ctk.CTkFont(size=11), cursor="hand2")
         self.lib_status_label.pack()
         self.lib_status_label.bind("<Button-1>", lambda e: self.show_page("lib_status"))
         
@@ -356,7 +543,7 @@ class YTShortClipperApp(ctk.CTk):
         
         # Footer
         footer = PageFooter(page, self)
-        footer.pack(fill="x", padx=20, pady=(5, 8), side="bottom")
+        footer.pack(fill="x", padx=4, pady=(4, 6), side="bottom")
     
     def create_preview_placeholder(self):
         """Create placeholder content for video preview"""
@@ -371,7 +558,7 @@ class YTShortClipperApp(ctk.CTk):
         # Placeholder text
         self.thumb_label = ctk.CTkLabel(preview_container, 
             text="📺 Video thumbnail will appear here", 
-            font=ctk.CTkFont(size=12), text_color="gray", justify="center")
+            font=ctk.CTkFont(size=11), text_color="gray", justify="center")
         self.thumb_label.pack()
     
     def paste_url(self):
@@ -412,60 +599,60 @@ class YTShortClipperApp(ctk.CTk):
         
         # Main content frame
         content_frame = ctk.CTkFrame(dialog, fg_color="transparent")
-        content_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        content_frame.pack(fill="both", expand=True, padx=4, pady=4)
         
         # Warning message
         ctk.CTkLabel(content_frame, 
             text="⚠️ Please upload YouTube cookies first!",
-            font=ctk.CTkFont(size=14, weight="bold"),
-            text_color=("#e74c3c", "#e74c3c")).pack(pady=(0, 15))
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color=("#e74c3c", "#e74c3c")).pack(pady=(0, 8))
         
         ctk.CTkLabel(content_frame,
             text="Click a button below to open the setup guide:",
-            font=ctk.CTkFont(size=12)).pack(pady=(0, 15))
+            font=ctk.CTkFont(size=11)).pack(pady=(0, 8))
         
         # Buttons frame
         buttons_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
-        buttons_frame.pack(pady=(0, 10))
+        buttons_frame.pack(pady=(0, 6))
         
         # English guide button
         english_btn = ctk.CTkButton(buttons_frame,
-            text="📖 English Guide",
+            text="English Guide",
             width=140,
-            height=35,
-            font=ctk.CTkFont(size=12),
-            fg_color=("#3B8ED0", "#1F6AA5"),
-            hover_color=("#2E7AB8", "#16527D"),
+            height=18,
+            font=ctk.CTkFont(size=11),
+            fg_color=("#00A878", "#00A878"),
+            hover_color=("#008F66", "#008F66"),
             command=lambda: [
                 webbrowser.open("https://github.com/jipraks/yt-short-clipper/blob/master/GUIDE.md#3-setup-youtube-cookies"),
                 dialog.destroy()
-            ])
-        english_btn.pack(side="left", padx=5)
+            ], text_color=("#0B0B0C", "#0B0B0C"))
+        english_btn.pack(side="left", padx=4)
         
         # Indonesian guide button
         indonesian_btn = ctk.CTkButton(buttons_frame,
-            text="📖 Bahasa Indonesia",
+            text="Bahasa Indonesia",
             width=140,
-            height=35,
-            font=ctk.CTkFont(size=12),
-            fg_color=("#3B8ED0", "#1F6AA5"),
-            hover_color=("#2E7AB8", "#16527D"),
+            height=18,
+            font=ctk.CTkFont(size=11),
+            fg_color=("#00A878", "#00A878"),
+            hover_color=("#008F66", "#008F66"),
             command=lambda: [
                 webbrowser.open("https://github.com/jipraks/yt-short-clipper/blob/master/PANDUAN.md#3-setup-cookies-youtube"),
                 dialog.destroy()
-            ])
-        indonesian_btn.pack(side="left", padx=5)
+            ], text_color=("#0B0B0C", "#0B0B0C"))
+        indonesian_btn.pack(side="left", padx=4)
         
         # Close button
         close_btn = ctk.CTkButton(content_frame,
             text="Close",
             width=100,
-            height=35,
-            font=ctk.CTkFont(size=12),
+            height=18,
+            font=ctk.CTkFont(size=11),
             fg_color=("#6c757d", "#5a6268"),
             hover_color=("#5a6268", "#4e555b"),
-            command=dialog.destroy)
-        close_btn.pack(pady=(10, 0))
+            command=dialog.destroy, border_width=1, border_color=("#3a3a40", "#2a2a30"), text_color=("#FFFFFF", "#FFFFFF"))
+        close_btn.pack(pady=(4, 0))
     
     def upload_cookies(self):
         """Upload cookies.txt file"""
@@ -511,13 +698,14 @@ class YTShortClipperApp(ctk.CTk):
             return False
     
     def create_processing_page(self):
-        """Create processing page as embedded frame"""
+        """Create processing page embedded on the home page (toggled by show_processing_embed)."""
         self.pages["processing"] = ProcessingPage(
-            self.container,
+            self.pages["home"],
             self.cancel_processing,
             lambda: self.show_page("home"),
             self.open_output,
-            self.show_browse_after_complete
+            self.open_current_clips,
+            self.retry_find_highlights
         )
         # Keep reference to steps for update_progress
         self.steps = self.pages["processing"].steps
@@ -529,7 +717,8 @@ class YTShortClipperApp(ctk.CTk):
             self.cancel_processing,
             lambda: self.show_page("home"),
             self.open_output,
-            lambda: self.show_page("session_browser")
+            lambda: self.show_page("session_browser"),
+            self.open_current_clips
         )
     
     def create_highlight_selection_page(self):
@@ -539,6 +728,27 @@ class YTShortClipperApp(ctk.CTk):
             lambda: self.show_page("home"),  # Back to home
             self.process_selected_highlights  # Process callback
         )
+        # Load portrait mode from config
+        pm = self.config.get("portrait_mode", "crop")
+        self.pages["highlight_selection"].portrait_mode_var.set(
+            "Blurred Background" if pm == "blur" else "Smart Crop")
+        # Load subtitle style from config
+        ss = self.config.get("subtitle_style", "pop")
+        self.pages["highlight_selection"].subtitle_style_var.set(
+            {"karaoke": "Karaoke", "bounce": "Bounce", "animated": "Bounce + Word-by-Word", "pop_bounce": "Pop + Bounce"}.get(ss, "Pop Highlight"))
+        # Load subtitle sync offset from config
+        sync_vals = ["-0.5", "-0.4", "-0.3", "-0.2", "-0.1", "0", "+0.1", "+0.2"]
+        sync_val = self.config.get("subtitle_sync_offset", -0.3)
+        sync_str = f"{float(sync_val):+.1f}"
+        self.pages["highlight_selection"].sync_var.set(
+            sync_str if sync_str in sync_vals else "0")
+        # Load face tracking mode from config
+        ft = self.config.get("face_tracking_mode", "opencv")
+        self.pages["highlight_selection"].face_tracking_var.set(
+            "MediaPipe (Smart)" if ft == "mediapipe" else "OpenCV (Fast)")
+        # Load aspect ratio from config
+        ar = self.config.get("aspect_ratio", "9:16")
+        self.pages["highlight_selection"].aspect_ratio_var.set(ar)
     
     def create_session_browser_page(self):
         """Create session browser page as embedded frame"""
@@ -556,11 +766,18 @@ class YTShortClipperApp(ctk.CTk):
             self.container,
             self.config,
             self.client,
-            lambda: self.show_page("processing"),
             lambda: self.show_page("home"),
+            self.new_clip_from_results,
             self.open_output,
             self.get_youtube_client
         )
+
+    def new_clip_from_results(self):
+        """'New Clip' on results page: go back to highlight selection for the current session."""
+        if self.session_data and self.session_data.get("highlights"):
+            self.show_highlight_selection()
+        else:
+            self.show_page("home")
     
     def create_settings_page(self):
         """Create settings page as embedded frame"""
@@ -698,6 +915,17 @@ class YTShortClipperApp(ctk.CTk):
             # Fallback to main client for backward compatibility
             return self.client
     
+    def fetch_video_title(self, url):
+        """Fetch video title in a background thread."""
+        try:
+            cookies_path = str(self.cookies_path) if self.cookies_path.exists() else None
+            title = AutoClipperCore.get_video_title(url, self.ytdlp_path, cookies_path)
+            # Update UI on main thread
+            self.after(0, lambda: self.video_title_var.set(title))
+        except Exception as e:
+            debug_log(f"Error fetching title: {e}")
+            self.after(0, lambda: self.video_title_var.set(""))
+    
     def on_url_change(self, *args):
         url = self.url_var.get().strip()
         video_id = extract_video_id(url)
@@ -706,6 +934,8 @@ class YTShortClipperApp(ctk.CTk):
             self.subtitle_loaded = False
             self.load_thumbnail(video_id)
             self.load_subtitles(url)  # Fetch available subtitles
+            # Auto-detect video title
+            threading.Thread(target=self.fetch_video_title, args=(url,), daemon=True).start()
         else:
             self.current_thumbnail = None
             self.subtitle_loaded = False
@@ -740,8 +970,9 @@ class YTShortClipperApp(ctk.CTk):
         video_id = extract_video_id(url)
         
         if video_id and self.subtitle_loaded and libs_ok:
-            self.start_btn.configure(state="normal", fg_color=("#1f538d", "#14375e"), 
-                                    hover_color=("#144870", "#0d2a47"))
+            self.start_btn.configure(state="normal", fg_color=("#00A878", "#00A878"), 
+                                    hover_color=("#008F66", "#008F66"),
+                                    text_color=("#0B0B0C", "#0B0B0C"))
         else:
             self.start_btn.configure(state="disabled", fg_color="gray", hover_color="gray")
     
@@ -772,31 +1003,31 @@ class YTShortClipperApp(ctk.CTk):
             status_row = ctk.CTkFrame(self.lib_status_frame, fg_color="transparent")
             status_row.pack()
             
-            ctk.CTkLabel(status_row, text="Lib Status:", font=ctk.CTkFont(size=10), 
-                text_color="gray").pack(side="left", padx=(0, 5))
+            ctk.CTkLabel(status_row, text="Lib Status:", font=ctk.CTkFont(size=11), 
+                text_color="gray").pack(side="left", padx=(0, 4))
             
             # Deno
             deno_color = "#4ade80" if deno_ok else "#f87171"
             ctk.CTkLabel(status_row, text=f"Deno {'✓' if deno_ok else '✗'}", 
-                font=ctk.CTkFont(size=10), text_color=deno_color).pack(side="left", padx=(0, 8))
+                font=ctk.CTkFont(size=11), text_color=deno_color).pack(side="left", padx=(0, 6))
             
             # YT-DLP
             ytdlp_color = "#4ade80" if ytdlp_ok else "#f87171"
             ctk.CTkLabel(status_row, text=f"YT-DLP {'✓' if ytdlp_ok else '✗'}", 
-                font=ctk.CTkFont(size=10), text_color=ytdlp_color).pack(side="left", padx=(0, 8))
+                font=ctk.CTkFont(size=11), text_color=ytdlp_color).pack(side="left", padx=(0, 6))
             
             # FFmpeg
             ffmpeg_color = "#4ade80" if ffmpeg_ok else "#f87171"
             ctk.CTkLabel(status_row, text=f"FFmpeg {'✓' if ffmpeg_ok else '✗'}", 
-                font=ctk.CTkFont(size=10), text_color=ffmpeg_color).pack(side="left", padx=(0, 8))
+                font=ctk.CTkFont(size=11), text_color=ffmpeg_color).pack(side="left", padx=(0, 6))
             
             # Install link
             install_link = ctk.CTkLabel(status_row, text="(Install required libraries)", 
-                font=ctk.CTkFont(size=10), text_color="#f87171", cursor="hand2")
+                font=ctk.CTkFont(size=11), text_color="#f87171", cursor="hand2")
             install_link.pack(side="left")
             install_link.bind("<Button-1>", lambda e: self.show_page("lib_status"))
             
-            self.lib_status_frame.pack(fill="x", padx=20, pady=(5, 0))
+            self.lib_status_frame.pack(fill="x", padx=4, pady=(4, 0))
         
         # Update start button state
         self.update_start_button_state()
@@ -872,7 +1103,7 @@ class YTShortClipperApp(ctk.CTk):
         """Show loading state for subtitle selector"""
         # Keep dropdown visible but show loading indicator
         self.subtitle_dropdown.configure(state="disabled")
-        self.subtitle_loading.pack(fill="x", padx=(4, 8), pady=(4, 0))
+        self.subtitle_loading.pack(fill="x", padx=(4, 6), pady=(4, 0))
     
     def on_subtitle_error(self, error: str):
         """Handle subtitle fetch error"""
@@ -984,7 +1215,7 @@ class YTShortClipperApp(ctk.CTk):
         loading_container.place(relx=0.5, rely=0.5, anchor="center")
         
         self.thumb_label = ctk.CTkLabel(loading_container, text="Loading...", 
-            font=ctk.CTkFont(size=13), text_color="gray")
+            font=ctk.CTkFont(size=11), text_color="gray")
         self.thumb_label.pack()
         
         self.start_btn.configure(state="disabled", fg_color="gray", hover_color="gray")
@@ -1002,7 +1233,7 @@ class YTShortClipperApp(ctk.CTk):
         
         self.thumb_label = ctk.CTkLabel(preview_container, 
             text="⚠️ Could not load thumbnail\nPlease check the URL", 
-            font=ctk.CTkFont(size=13), text_color="gray", justify="center")
+            font=ctk.CTkFont(size=11), text_color="gray", justify="center")
         self.thumb_label.pack()
         
         self.start_btn.configure(state="disabled", fg_color="gray", hover_color="gray")
@@ -1098,9 +1329,6 @@ class YTShortClipperApp(ctk.CTk):
         self.start_btn.configure(state="normal", text="Find Highlights")
         
         # Legacy validation (backward compatibility)
-        if not self.client:
-            messagebox.showerror("Error", "Configure API settings first!\nClick ⚙️ button.")
-            return
         
         url = self.url_var.get().strip()
         if not extract_video_id(url):
@@ -1126,7 +1354,7 @@ class YTShortClipperApp(ctk.CTk):
         # Reset processing page UI
         self.pages["processing"].reset_ui()
         
-        self.show_page("processing")
+        self.show_processing_embed()
         
         output_dir = self.config.get("output_dir", str(OUTPUT_DIR))
         model = self.config.get("model", "gpt-4.1")
@@ -1143,7 +1371,7 @@ class YTShortClipperApp(ctk.CTk):
             # Wrapper for log callback that also logs to console in debug mode
             def log_with_debug(msg):
                 debug_log(msg)
-                self.after(0, lambda: self.update_status(msg))
+                self.after(0, lambda: self.update_status(strip_ansi(msg)))
             
             # Get system prompt from config
             # Priority: ai_providers.highlight_finder.system_message > root system_prompt
@@ -1159,6 +1387,9 @@ class YTShortClipperApp(ctk.CTk):
             
             # Get face tracking mode from config (set in settings page)
             face_tracking_mode = self.config.get("face_tracking_mode", "opencv")
+            portrait_mode = self.config.get("portrait_mode", "crop")
+            subtitle_style = self.config.get("subtitle_style", "pop")
+            aspect_ratio = self.config.get("aspect_ratio", "9:16")
             
             mediapipe_settings = self.config.get("mediapipe_settings", {
                 "lip_activity_threshold": 0.15,
@@ -1180,6 +1411,9 @@ class YTShortClipperApp(ctk.CTk):
                 credit_watermark_settings=credit_watermark_settings,
                 hook_style_settings=hook_style_settings,
                 face_tracking_mode=face_tracking_mode,
+                portrait_mode=portrait_mode,
+                subtitle_style=subtitle_style,
+                aspect_ratio=aspect_ratio,
                 mediapipe_settings=mediapipe_settings,
                 ai_providers=self.config.get("ai_providers"),
                 subtitle_language=subtitle_lang,
@@ -1208,6 +1442,11 @@ class YTShortClipperApp(ctk.CTk):
                 self.after(0, self.on_cancelled)
             else:
                 self.after(0, lambda: self.on_error(error_msg))
+
+    def toggle_log_panel(self):
+        """Expand/collapse the in-app log console (Ctrl+L or footer button)."""
+        if hasattr(self, "log_panel"):
+            self.log_panel.toggle()
 
     def update_status(self, msg):
         self.pages["processing"].update_status(msg)
@@ -1275,15 +1514,17 @@ class YTShortClipperApp(ctk.CTk):
         tts_chars = self.token_usage['tts_chars']
         self.pages["processing"].update_tokens(gpt_total, whisper_minutes, tts_chars)
     
-    def run_find_highlights(self, url, num_clips, output_dir, model, subtitle_lang="id"):
+    def run_find_highlights(self, url, num_clips, output_dir, model, subtitle_lang="id",
+                            session_dir=None, title=None):
         """NEW: Phase 1 - Find highlights only (don't process yet)"""
+        core = None
         try:
             from clipper_core import AutoClipperCore, SubtitleNotFoundError
             
             # Wrapper for log callback
             def log_with_debug(msg):
                 debug_log(msg)
-                self.after(0, lambda: self.update_status(msg))
+                self.after(0, lambda: self.update_status(strip_ansi(msg)))
             
             # Get system prompt from config
             ai_providers = self.config.get("ai_providers", {})
@@ -1310,7 +1551,10 @@ class YTShortClipperApp(ctk.CTk):
             
             try:
                 # Call find_highlights_only (returns session data - subtitle only, no video)
-                result = core.find_highlights_only(url, num_clips)
+                video_title = title if title is not None else self.video_title_var.get().strip()
+                # Remember parameters so the failed step can be retried in-place
+                self._retry_context = (url, num_clips, output_dir, model, subtitle_lang, video_title, session_dir)
+                result = core.find_highlights_only(url, num_clips, title=video_title, session_dir=session_dir)
             except SubtitleNotFoundError as snf:
                 # No subtitle found - can't proceed without video for Whisper
                 if self.cancelled:
@@ -1343,7 +1587,33 @@ class YTShortClipperApp(ctk.CTk):
             if self.cancelled or "cancel" in error_msg.lower():
                 self.after(0, self.on_cancelled)
             else:
-                self.after(0, lambda: self.on_error(error_msg))
+                self.after(0, lambda: self.on_find_error(error_msg))
+    
+    def on_find_error(self, error_msg: str):
+        """Handle find-highlights errors; offer Retry so the same step can be re-run."""
+        # Re-enable navigation (Home button) after a failure
+        self.processing = False
+        if self._retry_context:
+            self.pages["processing"].set_retryable_error(error_msg)
+        else:
+            self.on_error(error_msg)
+    
+    def retry_find_highlights(self):
+        """Re-run the find-highlights step with the same parameters (same session dir)."""
+        if not self._retry_context:
+            return
+        url, num_clips, output_dir, model, subtitle_lang, title, session_dir = self._retry_context
+        self.processing = True
+        self.cancelled = False
+        self.pages["processing"].retry_btn.configure(state="disabled")
+        self.pages["processing"].reset_ui()
+        self.show_processing_embed()
+        threading.Thread(
+            target=self.run_find_highlights,
+            args=(url, num_clips, output_dir, model, subtitle_lang),
+            kwargs={"session_dir": session_dir, "title": title},
+            daemon=True
+        ).start()
     
     def _show_whisper_fallback_dialog(self, core, snf_error, num_clips: int):
         """Show dialog asking user if they want to use Whisper API for transcription.
@@ -1438,11 +1708,15 @@ class YTShortClipperApp(ctk.CTk):
         # Set highlights in selection page (no video_path needed)
         self.pages["highlight_selection"].set_highlights(
             self.session_data["highlights"],
-            self.session_data["session_dir"]
+            self.session_data["session_dir"],
+            self.session_data.get("url", "")
         )
         
         # Show the page
         self.show_page("highlight_selection")
+        
+        # Stop the loading spinner (find highlights finished)
+        self.pages["processing"].stop_loading()
         
         # Reset processing flag
         self.processing = False
@@ -1467,11 +1741,31 @@ class YTShortClipperApp(ctk.CTk):
         self.pages["results"].show_results()
         self.show_page("results")
     
-    def process_selected_highlights(self, selected_highlights: list, add_captions: bool = False, add_hook: bool = False):
+    def process_selected_highlights(self, selected_highlights: list, add_captions: bool = False, add_hook: bool = False, portrait_mode: str = "crop", subtitle_style: str = "pop", face_tracking_mode: str = "opencv", aspect_ratio: str = "9:16", resolution: str = "1080p", subtitle_sync_offset: float = -0.3, add_credit: bool = False):
         """NEW: Phase 2 - Process only selected highlights"""
         if not self.session_data:
             messagebox.showerror("Error", "No session data available")
             return
+        
+        # Store enhancement options
+        self.add_captions = add_captions
+        self.add_hook = add_hook
+        self.add_credit = add_credit
+        self.portrait_mode = portrait_mode
+        self.subtitle_style = subtitle_style
+        self.face_tracking_mode = face_tracking_mode
+        self.aspect_ratio = aspect_ratio
+        self.clip_resolution = resolution
+        self.subtitle_sync_offset = subtitle_sync_offset
+        # Persist choices for next time
+        try:
+            self.config.set("portrait_mode", portrait_mode)
+            self.config.set("subtitle_style", subtitle_style)
+            self.config.set("face_tracking_mode", face_tracking_mode)
+            self.config.set("aspect_ratio", aspect_ratio)
+            self.config.set("subtitle_sync_offset", float(subtitle_sync_offset))
+        except Exception:
+            pass
         
         # Check if session has URL (new flow) or video_path (old flow)
         has_url = bool(self.session_data.get("url", ""))
@@ -1491,10 +1785,6 @@ class YTShortClipperApp(ctk.CTk):
                     "This is an old session and the video file no longer exists.\n\n"
                     "Please start a new session from the home page.")
                 return
-        
-        # Store enhancement options
-        self.add_captions = add_captions
-        self.add_hook = add_hook
         
         # Reset UI for clipping
         self.processing = True
@@ -1534,15 +1824,21 @@ class YTShortClipperApp(ctk.CTk):
             tts_model = self.config.get("tts_model", "tts-1")
             watermark_settings = self.config.get("watermark", {"enabled": False})
             credit_watermark_settings = self.config.get("credit_watermark", {"enabled": False})
+            if getattr(self, "add_credit", False):
+                credit_watermark_settings = dict(credit_watermark_settings)
+                credit_watermark_settings["enabled"] = True
             hook_style_settings = self.config.get("hook_style", {})
-            face_tracking_mode = self.config.get("face_tracking_mode", "opencv")
+            face_tracking_mode = getattr(self, "face_tracking_mode", self.config.get("face_tracking_mode", "opencv"))
+            portrait_mode = self.config.get("portrait_mode", "crop")
+            subtitle_style = self.config.get("subtitle_style", "pop")
+            aspect_ratio = getattr(self, "aspect_ratio", self.config.get("aspect_ratio", "9:16"))
+            subtitle_sync_offset = self.config.get("subtitle_sync_offset", -0.3)
             mediapipe_settings = self.config.get("mediapipe_settings", {
                 "lip_activity_threshold": 0.15,
                 "switch_threshold": 0.3,
                 "min_shot_duration": 90,
                 "center_weight": 0.3
-            })
-            
+            })            
             output_dir = self.config.get("output_dir", str(OUTPUT_DIR))
             model = self.config.get("model", "gpt-4.1")
             
@@ -1559,9 +1855,13 @@ class YTShortClipperApp(ctk.CTk):
                 credit_watermark_settings=credit_watermark_settings,
                 hook_style_settings=hook_style_settings,
                 face_tracking_mode=face_tracking_mode,
+                portrait_mode=getattr(self, "portrait_mode", portrait_mode),
+                subtitle_style=getattr(self, "subtitle_style", subtitle_style),
+                aspect_ratio=aspect_ratio,
                 mediapipe_settings=mediapipe_settings,
                 ai_providers=self.config.get("ai_providers"),
                 subtitle_language="id",  # Already downloaded
+                subtitle_sync_offset=subtitle_sync_offset,
                 log_callback=log_with_debug,
                 progress_callback=lambda s, p: self.after(0, lambda: self.update_clipping_progress(s, p)),
                 token_callback=lambda a, b, c, d: None,  # No token tracking for clipping
@@ -1572,6 +1872,25 @@ class YTShortClipperApp(ctk.CTk):
             gpu_settings = self.config.get("gpu_acceleration", {})
             if gpu_settings.get("enabled", False):
                 core.enable_gpu_acceleration(True)
+            
+            # Restore channel name from session data (needed for credit watermark)
+            session_video_info = (self.session_data or {}).get("video_info") or {}
+            core.channel_name = str(session_video_info.get("channel", "") or "").strip()
+            if not core.channel_name:
+                # Old sessions may have video_info: null in session_data.json.
+                # Try to repair metadata from the URL so credit watermark works.
+                session_url = self.session_data.get("url", "")
+                if session_url:
+                    try:
+                        fetched = core.fetch_video_info(session_url)
+                        if fetched.get("channel"):
+                            core.channel_name = str(fetched.get("channel") or "").strip()
+                            session_video_info.update(fetched)
+                            self.session_data["video_info"] = session_video_info
+                    except Exception as fetch_error:
+                        debug_log(f"  ⚠ Could not fetch video info: {fetch_error}")
+            if not core.channel_name:
+                log_with_debug("  ⚠ No channel name in session, credit watermark will be skipped")
             
             # Process selected highlights
             # New flow: download sections per clip using URL
@@ -1586,7 +1905,8 @@ class YTShortClipperApp(ctk.CTk):
                     selected_highlights,
                     self.session_data["session_dir"],
                     add_captions=self.add_captions,
-                    add_hook=self.add_hook
+                    add_hook=self.add_hook,
+                    resolution=getattr(self, "clip_resolution", "1080p")
                 )
             elif session_video_path:
                 # Old flow (backward compat): process from existing video
@@ -1619,11 +1939,8 @@ class YTShortClipperApp(ctk.CTk):
             if self.cancelled:
                 return
             
-            clip_folder = clips_dir / f"clip_{i:03d}"
-            clip_folder.mkdir(parents=True, exist_ok=True)
-            
             original_output_dir = core.output_dir
-            core.output_dir = clip_folder.parent
+            core.output_dir = clips_dir
             
             try:
                 core.process_clip(video_path, highlight, i, total_clips,
@@ -1709,10 +2026,6 @@ class YTShortClipperApp(ctk.CTk):
         self.processing = False
         self.pages["clipping"].on_error(error)
     
-    def show_browse_after_complete(self):
-        """Show browse page after processing complete"""
-        self.show_page("browse")
-    
     def on_error(self, error):
         self.processing = False
         self.pages["processing"].on_error(error)
@@ -1723,6 +2036,24 @@ class YTShortClipperApp(ctk.CTk):
             os.startfile(output_dir)
         else:
             subprocess.run(["open" if sys.platform == "darwin" else "xdg-open", output_dir])
+    
+    def open_current_clips(self):
+        """Show the current session's created clips on the results page"""
+        try:
+            if self.session_data and self.session_data.get("session_dir"):
+                clips_dir = Path(self.session_data["session_dir"]) / "clips"
+                if clips_dir.exists():
+                    # Back button returns to session browser
+                    self.pages["results"].set_back_callback(lambda: self.show_page("session_browser"))
+                    # Load clips from the session's clips folder
+                    self.pages["results"].load_clips(clips_dir)
+                    # Show results page
+                    self.pages["results"].show_results()
+                    self.show_page("results")
+                    return
+            self.open_output()
+        except Exception as e:
+            self.log_panel.append(f"Error viewing clips: {e}")
     
     def open_discord(self):
         """Open Discord server invite link"""

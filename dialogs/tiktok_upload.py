@@ -62,38 +62,38 @@ class TikTokUploadDialog(ctk.CTkToplevel):
     
     def create_ui(self):
         """Create the dialog UI"""
-        main = ctk.CTkFrame(self)
-        main.pack(fill="both", expand=True, padx=20, pady=20)
+        main = ctk.CTkFrame(self, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        main.pack(fill="both", expand=True, padx=4, pady=4)
         
         # Header
         ctk.CTkLabel(main, text="🎵 Upload to TikTok", 
-            font=ctk.CTkFont(size=18, weight="bold")).pack(pady=(0, 15))
+            font=ctk.CTkFont(size=15, weight="bold")).pack(pady=(0, 8))
         
         # Sandbox mode notice
-        notice_frame = ctk.CTkFrame(main, fg_color=("orange", "#ff8c00"))
-        notice_frame.pack(fill="x", pady=(0, 15))
+        notice_frame = ctk.CTkFrame(main, fg_color=("orange", "#ff8c00"), border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        notice_frame.pack(fill="x", pady=(0, 8))
         ctk.CTkLabel(notice_frame, text="ℹ️ Sandbox Mode: Video will be saved as private draft", 
-            text_color="white", font=ctk.CTkFont(size=11, weight="bold")).pack(padx=10, pady=8)
+            text_color="white", font=ctk.CTkFont(size=11, weight="bold")).pack(padx=4, pady=4)
         
         # Video info
-        info_frame = ctk.CTkFrame(main, fg_color=("gray85", "gray20"))
-        info_frame.pack(fill="x", pady=(0, 15))
+        info_frame = ctk.CTkFrame(main, fg_color=("gray85", "gray20"), border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        info_frame.pack(fill="x", pady=(0, 8))
         ctk.CTkLabel(info_frame, text=f"📹 {self.clip['title'][:50]}", 
-            anchor="w").pack(fill="x", padx=10, pady=10)
+            anchor="w").pack(fill="x", padx=4, pady=4)
         
         # Scrollable content area
         scroll_frame = ctk.CTkScrollableFrame(main, height=280)
-        scroll_frame.pack(fill="both", expand=True, pady=(0, 10))
+        scroll_frame.pack(fill="both", expand=True, pady=(0, 6))
         
         # Title/Caption
         ctk.CTkLabel(scroll_frame, text="Caption (max 150 chars for sandbox)", anchor="w", 
-            font=ctk.CTkFont(weight="bold")).pack(fill="x", pady=(5, 0))
+            font=ctk.CTkFont(weight="bold")).pack(fill="x", pady=(4, 0))
         
         # Pre-fill with hook text
         default_caption = self.clip.get('hook_text', self.clip['title'])[:150]
         
-        self.caption_entry = ctk.CTkTextbox(scroll_frame, height=80)
-        self.caption_entry.pack(fill="x", pady=(5, 0))
+        self.caption_entry = ctk.CTkTextbox(scroll_frame, height=48)
+        self.caption_entry.pack(fill="x", pady=(4, 0))
         self.caption_entry.insert("1.0", default_caption)
         
         self.caption_count = ctk.CTkLabel(scroll_frame, text="0/150", 
@@ -104,10 +104,10 @@ class TikTokUploadDialog(ctk.CTkToplevel):
         
         # Privacy Level
         privacy_frame = ctk.CTkFrame(scroll_frame, fg_color="transparent")
-        privacy_frame.pack(fill="x", pady=(15, 10))
+        privacy_frame.pack(fill="x", pady=(6, 6))
         
         ctk.CTkLabel(privacy_frame, text="Privacy Level:", 
-            font=ctk.CTkFont(weight="bold")).pack(anchor="w", pady=(0, 5))
+            font=ctk.CTkFont(weight="bold")).pack(anchor="w", pady=(0, 4))
         
         self.privacy_var = ctk.StringVar(value="SELF_ONLY")
         
@@ -120,30 +120,30 @@ class TikTokUploadDialog(ctk.CTkToplevel):
         
         for value, text in privacy_options:
             ctk.CTkRadioButton(privacy_frame, text=text, variable=self.privacy_var, 
-                value=value).pack(anchor="w", padx=20, pady=2)
+                value=value).pack(anchor="w", padx=4, pady=4)
         
         # Video Settings
-        settings_frame = ctk.CTkFrame(scroll_frame, fg_color=("gray90", "gray17"))
-        settings_frame.pack(fill="x", pady=(15, 10))
+        settings_frame = ctk.CTkFrame(scroll_frame, fg_color=("gray90", "gray17"), border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        settings_frame.pack(fill="x", pady=(6, 6))
         
         ctk.CTkLabel(settings_frame, text="Video Settings", 
-            font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=10, pady=(10, 5))
+            font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=4, pady=(4, 4))
         
         self.disable_comment_var = ctk.BooleanVar(value=False)
         ctk.CTkCheckBox(settings_frame, text="Disable comments", 
-            variable=self.disable_comment_var).pack(anchor="w", padx=20, pady=2)
+            variable=self.disable_comment_var).pack(anchor="w", padx=4, pady=4)
         
         self.disable_duet_var = ctk.BooleanVar(value=False)
         ctk.CTkCheckBox(settings_frame, text="Disable duet", 
-            variable=self.disable_duet_var).pack(anchor="w", padx=20, pady=2)
+            variable=self.disable_duet_var).pack(anchor="w", padx=4, pady=4)
         
         self.disable_stitch_var = ctk.BooleanVar(value=False)
         ctk.CTkCheckBox(settings_frame, text="Disable stitch", 
-            variable=self.disable_stitch_var).pack(anchor="w", padx=20, pady=(2, 10))
+            variable=self.disable_stitch_var).pack(anchor="w", padx=4, pady=(4, 6))
         
         # Info note
-        info_note = ctk.CTkFrame(scroll_frame, fg_color=("gray90", "gray17"))
-        info_note.pack(fill="x", pady=(10, 0))
+        info_note = ctk.CTkFrame(scroll_frame, fg_color=("gray90", "gray17"), border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        info_note.pack(fill="x", pady=(4, 0))
         
         note_text = """📝 Note:
 • Sandbox mode uploads videos as private drafts
@@ -151,30 +151,30 @@ class TikTokUploadDialog(ctk.CTkToplevel):
 • Video will not be public until you publish it manually"""
         
         ctk.CTkLabel(info_note, text=note_text, justify="left", anchor="w",
-            font=ctk.CTkFont(size=10), text_color="gray").pack(padx=10, pady=10)
+            font=ctk.CTkFont(size=11), text_color="gray").pack(padx=4, pady=4)
         
         # Progress (outside scroll, before buttons)
         self.progress_frame = ctk.CTkFrame(main, fg_color="transparent")
-        self.progress_frame.pack(fill="x", pady=(10, 5))
+        self.progress_frame.pack(fill="x", pady=(4, 4))
         
         self.progress_label = ctk.CTkLabel(self.progress_frame, text="", text_color="gray",
             wraplength=500)
         self.progress_label.pack()
         
         self.progress_bar = ctk.CTkProgressBar(self.progress_frame)
-        self.progress_bar.pack(fill="x", pady=5)
+        self.progress_bar.pack(fill="x", pady=4)
         self.progress_bar.set(0)
         
         # Buttons (outside scroll)
         btn_frame = ctk.CTkFrame(main, fg_color="transparent")
-        btn_frame.pack(fill="x", pady=(10, 0))
+        btn_frame.pack(fill="x", pady=(4, 0))
         
-        ctk.CTkButton(btn_frame, text="Cancel", height=45, fg_color="gray",
-            command=self.destroy).pack(side="left", fill="x", expand=True, padx=(0, 5))
+        ctk.CTkButton(btn_frame, font=ctk.CTkFont(size=11), text="Cancel", height=22, fg_color="gray",
+            command=self.destroy, text_color=("#FFFFFF", "#FFFFFF")).pack(side="left", fill="x", expand=True, padx=(0, 4))
         
-        self.upload_btn = ctk.CTkButton(btn_frame, text="⬆️ Upload to TikTok", height=45, 
-            fg_color="#000000", hover_color="#1a1a1a", command=self.start_upload)
-        self.upload_btn.pack(side="left", fill="x", expand=True, padx=(5, 0))
+        self.upload_btn = ctk.CTkButton(btn_frame, font=ctk.CTkFont(size=11), text="Upload to TikTok", height=22, 
+            fg_color="#000000", hover_color="#17171b", command=self.start_upload, text_color=("#FFFFFF", "#FFFFFF"))
+        self.upload_btn.pack(side="left", fill="x", expand=True, padx=(4, 0))
     
     def update_caption_count(self, event=None):
         """Update caption character count"""
@@ -222,7 +222,7 @@ class TikTokUploadDialog(ctk.CTkToplevel):
         
         self.uploading = True
         self.upload_btn.configure(state="disabled", text="Uploading...")
-        self.progress_frame.pack(fill="x", pady=5)
+        self.progress_frame.pack(fill="x", pady=4)
         self.progress_label.configure(text="Starting upload...")
         
         def do_upload():

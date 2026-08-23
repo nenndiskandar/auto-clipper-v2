@@ -36,16 +36,16 @@ class BaseProviderSettingsPage(BaseSettingsSubPage):
         type_section = self.create_section("Provider Type")
         
         type_frame = ctk.CTkFrame(type_section, fg_color="transparent")
-        type_frame.pack(fill="x", padx=15, pady=(0, 12))
+        type_frame.pack(fill="x", padx=4, pady=(0, 8))
         
         ctk.CTkLabel(type_frame, text="Select API Provider", font=ctk.CTkFont(size=11)).pack(anchor="w")
         
         self.provider_type_var = ctk.StringVar(value="ytclip")
         self.provider_dropdown = ctk.CTkOptionMenu(type_frame, 
             values=["🎬 YT CLIP AI", "🤖 OPEN AI", "⚙️ CUSTOM"],
-            variable=self.provider_type_var, height=36,
+            variable=self.provider_type_var, height=26,
             command=self._on_provider_type_changed)
-        self.provider_dropdown.pack(fill="x", pady=(5, 0))
+        self.provider_dropdown.pack(fill="x", pady=(4, 0))
         
         # System Message Section (optional, can be overridden by child)
         self.system_message_textbox = None
@@ -55,38 +55,38 @@ class BaseProviderSettingsPage(BaseSettingsSubPage):
         self.url_section.pack_forget()  # Hidden by default
         
         url_frame = ctk.CTkFrame(self.url_section, fg_color="transparent")
-        url_frame.pack(fill="x", padx=15, pady=(0, 12))
+        url_frame.pack(fill="x", padx=4, pady=(0, 8))
         
         ctk.CTkLabel(url_frame, text="API Base URL", font=ctk.CTkFont(size=11)).pack(anchor="w")
-        self.url_entry = ctk.CTkEntry(url_frame, placeholder_text="https://api.openai.com/v1", height=36)
-        self.url_entry.pack(fill="x", pady=(5, 0))
+        self.url_entry = ctk.CTkEntry(url_frame, placeholder_text="https://api.openai.com/v1", height=26)
+        self.url_entry.pack(fill="x", pady=(4, 0))
         
         # API Key Section
         key_section = self.create_section("API Key")
         
         key_frame = ctk.CTkFrame(key_section, fg_color="transparent")
-        key_frame.pack(fill="x", padx=15, pady=(0, 12))
+        key_frame.pack(fill="x", padx=4, pady=(0, 8))
         
         ctk.CTkLabel(key_frame, text="API Key", font=ctk.CTkFont(size=11)).pack(anchor="w")
-        self.key_entry = ctk.CTkEntry(key_frame, placeholder_text="sk-...", show="•", height=36)
-        self.key_entry.pack(fill="x", pady=(5, 0))
+        self.key_entry = ctk.CTkEntry(key_frame, placeholder_text="sk-...", show="•", height=26)
+        self.key_entry.pack(fill="x", pady=(4, 0))
         
         # Model Section
         self.model_section = self.create_section("Model")
         
         model_frame = ctk.CTkFrame(self.model_section, fg_color="transparent")
-        model_frame.pack(fill="x", padx=15, pady=(0, 12))
+        model_frame.pack(fill="x", padx=4, pady=(0, 8))
         
         ctk.CTkLabel(model_frame, text="Model Name", font=ctk.CTkFont(size=11)).pack(anchor="w")
         
         model_row = ctk.CTkFrame(model_frame, fg_color="transparent")
-        model_row.pack(fill="x", pady=(5, 0))
+        model_row.pack(fill="x", pady=(4, 0))
         
         # Check if using manual input mode
         if self.USE_MANUAL_INPUT:
             # Manual input mode - use CTkEntry
             self.model_entry = ctk.CTkEntry(model_row, 
-                placeholder_text=f"e.g., {self.DEFAULT_MODEL}", height=36)
+                placeholder_text=f"e.g., {self.DEFAULT_MODEL}", height=26)
             self.model_entry.pack(fill="x")
             self.model_dropdown = None
             self.model_var = None
@@ -101,27 +101,27 @@ class BaseProviderSettingsPage(BaseSettingsSubPage):
                 # Fixed dropdown - no load button needed
                 self.model_dropdown = ctk.CTkOptionMenu(model_row, 
                     values=self.FIXED_MODELS,
-                    variable=self.model_var, height=36)
+                    variable=self.model_var, height=26)
                 self.model_dropdown.pack(fill="x")
                 self.load_btn = None
             else:
                 # Dynamic dropdown with load button
                 self.model_dropdown = ctk.CTkOptionMenu(model_row, 
                     values=["-- Click Load to fetch models --"],
-                    variable=self.model_var, height=36, width=200)
-                self.model_dropdown.pack(side="left", fill="x", expand=True, padx=(0, 5))
+                    variable=self.model_var, height=26, width=200)
+                self.model_dropdown.pack(side="left", fill="x", expand=True, padx=(0, 4))
                 
-                self.load_btn = ctk.CTkButton(model_row, text="🔄 Load", width=80, height=36,
+                self.load_btn = ctk.CTkButton(model_row, font=ctk.CTkFont(size=11), text="Load", width=80, height=22,
                     command=self.load_models)
                 self.load_btn.pack(side="right")
         
         # Actions
         actions_frame = ctk.CTkFrame(self.content, fg_color="transparent")
-        actions_frame.pack(fill="x", pady=(10, 0))
+        actions_frame.pack(fill="x", pady=(4, 0))
         
-        ctk.CTkButton(actions_frame, text="🔍 Validate Configuration", height=40,
-            fg_color=("#3B8ED0", "#1F6AA5"), hover_color=("#36719F", "#144870"),
-            command=self.validate_config).pack(fill="x", pady=(0, 10))
+        ctk.CTkButton(actions_frame, font=ctk.CTkFont(size=11), text="Validate Configuration", height=22,
+            fg_color=("#00A878", "#00A878"), hover_color=("#008F66", "#008F66"),
+            command=self.validate_config, text_color=("#0B0B0C", "#0B0B0C")).pack(fill="x", pady=(0, 6))
         
         # Save button
         self.create_save_button(self.save_settings)
@@ -129,7 +129,7 @@ class BaseProviderSettingsPage(BaseSettingsSubPage):
     def _on_provider_type_changed(self, value):
         """Handle provider type dropdown change"""
         if "CUSTOM" in value:
-            self.url_section.pack(fill="x", pady=(0, 10), after=self.content.winfo_children()[1])
+            self.url_section.pack(fill="x", pady=(0, 6), after=self.content.winfo_children()[1])
         else:
             self.url_section.pack_forget()
     
@@ -244,7 +244,7 @@ class BaseProviderSettingsPage(BaseSettingsSubPage):
             self.provider_type_var.set("🤖 OPEN AI")
         else:
             self.provider_type_var.set("⚙️ CUSTOM")
-            self.url_section.pack(fill="x", pady=(0, 10), after=self.content.winfo_children()[1])
+            self.url_section.pack(fill="x", pady=(0, 6), after=self.content.winfo_children()[1])
         
         self.url_entry.delete(0, "end")
         self.url_entry.insert(0, base_url)

@@ -10,7 +10,7 @@ class AIProviderCard(ctk.CTkFrame):
     """Collapsible card for AI provider configuration"""
     
     def __init__(self, parent, title, description, provider_key, config, on_validate_callback):
-        super().__init__(parent, fg_color=("gray90", "gray17"), corner_radius=10)
+        super().__init__(parent, fg_color=("gray90", "gray17"), corner_radius=5)
         
         self.title = title
         self.description = description
@@ -26,7 +26,7 @@ class AIProviderCard(ctk.CTkFrame):
         """Create the card UI"""
         # Header (always visible)
         header = ctk.CTkFrame(self, fg_color="transparent", cursor="hand2")
-        header.pack(fill="x", padx=15, pady=12)
+        header.pack(fill="x", padx=4, pady=4)
         header.bind("<Button-1>", lambda e: self.toggle_expand())
         
         # Left: Icon + Title + Description
@@ -40,24 +40,24 @@ class AIProviderCard(ctk.CTkFrame):
         title_row.bind("<Button-1>", lambda e: self.toggle_expand())
         
         self.title_label = ctk.CTkLabel(title_row, text=self.title, 
-            font=ctk.CTkFont(size=14, weight="bold"), anchor="w")
+            font=ctk.CTkFont(size=11, weight="bold"), anchor="w")
         self.title_label.pack(side="left")
         self.title_label.bind("<Button-1>", lambda e: self.toggle_expand())
         
         # Status indicator
         self.status_label = ctk.CTkLabel(title_row, text="⚠️ Not configured", 
-            font=ctk.CTkFont(size=10), text_color="orange", anchor="w")
-        self.status_label.pack(side="left", padx=(10, 0))
+            font=ctk.CTkFont(size=11), text_color="orange", anchor="w")
+        self.status_label.pack(side="left", padx=(4, 0))
         self.status_label.bind("<Button-1>", lambda e: self.toggle_expand())
         
         # Description
         self.desc_label = ctk.CTkLabel(left_frame, text=self.description, 
             font=ctk.CTkFont(size=11), text_color="gray", anchor="w")
-        self.desc_label.pack(fill="x", pady=(3, 0))
+        self.desc_label.pack(fill="x", pady=(4, 0))
         self.desc_label.bind("<Button-1>", lambda e: self.toggle_expand())
         
         # Right: Expand/Collapse icon
-        self.expand_icon = ctk.CTkLabel(header, text="▼", font=ctk.CTkFont(size=16), 
+        self.expand_icon = ctk.CTkLabel(header, text="▼", font=ctk.CTkFont(size=12), 
             text_color="gray", cursor="hand2")
         self.expand_icon.pack(side="right")
         self.expand_icon.bind("<Button-1>", lambda e: self.toggle_expand())
@@ -68,17 +68,17 @@ class AIProviderCard(ctk.CTkFrame):
         
         # API URL
         url_frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
-        url_frame.pack(fill="x", padx=15, pady=(5, 10))
+        url_frame.pack(fill="x", padx=4, pady=(4, 6))
         
         ctk.CTkLabel(url_frame, text="API Base URL", font=ctk.CTkFont(size=11, weight="bold"), 
             anchor="w").pack(fill="x")
         self.url_entry = ctk.CTkEntry(url_frame, height=35, 
             placeholder_text="https://api.openai.com/v1")
-        self.url_entry.pack(fill="x", pady=(5, 0))
+        self.url_entry.pack(fill="x", pady=(4, 0))
         
         # API Key
         key_frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
-        key_frame.pack(fill="x", padx=15, pady=(0, 10))
+        key_frame.pack(fill="x", padx=4, pady=(0, 6))
         
         key_label_row = ctk.CTkFrame(key_frame, fg_color="transparent")
         key_label_row.pack(fill="x")
@@ -88,36 +88,36 @@ class AIProviderCard(ctk.CTkFrame):
         
         self.key_entry = ctk.CTkEntry(key_frame, height=35, show="*",
             placeholder_text="sk-...")
-        self.key_entry.pack(fill="x", pady=(5, 0))
+        self.key_entry.pack(fill="x", pady=(4, 0))
         
         # Model
         model_frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
-        model_frame.pack(fill="x", padx=15, pady=(0, 10))
+        model_frame.pack(fill="x", padx=4, pady=(0, 6))
         
         ctk.CTkLabel(model_frame, text="Model", font=ctk.CTkFont(size=11, weight="bold"), 
             anchor="w").pack(fill="x")
         self.model_entry = ctk.CTkEntry(model_frame, height=35,
             placeholder_text="gpt-4.1")
-        self.model_entry.pack(fill="x", pady=(5, 0))
+        self.model_entry.pack(fill="x", pady=(4, 0))
         
         # Buttons
         btn_frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
-        btn_frame.pack(fill="x", padx=15, pady=(0, 15))
+        btn_frame.pack(fill="x", padx=4, pady=(0, 8))
         
-        self.validate_btn = ctk.CTkButton(btn_frame, text="🔍 Validate", height=35,
-            fg_color=("#3B8ED0", "#1F6AA5"), command=self.validate_config)
-        self.validate_btn.pack(side="left", fill="x", expand=True, padx=(0, 5))
+        self.validate_btn = ctk.CTkButton(btn_frame, font=ctk.CTkFont(size=11), text="Validate", height=18,
+            fg_color=("#00A878", "#00A878"), command=self.validate_config, text_color=("#0B0B0C", "#0B0B0C"))
+        self.validate_btn.pack(side="left", fill="x", expand=True, padx=(0, 4))
         
-        self.apply_all_btn = ctk.CTkButton(btn_frame, text="📋 Apply URL & Key to All", height=35,
-            fg_color="gray", command=self.apply_to_all)
-        self.apply_all_btn.pack(side="left", fill="x", expand=True, padx=(5, 0))
+        self.apply_all_btn = ctk.CTkButton(btn_frame, font=ctk.CTkFont(size=11), text="Apply URL & Key to All", height=18,
+            fg_color="gray", command=self.apply_to_all, text_color=("#FFFFFF", "#FFFFFF"))
+        self.apply_all_btn.pack(side="left", fill="x", expand=True, padx=(4, 0))
     
     def toggle_expand(self):
         """Toggle expand/collapse"""
         self.is_expanded = not self.is_expanded
         
         if self.is_expanded:
-            self.content_frame.pack(fill="x", pady=(0, 10))
+            self.content_frame.pack(fill="x", pady=(0, 6))
             self.expand_icon.configure(text="▲")
         else:
             self.content_frame.pack_forget()

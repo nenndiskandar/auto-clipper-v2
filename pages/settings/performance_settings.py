@@ -30,47 +30,70 @@ class PerformanceSettingsSubPage(BaseSettingsSubPage):
         detection_section = self.create_section("GPU Detection")
         
         detection_frame = ctk.CTkFrame(detection_section, fg_color="transparent")
-        detection_frame.pack(fill="x", padx=15, pady=(0, 12))
+        detection_frame.pack(fill="x", padx=4, pady=(0, 8))
         
         # GPU info display
-        self.gpu_info_frame = ctk.CTkFrame(detection_frame, fg_color=("gray90", "gray15"), corner_radius=8)
-        self.gpu_info_frame.pack(fill="x", pady=(0, 10))
+        self.gpu_info_frame = ctk.CTkFrame(detection_frame, fg_color=("gray90", "gray15"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        self.gpu_info_frame.pack(fill="x", pady=(0, 6))
         
         self.gpu_status_label = ctk.CTkLabel(self.gpu_info_frame, text="Detecting GPU...", 
             font=ctk.CTkFont(size=11), anchor="w", justify="left")
-        self.gpu_status_label.pack(fill="x", padx=12, pady=12)
+        self.gpu_status_label.pack(fill="x", padx=4, pady=4)
         
         # Detect button
-        self.detect_gpu_btn = ctk.CTkButton(detection_frame, text="🔄 Detect GPU", height=36,
-            fg_color=("#3B8ED0", "#1F6AA5"), command=self.detect_gpu)
+        self.detect_gpu_btn = ctk.CTkButton(detection_frame, font=ctk.CTkFont(size=11), text="Detect GPU", height=22,
+            fg_color=("#00A878", "#00A878"), command=self.detect_gpu, text_color=("#0B0B0C", "#0B0B0C"))
         self.detect_gpu_btn.pack(fill="x")
         
         # GPU Acceleration Section
         accel_section = self.create_section("GPU Acceleration")
         
         accel_frame = ctk.CTkFrame(accel_section, fg_color="transparent")
-        accel_frame.pack(fill="x", padx=15, pady=(0, 12))
+        accel_frame.pack(fill="x", padx=4, pady=(0, 8))
         
         self.gpu_enabled_var = ctk.BooleanVar(value=False)
         self.gpu_switch = ctk.CTkSwitch(accel_frame, text="Enable GPU Acceleration", 
-            variable=self.gpu_enabled_var, font=ctk.CTkFont(size=12),
+            variable=self.gpu_enabled_var, font=ctk.CTkFont(size=11),
             command=self.toggle_gpu_acceleration, state="disabled")
-        self.gpu_switch.pack(anchor="w", pady=(0, 10))
+        self.gpu_switch.pack(anchor="w", pady=(0, 6))
         
         ctk.CTkLabel(accel_frame, 
             text="GPU encoding is 3-5x faster than CPU. Requires compatible hardware.",
-            font=ctk.CTkFont(size=10), text_color="gray", anchor="w", justify="left").pack(fill="x")
+            font=ctk.CTkFont(size=11), text_color="gray", anchor="w", justify="left").pack(fill="x")
         
         # Technical Details Section
         details_section = self.create_section("Technical Details")
         
         details_frame = ctk.CTkFrame(details_section, fg_color="transparent")
-        details_frame.pack(fill="x", padx=15, pady=(0, 12))
+        details_frame.pack(fill="x", padx=4, pady=(0, 8))
         
         self.encoder_info_label = ctk.CTkLabel(details_frame, 
             text="Encoder: Not detected\nPreset: N/A\nStatus: Click 'Detect GPU' to check",
-            font=ctk.CTkFont(size=10), text_color="gray", anchor="w", justify="left")
+            font=ctk.CTkFont(size=11), text_color="gray", anchor="w", justify="left")
         self.encoder_info_label.pack(fill="x")
+        
+        # Face Tracking Section
+        face_section = self.create_section("Face Tracking (MediaPipe)")
+        
+        face_frame = ctk.CTkFrame(face_section, fg_color="transparent")
+        face_frame.pack(fill="x", padx=4, pady=(0, 8))
+        
+        self.smooth_follow_var = ctk.BooleanVar(value=True)
+        ctk.CTkSwitch(face_frame, text="Smooth Follow (Camera pans with face movement)", 
+            variable=self.smooth_follow_var, font=ctk.CTkFont(size=11)).pack(anchor="w", pady=(0, 6))
+        
+        self.pan_speed_var = ctk.DoubleVar(value=2.5)
+        speed_row = ctk.CTkFrame(face_frame, fg_color="transparent")
+        speed_row.pack(fill="x", pady=(0, 4))
+        ctk.CTkLabel(speed_row, text="Pan Speed Limit (px/frame):", 
+            font=ctk.CTkFont(size=11)).pack(side="left")
+        self.pan_speed_entry = ctk.CTkEntry(speed_row, textvariable=self.pan_speed_var, width=70, height=26)
+        self.pan_speed_entry.pack(side="right")
+        
+        ctk.CTkLabel(face_frame, 
+            text="Smooth Follow ON: crop window glides continuously behind the speaker's face.\n"
+                 "Smooth Follow OFF: crop locks per shot (fixed frame with quick cuts).",
+            font=ctk.CTkFont(size=11), text_color="gray", anchor="w", justify="left").pack(fill="x", pady=(4, 0))
         
         # Save button
         self.create_save_button(self.save_settings)
@@ -163,6 +186,10 @@ class PerformanceSettingsSubPage(BaseSettingsSubPage):
             
         gpu_config = config_dict.get("gpu_acceleration", {})
         self.gpu_enabled_var.set(gpu_config.get("enabled", False))
+        
+        mp_settings = config_dict.get("mediapipe_settings", {})
+        self.smooth_follow_var.set(mp_settings.get("smooth_follow", True))
+        self.pan_speed_var.set(mp_settings.get("pan_speed_limit", 2.5))
     
     def save_settings(self):
         """Save settings"""
@@ -175,6 +202,14 @@ class PerformanceSettingsSubPage(BaseSettingsSubPage):
         config_dict["gpu_acceleration"] = {
             "enabled": self.gpu_enabled_var.get()
         }
+        
+        mp_settings = config_dict.get("mediapipe_settings", {})
+        mp_settings["smooth_follow"] = self.smooth_follow_var.get()
+        try:
+            mp_settings["pan_speed_limit"] = max(0.5, min(10.0, float(self.pan_speed_var.get())))
+        except Exception:
+            pass
+        config_dict["mediapipe_settings"] = mp_settings
         
         if self.on_save_callback:
             self.on_save_callback(config_dict)

@@ -8,8 +8,17 @@ mediapipe>=0.10.0
 requests>=2.31.0
 yt-dlp>=2026.3.17
 curl-cffi>=0.14.0
+faster-whisper>=1.0.0
+silero-vad>=4.0.0
+onnxruntime>=1.16.0
 
 # YouTube Upload
 google-api-python-client>=2.100.0
 google-auth-oauthlib>=1.1.0
 google-auth-httplib2>=0.1.1
+
+# Telegram Bot (Bot API)
+python-telegram-bot>=20.0
+
+# Telegram Client / Userbot (MTProto, tanpa bot token)
+telethon>=1.34.0

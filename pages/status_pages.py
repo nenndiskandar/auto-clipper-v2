@@ -29,113 +29,113 @@ class APIStatusPage(ctk.CTkFrame):
         from components.page_layout import PageHeader, PageFooter
         
         # Set background color to match home page
-        self.configure(fg_color=("#1a1a1a", "#0a0a0a"))
+        self.configure(fg_color=("#ffffff", "#0b0b0c"))
         
         # Header with back button (fixed at top)
-        header = PageHeader(self, self, show_nav_buttons=False, show_back_button=True, page_title="API Status")
-        header.pack(fill="x", padx=20, pady=(15, 10))
+        header = PageHeader(self, self, show_nav_buttons=False, show_back_button=False, page_title="API Status")
+        header.pack(fill="x", padx=4, pady=(6, 6))
         
         # Footer (fixed at bottom) - pack first so it stays at bottom
         footer = PageFooter(self, self)
-        footer.pack(fill="x", padx=20, pady=(0, 15), side="bottom")
+        footer.pack(fill="x", padx=4, pady=(0, 8), side="bottom")
         
         # Scrollable content area (between header and footer)
         main = ctk.CTkScrollableFrame(self, fg_color="transparent")
-        main.pack(fill="both", expand=True, padx=20, pady=(0, 10))
+        main.pack(fill="both", expand=True, padx=4, pady=(0, 6))
         
         # ===== AI API Section =====
-        ai_section = ctk.CTkFrame(main, fg_color=("gray90", "gray17"))
-        ai_section.pack(fill="x", pady=(15, 10))
+        ai_section = ctk.CTkFrame(main, fg_color=("gray90", "gray17"), border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        ai_section.pack(fill="x", pady=(6, 6))
         
-        ctk.CTkLabel(ai_section, text="AI API", font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", padx=15, pady=(12, 8))
+        ctk.CTkLabel(ai_section, text="AI API", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=4, pady=(6, 6))
         
         # AI API cards row (4 cards horizontal)
         ai_cards_frame = ctk.CTkFrame(ai_section, fg_color="transparent")
-        ai_cards_frame.pack(fill="x", padx=10, pady=(0, 12))
+        ai_cards_frame.pack(fill="x", padx=4, pady=(0, 8))
         ai_cards_frame.grid_columnconfigure((0, 1, 2, 3), weight=1, uniform="ai")
         
         # Highlight Finder card
-        hf_card = ctk.CTkFrame(ai_cards_frame, fg_color=("gray85", "gray20"), corner_radius=8)
-        hf_card.grid(row=0, column=0, padx=5, pady=5, sticky="nsew")
-        ctk.CTkLabel(hf_card, text="🎯 Highlight Finder", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=10, pady=(10, 5))
-        self.hf_status_label = ctk.CTkLabel(hf_card, text="Checking...", font=ctk.CTkFont(size=10), text_color="gray")
-        self.hf_status_label.pack(anchor="w", padx=10)
-        self.hf_info_label = ctk.CTkLabel(hf_card, text="", font=ctk.CTkFont(size=9), text_color="gray")
-        self.hf_info_label.pack(anchor="w", padx=10, pady=(2, 10))
+        hf_card = ctk.CTkFrame(ai_cards_frame, fg_color=("gray85", "gray20"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        hf_card.grid(row=0, column=0, padx=4, pady=4, sticky="nsew")
+        ctk.CTkLabel(hf_card, text="🎯 Highlight Finder", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=4, pady=(4, 4))
+        self.hf_status_label = ctk.CTkLabel(hf_card, text="Checking...", font=ctk.CTkFont(size=11), text_color="gray")
+        self.hf_status_label.pack(anchor="w", padx=4)
+        self.hf_info_label = ctk.CTkLabel(hf_card, text="", font=ctk.CTkFont(size=11), text_color="gray")
+        self.hf_info_label.pack(anchor="w", padx=4, pady=(4, 6))
         
         # Caption Maker card
-        cm_card = ctk.CTkFrame(ai_cards_frame, fg_color=("gray85", "gray20"), corner_radius=8)
-        cm_card.grid(row=0, column=1, padx=5, pady=5, sticky="nsew")
-        ctk.CTkLabel(cm_card, text="📝 Caption Maker", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=10, pady=(10, 5))
-        self.cm_status_label = ctk.CTkLabel(cm_card, text="Checking...", font=ctk.CTkFont(size=10), text_color="gray")
-        self.cm_status_label.pack(anchor="w", padx=10)
-        self.cm_info_label = ctk.CTkLabel(cm_card, text="", font=ctk.CTkFont(size=9), text_color="gray")
-        self.cm_info_label.pack(anchor="w", padx=10, pady=(2, 10))
+        cm_card = ctk.CTkFrame(ai_cards_frame, fg_color=("gray85", "gray20"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        cm_card.grid(row=0, column=1, padx=4, pady=4, sticky="nsew")
+        ctk.CTkLabel(cm_card, text="📝 Caption Maker", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=4, pady=(4, 4))
+        self.cm_status_label = ctk.CTkLabel(cm_card, text="Checking...", font=ctk.CTkFont(size=11), text_color="gray")
+        self.cm_status_label.pack(anchor="w", padx=4)
+        self.cm_info_label = ctk.CTkLabel(cm_card, text="", font=ctk.CTkFont(size=11), text_color="gray")
+        self.cm_info_label.pack(anchor="w", padx=4, pady=(4, 6))
         
         # Hook Maker card
-        hm_card = ctk.CTkFrame(ai_cards_frame, fg_color=("gray85", "gray20"), corner_radius=8)
-        hm_card.grid(row=0, column=2, padx=5, pady=5, sticky="nsew")
-        ctk.CTkLabel(hm_card, text="🎤 Hook Maker", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=10, pady=(10, 5))
-        self.hm_status_label = ctk.CTkLabel(hm_card, text="Checking...", font=ctk.CTkFont(size=10), text_color="gray")
-        self.hm_status_label.pack(anchor="w", padx=10)
-        self.hm_info_label = ctk.CTkLabel(hm_card, text="", font=ctk.CTkFont(size=9), text_color="gray")
-        self.hm_info_label.pack(anchor="w", padx=10, pady=(2, 10))
+        hm_card = ctk.CTkFrame(ai_cards_frame, fg_color=("gray85", "gray20"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        hm_card.grid(row=0, column=2, padx=4, pady=4, sticky="nsew")
+        ctk.CTkLabel(hm_card, text="🎤 Hook Maker", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=4, pady=(4, 4))
+        self.hm_status_label = ctk.CTkLabel(hm_card, text="Checking...", font=ctk.CTkFont(size=11), text_color="gray")
+        self.hm_status_label.pack(anchor="w", padx=4)
+        self.hm_info_label = ctk.CTkLabel(hm_card, text="", font=ctk.CTkFont(size=11), text_color="gray")
+        self.hm_info_label.pack(anchor="w", padx=4, pady=(4, 6))
         
         # YouTube Title Maker card
-        yt_maker_card = ctk.CTkFrame(ai_cards_frame, fg_color=("gray85", "gray20"), corner_radius=8)
-        yt_maker_card.grid(row=0, column=3, padx=5, pady=5, sticky="nsew")
-        ctk.CTkLabel(yt_maker_card, text="📺 YT Title Maker", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=10, pady=(10, 5))
-        self.yt_maker_status_label = ctk.CTkLabel(yt_maker_card, text="Checking...", font=ctk.CTkFont(size=10), text_color="gray")
-        self.yt_maker_status_label.pack(anchor="w", padx=10)
-        self.yt_maker_info_label = ctk.CTkLabel(yt_maker_card, text="", font=ctk.CTkFont(size=9), text_color="gray")
-        self.yt_maker_info_label.pack(anchor="w", padx=10, pady=(2, 10))
+        yt_maker_card = ctk.CTkFrame(ai_cards_frame, fg_color=("gray85", "gray20"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        yt_maker_card.grid(row=0, column=3, padx=4, pady=4, sticky="nsew")
+        ctk.CTkLabel(yt_maker_card, text="📺 YT Title Maker", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=4, pady=(4, 4))
+        self.yt_maker_status_label = ctk.CTkLabel(yt_maker_card, text="Checking...", font=ctk.CTkFont(size=11), text_color="gray")
+        self.yt_maker_status_label.pack(anchor="w", padx=4)
+        self.yt_maker_info_label = ctk.CTkLabel(yt_maker_card, text="", font=ctk.CTkFont(size=11), text_color="gray")
+        self.yt_maker_info_label.pack(anchor="w", padx=4, pady=(4, 6))
         
         # ===== Social Media API Section =====
-        social_section = ctk.CTkFrame(main, fg_color=("gray90", "gray17"))
-        social_section.pack(fill="x", pady=(0, 10))
+        social_section = ctk.CTkFrame(main, fg_color=("gray90", "gray17"), border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        social_section.pack(fill="x", pady=(0, 6))
         
-        ctk.CTkLabel(social_section, text="Social Media API", font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", padx=15, pady=(12, 8))
+        ctk.CTkLabel(social_section, text="Social Media API", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=4, pady=(6, 6))
         
         # Social Media API cards row (2 cards horizontal, 50:50)
         social_cards_frame = ctk.CTkFrame(social_section, fg_color="transparent")
-        social_cards_frame.pack(fill="x", padx=10, pady=(0, 12))
+        social_cards_frame.pack(fill="x", padx=4, pady=(0, 8))
         social_cards_frame.grid_columnconfigure((0, 1), weight=1, uniform="social")
         
         # YouTube V3 API card
-        yt_card = ctk.CTkFrame(social_cards_frame, fg_color=("gray85", "gray20"), corner_radius=8)
-        yt_card.grid(row=0, column=0, padx=5, pady=5, sticky="nsew")
+        yt_card = ctk.CTkFrame(social_cards_frame, fg_color=("gray85", "gray20"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        yt_card.grid(row=0, column=0, padx=4, pady=4, sticky="nsew")
         yt_row = ctk.CTkFrame(yt_card, fg_color="transparent")
-        yt_row.pack(fill="x", padx=10, pady=8)
+        yt_row.pack(fill="x", padx=4, pady=4)
         yt_left = ctk.CTkFrame(yt_row, fg_color="transparent")
         yt_left.pack(side="left", fill="x", expand=True)
         ctk.CTkLabel(yt_left, text="📺 YouTube V3 API", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w")
-        self.yt_status_label = ctk.CTkLabel(yt_left, text="Checking...", font=ctk.CTkFont(size=10), text_color="gray")
+        self.yt_status_label = ctk.CTkLabel(yt_left, text="Checking...", font=ctk.CTkFont(size=11), text_color="gray")
         self.yt_status_label.pack(anchor="w")
-        self.yt_info_label = ctk.CTkLabel(yt_left, text="", font=ctk.CTkFont(size=9), text_color="gray")
+        self.yt_info_label = ctk.CTkLabel(yt_left, text="", font=ctk.CTkFont(size=11), text_color="gray")
         self.yt_info_label.pack(anchor="w")
-        self.yt_connect_btn = ctk.CTkButton(yt_row, text="Connect", width=80, height=28, font=ctk.CTkFont(size=10),
-            fg_color=("#3B8ED0", "#1F6AA5"), command=self.connect_youtube)
+        self.yt_connect_btn = ctk.CTkButton(yt_row, text="Connect", width=80, height=18, font=ctk.CTkFont(size=11),
+            fg_color=("#00A878", "#00A878"), command=self.connect_youtube, text_color=("#0B0B0C", "#0B0B0C"))
         # Button will be shown/hidden based on status
         
         # Repliz API card
-        repliz_card = ctk.CTkFrame(social_cards_frame, fg_color=("gray85", "gray20"), corner_radius=8)
-        repliz_card.grid(row=0, column=1, padx=5, pady=5, sticky="nsew")
+        repliz_card = ctk.CTkFrame(social_cards_frame, fg_color=("gray85", "gray20"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        repliz_card.grid(row=0, column=1, padx=4, pady=4, sticky="nsew")
         repliz_row = ctk.CTkFrame(repliz_card, fg_color="transparent")
-        repliz_row.pack(fill="x", padx=10, pady=8)
+        repliz_row.pack(fill="x", padx=4, pady=4)
         repliz_left = ctk.CTkFrame(repliz_row, fg_color="transparent")
         repliz_left.pack(side="left", fill="x", expand=True)
         ctk.CTkLabel(repliz_left, text="🎬 Repliz API", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w")
-        self.repliz_status_label = ctk.CTkLabel(repliz_left, text="Checking...", font=ctk.CTkFont(size=10), text_color="gray")
+        self.repliz_status_label = ctk.CTkLabel(repliz_left, text="Checking...", font=ctk.CTkFont(size=11), text_color="gray")
         self.repliz_status_label.pack(anchor="w")
-        self.repliz_info_label = ctk.CTkLabel(repliz_left, text="", font=ctk.CTkFont(size=9), text_color="gray")
+        self.repliz_info_label = ctk.CTkLabel(repliz_left, text="", font=ctk.CTkFont(size=11), text_color="gray")
         self.repliz_info_label.pack(anchor="w")
-        self.repliz_register_btn = ctk.CTkButton(repliz_row, text="Register", width=80, height=28, font=ctk.CTkFont(size=10),
-            fg_color=("#3B8ED0", "#1F6AA5"), command=self.register_repliz)
+        self.repliz_register_btn = ctk.CTkButton(repliz_row, text="Register", width=80, height=18, font=ctk.CTkFont(size=11),
+            fg_color=("#00A878", "#00A878"), command=self.register_repliz, text_color=("#0B0B0C", "#0B0B0C"))
         # Button will be shown/hidden based on status
         
         # Refresh button
-        ctk.CTkButton(main, text="Refresh Status", image=self.refresh_icon, compound="left",
-            height=40, command=self.refresh_status).pack(fill="x", pady=(10, 0))
+        ctk.CTkButton(main, font=ctk.CTkFont(size=11), text="Refresh Status", compound="left",
+            height=22, command=self.refresh_status).pack(fill="x", pady=(4, 0))
     
     def update_status(self, youtube_connected, youtube_channel):
         """Update YouTube connection status (deprecated - now uses callback)"""
@@ -308,85 +308,85 @@ class LibStatusPage(ctk.CTkFrame):
         from components.page_layout import PageHeader, PageFooter
         
         # Set background color to match home page
-        self.configure(fg_color=("#1a1a1a", "#0a0a0a"))
+        self.configure(fg_color=("#ffffff", "#0b0b0c"))
         
         # Header with back button (fixed at top)
-        header = PageHeader(self, self, show_nav_buttons=False, show_back_button=True, page_title="Library Status")
-        header.pack(fill="x", padx=20, pady=(15, 10))
+        header = PageHeader(self, self, show_nav_buttons=False, show_back_button=False, page_title="Library Status")
+        header.pack(fill="x", padx=4, pady=(6, 6))
         
         # Footer (fixed at bottom) - pack first so it stays at bottom
         footer = PageFooter(self, self)
-        footer.pack(fill="x", padx=20, pady=(0, 15), side="bottom")
+        footer.pack(fill="x", padx=4, pady=(0, 8), side="bottom")
         
         # Scrollable content area (between header and footer)
         main = ctk.CTkScrollableFrame(self, fg_color="transparent")
-        main.pack(fill="both", expand=True, padx=20, pady=(0, 10))
+        main.pack(fill="both", expand=True, padx=4, pady=(0, 6))
         
         # ===== Libraries Section =====
-        lib_section = ctk.CTkFrame(main, fg_color=("gray90", "gray17"))
-        lib_section.pack(fill="x", pady=(15, 10))
+        lib_section = ctk.CTkFrame(main, fg_color=("gray90", "gray17"), border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        lib_section.pack(fill="x", pady=(6, 6))
         
-        ctk.CTkLabel(lib_section, text="Required Libraries", font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", padx=15, pady=(12, 8))
+        ctk.CTkLabel(lib_section, text="Required Libraries", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=4, pady=(6, 6))
         
         # Library cards row (3 cards horizontal)
         lib_cards_frame = ctk.CTkFrame(lib_section, fg_color="transparent")
-        lib_cards_frame.pack(fill="x", padx=10, pady=(0, 12))
+        lib_cards_frame.pack(fill="x", padx=4, pady=(0, 8))
         lib_cards_frame.grid_columnconfigure((0, 1, 2), weight=1, uniform="lib")
         
         # yt-dlp card
-        ytdlp_card = ctk.CTkFrame(lib_cards_frame, fg_color=("gray85", "gray20"), corner_radius=8)
-        ytdlp_card.grid(row=0, column=0, padx=5, pady=5, sticky="nsew")
-        ctk.CTkLabel(ytdlp_card, text="📦 yt-dlp", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=10, pady=(10, 5))
-        self.ytdlp_status_label = ctk.CTkLabel(ytdlp_card, text="Checking...", font=ctk.CTkFont(size=10), text_color="gray")
-        self.ytdlp_status_label.pack(anchor="w", padx=10)
-        self.ytdlp_info_label = ctk.CTkLabel(ytdlp_card, text="", font=ctk.CTkFont(size=9), text_color="gray")
-        self.ytdlp_info_label.pack(anchor="w", padx=10, pady=(2, 10))
+        ytdlp_card = ctk.CTkFrame(lib_cards_frame, fg_color=("gray85", "gray20"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        ytdlp_card.grid(row=0, column=0, padx=4, pady=4, sticky="nsew")
+        ctk.CTkLabel(ytdlp_card, text="📦 yt-dlp", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=4, pady=(4, 4))
+        self.ytdlp_status_label = ctk.CTkLabel(ytdlp_card, text="Checking...", font=ctk.CTkFont(size=11), text_color="gray")
+        self.ytdlp_status_label.pack(anchor="w", padx=4)
+        self.ytdlp_info_label = ctk.CTkLabel(ytdlp_card, text="", font=ctk.CTkFont(size=11), text_color="gray")
+        self.ytdlp_info_label.pack(anchor="w", padx=4, pady=(4, 6))
         
         # FFmpeg card
-        ffmpeg_card = ctk.CTkFrame(lib_cards_frame, fg_color=("gray85", "gray20"), corner_radius=8)
-        ffmpeg_card.grid(row=0, column=1, padx=5, pady=5, sticky="nsew")
+        ffmpeg_card = ctk.CTkFrame(lib_cards_frame, fg_color=("gray85", "gray20"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        ffmpeg_card.grid(row=0, column=1, padx=4, pady=4, sticky="nsew")
         self.ffmpeg_card = ffmpeg_card  # Store reference for download button
-        ctk.CTkLabel(ffmpeg_card, text="🎬 FFmpeg Suite", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=10, pady=(10, 5))
-        self.ffmpeg_status_label = ctk.CTkLabel(ffmpeg_card, text="Checking...", font=ctk.CTkFont(size=10), text_color="gray")
-        self.ffmpeg_status_label.pack(anchor="w", padx=10)
-        self.ffmpeg_info_label = ctk.CTkLabel(ffmpeg_card, text="", font=ctk.CTkFont(size=9), text_color="gray")
-        self.ffmpeg_info_label.pack(anchor="w", padx=10, pady=(2, 0))
+        ctk.CTkLabel(ffmpeg_card, text="🎬 FFmpeg Suite", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=4, pady=(4, 4))
+        self.ffmpeg_status_label = ctk.CTkLabel(ffmpeg_card, text="Checking...", font=ctk.CTkFont(size=11), text_color="gray")
+        self.ffmpeg_status_label.pack(anchor="w", padx=4)
+        self.ffmpeg_info_label = ctk.CTkLabel(ffmpeg_card, text="", font=ctk.CTkFont(size=11), text_color="gray")
+        self.ffmpeg_info_label.pack(anchor="w", padx=4, pady=(4, 0))
         
         # Sub-components frame (ffmpeg, ffprobe, ffplay)
         self.ffmpeg_components_frame = ctk.CTkFrame(ffmpeg_card, fg_color="transparent")
-        self.ffmpeg_components_frame.pack(fill="x", padx=10, pady=(5, 5))
+        self.ffmpeg_components_frame.pack(fill="x", padx=4, pady=(4, 4))
         
-        self.ffmpeg_exe_label = ctk.CTkLabel(self.ffmpeg_components_frame, text="", font=ctk.CTkFont(size=8), text_color="gray")
+        self.ffmpeg_exe_label = ctk.CTkLabel(self.ffmpeg_components_frame, text="", font=ctk.CTkFont(size=10), text_color="gray")
         self.ffmpeg_exe_label.pack(anchor="w")
-        self.ffprobe_exe_label = ctk.CTkLabel(self.ffmpeg_components_frame, text="", font=ctk.CTkFont(size=8), text_color="gray")
+        self.ffprobe_exe_label = ctk.CTkLabel(self.ffmpeg_components_frame, text="", font=ctk.CTkFont(size=10), text_color="gray")
         self.ffprobe_exe_label.pack(anchor="w")
-        self.ffplay_exe_label = ctk.CTkLabel(self.ffmpeg_components_frame, text="", font=ctk.CTkFont(size=8), text_color="gray")
+        self.ffplay_exe_label = ctk.CTkLabel(self.ffmpeg_components_frame, text="", font=ctk.CTkFont(size=10), text_color="gray")
         self.ffplay_exe_label.pack(anchor="w")
         
-        self.ffmpeg_download_btn = ctk.CTkButton(ffmpeg_card, text="📥 Download", height=26, font=ctk.CTkFont(size=10),
-            command=self.download_ffmpeg, fg_color=("#3B8ED0", "#1F6AA5"))
-        self.ffmpeg_reinstall_btn = ctk.CTkButton(ffmpeg_card, text="🔄 Reinstall", height=26, font=ctk.CTkFont(size=10),
-            command=self.download_ffmpeg, fg_color=("#FF8C00", "#CC7000"))
+        self.ffmpeg_download_btn = ctk.CTkButton(ffmpeg_card, text="Download", height=22, font=ctk.CTkFont(size=11),
+            command=self.download_ffmpeg, fg_color=("#00A878", "#00A878"), text_color=("#0B0B0C", "#0B0B0C"))
+        self.ffmpeg_reinstall_btn = ctk.CTkButton(ffmpeg_card, text="Reinstall", height=22, font=ctk.CTkFont(size=11),
+            command=self.download_ffmpeg, fg_color=("#FF8C00", "#CC7000"), text_color=("#FFFFFF", "#FFFFFF"))
         self.ffmpeg_progress = ctk.CTkProgressBar(ffmpeg_card, height=6)
-        self.ffmpeg_progress_label = ctk.CTkLabel(ffmpeg_card, text="", font=ctk.CTkFont(size=8), text_color="gray")
+        self.ffmpeg_progress_label = ctk.CTkLabel(ffmpeg_card, text="", font=ctk.CTkFont(size=10), text_color="gray")
         
         # Deno card
-        deno_card = ctk.CTkFrame(lib_cards_frame, fg_color=("gray85", "gray20"), corner_radius=8)
-        deno_card.grid(row=0, column=2, padx=5, pady=5, sticky="nsew")
+        deno_card = ctk.CTkFrame(lib_cards_frame, fg_color=("gray85", "gray20"), corner_radius=5, border_width=1, border_color=("#2a2a30", "#2a2a30"))
+        deno_card.grid(row=0, column=2, padx=4, pady=4, sticky="nsew")
         self.deno_card = deno_card  # Store reference for download button
-        ctk.CTkLabel(deno_card, text="🦕 Deno", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=10, pady=(10, 5))
-        self.deno_status_label = ctk.CTkLabel(deno_card, text="Checking...", font=ctk.CTkFont(size=10), text_color="gray")
-        self.deno_status_label.pack(anchor="w", padx=10)
-        self.deno_info_label = ctk.CTkLabel(deno_card, text="", font=ctk.CTkFont(size=9), text_color="gray")
-        self.deno_info_label.pack(anchor="w", padx=10, pady=(2, 5))
-        self.deno_download_btn = ctk.CTkButton(deno_card, text="📥 Download", height=26, font=ctk.CTkFont(size=10),
-            command=self.download_deno, fg_color=("#3B8ED0", "#1F6AA5"))
+        ctk.CTkLabel(deno_card, text="🦕 Deno", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=4, pady=(4, 4))
+        self.deno_status_label = ctk.CTkLabel(deno_card, text="Checking...", font=ctk.CTkFont(size=11), text_color="gray")
+        self.deno_status_label.pack(anchor="w", padx=4)
+        self.deno_info_label = ctk.CTkLabel(deno_card, text="", font=ctk.CTkFont(size=11), text_color="gray")
+        self.deno_info_label.pack(anchor="w", padx=4, pady=(4, 4))
+        self.deno_download_btn = ctk.CTkButton(deno_card, text="Download", height=22, font=ctk.CTkFont(size=11),
+            command=self.download_deno, fg_color=("#00A878", "#00A878"), text_color=("#0B0B0C", "#0B0B0C"))
         self.deno_progress = ctk.CTkProgressBar(deno_card, height=6)
-        self.deno_progress_label = ctk.CTkLabel(deno_card, text="", font=ctk.CTkFont(size=8), text_color="gray")
+        self.deno_progress_label = ctk.CTkLabel(deno_card, text="", font=ctk.CTkFont(size=10), text_color="gray")
         
         # Refresh button
-        ctk.CTkButton(main, text="Check Libraries", image=self.refresh_icon, compound="left",
-            height=40, command=self.refresh_status).pack(fill="x", pady=(10, 0))
+        ctk.CTkButton(main, font=ctk.CTkFont(size=11), text="Check Libraries", compound="left",
+            height=22, command=self.refresh_status).pack(fill="x", pady=(4, 0))
     
     def refresh_status(self):
         """Refresh library status"""
@@ -508,11 +508,11 @@ class LibStatusPage(ctk.CTkFrame):
                         elif core_complete:
                             self.after(0, lambda: self.ffmpeg_status_label.configure(text="⚠ Incomplete", text_color="orange"))
                             self.after(0, lambda: self.ffmpeg_info_label.configure(text=f"v{version} (missing ffplay)"))
-                            self.after(0, lambda: self.ffmpeg_reinstall_btn.pack(fill="x", padx=10, pady=(5, 10)))
+                            self.after(0, lambda: self.ffmpeg_reinstall_btn.pack(fill="x", padx=4, pady=(4, 6)))
                         else:
                             self.after(0, lambda: self.ffmpeg_status_label.configure(text="⚠ Incomplete", text_color="orange"))
                             self.after(0, lambda: self.ffmpeg_info_label.configure(text=f"v{version} (missing components)"))
-                            self.after(0, lambda: self.ffmpeg_reinstall_btn.pack(fill="x", padx=10, pady=(5, 10)))
+                            self.after(0, lambda: self.ffmpeg_reinstall_btn.pack(fill="x", padx=4, pady=(4, 6)))
                     else:
                         self.after(0, lambda: self.ffmpeg_status_label.configure(text="✗ Error", text_color="red"))
                         self.after(0, lambda: self.ffmpeg_info_label.configure(text="Failed to get version"))
@@ -523,7 +523,7 @@ class LibStatusPage(ctk.CTkFrame):
             else:
                 self.after(0, lambda: self.ffmpeg_status_label.configure(text="✗ Not found", text_color="orange"))
                 self.after(0, lambda: self.ffmpeg_info_label.configure(text="Click to download"))
-                self.after(0, lambda: self.ffmpeg_download_btn.pack(fill="x", padx=10, pady=(5, 10)))
+                self.after(0, lambda: self.ffmpeg_download_btn.pack(fill="x", padx=4, pady=(4, 6)))
             
             # Check Deno
             deno_installed = check_dependency("deno", app_dir)
@@ -548,7 +548,7 @@ class LibStatusPage(ctk.CTkFrame):
             else:
                 self.after(0, lambda: self.deno_status_label.configure(text="✗ Not found", text_color="orange"))
                 self.after(0, lambda: self.deno_info_label.configure(text="Click to download"))
-                self.after(0, lambda: self.deno_download_btn.pack(fill="x", padx=10, pady=(0, 10)))
+                self.after(0, lambda: self.deno_download_btn.pack(fill="x", padx=4, pady=(0, 6)))
         
         threading.Thread(target=check_libs, daemon=True).start()
     
@@ -562,9 +562,9 @@ class LibStatusPage(ctk.CTkFrame):
         self.ffmpeg_reinstall_btn.configure(state="disabled", text="Downloading...")
         self.ffmpeg_download_btn.pack_forget()
         self.ffmpeg_reinstall_btn.pack_forget()
-        self.ffmpeg_progress.pack(fill="x", padx=15, pady=(5, 5))
+        self.ffmpeg_progress.pack(fill="x", padx=4, pady=(4, 4))
         self.ffmpeg_progress.set(0)
-        self.ffmpeg_progress_label.pack(fill="x", padx=15, pady=(0, 15))
+        self.ffmpeg_progress_label.pack(fill="x", padx=4, pady=(0, 8))
         self.ffmpeg_progress_label.configure(text="Preparing download...")
         
         def download():
@@ -647,9 +647,9 @@ class LibStatusPage(ctk.CTkFrame):
         
         self.downloading = True
         self.deno_download_btn.configure(state="disabled", text="Downloading...")
-        self.deno_progress.pack(fill="x", padx=15, pady=(5, 5))
+        self.deno_progress.pack(fill="x", padx=4, pady=(4, 4))
         self.deno_progress.set(0)
-        self.deno_progress_label.pack(fill="x", padx=15, pady=(0, 15))
+        self.deno_progress_label.pack(fill="x", padx=4, pady=(0, 8))
         self.deno_progress_label.configure(text="Preparing download...")
         
         def download():
