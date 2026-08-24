@@ -272,7 +272,7 @@ class AutoClipperCore:
             return self.gpu_encoder_args
         else:
             # Default CPU encoding
-            return ['-c:v', 'libx264', '-preset', 'fast', '-crf', '18']
+            return ['-c:v', 'libx264', '-preset', 'superfast', '-crf', '18']
 
     # ------------------------------------------------------------------
     # GPU encoder safety net
@@ -287,7 +287,7 @@ class AutoClipperCore:
     # We detect these signatures, swap the GPU encoder args inside the
     # command for plain libx264 (CPU), and retry once. Subsequent calls in
     # the same session also fall back to CPU automatically.
-    _CPU_FALLBACK_ARGS = ['-c:v', 'libx264', '-preset', 'fast', '-crf', '18']
+    _CPU_FALLBACK_ARGS = ['-c:v', 'libx264', '-preset', 'superfast', '-crf', '18']
 
     _GPU_ENCODER_NAMES = (
         'h264_nvenc', 'hevc_nvenc',

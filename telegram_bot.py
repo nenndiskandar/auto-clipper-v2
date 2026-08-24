@@ -547,30 +547,33 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
 
 
 MAIN_MENU_TEXT = (
-    "🎬 *YT-Short-Clipper Bot*\n\n"
+    "📊 <b>YT-Short-Clipper Bot</b>\n\n"
     "Bot pembuat klip short-form otomatis dari link video.\n\n"
-    "━━━━━━━━━━━━━━━━━\n"
-    "📥 *Cara Pakai:*\n"
-    "1️⃣ Kirim link video (YouTube, TikTok, IG, Twitter/X, Reddit, FB, Vimeo, Dailymotion, Twitch, SoundCloud)\n"
-    "2️⃣ Bot unduh subtitle & analisis pakai AI\n"
-    "3️⃣ Pilih highlight yang mau di-clip\n"
-    "4️⃣ Bot render otomatis jadi video short\n\n"
-    "━━━━━━━━━━━━━━━━━\n"
-    "⚙️ *Commands:*\n"
+    "━━━━━━━━━━━━━━━━━━━━\n"
+    "📥 <b>Cara Pakai:</b>\n"
+    "Kirim link video (YouTube, TikTok, IG, Twitter/X, Reddit, FB, Vimeo, Dailymotion, Twitch, SoundCloud)\n"
+    "Bot unduh subtitle & analisis pakai AI\n"
+    "Pilih highlight yang mau di-clip\n"
+    "Bot render otomatis jadi video short\n"
+    "Video dikirim langsung via Local Bot API Server (limit 2GB)\n\n"
+    "━━━━━━━━━━━━━━━━━━━━\n"
+    "⚙️ <b>Perintah:</b>\n"
     "/start - Info bot\n"
     "/help - Panduan lengkap\n"
-    "/config - Konfigurasi (jumlah klip, resolusi, dll)\n"
-    "/model - Daftar model AI tersedia\n"
+    "/config - Jumlah klip, resolusi, dll\n"
+    "/model - Daftar model AI\n"
     "/watermark - Kelola watermark\n"
     "/result - Lihat hasil klip terakhir\n"
-    "/cancel\_session - Batalkan proses aktif\n\n"
-    "━━━━━━━━━━━━━━━━━\n"
-    "💡 *Tips:* Hasil klip nggak dikirim otomatis — buka `/result` untuk lihat & unduh."
+    "/server - Status server\n"
+    "/status - Toggle fitur\n"
+    "/cancel_session - Batalkan proses aktif\n\n"
+    "━━━━━━━━━━━━━━━━━━━━\n"
+    "💡 <b>Tips:</b> Hasil klip dikirim otomatis ke Telegram setelah selesai.\n"
 )
 
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(MAIN_MENU_TEXT, parse_mode="Markdown")
+    await update.message.reply_text(MAIN_MENU_TEXT, parse_mode="HTML")
 
 
 def build_admin_menu(cfg: dict, caller_id: int):
@@ -706,7 +709,7 @@ async def menu_main_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     """Callback tombol 'Menu Utama' — tampilkan menu utama."""
     query = update.callback_query
     await query.answer()
-    await query.edit_message_text(MAIN_MENU_TEXT, parse_mode="Markdown")
+    await query.edit_message_text(MAIN_MENU_TEXT, parse_mode="HTML")
 
 
 async def result_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1059,14 +1062,12 @@ async def result_browse(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["result_rendered"] = rendered
 
     keyboard = []
-    row = []
     for i, cp in enumerate(rendered, 1):
-        row.append(InlineKeyboardButton(f"{i}. 📥", callback_data=f"dl_{i-1}"))
-        if len(row) == 8:
-            keyboard.append(row)
-            row = []
-    if row:
-        keyboard.append(row)
+        keyboard.append([
+            InlineKeyboardButton(f"{i}. Download", callback_data=f"dl_{i-1}"),
+            InlineKeyboardButton("Metadata", callback_data=f"meta_{i-1}"),
+            InlineKeyboardButton("Social Kit", callback_data=f"soc_{i-1}"),
+        ])
     keyboard.append([
         InlineKeyboardButton("⬅️ Back", callback_data="res_back"),
         InlineKeyboardButton("🔄 Regenerate HF", callback_data="res_regen_hf",
@@ -1118,11 +1119,22 @@ def find_clip_by_keyword(keyword: str):
     return matches[0]
 
 
+TELEGRAM_MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024  # 2GB (Local Bot API Server)
+
+
+
+
 async def _send_clip_video(chat_id: int, context: ContextTypes.DEFAULT_TYPE, clip_path: Path, status_msg=None):
-    """Send a clip video to the chat."""
+    """
+    Send a clip video directly to the chat.
+    Local Bot API Server - limit 2GB, tidak perlu layanan ketiga.
+    """
     if status_msg is None:
         status_msg = await context.bot.send_message(chat_id=chat_id, text="📤 Mengirim video...")
     try:
+        file_size = Path(clip_path).stat().st_size
+        size_mb = round(file_size / (1024 * 1024), 1)
+        await status_msg.edit_text(f"📤 Mengirim {_human_size(size_mb)}...")
         with open(clip_path, "rb") as f:
             await context.bot.send_video(
                 chat_id=chat_id,
@@ -1134,16 +1146,106 @@ async def _send_clip_video(chat_id: int, context: ContextTypes.DEFAULT_TYPE, cli
                 write_timeout=120,
             )
         await status_msg.edit_text(f"✅ Video terkirim: `{Path(clip_path).stem[:50]}`", parse_mode="Markdown")
+    except asyncio.CancelledError:
+        raise
     except Exception as e:
         logger.exception("Failed to send clip")
         try:
-            await status_msg.edit_text(f"❌ Gagal mengirim video:\n`{str(e)[:200]}`", parse_mode="Markdown")
+            await status_msg.edit_text(f"❌ Gagal kirim video:\n`{str(e)[:200]}`", parse_mode="Markdown")
         except Exception:
             await context.bot.send_message(
                 chat_id=chat_id,
-                text=f"❌ Gagal mengirim video:\n`{str(e)[:200]}`",
+                text=f"❌ Gagal kirim video:\n`{str(e)[:200]}`",
                 parse_mode="Markdown",
             )
+
+
+async def clip_metadata(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show metadata for a rendered clip."""
+    query = update.callback_query
+    await query.answer()
+    data = query.data.replace("meta_", "")
+    idx = int(data)
+    rendered = context.user_data.get("result_rendered", [])
+    if idx >= len(rendered):
+        await query.answer("Klip tidak ditemukan.", show_alert=True)
+        return
+    cp = rendered[idx]
+    data_file = cp.parent / "data.json"
+    clip_data = {}
+    if data_file.exists():
+        try:
+            with open(data_file, "r", encoding="utf-8") as f:
+                clip_data = json.load(f)
+        except Exception:
+            pass
+    title = clip_data.get("title") or cp.stem
+    duration = clip_data.get("duration_seconds", 0)
+    ratio = clip_data.get("aspect_ratio", "-")
+    channel = clip_data.get("channel_name", "-")
+    virality = clip_data.get("virality_score", 0)
+    highlights = clip_data.get("source_highlights", [])
+    hl_summary = str(len(highlights)) + " highlight" if highlights else "N/A"
+
+    text = "<b>📄 Metadata Clip</b>\n\n"
+    text += "<b>Judul:</b> " + title + "\n"
+    text += "<b>Channel:</b> " + channel + "\n"
+    text += "<b>Durasi:</b> " + str(duration) + "s\n"
+    text += "<b>Aspect Ratio:</b> " + ratio + "\n"
+    text += "<b>Virality Score:</b> " + str(virality) + "\n"
+    text += "<b>Highlights:</b> " + hl_summary + "\n"
+    text += "<b>File:</b> <code>" + cp.name + "</code>\n"
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("⬅ Kembali", callback_data="res_back")]
+    ])
+    await query.edit_message_text(text, reply_markup=keyboard, parse_mode="HTML")
+
+
+async def clip_social_kit(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Generate social kit info for a clip."""
+    query = update.callback_query
+    await query.answer()
+    data = query.data.replace("soc_", "")
+    idx = int(data)
+    rendered = context.user_data.get("result_rendered", [])
+    if idx >= len(rendered):
+        await query.answer("Klip tidak ditemukan.", show_alert=True)
+        return
+    cp = rendered[idx]
+    data_file = cp.parent / "data.json"
+    clip_data = {}
+    if data_file.exists():
+        try:
+            with open(data_file, "r", encoding="utf-8") as f:
+                clip_data = json.load(f)
+        except Exception:
+            pass
+    title = clip_data.get("title") or cp.stem
+    channel = clip_data.get("channel_name", "Unknown")
+    hashtags = clip_data.get("hashtags", [])
+    captions = clip_data.get("caption_suggestions", [])
+
+    text = "<b>📱 Social Kit</b>\n\n"
+    text += "<b>Judul:</b> " + title + "\n"
+    text += "<b>Channel:</b> " + channel + "\n\n"
+    if hashtags:
+        text += "<b>Hashtag:</b> " + " ".join(hashtags) + "\n\n"
+    else:
+        text += "<b>Hashtag:</b> #shorts #viral\n\n"
+    text += "<b>Saran Caption:</b>\n"
+    if captions:
+        for i, cap in enumerate(captions, 1):
+            text += str(i) + ". " + cap + "\n"
+    else:
+        text += "1. Watch till the end! 🥍👍\n"
+        text += "2. What did you think? Comment below! 👀\n"
+        text += "3. Don't forget to like & subscribe! 🤝\n"
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("⬅ Kembali", callback_data="res_back")]
+    ])
+    await query.edit_message_text(text, reply_markup=keyboard, parse_mode="HTML")
 
 
 async def download_clip(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1182,6 +1284,111 @@ async def config_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Menu konfigurasi — fungsi ganti /status"""
     return await status_command(update, context)
 
+def _apply_apikey(raw_key: str):
+    """Simpan API key baru ke semua provider AI."""
+    key = raw_key.strip()
+    if not key:
+        return None
+    app_dir = Path(__file__).parent.resolve()
+    cfg_mgr = ConfigManager(app_dir / "config.json", app_dir / "output")
+    cfg = cfg_mgr.config
+    prov = cfg.setdefault("ai_providers", {})
+    for section in ("highlight_finder", "caption_maker", "hook_maker", "youtube_title_maker"):
+        prov.setdefault(section, {})["api_key"] = key
+    cfg["api_key"] = key
+    cfg_mgr.save_config(cfg)
+    return key
+
+def _apply_server(raw_url: str):
+    """Simpan base URL server AI baru. Caption/TTS/title ikut mengikuti root URL."""
+    raw = raw_url.strip().rstrip("/")
+    if not re.match(r"^https?://\S+$", raw):
+        return None
+    app_dir = Path(__file__).parent.resolve()
+    cfg_mgr = ConfigManager(app_dir / "config.json", app_dir / "output")
+    cfg = cfg_mgr.config
+    prov = cfg.setdefault("ai_providers", {})
+    prov.setdefault("highlight_finder", {})["base_url"] = raw
+    prov.setdefault("youtube_title_maker", {})["base_url"] = raw
+    prov.setdefault("caption_maker", {})["base_url"] = raw + "/audio/transcriptions"
+    prov.setdefault("hook_maker", {})["base_url"] = raw + "/audio/speech?response_format=json"
+    cfg["base_url"] = raw
+    cfg_mgr.save_config(cfg)
+    return raw
+
+async def server_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Menu server AI — set base URL dan/atau API key.
+    Usage:
+        /server             -> tampilkan status + menu tombol
+        /server <url>       -> langsung set base URL
+        /server <url> <key> -> set base URL + API key
+    """
+    app_dir = Path(__file__).parent.resolve()
+    cfg_mgr = ConfigManager(app_dir / "config.json", app_dir / "output")
+    cfg = cfg_mgr.config
+    cur_url = ((cfg.get("ai_providers") or {}).get("highlight_finder") or {}).get("base_url") or cfg.get("base_url", "-")
+    cur_key = cfg.get("api_key", "") or ((cfg.get("ai_providers") or {}).get("highlight_finder") or {}).get("api_key", "")
+    masked_key = cur_key[:8] + "***" if len(cur_key) > 8 else ("***" if cur_key else "(kosong)")
+
+    # /server <url> <key>
+    if len(context.args) >= 2:
+        new_url = context.args[0]
+        new_key = " ".join(context.args[1:])
+        url_ok = _apply_server(new_url)
+        key_ok = _apply_apikey(new_key)
+        parts = []
+        if url_ok:
+            parts.append(f"✅ Base URL: `{url_ok}`")
+        else:
+            parts.append(f"❌ URL tidak valid: `{new_url}`")
+        if key_ok:
+            parts.append(f"✅ API Key: `{key_ok[:8]}***`")
+        else:
+            parts.append(f"❌ API Key kosong")
+        await update.message.reply_text(
+            "\n".join(parts) + f"\n🤖 Model: `{_hf_model(cfg)}`",
+            parse_mode="Markdown",
+            reply_markup=_back_to_menu_keyboard(),
+        )
+        return
+
+    # /server <url>
+    if context.args:
+        new_srv = _apply_server(" ".join(context.args))
+        if new_srv is None:
+            await update.message.reply_text(
+                "❌ URL tidak valid. Contoh: `/server http://192.168.10.74:20128/v1`",
+                parse_mode="Markdown",
+            )
+            return
+        await update.message.reply_text(
+            f"✅ Base URL diubah ke:\n`{new_srv}`\n🤖 Model: `{_hf_model(cfg)}`",
+            parse_mode="Markdown",
+            reply_markup=_back_to_menu_keyboard(),
+        )
+        return
+
+    # /server — tampilkan status + tombol
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("🌐 Ganti Base URL", callback_data="sv_url"),
+            InlineKeyboardButton("🔑 Ganti API Key", callback_data="sv_key"),
+        ],
+        [
+            InlineKeyboardButton("⬅️ Menu Utama", callback_data="menu_main",
+                                 style=KeyboardButtonStyle.SUCCESS),
+        ],
+    ])
+    await update.message.reply_text(
+        f"🌐 *Server AI:*\n\n"
+        f"Base URL: `{cur_url}`\n"
+        f"API Key: `{masked_key}`\n"
+        f"🤖 Model: `{_hf_model(cfg)}`\n\n"
+        f"Ketik `/server <url>` atau `/server <url> <key>`",
+        parse_mode="Markdown",
+        reply_markup=keyboard,
+    )
+
 async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     app_dir = Path(__file__).parent.resolve()
     cfg_mgr = ConfigManager(app_dir / "config.json", app_dir / "output")
@@ -1204,7 +1411,7 @@ async def model_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Mode set: /model <nama>
     if context.args:
         requested = " ".join(context.args).strip()
-        models = _hf_available_models(cfg)
+        models, _live = _hf_available_models(cfg)
         match = None
         for m in models:
             if m.lower() == requested.lower():
@@ -1239,23 +1446,16 @@ async def model_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
-    # Mode daftar: /model
+    # Mode daftar: /model — fetch realtime dari server
     current = _hf_model(cfg)
-    models = await asyncio.get_running_loop().run_in_executor(None, _hf_available_models, cfg)
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+    models, live = await asyncio.get_running_loop().run_in_executor(None, _hf_available_models, cfg)
 
-    lines = [f"*🤖 Model Highlight-Finder ({len(models)}):*", ""]
-    for m in models:
-        marker = "✅" if m == current else "·"
-        lines.append(f"{marker} `{m}`")
-    lines.append("")
-    lines.append("💡 Ganti model: ketik `/model <nama>` (mis. `/model AUTO`).")
+    src = "🟢 live dari server" if live else "🟠 server tidak merespon — daftar fallback"
+    lines = [f"*🤖 Model Highlight-Finder ({len(models)}):*", f"_{src}_", ""]
+    lines.append("💡 Klik nama model untuk langsung mengganti.")
 
-    keyboard = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("🏠 Menu Utama", callback_data="menu_main",
-                                 style=KeyboardButtonStyle.SUCCESS),
-        ]
-    ])
+    keyboard = _build_model_keyboard(current, models, user_key=str(update.effective_user.id) if update.effective_user else "default")
     await update.message.reply_text("\n".join(lines), parse_mode="Markdown", reply_markup=keyboard)
 
 
@@ -1268,21 +1468,13 @@ async def model_list_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
     cfg_mgr = ConfigManager(app_dir / "config.json", app_dir / "output")
     cfg = cfg_mgr.config
     current = _hf_model(cfg)
-    models = await asyncio.get_running_loop().run_in_executor(None, _hf_available_models, cfg)
+    models, live = await asyncio.get_running_loop().run_in_executor(None, _hf_available_models, cfg)
 
-    lines = [f"*🤖 Model Highlight-Finder ({len(models)}):*", ""]
-    for m in models:
-        marker = "✅" if m == current else "·"
-        lines.append(f"{marker} `{m}`")
-    lines.append("")
-    lines.append("💡 Ganti model: ketik `/model <nama>` (mis. `/model AUTO`).")
+    src = "🟢 live dari server" if live else "🟠 server tidak merespon — daftar fallback"
+    lines = [f"*🤖 Model Highlight-Finder ({len(models)}):*", f"_{src}_", ""]
+    lines.append("💡 Klik nama model untuk langsung mengganti.")
 
-    keyboard = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("🏠 Menu Utama", callback_data="menu_main",
-                                 style=KeyboardButtonStyle.SUCCESS),
-        ]
-    ])
+    keyboard = _build_model_keyboard(current, models, user_key=str(update.effective_user.id) if update.effective_user else "default")
     await query.edit_message_text("\n".join(lines), parse_mode="Markdown", reply_markup=keyboard)
 
 
@@ -1290,10 +1482,10 @@ def _status_val(cfg: dict, key: str, default):
     return cfg.get(key, default)
 
 
-def _hf_available_models(cfg: dict) -> list:
-    """Fetch available highlight-finder models from the configured endpoint.
+def _hf_available_models(cfg: dict):
+    """Fetch daftar model live dari endpoint yang dikonfigurasi.
 
-    Falls back to a small default list when the endpoint is unreachable.
+    Returns (models, live). Fallback hanya saat endpoint unreachable.
     """
     hf = (cfg.get("ai_providers") or {}).get("highlight_finder", {})
     base_url = str(hf.get("base_url", "") or "").rstrip("/")
@@ -1306,10 +1498,10 @@ def _hf_available_models(cfg: dict) -> list:
             data = json.loads(resp.read().decode("utf-8"))
         ids = [m.get("id") for m in data.get("data", []) if m.get("id")]
         if ids:
-            return ids
+            return ids, True
     except Exception:
         pass
-    return ["AUTO", "OPENCODE", "GEMINI"]
+    return ["AUTO", "OPENCODE", "GEMINI"], False
 
 
 def _hf_model(cfg: dict) -> str:
@@ -1318,6 +1510,71 @@ def _hf_model(cfg: dict) -> str:
 
 def _set_hf_model(cfg: dict, model: str):
     cfg.setdefault("ai_providers", {}).setdefault("highlight_finder", {})["model"] = model
+
+_model_map: Dict[str, list] = {}  # ponytail: user_id -> daftar model terakhir (callback_data Telegram limit 64 byte)
+
+def _build_model_keyboard(current: str, models: list, user_key: str = "default") -> InlineKeyboardMarkup:
+    """Keyboard daftar model — klik untuk langsung mengganti.
+
+    callback_data pakai index karena nama model bisa >64 byte (Button_data_invalid).
+    Mapping index -> nama disimpan di _model_map[user_key].
+    """
+    _model_map[user_key] = list(models)
+    rows = []
+    row = []
+    for i, m in enumerate(models):
+        label = ("✅ " if str(m) == str(current) else "") + str(m)
+        row.append(InlineKeyboardButton(label[:60], callback_data=f"mdl_{i}"))
+        if len(row) == 2:
+            rows.append(row)
+            row = []
+    if row:
+        rows.append(row)
+    rows.append([
+        InlineKeyboardButton("🏠 Menu Utama", callback_data="menu_main",
+                             style=KeyboardButtonStyle.SUCCESS),
+    ])
+    return InlineKeyboardMarkup(rows)
+
+async def model_select_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Callback klik tombol model (mdl_<index>) — set model highlight-finder."""
+    query = update.callback_query
+    await query.answer()
+    raw = (query.data or "")[len("mdl_"):]
+    user_key = str(update.effective_user.id) if update.effective_user else "default"
+    app_dir = Path(__file__).parent.resolve()
+    cfg_mgr = ConfigManager(app_dir / "config.json", app_dir / "output")
+    cfg = cfg_mgr.config
+
+    # Resolusi: index dari _model_map, fallback ke pencocokan nama
+    mapped = _model_map.get(user_key) or []
+    if raw.isdigit() and mapped:
+        idx = int(raw)
+        match = mapped[idx] if 0 <= idx < len(mapped) else None
+    else:
+        models, _live = await asyncio.get_running_loop().run_in_executor(None, _hf_available_models, cfg)
+        match = next((m for m in models if str(m).lower() == raw.lower()), None)
+    if match is None:
+        await query.edit_message_text(
+            f"❌ Model `{raw}` tidak ditemukan.\nKetik `/model` untuk melihat daftar.",
+            parse_mode="Markdown",
+        )
+        return
+    _set_hf_model(cfg, match)
+    cfg_mgr.save_config(cfg)
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("⬅️ Daftar Model", callback_data="model_list",
+                                 style=KeyboardButtonStyle.PRIMARY),
+            InlineKeyboardButton("🏠 Menu Utama", callback_data="menu_main",
+                                 style=KeyboardButtonStyle.SUCCESS),
+        ]
+    ])
+    await query.edit_message_text(
+        f"✅ Model highlight-finder diubah ke:\n`{match}`",
+        parse_mode="Markdown",
+        reply_markup=keyboard,
+    )
 
 
 FW_MODEL_SIZES = ["tiny", "base", "small", "medium", "large"]
@@ -1466,6 +1723,64 @@ async def fw_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
 
+def _binaries_status_lines() -> list:
+    """Status binari eksternal: yt-dlp, deno, ffmpeg (bundled atau system PATH)."""
+    import shutil
+    import subprocess
+
+    app_dir = Path(__file__).parent.resolve()
+    lines = []
+
+    # yt-dlp — utamakan python module, fallback ke binary di PATH
+    try:
+        import yt_dlp
+        ver = getattr(getattr(yt_dlp, "version", None), "__version__", "?")
+        lines.append(f"✅ yt-dlp `v{ver}` (module)")
+    except Exception:
+        yp = shutil.which("yt-dlp")
+        if yp:
+            lines.append(f"✅ yt-dlp `{yp}`")
+        else:
+            lines.append("❌ yt-dlp tidak ditemukan (`pip install yt-dlp`)")
+
+    # ffmpeg — cek bundled dulu (sama seperti GUI), lalu system PATH
+    from utils.dependency_manager import check_dependency
+    if check_dependency("ffmpeg", app_dir):
+        lines.append(f"✅ ffmpeg (bundled) `{app_dir / 'ffmpeg'}`")
+    else:
+        fp = shutil.which("ffmpeg")
+        if fp:
+            try:
+                out = subprocess.run([fp, "-version"], capture_output=True,
+                                     text=True, timeout=5)
+                first = (out.stdout or "").splitlines()[0] if out.stdout else ""
+                parts = first.split()
+                ver = parts[2] if len(parts) > 2 and parts[0] == "ffmpeg" else ""
+            except Exception:
+                ver = ""
+            label = f"✅ ffmpeg `v{ver}`" if ver else "✅ ffmpeg"
+            lines.append(f"{label} `{fp}`")
+        else:
+            lines.append("❌ ffmpeg tidak ditemukan (`apt install ffmpeg`)")
+
+    # deno — cek bundled (app_dir/bin), lalu system PATH
+    if check_dependency("deno", app_dir):
+        lines.append(f"✅ deno (bundled) `{app_dir / 'bin' / 'deno'}`")
+    else:
+        dp = shutil.which("deno")
+        if dp:
+            try:
+                out = subprocess.run([dp, "--version"], capture_output=True,
+                                     text=True, timeout=5)
+                first = (out.stdout or "").splitlines()[0] if out.stdout else "deno"
+            except Exception:
+                first = "deno"
+            lines.append(f"✅ deno `{first}` `{dp}`")
+        else:
+            lines.append("❌ deno tidak ditemukan (butuh buat fetch YouTube)")
+
+    return lines
+
 def build_status(cfg: dict):
     """Build the /status message text and its inline toggle keyboard."""
     wm = _is_watermark_active(cfg)
@@ -1488,8 +1803,10 @@ def build_status(cfg: dict):
     shot = mp.get("min_shot_duration", 90)
     lip = mp.get("lip_activity_threshold", 0.15)
     hf_model = _hf_model(cfg)
+    srv = ((cfg.get("ai_providers") or {}).get("highlight_finder") or {}).get("base_url") or cfg.get("base_url", "-")
     fw_size = _fw_model_size(cfg)
     fw_installed = _fw_model_installed(fw_size)
+    bin_lines = _binaries_status_lines()
 
     ck = "✅"
     no = "❌"
@@ -1514,8 +1831,10 @@ def build_status(cfg: dict):
         f"🎯 Min Shot Duration: `{shot}`\n"
         f"🎯 Lip Activity: `{lip}`\n"
         f"🤖 HF Model: `{hf_model}`\n"
+        f"🌐 Server: `{srv}`\n"
         f"🎙️ Faster-Whisper: `{fw_size}` {'🟢' if fw_installed else '🔴'}\n"
-        f"⚡ GPU Accel: `{'On' if gpu else 'Off'}`"
+        f"⚡ GPU Accel: `{'On' if gpu else 'Off'}`\n\n"
+        f"🧰 *Biner:*\n" + "\n".join(bin_lines)
     )
 
     keyboard = InlineKeyboardMarkup([
@@ -1558,6 +1877,10 @@ def build_status(cfg: dict):
         [
             InlineKeyboardButton(f"HF Model {hf_model[:12]}", callback_data="st_hfmodel"),
             InlineKeyboardButton("🎙️ Faster Whisper", callback_data="st_fwmenu"),
+        ],
+        [
+            InlineKeyboardButton("🌐 Set Server", callback_data="st_server"),
+            InlineKeyboardButton("🤖 Daftar Model", callback_data="model_list"),
         ],
         [
             InlineKeyboardButton("🔄 Refresh", callback_data="st_refresh"),
@@ -1652,10 +1975,41 @@ async def status_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         cur = float(mp.get("lip_activity_threshold", 0.15))
         mp["lip_activity_threshold"] = opts[(opts.index(cur) + 1) % len(opts)] if cur in opts else opts[0]
     elif data == "hfmodel":
-        opts = _hf_available_models(cfg)
+        opts, _live = _hf_available_models(cfg)
         cur = _hf_model(cfg)
         idx = opts.index(cur) if cur in opts else -1
         _set_hf_model(cfg, opts[(idx + 1) % len(opts)])
+    elif data == "server":
+        context.user_data["pending_config_input"] = "sv_url"
+        await query.edit_message_text(
+            "🌐 *Ganti Base URL*\n\n"
+            "Kirim URL baru, contoh:\n"
+            "`http://192.168.10.74:20128/v1`\n\n"
+            "Endpoint caption/TTS otomatis mengikuti.\n"
+            "Ketik `batal` untuk membatalkan.",
+            parse_mode="Markdown",
+        )
+        return
+    elif data == "sv_url":
+        context.user_data["pending_config_input"] = "sv_url"
+        await query.edit_message_text(
+            "🌐 *Ganti Base URL*\n\n"
+            "Kirim URL baru, contoh:\n"
+            "`http://192.168.10.74:20128/v1`\n\n"
+            "Ketik `batal` untuk membatalkan.",
+            parse_mode="Markdown",
+        )
+        return
+    elif data == "sv_key":
+        context.user_data["pending_config_input"] = "sv_key"
+        await query.edit_message_text(
+            "🔑 *Ganti API Key*\n\n"
+            "Kirim API key baru.\n"
+            "Key disimpan ke semua provider (highlight, caption, hook, title).\n"
+            "Ketik `batal` untuk membatalkan.",
+            parse_mode="Markdown",
+        )
+        return
     elif data == "fwmenu":
         text, keyboard = build_fw_menu(cfg)
         await query.edit_message_text(text, reply_markup=keyboard, parse_mode="Markdown")
@@ -2013,6 +2367,49 @@ async def receive_cookies_document(update: Update, context: ContextTypes.DEFAULT
 async def process_youtube_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text.strip()
 
+    # Mode set server AI: menunggu URL dari tombol 🌐 di /config atau /server
+    if context.user_data.get("pending_config_input") in ("server", "sv_url"):
+        context.user_data["pending_config_input"] = None
+        if url.lower() in ("batal", "cancel"):
+            await update.message.reply_text("❌ Batal.")
+            return
+        new_srv = _apply_server(url)
+        if new_srv is None:
+            context.user_data["pending_config_input"] = "sv_url"
+            await update.message.reply_text(
+                "❌ URL tidak valid. Contoh: `http://192.168.10.74:20128/v1`\nCoba lagi atau ketik `batal`.",
+                parse_mode="Markdown",
+            )
+            return
+        await update.message.reply_text(
+            f"✅ Base URL diubah ke:\n`{new_srv}`",
+            parse_mode="Markdown",
+            reply_markup=_back_to_menu_keyboard(),
+        )
+        return
+
+    # Mode set API key dari tombol 🔑 di /server
+    if context.user_data.get("pending_config_input") == "sv_key":
+        context.user_data["pending_config_input"] = None
+        if url.lower() in ("batal", "cancel"):
+            await update.message.reply_text("❌ Batal.")
+            return
+        new_key = _apply_apikey(url)
+        if new_key is None:
+            context.user_data["pending_config_input"] = "sv_key"
+            await update.message.reply_text(
+                "❌ API key kosong. Coba lagi atau ketik `batal`.",
+                parse_mode="Markdown",
+            )
+            return
+        masked = new_key[:8] + "***" if len(new_key) > 8 else "***"
+        await update.message.reply_text(
+            f"✅ API Key diubah ke:\n`{masked}`",
+            parse_mode="Markdown",
+            reply_markup=_back_to_menu_keyboard(),
+        )
+        return
+
     # Mode tambah ID admin: user mengirim angka ID
     if context.user_data.get("pending_admin_add_id"):
         context.user_data["pending_admin_add_id"] = False
@@ -2245,12 +2642,13 @@ async def run_phase1(chat_id: int, url: str, context: ContextTypes.DEFAULT_TYPE,
         logger.exception("Error processing video URL (Phase 1)")
         short_err = str(e)[:300].replace("`", "'")
         context.user_data["retry_url"] = url
-        keyboard = [[InlineKeyboardButton("🔄 Coba Lagi", callback_data="retry_phase1")]]
-        await status_msg.edit_text(
-            f"❌ *Error Phase 1:*\n`{short_err}`",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="Markdown",
-        )
+        keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("🔄 Coba Lagi", callback_data="retry_phase1")]])
+        err_text = f"❌ *Error Phase 1:*\n`{short_err}`"
+        try:
+            await status_msg.edit_text(err_text, reply_markup=keyboard, parse_mode="Markdown")
+        except Exception:
+            # ponytail: teks error bisa mengandung _/* yang merusak Markdown
+            await status_msg.edit_text("❌ Error Phase 1:\n" + short_err, reply_markup=keyboard)
     finally:
         with session_lock:
             ACTIVE_CHATS.pop(chat_id, None)
@@ -2416,6 +2814,34 @@ async def _render_highlight_menu(chat_id: int, status_msg, session: dict):
         parse_mode="Markdown"
     )
 
+
+async def server_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle tombol 🌐/🔑 di menu /server: minta input URL atau API key."""
+    query = update.callback_query
+    await query.answer()
+    app_dir = Path(__file__).parent.resolve()
+    cfg = ConfigManager(app_dir / "config.json", app_dir / "output").config
+    cur_url = ((cfg.get("ai_providers") or {}).get("highlight_finder") or {}).get("base_url") or cfg.get("base_url", "-")
+    cur_key = ((cfg.get("ai_providers") or {}).get("highlight_finder") or {}).get("api_key", "") or cfg.get("api_key", "")
+    masked_key = cur_key[:8] + "***" if len(cur_key) > 8 else ("***" if cur_key else "(kosong)")
+
+    if query.data == "sv_url":
+        context.user_data["pending_config_input"] = "sv_url"
+        await query.edit_message_text(
+            f"🌐 *Ganti Base URL*\n\nSekarang: `{cur_url}`\n\n"
+            "Kirim URL baru, contoh:\n"
+            "`http://192.168.10.74:20128/v1`\n\n"
+            "Ketik `batal` untuk membatalkan.",
+            parse_mode="Markdown",
+        )
+    elif query.data == "sv_key":
+        context.user_data["pending_config_input"] = "sv_key"
+        await query.edit_message_text(
+            f"🔑 *Ganti API Key*\n\nSekarang: `{masked_key}`\n\n"
+            "Kirim API key baru. Disimpan ke semua provider.\n"
+            "Ketik `batal` untuk membatalkan.",
+            parse_mode="Markdown",
+        )
 
 async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -2636,10 +3062,13 @@ def main():
 
     print("🤖 YT-Short-Clipper Bot (Optimized Flow) berjalan...")
 
+    # Telegram Bot API Server lokal (limit file naik dari 50MB → 2GB)
+    # Telegram Bot API Server lokal (limit file naik dari 50MB → 2GB)
+    _local_api = os.environ.get("TELEGRAM_BOT_API_URL", "http://127.0.0.1:8081/bot")
     request = HTTPXRequest(
         connect_timeout=30.0,
-        read_timeout=60.0,
-        write_timeout=60.0,
+        read_timeout=120.0,
+        write_timeout=120.0,
         pool_timeout=30.0,
     )
 
@@ -2669,6 +3098,7 @@ def main():
             BotCommand("start", "Selamat datang & mulai clip"),
             BotCommand("help", "Panduan penggunaan"),
             BotCommand("config", "Lihat & ubah konfigurasi aktif"),
+            BotCommand("server", "Set server AI (base URL)"),
             BotCommand("model", "Daftar model AI tersedia"),
             BotCommand("fw", "Faster-Whisper (pilih & download model)"),
             BotCommand("cookies", "Kelola cookies YouTube (upload/cek/hapus)"),
@@ -2683,6 +3113,7 @@ def main():
         application.add_handler(CommandHandler("start", _auth_required(start_command)))
         application.add_handler(CommandHandler("help", _auth_required(help_command)))
         application.add_handler(CommandHandler("config", _auth_required(config_command)))
+        application.add_handler(CommandHandler("server", _auth_required(server_command)))
         application.add_handler(CommandHandler("status", _auth_required(status_command)))
         application.add_handler(CommandHandler("model", _auth_required(model_command)))
         application.add_handler(CommandHandler("fw", _auth_required(fw_command)))
@@ -2695,9 +3126,13 @@ def main():
         application.add_handler(MessageHandler(filters.Document.ALL, _auth_required(receive_cookies_document)))
         application.add_handler(CallbackQueryHandler(_auth_required(menu_main_callback), pattern=r"^menu_main$"))
         application.add_handler(CallbackQueryHandler(_auth_required(model_list_callback), pattern=r"^model_list$"))
+        application.add_handler(CallbackQueryHandler(_auth_required(model_select_callback), pattern=r"^mdl_"))
         application.add_handler(CallbackQueryHandler(_auth_required(handle_button), pattern=r"^sel_"))
+        application.add_handler(CallbackQueryHandler(_auth_required(server_callback), pattern=r"^sv_"))
         application.add_handler(CallbackQueryHandler(_auth_required(result_browse), pattern=r"^res_"))
         application.add_handler(CallbackQueryHandler(_auth_required(download_clip), pattern=r"^dl_"))
+        application.add_handler(CallbackQueryHandler(_auth_required(clip_metadata), pattern=r"^meta_"))
+        application.add_handler(CallbackQueryHandler(_auth_required(clip_social_kit), pattern=r"^soc_"))
         application.add_handler(CallbackQueryHandler(_auth_required(status_toggle), pattern=r"^st_"))
         application.add_handler(CallbackQueryHandler(_auth_required(cookies_menu), pattern=r"^ck_"))
         application.add_handler(CallbackQueryHandler(_auth_required(watermark_menu), pattern=r"^wm_"))
@@ -2714,7 +3149,9 @@ def main():
         application = (
             Application.builder()
             .token(token)
+            .base_url(_local_api)
             .request(request)
+            .concurrent_updates(True)
             .post_init(post_init)
             .build()
         )
