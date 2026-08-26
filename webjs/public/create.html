@@ -28,6 +28,17 @@ pre.log{background:#000;color:#c9d1d9;font-size:.68rem;max-height:35vh;overflow-
 <div class="container-fluid py-3">
 <div class="row g-3">
 
+<!-- ===== TEMPLATE CEPAT ===== -->
+<div class="col-12">
+  <div class="card">
+    <div class="card-body py-2">
+      <span class="fw-semibold small me-2">⚡ Template:</span>
+      <div class="d-flex flex-wrap gap-2" id="tplBar"></div>
+      <div id="tplMsg" class="small text-success mt-1" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
 <!-- ===== PANEL PARAMETER ===== -->
 <div class="col-lg-5">
   <div class="card h-100">
@@ -101,6 +112,47 @@ pre.log{background:#000;color:#c9d1d9;font-size:.68rem;max-height:35vh;overflow-
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>fetch('/api/me').then(r=>r.json()).then(d=>{if(d.name)document.getElementById('whoami').textContent='👤 '+d.name;});</script>
+<script>
+// ===== template otomatis per tipe video (sama dgn halaman settings) =====
+const TEMPLATES = {
+  podcast2: { label: '🎙 Podcast 2 Orang', desc: 'tracking stabil, crop tengah, switch lambat', cfg: { face_tracking_mode:'mediapipe', portrait_mode:'crop', smooth_follow:true, pan_speed_limit:1.8, center_weight:0.45, switch_threshold:0.35, min_shot_duration:120, lip_activity:0.12, subtitle_style:'pop', sync_offset:-0.25, aspect_ratio:'9:16', hook:true, captions:true, gpu:true } },
+  podcast3: { label: '🎙 Podcast 3+ Orang', desc: 'blur mode, switch cepat antar pembicara', cfg: { face_tracking_mode:'mediapipe', portrait_mode:'blur', smooth_follow:false, pan_speed_limit:2.5, center_weight:0.25, switch_threshold:0.22, min_shot_duration:60, lip_activity:0.15, subtitle_style:'pop', sync_offset:-0.25, aspect_ratio:'9:16', hook:true, captions:true, gpu:true } },
+  game:     { label: '🎮 Live / Gaming', desc: 'follow agresif, caption tebal', cfg: { face_tracking_mode:'opencv', portrait_mode:'crop', smooth_follow:true, pan_speed_limit:4.0, center_weight:0.15, switch_threshold:0.15, min_shot_duration:30, lip_activity:0.2, subtitle_style:'bounce', sync_offset:-0.15, aspect_ratio:'9:16', hook:true, captions:true, gpu:true } },
+  news:     { label: '📰 Berita', desc: 'kamera diam, karaoke subtitle, hook off', cfg: { face_tracking_mode:'opencv', portrait_mode:'crop', smooth_follow:false, pan_speed_limit:1.2, center_weight:0.5, switch_threshold:0.4, min_shot_duration:150, lip_activity:0.1, subtitle_style:'karaoke', sync_offset:-0.3, aspect_ratio:'9:16', hook:false, captions:true, gpu:true } },
+  tutorial: { label: '🧑‍🏫 Tutorial', desc: 'fokus 1 pembicara, tempo tenang', cfg: { face_tracking_mode:'mediapipe', portrait_mode:'crop', smooth_follow:true, pan_speed_limit:1.5, center_weight:0.5, switch_threshold:0.4, min_shot_duration:180, lip_activity:0.1, subtitle_style:'animated', sync_offset:-0.3, aspect_ratio:'9:16', hook:false, captions:true, gpu:true } },
+  vlog:     { label: '📹 Vlog / Solo', desc: 'dinamis halus, hook aktif', cfg: { face_tracking_mode:'mediapipe', portrait_mode:'crop', smooth_follow:true, pan_speed_limit:2.2, center_weight:0.35, switch_threshold:0.3, min_shot_duration:90, lip_activity:0.15, subtitle_style:'pop_bounce', sync_offset:-0.25, aspect_ratio:'9:16', hook:true, captions:true, gpu:true } },
+};
+const tplEsc = s => String(s ?? '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+
+function applyTemplate(key) {
+  const t = TEMPLATES[key];
+  if (!t) return;
+  const c = t.cfg;
+  $('#f_hook').checked = !!c.hook; $('#f_captions').checked = !!c.captions;
+  $('#f_gpu').checked = !!c.gpu; $('#f_smooth_follow').checked = !!c.smooth_follow;
+  $('#f_face_tracking_mode').value = c.face_tracking_mode;
+  $('#f_portrait_mode').value = c.portrait_mode;
+  $('#f_subtitle_style').value = c.subtitle_style;
+  $('#f_aspect_ratio').value = c.aspect_ratio;
+  $('#f_sync_offset').value = c.sync_offset;
+  $('#f_pan_speed_limit').value = c.pan_speed_limit;
+  $('#f_center_weight').value = c.center_weight;
+  $('#f_switch_threshold').value = c.switch_threshold;
+  $('#f_min_shot_duration').value = c.min_shot_duration;
+  $('#f_lip_activity').value = c.lip_activity;
+  const m = document.getElementById('tplMsg');
+  m.textContent = `\u2705 Template "${t.label}" diterapkan (${t.desc}) \u2014 klik \ud83d\udcbe Simpan kalau mau jadi default.`;
+  m.style.display = 'block';
+  setTimeout(() => m.style.display = 'none', 6000);
+}
+
+(function initTemplates() {
+  const bar = document.getElementById('tplBar');
+  if (!bar || typeof TEMPLATES === 'undefined') return;
+  bar.innerHTML = Object.entries(TEMPLATES).map(([k, t]) =>
+    `<button class="btn btn-sm btn-outline-warning" title="${tplEsc(t.desc)}" onclick="applyTemplate('${k}')">${t.label}</button>`).join('');
+})();
+</script>
 <script>
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -223,7 +275,7 @@ async function startCreate() {
         }
       }
     } catch {}
-  }, 2500);
+  }, 1000);
 }
 
 async function showPicker(sessionDir) {
@@ -306,7 +358,7 @@ async function startProcess() {
         }
       }
     } catch {}
-  }, 2500);
+  }, 1000);
 }
 
 async function cancelCreate() {
