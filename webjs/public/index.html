@@ -4,100 +4,121 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>YT Short Clipper — Results</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: { extend: { colors: {
+    surface: { 0:'#09090b', 1:'#18181b', 2:'#27272a', 3:'#3f3f46' },
+    accent: '#facc15',
+  }}}
+}
+</script>
 <style>
-  .clamp{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-  .card-text.clamp{-webkit-line-clamp:2}
-  video{background:#000;width:100%;max-height:70vh;display:block}
-  .thumb-img{display:block;margin:0 auto;width:100%;aspect-ratio:1/1;object-fit:cover;object-position:center;cursor:pointer;background:#14171c}
-  .clip-card{--bs-card-bg:#14171c;border:1px solid #39404a;border-radius:.6rem;overflow:hidden}
-  .clip-card .card-body{padding:.4rem .45rem .6rem}
-  .clip-title{font-size:.72rem;line-height:1.25;font-weight:700;color:#ffffff}
-  .clip-desc{font-size:.66rem;color:#eceff3}
-  .badge-score{font-size:.6rem;padding:.2em .4em}
-  .badge-tag{font-size:.58rem;padding:.15em .4em;opacity:.95}
-  .status-badge{font-size:.7rem}
-  .session-block{background:#16181d;border:1px solid #2b2f36;border-radius:.75rem;padding:.7rem}
-  .btn-sm{--bs-btn-padding-y:.1rem;--bs-btn-padding-x:.45rem;--bs-btn-font-size:.68rem}
-body{color:#f1f3f5}
-.text-muted{color:#c2c9d2 !important}
-code{color:#8ab4ff;background:#20242b;padding:0 .3em;border-radius:.25em}
-  #renderModal .form-check{display:flex;align-items:center;gap:.4rem;padding-left:0;margin-bottom:.25rem}
-  #renderModal .form-check-input{margin-left:0;flex-shrink:0}
-  #renderModal .form-check-label{white-space:normal;word-break:break-word;line-height:1.2;font-size:.78rem}
-  /* modal momen highlight */
-  #regenModal .list-group-item{color:#e9ecef;background:transparent;border-color:#2b3038}
-  #regenModal .rg-title{font-size:.86rem}
-  #regenModal .rg-meta{font-size:.72rem;color:#9aa4af}
-
-  </style>
+body{background:#09090b;color:#fafafa;font-family:system-ui,-apple-system,sans-serif}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#3f3f46;border-radius:3px}
+pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y:auto;white-space:pre-wrap;border-radius:.5rem}
+.tpl-btn{border:1px solid #27272a;border-radius:.25rem;padding:.25rem .5rem;cursor:pointer;transition:all .15s}
+.tpl-btn:hover{border-color:#facc15;background:#18181b}
+</style>
 </head>
-<body class="bg-dark text-light">
-<nav class="navbar navbar-dark bg-black border-bottom border-secondary sticky-top">
-  <div class="container-fluid">
-    <span class="navbar-brand fw-bold">⚡ YT Short Clipper</span>
-    <a class="btn btn-sm btn-warning ms-2" href="/create.html">＋ Create Clip</a>
-    <a class="btn btn-sm btn-outline-light ms-1" href="/tasks.html" title="Tasks aktif">📋</a>
-    <a class="btn btn-sm btn-outline-light ms-1" href="/settings.html" title="Settings">⚙️</a>
-    <form class="d-flex" onsubmit="return false">
-      <input id="search" class="form-control form-control-sm bg-secondary text-light border-0" placeholder="Cari judul / hook...">
-    </form>
-    <div class="ms-auto d-flex align-items-center gap-2">
-      <span class="navbar-text small text-muted" id="whoami"></span>
-      <a class="btn btn-sm btn-outline-light" href="/logout">Logout</a>
-    </div>
+<body class="min-h-screen">
+
+<!-- NAV -->
+<nav class="sticky top-0 z-50 flex flex-wrap items-center justify-between px-4 py-2.5 border-b border-zinc-800 bg-surface-0/80 backdrop-blur-md gap-3">
+  <div class="flex items-center gap-3">
+    <span class="font-bold text-base tracking-wide text-accent">⚡ YT Short Clipper</span>
+    <a class="px-3 py-1 text-xs font-semibold bg-accent text-black rounded hover:bg-yellow-400 transition" href="/create.html">＋ Create Clip</a>
+    <a class="p-1 text-zinc-400 hover:text-white transition" href="/tasks.html" title="Tasks aktif">📋 Tasks</a>
+    <a class="p-1 text-zinc-400 hover:text-white transition" href="/settings.html" title="Settings">⚙️ Settings</a>
+  </div>
+  
+  <div class="flex items-center flex-1 max-w-xs min-w-[150px]">
+    <input id="search" class="w-full bg-surface-2 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-accent" placeholder="Cari judul / hook...">
+  </div>
+
+  <div class="flex items-center gap-3">
+    <span class="text-xs text-zinc-500" id="whoami"></span>
+    <a href="/logout" class="text-xs text-zinc-400 hover:text-white transition">Logout</a>
   </div>
 </nav>
 
-<div class="container-fluid py-3">
-  <div class="row g-3" id="sessions"></div>
+<!-- MAIN CONTAINER -->
+<main class="max-w-[1600px] mx-auto p-4 space-y-6" id="sessions"></main>
+
+<!-- MODAL: DETAIL -->
+<div id="detailModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+  <div class="bg-surface-1 border border-zinc-800 rounded-xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
+      <h3 class="text-sm font-semibold text-white truncate" id="dTitle"></h3>
+      <button onclick="Modal.hide('detailModal')" class="text-zinc-400 hover:text-white text-lg">✕</button>
+    </div>
+    <div class="p-4 overflow-y-auto flex-1 space-y-4" id="dBody"></div>
+  </div>
 </div>
 
-<div class="modal fade" id="detailModal" tabindex="-1">
-  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-    <div class="modal-content bg-dark text-light">
-      <div class="modal-header border-secondary">
-        <h5 class="modal-title" id="dTitle"></h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body" id="dBody"></div>
+<!-- MODAL: RENDER -->
+<div id="renderModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+  <div class="bg-surface-1 border border-zinc-800 rounded-xl max-w-md w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
+      <h3 class="text-sm font-semibold text-white truncate" id="rTitle">Render</h3>
+      <button onclick="Modal.hide('renderModal')" class="text-zinc-400 hover:text-white text-lg">✕</button>
+    </div>
+    <div class="p-4 overflow-y-auto flex-1 space-y-4">
+      <div id="rBody" class="space-y-3"></div>
+      <div id="renderStatus"></div>
+    </div>
+    <div class="flex justify-end gap-2 px-4 py-3 border-t border-zinc-800 bg-surface-0">
+      <button onclick="Modal.hide('renderModal')" class="px-3 py-1.5 text-xs text-zinc-400 hover:text-white rounded border border-zinc-700 transition">Batal</button>
+      <button id="renderGoBtn" class="px-4 py-1.5 text-xs bg-accent text-black font-semibold rounded hover:bg-yellow-400 transition">⚙ Mulai Render</button>
     </div>
   </div>
 </div>
 
-<div class="modal fade" id="renderModal" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content bg-dark text-light">
-      <div class="modal-header border-secondary">
-        <h5 class="modal-title" id="rTitle">Render</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body" id="rBody"></div>
-      <div class="modal-footer border-secondary py-2">
-        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button>
-        <button type="button" class="btn btn-sm btn-warning" id="renderGoBtn">⚙ Mulai Render</button>
-      </div>
+<!-- MODAL: REGEN / MOMEN -->
+<div id="regenModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+  <div class="bg-surface-1 border border-zinc-800 rounded-xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
+      <h3 class="text-sm font-semibold text-white">🔁 Momen Highlight</h3>
+      <button onclick="Modal.hide('regenModal')" class="text-zinc-400 hover:text-white text-lg">✕</button>
     </div>
+    <div class="p-4 overflow-y-auto flex-1 space-y-4" id="rgBody"></div>
   </div>
 </div>
 
-<div class="modal fade" id="regenModal" tabindex="-1">
-  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-    <div class="modal-content bg-dark text-light">
-      <div class="modal-header border-secondary py-2">
-        <h5 class="modal-title">🔁 Momen Highlight</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body" id="rgBody"></div>
-    </div>
-  </div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script>fetch('/api/me').then(r=>r.json()).then(d=>{if(d.name)document.getElementById('whoami').textContent='👤 '+d.name;});</script>
 <script>
+fetch('/api/me').then(r=>r.json()).then(d=>{if(d.name)document.getElementById('whoami').textContent='👤 '+d.name;});
+
 let DATA = [];
 const $ = s => document.querySelector(s);
+
+const Modal = {
+  show(id) {
+    const el = document.getElementById(id);
+    el.classList.remove('hidden');
+    el.classList.add('flex');
+    document.body.classList.add('overflow-hidden');
+  },
+  hide(id) {
+    const el = document.getElementById(id);
+    el.classList.add('hidden');
+    el.classList.remove('flex');
+    document.body.classList.remove('overflow-hidden');
+    if (id === 'detailModal') {
+      const v = document.querySelector('#dBody video');
+      if (v) { try { v.pause(); v.currentTime = 0; } catch {} }
+    }
+  }
+};
+
+// Close modal on escape key
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    ['detailModal', 'renderModal', 'regenModal'].forEach(id => Modal.hide(id));
+  }
+});
 
 async function load() {
   const r = await fetch('/api/sessions');
@@ -108,9 +129,9 @@ async function load() {
 function esc(s) { return (s ?? '').toString().replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 const STATUS_BADGE = {
-  completed: '<span class="badge bg-success status-badge">selesai</span>',
-  processing: '<span class="badge bg-warning text-dark status-badge">processing</span>',
-  downloading: '<span class="badge bg-info text-dark status-badge">downloading</span>',
+  completed: '<span class="px-2 py-0.5 text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded">selesai</span>',
+  processing: '<span class="px-2 py-0.5 text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded animate-pulse">processing</span>',
+  downloading: '<span class="px-2 py-0.5 text-[10px] font-medium bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 rounded animate-pulse">downloading</span>',
 };
 
 function render() {
@@ -120,16 +141,22 @@ function render() {
       !q || (c.title + ' ' + c.hook_text + ' ' + c.post_title + ' ' + c.hashtags).toLowerCase().includes(q));
     if (!hits.length && q) return '';
     return `
-    <div class="col-12 session-block mb-4" data-id="${s.id}">
-      <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-1 border-bottom border-secondary pb-2">
-        <div class="d-flex align-items-center gap-2">
-          <h5 class="mb-0">🎬 ${esc(s.title)} ${STATUS_BADGE[s.status] || ''}</h5>
-          <button class="btn btn-sm btn-outline-info py-0" title="Lihat / regenerate momen highlight" onclick="openRegen('${esc(s.id)}')">🔁 Momen</button>
-          <button class="btn btn-sm btn-outline-danger py-0" title="Hapus seluruh sesi" onclick="deleteSession('${esc(s.id)}', this)">🗑</button>
+    <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 shadow-sm" data-id="${s.id}">
+      <div class="flex flex-wrap justify-between items-center gap-3 mb-4 pb-3 border-b border-zinc-800">
+        <div class="flex items-center gap-2">
+          <h2 class="text-sm font-semibold text-white flex items-center gap-2">
+            🎬 ${esc(s.title)} ${STATUS_BADGE[s.status] || ''}
+          </h2>
+          <button class="px-2 py-0.5 text-xs text-zinc-300 hover:text-white bg-zinc-800 border border-zinc-700 rounded hover:bg-zinc-700 transition" onclick="openRegen('${esc(s.id)}')">🔁 Momen</button>
+          <button class="px-2 py-0.5 text-xs text-red-400 hover:text-red-300 bg-red-950/20 border border-red-900/30 rounded hover:bg-red-900/20 transition" onclick="deleteSession('${esc(s.id)}', this)">🗑 Hapus</button>
         </div>
-        <small class="text-muted">${s.channel ? esc(s.channel) + ' · ' : ''}${new Date(s.created).toLocaleString('id-ID')} · <code>${esc(s.id)}</code> · ${s.total} klip</small>
+        <div class="text-[10px] text-zinc-500 flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span>${s.channel ? esc(s.channel) + ' · ' : ''}${new Date(s.created).toLocaleString('id-ID')}</span>
+          <span class="bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded font-mono">${esc(s.id)}</span>
+          <span class="font-medium text-zinc-400">${s.total} klip</span>
+        </div>
       </div>
-      <div class="row row-cols-2 row-cols-md-4 row-cols-lg-6 g-2">
+      <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
         ${hits.map((c, i) => clipCard(s, c)).join('')}
       </div>
     </div>`;
@@ -143,147 +170,172 @@ function fmtSize(b) {
 }
 
 function clipCard(s, c) {
-  const vsrc = `/video/${encodeURIComponent(s.id)}/${encodeURIComponent(c.dir)}/${encodeURIComponent(c.file)}`;
   const dl = `/download/${encodeURIComponent(s.id)}/${encodeURIComponent(c.dir)}/${encodeURIComponent(c.file)}`;
   const gi = DATA.indexOf(s);
   const ci = s.clips.indexOf(c);
   const tags = [
-    c.hook ? '<span class="badge bg-danger badge-tag">hook</span>' : '',
-    c.captions ? '<span class="badge bg-primary badge-tag">caption</span>' : '',
-    c.watermark ? '<span class="badge bg-info text-dark badge-tag">watermark</span>' : '',
-    c.credit ? '<span class="badge bg-success badge-tag">credit</span>' : '',
+    c.hook ? '<span class="text-[9px] px-1 bg-red-500/10 text-red-400 border border-red-500/20 rounded">hook</span>' : '',
+    c.captions ? '<span class="text-[9px] px-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded">caption</span>' : '',
+    c.watermark ? '<span class="text-[9px] px-1 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 rounded">watermark</span>' : '',
+    c.credit ? '<span class="text-[9px] px-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded">credit</span>' : '',
   ].join(' ');
   return `
-  <div class="col">
-    <div class="card clip-card h-100">
-      <img class="thumb-img" loading="lazy" alt="${esc(c.title)}" title="Klik untuk putar"
-           src="/thumb/${encodeURIComponent(s.id)}/${encodeURIComponent(c.dir)}" onclick="showDetail(${gi}, ${ci})">
-      <div class="card-body d-flex flex-column">
-        <div class="d-flex justify-content-between align-items-start gap-1 mb-1">
-          <span class="fw-semibold clamp clip-title flex-grow-1" title="${esc(c.title)}">${esc(c.title)}</span>
-          ${c.score != null ? `<span class="badge bg-warning text-dark badge-score flex-shrink-0">⭐${c.score}</span>` : ''}
-        </div>
-        ${c.hook_text ? `<p class="small mb-1 clamp clip-desc">🎯 ${esc(c.hook_text)}</p>` : ''}
-        <p class="card-text text-muted clamp clip-desc mb-1">${esc(c.desc)}</p>
-        <div class="mb-1 d-flex justify-content-between align-items-center">
-          <small class="text-muted" style="font-size:.62rem">💾 ${fmtSize(c.size_bytes)} · 🕒 ${c.created ? new Date(c.created).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}</small>
-        </div>
-        <div class="mb-2 d-flex flex-wrap gap-1 mt-auto">${tags}</div>
-        <div class="d-flex flex-wrap gap-1 align-items-center">
-          <button class="btn btn-sm btn-outline-info" onclick="showDetail(${gi}, ${ci})">Rincian</button>
-          <a class="btn btn-sm btn-primary" href="${dl}" download>⬇</a>
-          <button class="btn btn-sm btn-outline-warning" onclick="openRender(${gi}, ${ci})" title="Re-render dgn config">⚙ Render</button>
-          <button class="btn btn-sm btn-outline-danger" onclick="deleteClip(${gi}, ${ci}, this)">🗑</button>
-        </div>
+  <div class="group bg-surface-2 border border-zinc-800 rounded-lg overflow-hidden flex flex-col hover:border-zinc-700 transition">
+    <div class="relative aspect-video bg-zinc-950 cursor-pointer overflow-hidden" onclick="showDetail(${gi}, ${ci})">
+      <img class="w-full h-full object-cover group-hover:scale-105 transition duration-300" loading="lazy" alt="${esc(c.title)}"
+           src="/thumb/${encodeURIComponent(s.id)}/${encodeURIComponent(c.dir)}">
+      ${c.score != null ? `<span class="absolute top-1.5 right-1.5 px-1 py-0.5 text-[9px] font-bold bg-amber-400 text-black rounded shadow">⭐ ${c.score}</span>` : ''}
+    </div>
+    <div class="p-2 flex flex-col flex-1">
+      <h4 class="text-[11px] font-bold text-white line-clamp-2 mb-1 group-hover:text-accent transition" title="${esc(c.title)}">${esc(c.title)}</h4>
+      ${c.hook_text ? `<p class="text-[10px] text-zinc-300 line-clamp-1 mb-0.5">🎯 ${esc(c.hook_text)}</p>` : ''}
+      <p class="text-[10px] text-zinc-500 line-clamp-1 mb-1.5">${esc(c.desc)}</p>
+      
+      <div class="text-[9px] text-zinc-500 mb-2 flex items-center justify-between mt-auto">
+        <span>💾 ${fmtSize(c.size_bytes)}</span>
+        <span>${c.created ? new Date(c.created).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}</span>
+      </div>
+      
+      <div class="flex flex-wrap gap-1 mb-3">${tags}</div>
+      
+      <div class="grid grid-cols-4 gap-1">
+        <button class="col-span-2 py-1 text-[10px] bg-zinc-800 text-zinc-300 hover:text-white rounded border border-zinc-700 hover:bg-zinc-700 transition" onclick="showDetail(${gi}, ${ci})">Rincian</button>
+        <a class="flex items-center justify-center py-1 text-[10px] bg-zinc-800 text-zinc-300 hover:text-white rounded border border-zinc-700 hover:bg-zinc-700 transition" href="${dl}" download>⬇</a>
+        <button class="flex items-center justify-center py-1 text-[10px] bg-zinc-800 text-zinc-300 hover:text-white rounded border border-zinc-700 hover:bg-zinc-700 transition" onclick="openRender(${gi}, ${ci})" title="Re-render dgn config">⚙</button>
+        <button class="flex items-center justify-center py-1 text-[10px] bg-red-950/20 text-red-400 hover:text-red-300 rounded border border-red-900/30 hover:bg-red-900/20 transition" onclick="deleteClip(${gi}, ${ci}, this)">🗑</button>
       </div>
     </div>
   </div>`;
 }
 
 function showDetail(gi, ci) {
-  // hentikan semua video di grid saat buka rincian
   document.querySelectorAll('video.clip-video').forEach(v => { try { v.pause(); } catch {} });
   const s = DATA[gi], c = s.clips[ci];
   $('#dTitle').textContent = c.title;
   const fmt = v => (v === '' || v == null) ? '-' : v;
   const vsrc = `/video/${encodeURIComponent(s.id)}/${encodeURIComponent(c.dir)}/${encodeURIComponent(c.file)}`;
-  const dl = `/download/${encodeURIComponent(s.id)}/${encodeURIComponent(c.dir)}/${encodeURIComponent(c.file)}`;
   $('#dBody').innerHTML = `
-    <video controls autoplay playsinline style="max-height:60vh;width:100%" src="${vsrc}" poster="/thumb/${encodeURIComponent(s.id)}/${encodeURIComponent(c.dir)}"></video>
-    <dl class="row mt-3 mb-0 small">
-      ${c.post_title ? `<dt class="col-sm-3">Judul posting</dt><dd class="col-sm-9">${esc(c.post_title)}</dd>` : ''}
-      <dt class="col-sm-3">Waktu</dt><dd class="col-sm-9">${fmt(c.start_time)} → ${fmt(c.end_time)} (${fmt(c.duration)}s)</dd>
-      <dt class="col-sm-3">Hook</dt><dd class="col-sm-9">${fmt(c.hook_text)}</dd>
-      <dt class="col-sm-3">Deskripsi</dt><dd class="col-sm-9">${fmt(c.desc)}</dd>
-      ${c.hashtags ? `<dt class="col-sm-3">Hashtag</dt><dd class="col-sm-9 text-wrap">${esc(c.hashtags)}</dd>` : ''}
-      ${c.analysis ? `<dt class="col-sm-3">Analisis AI</dt><dd class="col-sm-9">${esc(c.analysis)}</dd>` : ''}
-      ${c.score != null ? `<dt class="col-sm-3">Skor viral</dt><dd class="col-sm-9">${c.score} / 10</dd>` : ''}
-      <dt class="col-sm-3">Channel</dt><dd class="col-sm-9">${fmt(c.channel)}</dd>
-      <dt class="col-sm-3">Format</dt><dd class="col-sm-9">${esc(c.aspect || '-')} · <span class="badge bg-danger badge-tag">hook</span> ${c.hook ? 'ya' : 'tidak'} · <span class="badge bg-primary badge-tag">caption</span> ${c.captions ? 'ya' : 'tidak'} · <span class="badge bg-info text-dark badge-tag">watermark</span> ${c.watermark ? 'ya' : 'tidak'} · <span class="badge bg-success badge-tag">credit</span> ${c.credit ? 'ya' : 'tidak'}</dd>
-      <dt class="col-sm-3">File utama</dt><dd class="col-sm-9"><code>${esc(c.file)}</code> · ${fmtSize(c.size_bytes)}</dd>
-      ${s.url ? `<dt class="col-sm-3">Sumber</dt><dd class="col-sm-9"><a target="_blank" rel="noopener" href="${esc(s.url)}">${esc(s.url)}</a></dd>` : ''}
-      ${c.transcript ? `<dt class="col-sm-3">Transkrip</dt><dd class="col-sm-9 text-break">${esc(c.transcript)}</dd>` : ''}
-      <dt class="col-sm-3">Semua file</dt><dd class="col-sm-9">${c.files.map(f => `<code class="d-inline-block me-2">${esc(f)}</code>`).join('')}</dd>
-    </dl>
-    <details class="mt-3"><summary class="text-info small">Lihat subtitle SRT sesi ini</summary>
-      <pre class="bg-black p-2 rounded text-wrap small mt-2" style="max-height:40vh" id="srtBox">memuat...</pre></details>`;
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="bg-black rounded-lg overflow-hidden border border-zinc-800 flex items-center justify-center">
+        <video class="w-full max-h-[50vh]" controls autoplay playsinline src="${vsrc}" poster="/thumb/${encodeURIComponent(s.id)}/${encodeURIComponent(c.dir)}"></video>
+      </div>
+      <div class="space-y-4">
+        <div class="bg-surface-2 border border-zinc-800 rounded-lg p-3">
+          <h4 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">📋 Metadata Klip</h4>
+          <table class="w-full text-xs text-zinc-300 border-collapse">
+            <tr class="border-b border-zinc-800"><td class="py-1.5 font-medium text-zinc-500 w-1/3">Waktu</td><td class="py-1.5 text-white">${fmt(c.start_time)} → ${fmt(c.end_time)} (${fmt(c.duration)}s)</td></tr>
+            <tr class="border-b border-zinc-800"><td class="py-1.5 font-medium text-zinc-500">Hook</td><td class="py-1.5 text-white">${fmt(c.hook_text)}</td></tr>
+            <tr class="border-b border-zinc-800"><td class="py-1.5 font-medium text-zinc-500">Deskripsi</td><td class="py-1.5 text-zinc-300">${fmt(c.desc)}</td></tr>
+            <tr class="border-b border-zinc-800"><td class="py-1.5 font-medium text-zinc-500">Hashtag</td><td class="py-1.5 text-zinc-400 break-words">${fmt(c.hashtags)}</td></tr>
+            <tr class="border-b border-zinc-800"><td class="py-1.5 font-medium text-zinc-500">Analisis AI</td><td class="py-1.5 text-zinc-400 italic">${fmt(c.analysis)}</td></tr>
+            <tr class="border-b border-zinc-800"><td class="py-1.5 font-medium text-zinc-500">Skor Viral</td><td class="py-1.5 text-amber-400 font-bold">${c.score != null ? c.score + ' / 10' : '-'}</td></tr>
+            <tr class="border-b border-zinc-800"><td class="py-1.5 font-medium text-zinc-500">Channel</td><td class="py-1.5 text-white">${fmt(c.channel)}</td></tr>
+            <tr class="border-b border-zinc-800"><td class="py-1.5 font-medium text-zinc-500">Format</td><td class="py-1.5 text-white">${esc(c.aspect || '-')}</td></tr>
+            <tr><td class="py-1.5 font-medium text-zinc-500">File Utama</td><td class="py-1.5 text-white font-mono break-all">${esc(c.file)} (${fmtSize(c.size_bytes)})</td></tr>
+          </table>
+        </div>
+        ${s.url ? `<div class="text-xs bg-surface-2 border border-zinc-800 rounded-lg p-3">
+          <span class="font-medium text-zinc-500 mr-2">Sumber:</span>
+          <a class="text-accent hover:underline break-all" target="_blank" rel="noopener" href="${esc(s.url)}">${esc(s.url)}</a>
+        </div>` : ''}
+      </div>
+    </div>
+    
+    <div class="border-t border-zinc-800 pt-4 space-y-2">
+      <div class="flex flex-col gap-1.5">
+        <label class="text-[10px] text-zinc-500 uppercase tracking-wider block">Transkrip Momen</label>
+        <div class="bg-surface-2 border border-zinc-800 rounded-lg p-3 text-xs text-zinc-300 text-justify leading-relaxed max-h-32 overflow-y-auto">${fmt(c.transcript)}</div>
+      </div>
+      <div class="flex flex-col gap-1.5 pt-2">
+        <label class="text-[10px] text-zinc-500 uppercase tracking-wider block">Daftar File Varian</label>
+        <div class="flex flex-wrap gap-1.5">${c.files.map(f => `<code class="bg-zinc-800 border border-zinc-700 text-zinc-300 text-[10px] px-1.5 py-0.5 rounded font-mono">${esc(f)}</code>`).join('')}</div>
+      </div>
+    </div>
+    
+    <details class="group border border-zinc-800 rounded-lg bg-surface-2 mt-4">
+      <summary class="flex justify-between items-center px-4 py-2 text-xs font-medium text-zinc-400 hover:text-white cursor-pointer select-none">
+        <span>Lihat subtitle SRT sesi ini</span>
+        <span class="transition group-open:rotate-180">▼</span>
+      </summary>
+      <div class="px-4 pb-4 border-t border-zinc-800">
+        <pre class="bg-black p-3 rounded-lg text-zinc-400 font-mono text-[10px] overflow-x-auto max-h-48 mt-2" id="srtBox">memuat...</pre>
+      </div>
+    </details>`;
   fetch(`/api/sessions/${encodeURIComponent(s.id)}/subtitle`)
     .then(r => r.text()).then(t => { $('#srtBox').textContent = t.slice(0, 20000); })
     .catch(() => { $('#srtBox').textContent = 'gagal memuat'; });
-  bootstrap.Modal.getOrCreateInstance('#detailModal').show();
+  Modal.show('detailModal');
 }
 
-// tutup modal / klik X = stop video di dalam modal
-$('#detailModal').addEventListener('hide.bs.modal', () => {
-  const v = $('#dBody video');
-  if (v) { try { v.pause(); v.currentTime = 0; } catch {} }
-});
-
-// lazy load selesai — kartu pakai <img> thumbnail, video cuma di modal
-
-// render modal: semua setting seperti /config bot, default dari config.json
 const CFG = {};
 fetch('/api/config').then(r => r.json()).then(c => Object.assign(CFG, c)).catch(() => {});
 
 function cfgSwitch(key, label) {
-  return `<div class="form-check form-switch">
-    <input class="form-check-input" type="checkbox" id="cfg_${key}" ${CFG[key] ? 'checked' : ''} onchange="CFG['${key}']=this.checked">
-    <label class="form-check-label small" for="cfg_${key}">${label}</label>
-  </div>`;
+  return `<label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1">
+    <input type="checkbox" id="cfg_${key}" ${CFG[key] ? 'checked' : ''} onchange="CFG['${key}']=this.checked" class="w-3.5 h-3.5 accent-[#facc15]">
+    <span>${label}</span>
+  </label>`;
 }
 
 function cfgSelect(key, label, options) {
   const opts = options.map(o => `<option value="${o}" ${CFG[key] === o ? 'selected' : ''}>${o}</option>`).join('');
-  return `<label class="form-label small mb-0">${label}</label>
-    <select class="form-select form-select-sm bg-secondary text-light border-0" onchange="CFG['${key}']=this.value">${opts}</select>`;
+  return `<div>
+    <label class="text-[10px] text-zinc-500 block mb-0.5">${label}</label>
+    <select onchange="CFG['${key}']=this.value" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent">${opts}</select>
+  </div>`;
 }
 
 function cfgNum(key, label, step = 'any') {
-  return `<label class="form-label small mb-0">${label}</label>
-    <input type="number" step="${step}" class="form-control form-control-sm bg-secondary text-light border-0"
-           value="${CFG[key] ?? ''}" oninput="CFG['${key}']=parseFloat(this.value)||0">`;
+  return `<div>
+    <label class="text-[10px] text-zinc-500 block mb-0.5">${label}</label>
+    <input type="number" step="${step}" value="${CFG[key] ?? ''}" oninput="CFG['${key}']=parseFloat(this.value)||0"
+           class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent">
+  </div>`;
 }
 
 function openRender(gi, ci) {
   const s = DATA[gi], c = s.clips[ci];
   $('#rTitle').textContent = 'Render: ' + c.title;
   $('#rBody').innerHTML = `
-    <div class="row g-2 mb-2">
-      <div class="col-6">${cfgSwitch('hook', '🪝 Hook (TTS Intro)')}</div>
-      <div class="col-6">${cfgSwitch('captions', '💬 Subtitle (Caption)')}</div>
-      <div class="col-6">${cfgSwitch('watermark', '🖼️ Watermark')}</div>
-      <div class="col-6">${cfgSwitch('credit', '🏷️ Credit Watermark')}</div>
+    <div class="grid grid-cols-2 gap-2">
+      ${cfgSwitch('hook', '🪝 Hook (TTS)')}
+      ${cfgSwitch('captions', '💬 Subtitle')}
+      ${cfgSwitch('watermark', '🖼️ Watermark')}
+      ${cfgSwitch('credit', '🏷️ Credit')}
+      ${cfgSwitch('smooth_follow', '🎯 Smooth Follow')}
+      ${cfgSwitch('gpu', '⚡ GPU Accel')}
     </div>
-    <hr class="border-secondary my-2">
-    <div class="row g-2 mb-2">
-      <div class="col-6 col-md-3">${cfgSelect('aspect_ratio', '📐 Rasio', ['9:16', '1:1', '4:5', '16:9'])}</div>
-      <div class="col-6 col-md-3">${cfgSelect('subtitle_style', '✏️ Gaya Subtitle', ['pop', 'karaoke', 'bounce', 'animated', 'pop_bounce'])}</div>
-      <div class="col-6 col-md-3">${cfgSelect('portrait_mode', '🖼️ Portrait Mode', ['crop', 'blur'])}</div>
-      <div class="col-6 col-md-3">${cfgSelect('face_tracking_mode', '🎯 Face Tracking', ['opencv', 'mediapipe'])}</div>
-      <div class="col-6 col-md-4">${cfgNum('sync_offset', '⏱️ Sync Offset (detik)', '0.1')}</div>
-      <div class="col-6 col-md-4">${cfgSwitch('smooth_follow', '🎯 Smooth Follow')}</div>
-      <div class="col-6 col-md-4">${cfgSwitch('gpu', '⚡ GPU Accel')}</div>
+    <hr class="border-zinc-800 my-2">
+    <div class="grid grid-cols-2 gap-2">
+      ${cfgSelect('aspect_ratio', '📐 Rasio', ['9:16', '1:1', '4:5', '16:9'])}
+      ${cfgSelect('subtitle_style', '✏️ Gaya Subtitle', ['pop', 'karaoke', 'bounce', 'animated', 'pop_bounce'])}
+      ${cfgSelect('portrait_mode', '🖼️ Portrait Mode', ['crop', 'blur'])}
+      ${cfgSelect('face_tracking_mode', '🎯 Face Tracking', ['opencv', 'mediapipe'])}
+      ${cfgNum('sync_offset', '⏱️ Sync Offset (detik)', '0.1')}
     </div>
-    <details class="small"><summary class="text-info">🎯 Lanjutan face tracking</summary>
-      <div class="row g-2 mt-1">
-        <div class="col-6 col-md-4">${cfgNum('pan_speed_limit', 'Pan Speed Limit', '0.1')}</div>
-        <div class="col-6 col-md-4">${cfgNum('center_weight', 'Center Weight', '0.05')}</div>
-        <div class="col-6 col-md-4">${cfgNum('switch_threshold', 'Switch Threshold', '0.05')}</div>
-        <div class="col-6 col-md-6">${cfgNum('min_shot_duration', 'Min Shot Duration', '1')}</div>
-        <div class="col-6 col-md-6">${cfgNum('lip_activity', 'Lip Activity', '0.01')}</div>
+    <details class="border border-zinc-800 rounded bg-surface-2 mt-2">
+      <summary class="px-2 py-1 text-xs font-semibold text-zinc-400 hover:text-white cursor-pointer select-none flex justify-between items-center">
+        <span>🎯 Face Tracking Lanjutan</span>
+        <span>▼</span>
+      </summary>
+      <div class="p-2 grid grid-cols-2 gap-2 border-t border-zinc-800">
+        ${cfgNum('pan_speed_limit', 'Pan Speed Limit', '0.1')}
+        ${cfgNum('center_weight', 'Center Weight', '0.05')}
+        ${cfgNum('switch_threshold', 'Switch Threshold', '0.05')}
+        ${cfgNum('min_shot_duration', 'Min Shot Duration', '1')}
+        ${cfgNum('lip_activity', 'Lip Activity', '0.01')}
       </div>
     </details>
-    <p class="small text-muted mt-2 mb-0">Butuh <code>landscape.mp4</code> di folder klip & bisa makan waktu beberapa menit.</p>
-    <div id="renderStatus"></div>`;
-  bootstrap.Modal.getOrCreateInstance('#renderModal').show();
+    <p class="text-[10px] text-zinc-500 italic mt-2">Butuh <code>landscape.mp4</code> di folder klip & bisa makan waktu beberapa menit.</p>`;
+  
+  Modal.show('renderModal');
   $('#renderGoBtn').onclick = () => doRender(s.id, c.dir);
 }
 
 async function doRender(sid, dir) {
   const st = $('#renderStatus');
   $('#renderGoBtn').disabled = true;
-  st.innerHTML = '<div class="alert alert-info py-2 small mb-0" id="rRun">⏳ Rendering… <span id="rElapsed"></span></div><pre class="bg-black text-light p-2 rounded mt-2 small" id="rLog" style="max-height:45vh;overflow-y:auto;overscroll-behavior:contain;white-space:pre-wrap">memulai…</pre>';
-  // mulai render
+  st.innerHTML = '<div class="p-3 bg-zinc-950 border border-zinc-800 rounded-lg space-y-2"><div class="flex items-center justify-between text-xs text-zinc-300"><span>⏳ Rendering…</span><span id="rElapsed" class="font-mono"></span></div><pre class="log" id="rLog">memulai…</pre></div>';
   try {
     const r = await fetch(`/api/render/${encodeURIComponent(sid)}/${encodeURIComponent(dir)}`, {
       method: 'POST',
@@ -292,12 +344,12 @@ async function doRender(sid, dir) {
     });
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.ok) {
-      st.innerHTML = `<div class="alert alert-danger py-2 small mb-0">❌ Gagal mulai render: ${esc(j.error || 'HTTP ' + r.status)}</div>`;
+      st.innerHTML = `<div class="p-3 text-xs bg-red-950/20 border border-red-900/30 text-red-400 rounded-lg">❌ Gagal mulai render: ${esc(j.error || 'HTTP ' + r.status)}</div>`;
       $('#renderGoBtn').disabled = false;
       return;
     }
   } catch (e) {
-    st.innerHTML = `<div class="alert alert-danger py-2 small mb-0">❌ ${esc(String(e))}</div>`;
+    st.innerHTML = `<div class="p-3 text-xs bg-red-950/20 border border-red-900/30 text-red-400 rounded-lg">❌ ${esc(String(e))}</div>`;
     $('#renderGoBtn').disabled = false;
     return;
   }
@@ -316,10 +368,10 @@ async function doRender(sid, dir) {
       if (!j.running) {
         clearInterval(poll);
         if (j.code === 0) {
-          st.insertAdjacentHTML('afterbegin', '<div class="alert alert-success py-2 small mb-2">✅ Render selesai! Memuat ulang data…</div>');
-          setTimeout(async () => { await load(); bootstrap.Modal.getInstance('#renderModal').hide(); }, 1500);
+          st.insertAdjacentHTML('afterbegin', '<div class="p-2 mb-2 text-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded">✅ Render selesai! Memuat ulang…</div>');
+          setTimeout(async () => { await load(); Modal.hide('renderModal'); }, 1500);
         } else {
-          st.insertAdjacentHTML('afterbegin', `<div class="alert alert-danger py-2 small mb-2">❌ Render gagal (exit ${j.code ?? '?'}) — lihat log di bawah.</div>`);
+          st.insertAdjacentHTML('afterbegin', `<div class="p-2 mb-2 text-xs bg-red-950/20 border border-red-900/30 text-red-400 rounded">❌ Render gagal (exit ${j.code ?? '?'}) — lihat log di bawah.</div>`);
           $('#renderGoBtn').disabled = false;
         }
       }
@@ -327,65 +379,100 @@ async function doRender(sid, dir) {
   }, 1000);
 }
 
-// ===== modal momen highlight: lihat / regenerate / lanjut proses =====
-const rgModal = () => bootstrap.Modal.getOrCreateInstance('#regenModal');
-
 async function openRegen(sid) {
-  $('#rgBody').innerHTML = '<div class="text-muted small">memuat…</div>';
-  rgModal().show();
+  $('#rgBody').innerHTML = '<div class="text-zinc-500 text-xs py-4 text-center">memuat…</div>';
+  Modal.show('regenModal');
   let hls = [];
   try { hls = await (await fetch(`/api/highlights/${encodeURIComponent(sid)}`)).json(); } catch {}
   if (Array.isArray(hls) && hls.length) return showRegenPicker(sid, hls);
-  // belum ada highlight → tawarkan cari
+  
   $('#rgBody').innerHTML = `
-    <p class="small text-muted mb-2">Highlight belum ada untuk sesi ini.</p>
-    <div class="d-flex gap-2">
-      <button class="btn btn-warning btn-sm px-3" onclick="doRefind('${esc(sid)}')">🔍 Cari Highlight Sekarang</button>
+    <p class="text-xs text-zinc-400">Highlight belum ada untuk sesi ini.</p>
+    <div class="flex gap-2">
+      <button class="px-3 py-1.5 text-xs font-semibold bg-accent text-black rounded hover:bg-yellow-400 transition" onclick="doRefind('${esc(sid)}')">🔍 Cari Highlight Sekarang</button>
     </div>
-    <div id="rgStatus" class="mt-3"></div><pre class="bg-black text-light p-2 rounded mt-2 small d-none" id="rgLog" style="max-height:35vh;overflow-y:auto;white-space:pre-wrap"></pre>`;
+    <div id="rgStatus" class="mt-3"></div><pre class="log hidden mt-2" id="rgLog"></pre>`;
 }
 
-function showRegenPicker(sid, hls) {
+async function showRegenPicker(sid, hls) {
   const rows = hls.map(h => `
-    <label class="list-group-item d-flex align-items-start gap-2 py-2">
-      <input class="form-check-input mt-1 rg-check flex-shrink-0" type="checkbox" value="${h.i}" checked>
-      <span class="flex-grow-1">
-        <span class="fw-semibold rg-title">${esc(h.title)}</span>
-        ${h.score != null ? `<span class="badge bg-warning text-dark badge-score ms-1">⭐${h.score}</span>` : ''}
-        <br><span class="rg-meta">${esc(h.start)} → ${esc(h.end)} · ${h.duration}s</span>
-      </span>
+    <label class="flex items-start gap-3 p-2 border-b border-zinc-800 hover:bg-zinc-800/40 transition cursor-pointer">
+      <input class="form-check-input mt-1 rg-check flex-shrink-0 w-3.5 h-3.5 accent-[#facc15]" type="checkbox" value="${h.i}" checked>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2">
+          <span class="font-semibold text-xs text-white truncate">${esc(h.title)}</span>
+          ${h.score != null ? `<span class="px-1 py-0.5 text-[9px] font-bold bg-amber-400 text-black rounded">⭐ ${h.score}</span>` : ''}
+        </div>
+        <span class="text-[10px] text-zinc-500">${esc(h.start)} → ${esc(h.end)} · ${h.duration}s</span>
+      </div>
     </label>`).join('');
+    
   $('#rgBody').innerHTML = `
-    <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-1">
-      <span class="small text-muted">Sesi: <code>${esc(sid)}</code> · ${hls.length} momen siap dirender</span>
-      <a href="#" class="small text-info text-decoration-none" onclick="toggleRgAll();return false">pilih semua / none</a>
+    <div class="flex justify-between items-center flex-wrap gap-2 text-xs">
+      <span class="text-zinc-400">Sesi: <code class="bg-zinc-800 text-zinc-300 px-1 py-0.5 rounded">${esc(sid)}</code> · ${hls.length} momen siap</span>
+      <a href="#" class="text-accent hover:underline" onclick="toggleRgAll();return false">pilih semua / none</a>
     </div>
-    <div class="list-group list-group-flush border rounded mb-3" style="max-height:40vh;overflow:auto" onchange="updateRgCount()">${rows}</div>
-    <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
-      <span class="badge bg-warning text-dark" id="rgCount"></span>
-      <div class="form-check form-switch mb-0">
-        <input class="form-check-input" type="checkbox" id="rgHook"><label class="form-check-label small" for="rgHook">🪝 Hook intro</label>
-      </div>
-      <div class="form-check form-switch mb-0">
-        <input class="form-check-input" type="checkbox" id="rgCaps"><label class="form-check-label small" for="rgCaps">💬 Caption</label>
-      </div>
+    <div class="border border-zinc-800 rounded-lg overflow-hidden bg-surface-2 max-h-60 overflow-y-auto mb-3" onchange="updateRgCount()">${rows}</div>
+    <div class="flex flex-wrap items-center gap-3 bg-surface-2 border border-zinc-800 rounded-lg p-2.5 mb-3">
+      <span class="px-2 py-0.5 text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded" id="rgCount"></span>
+      <span class="text-xs text-zinc-400">⚡ Template:</span>
+      <div class="flex flex-wrap gap-1" id="rgTplBar"></div>
     </div>
-    <div class="d-flex gap-2 flex-wrap">
-      <button class="btn btn-warning btn-sm px-3" onclick="regenProcess('${esc(sid)}')">🎬 Render Terpilih</button>
-      <button class="btn btn-outline-info btn-sm" onclick="doRefind('${esc(sid)}')">🔄 Re-generate Momen</button>
+    <div id="rgTplMsg" class="text-xs mb-3 hidden"></div>
+    <div class="flex gap-2 flex-wrap">
+      <button class="px-4 py-2 text-xs font-semibold bg-accent text-black rounded hover:bg-yellow-400 transition" onclick="regenProcess('${esc(sid)}')">🎬 Render Terpilih</button>
+      <button class="px-3 py-2 text-xs text-zinc-300 hover:text-white bg-zinc-800 border border-zinc-700 rounded hover:bg-zinc-700 transition" onclick="doRefind('${esc(sid)}')">🔄 Re-generate Momen</button>
     </div>
-    <div id="rgStatus" class="mt-3"></div><pre class="bg-black text-light p-2 rounded mt-2 small d-none" id="rgLog" style="max-height:35vh;overflow-y:auto;white-space:pre-wrap"></pre>`;
-  fetch('/api/config').then(r => r.json()).then(c => {
-    document.getElementById('rgHook').checked = !!c.hook;
-    document.getElementById('rgCaps').checked = !!c.captions;
-  }).catch(() => {});
+    <div id="rgStatus" class="mt-3"></div><pre class="log hidden mt-2" id="rgLog"></pre>`;
+  try { CUR_CFG = await (await fetch('/api/config')).json(); } catch { CUR_CFG = {}; }
+  initRgTplBar();
   updateRgCount();
+}
+
+const RG_TEMPLATES = {
+  podcast2: { label: '🎙 Pod 2 Org', cfg: { face_tracking_mode:'mediapipe', portrait_mode:'crop', smooth_follow:true, pan_speed_limit:1.8, center_weight:0.45, switch_threshold:0.35, min_shot_duration:120, lip_activity:0.12, subtitle_style:'pop', sync_offset:-0.25, aspect_ratio:'9:16', hook:true, captions:true, gpu:true } },
+  podcast3: { label: '🎙 Pod 3+', cfg: { face_tracking_mode:'mediapipe', portrait_mode:'blur', smooth_follow:false, pan_speed_limit:2.5, center_weight:0.25, switch_threshold:0.22, min_shot_duration:60, lip_activity:0.15, subtitle_style:'pop', sync_offset:-0.25, aspect_ratio:'9:16', hook:true, captions:true, gpu:true } },
+  game:     { label: '🎮 Gaming', cfg: { face_tracking_mode:'opencv', portrait_mode:'crop', smooth_follow:true, pan_speed_limit:4.0, center_weight:0.15, switch_threshold:0.15, min_shot_duration:30, lip_activity:0.2, subtitle_style:'bounce', sync_offset:-0.15, aspect_ratio:'9:16', hook:true, captions:true, gpu:true } },
+  news:     { label: '📰 Berita', cfg: { face_tracking_mode:'opencv', portrait_mode:'crop', smooth_follow:false, pan_speed_limit:1.2, center_weight:0.5, switch_threshold:0.4, min_shot_duration:150, lip_activity:0.1, subtitle_style:'karaoke', sync_offset:-0.3, aspect_ratio:'9:16', hook:false, captions:true, gpu:true } },
+  tutorial: { label: '🧑‍🏫 Tutorial', cfg: { face_tracking_mode:'mediapipe', portrait_mode:'crop', smooth_follow:true, pan_speed_limit:1.5, center_weight:0.5, switch_threshold:0.4, min_shot_duration:180, lip_activity:0.1, subtitle_style:'animated', sync_offset:-0.3, aspect_ratio:'9:16', hook:false, captions:true, gpu:true } },
+  vlog:     { label: '📹 Vlog', cfg: { face_tracking_mode:'mediapipe', portrait_mode:'crop', smooth_follow:true, pan_speed_limit:2.2, center_weight:0.35, switch_threshold:0.3, min_shot_duration:90, lip_activity:0.15, subtitle_style:'pop_bounce', sync_offset:-0.25, aspect_ratio:'9:16', hook:true, captions:true, gpu:true } },
+};
+let REG_TPL = null, CUR_CFG = {};
+
+async function applyRegenTemplate(key) {
+  const t = RG_TEMPLATES[key];
+  if (!t) return;
+  REG_TPL = { ...t.cfg };
+  const m = document.getElementById('rgTplMsg');
+  m.classList.remove('hidden', 'text-emerald-400', 'text-red-400');
+  m.classList.add('text-amber-400');
+  m.textContent = `⏳ Menyimpan template ${t.label}…`;
+  try {
+    const r = await fetch('/api/config', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(REG_TPL) });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    m.classList.remove('text-amber-400');
+    m.classList.add('text-emerald-400');
+    m.textContent = `✅ Template ${t.label} tersimpan otomatis.`;
+    setTimeout(() => m.classList.add('hidden'), 4000);
+  } catch (e) {
+    m.classList.remove('text-amber-400');
+    m.classList.add('text-red-400');
+    m.textContent = `❌ Gagal menyimpan template (${e.message || e}).`;
+  }
+}
+
+function initRgTplBar() {
+  const bar = document.getElementById('rgTplBar');
+  if (!bar) return;
+  bar.innerHTML = Object.entries(RG_TEMPLATES).map(([k, t]) =>
+    `<button class="tpl-btn text-[10px] text-zinc-300 hover:text-white" onclick="applyRegenTemplate('${k}')">${t.label}</button>`).join('');
 }
 
 function toggleRgAll() {
   const b = [...document.querySelectorAll('.rg-check')];
   const anyOff = b.some(x => !x.checked);
   b.forEach(x => x.checked = anyOff);
+  updateRgCount();
 }
 
 function updateRgCount() {
@@ -396,19 +483,19 @@ function updateRgCount() {
   el.textContent = `🎬 ${sel} / ${all.length} klip terpilih`;
 }
 
-function rgLogBox(on) { const l = $('#rgLog'); if (!l) return null; l.classList.toggle('d-none', !on); return l; }
+function rgLogBox(on) { const l = $('#rgLog'); if (!l) return null; l.classList.toggle('hidden', !on); return l; }
 
 async function doRefind(sid) {
   const st = $('#rgStatus'), logBox = rgLogBox(true);
-  st.innerHTML = '<div class="alert alert-info py-2 small mb-0">⏳ AI mencari ulang momen terbaik…</div>';
+  st.innerHTML = '<div class="p-3 text-xs bg-zinc-950 border border-zinc-800 rounded-lg text-zinc-300">⏳ AI mencari ulang momen terbaik…</div>';
   try {
     const r = await fetch(`/api/refind/${encodeURIComponent(sid)}`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}' });
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.ok) throw new Error(j.error || ('HTTP ' + r.status));
-  } catch (e) { st.innerHTML = `<div class="alert alert-danger py-2 small">❌ ${esc(String(e))}</div>`; return; }
+  } catch (e) { st.innerHTML = `<div class="p-3 text-xs bg-red-950/20 border border-red-900/30 text-red-400 rounded-lg">❌ ${esc(String(e))}</div>`; return; }
   pollJob(`/api/refind/status/${encodeURIComponent(sid)}`, logBox, async j => {
     if (j.code === 0 && j.result && j.result.ok) {
-      st.innerHTML = `<div class="alert alert-success py-2 small">✅ ${j.result.count} momen baru ditemukan!</div>`;
+      st.innerHTML = `<div class="p-3 text-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg">✅ ${j.result.count} momen baru ditemukan!</div>`;
       setTimeout(async () => {
         await load();
         let hls = [];
@@ -416,7 +503,7 @@ async function doRefind(sid) {
         if (hls.length) showRegenPicker(sid, hls);
       }, 800);
     } else {
-      st.innerHTML = `<div class="alert alert-danger py-2 small">❌ Gagal regenerate — lihat log.</div>`;
+      st.innerHTML = `<div class="p-3 text-xs bg-red-950/20 border border-red-900/30 text-red-400 rounded-lg">❌ Gagal regenerate — lihat log.</div>`;
     }
   });
 }
@@ -424,22 +511,21 @@ async function doRefind(sid) {
 async function regenProcess(sid) {
   const sel = [...document.querySelectorAll('.rg-check:checked')].map(b => parseInt(b.value));
   if (!sel.length) { alert('Pilih minimal 1 momen'); return; }
-  const hook = $('#rgHook').checked, caps = $('#rgCaps').checked;
+  const base = REG_TPL || CUR_CFG || {};
+  const hook = !!base.hook, caps = !!base.captions;
   const st = $('#rgStatus'), logBox = rgLogBox(true);
   try {
     const r = await fetch(`/api/process/${encodeURIComponent(sid)}`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ selected: sel, hook, captions: caps }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.ok) throw new Error(j.error || ('HTTP ' + r.status));
-  } catch (e) { st.innerHTML = `<div class="alert alert-danger py-2 small">❌ ${esc(String(e))}</div>`; return; }
-  st.innerHTML = '<div class="alert alert-info py-2 small mb-0">⏳ Download & render klip terpilih…</div>';
+  } catch (e) { st.innerHTML = `<div class="p-3 text-xs bg-red-950/20 border border-red-900/30 text-red-400 rounded-lg">❌ ${esc(String(e))}</div>`; return; }
+  st.innerHTML = '<div class="p-3 text-xs bg-zinc-950 border border-zinc-800 text-zinc-300 rounded-lg">⏳ Download & render klip terpilih…</div>';
   pollJob(`/api/process/status/${encodeURIComponent(sid)}`, logBox, j => {
-    if (j.code === 0) st.innerHTML = '<div class="alert alert-success py-2 small">✅ Render selesai! Tutup modal untuk lihat hasil di beranda.</div>';
-    else st.innerHTML = `<div class="alert alert-danger py-2 small">❌ Process gagal (exit ${j.code ?? '?'}) — lihat log.</div>`;
+    if (j.code === 0) st.innerHTML = '<div class="p-3 text-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg">✅ Render selesai! Tutup modal untuk lihat hasil di beranda.</div>';
+    else st.innerHTML = `<div class="p-3 text-xs bg-red-950/20 border border-red-900/30 text-red-400 rounded-lg">❌ Process gagal (exit ${j.code ?? '?'}) — lihat log.</div>`;
   });
 }
 
-// poll generik: status endpoint → callback saat selesai
-// poll generik: status endpoint → callback saat selesai
 function pollJob(url, logBox, onDone) {
   const poll = setInterval(async () => {
     try {

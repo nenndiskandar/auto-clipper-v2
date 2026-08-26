@@ -1,382 +1,326 @@
 <!doctype html>
-<html lang="id" data-bs-theme="dark">
+<html lang="id">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Create Clip — YT Short Clipper</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: { extend: { colors: {
+    surface: { 0:'#09090b', 1:'#18181b', 2:'#27272a', 3:'#3f3f46' },
+    accent: '#facc15',
+  }}}
+}
+</script>
 <style>
-body{background:#0d1117;font-size:.85rem}
-.form-control,.form-select{font-size:.8rem}
-.form-check-label{white-space:normal;line-height:1.2}
-.card{background:#161b22;border-color:#30363d}
-pre.log{background:#000;color:#c9d1d9;font-size:.68rem;max-height:35vh;overflow-y:auto;overscroll-behavior:contain;white-space:pre-wrap}
-.hl-item{border-color:#30363d!important}
-.badge-score{font-size:.6rem}
+body{background:#09090b;color:#fafafa;font-family:system-ui,-apple-system,sans-serif}
+details.cfg-group summary{cursor:pointer;user-select:none;list-style:none}
+details.cfg-group summary::-webkit-details-marker{display:none}
+details.cfg-group summary::before{content:'▸';display:inline-block;width:1em;margin-right:.5rem;transition:transform .15s}
+details.cfg-group[open] summary::before{transform:rotate(90deg)}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#3f3f46;border-radius:3px}
+pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y:auto;white-space:pre-wrap;border-radius:.5rem}
+.tpl-card{border:1px solid #27272a;border-radius:.5rem;padding:.5rem .75rem;cursor:pointer;transition:all .15s;min-width:0}
+.tpl-card:hover{border-color:#facc15;background:#18181b}
+.tpl-card.active{border-color:#facc15;background:#18181b;box-shadow:0 0 0 1px #facc15}
+.hl-item{border-color:#27272a!important;background:transparent}
+.hl-item:hover{background:#18181b}
 </style>
 </head>
-<body>
-<nav class="navbar navbar-dark px-3 py-2" style="background:#010409;border-bottom:1px solid #30363d">
-  <a class="btn btn-sm btn-outline-light" href="/">← Beranda</a>
-  <span class="navbar-brand mb-0 fw-bold">＋ Create Clip</span>
-  <div class="ms-auto d-flex align-items-center gap-2">
-    <span class="text-muted small" id="whoami"></span>
-    <a class="btn btn-sm btn-outline-light" href="/logout">Logout</a>
+<body class="min-h-screen">
+
+<nav class="sticky top-0 z-50 flex items-center justify-between px-4 py-2.5 border-b border-zinc-800 bg-surface-0/80 backdrop-blur-md">
+  <a href="/" class="text-sm text-zinc-400 hover:text-white transition">← Beranda</a>
+  <span class="font-semibold text-sm tracking-wide">＋ Create Clip</span>
+  <div class="flex items-center gap-3">
+    <span class="text-xs text-zinc-500" id="whoami"></span>
+    <a href="/logout" class="text-xs text-zinc-400 hover:text-white transition">Logout</a>
   </div>
 </nav>
 
-<div class="container-fluid py-3">
-<div class="row g-3">
+<div class="flex flex-col lg:flex-row max-w-[1400px] mx-auto gap-4 p-4">
 
-<!-- ===== TEMPLATE CEPAT ===== -->
-<div class="col-12">
-  <div class="card">
-    <div class="card-body py-2">
-      <span class="fw-semibold small me-2">⚡ Template:</span>
-      <div class="d-flex flex-wrap gap-2" id="tplBar"></div>
-      <div id="tplMsg" class="small text-success mt-1" style="display:none"></div>
+<!-- LEFT: Workflow -->
+<main class="flex-1 min-w-0 space-y-3">
+  <div class="bg-surface-1 border border-zinc-800 rounded-lg">
+    <div class="px-4 py-2.5 border-b border-zinc-800">
+      <span class="text-xs font-medium text-zinc-400 uppercase tracking-wider">🎬 Workflow</span>
     </div>
-  </div>
-</div>
-
-<!-- ===== PANEL PARAMETER ===== -->
-<div class="col-lg-5">
-  <div class="card h-100">
-    <div class="card-header border-secondary d-flex justify-content-between align-items-center py-2">
-      <span class="fw-semibold">⚙️ Konfigurasi Aktif</span>
-      <button class="btn btn-sm btn-warning" id="saveBtn" onclick="saveConfig()">💾 Simpan</button>
-    </div>
-    <div class="card-body">
-      <div class="row g-2 mb-2">
-        <div class="col-6"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="f_watermark"><label class="form-check-label" for="f_watermark">🖼️ Watermark</label></div></div>
-        <div class="col-6"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="f_credit"><label class="form-check-label" for="f_credit">🏷️ Credit Watermark</label></div></div>
-        <div class="col-6"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="f_hook"><label class="form-check-label" for="f_hook">🪝 Hook (TTS Intro)</label></div></div>
-        <div class="col-6"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="f_captions"><label class="form-check-label" for="f_captions">💬 Subtitle (Caption)</label></div></div>
-      </div>
-      <hr class="border-secondary my-2">
-      <div class="row g-2">
-        <div class="col-6 col-md-4"><label class="form-label small mb-0">🎬 Jumlah Clips</label><input type="number" min="1" class="form-control" id="f_num_clips"></div>
-        <div class="col-6 col-md-4"><label class="form-label small mb-0">🎬 Resolusi</label><select class="form-select" id="f_resolution"><option>1080p</option><option>720p</option><option>480p</option><option>360p</option><option>auto</option></select></div>
-        <div class="col-6 col-md-4"><label class="form-label small mb-0">📐 Rasio</label><select class="form-select" id="f_aspect_ratio"><option>9:16</option><option>1:1</option><option>4:5</option><option>16:9</option></select></div>
-        <div class="col-6 col-md-4"><label class="form-label small mb-0">✏️ Gaya Subtitle</label><select class="form-select" id="f_subtitle_style"><option>pop</option><option>karaoke</option><option>bounce</option><option>animated</option><option>pop_bounce</option></select></div>
-        <div class="col-6 col-md-4"><label class="form-label small mb-0">⏱️ Sync Offset (s)</label><input type="number" step="0.1" class="form-control" id="f_sync_offset"></div>
-        <div class="col-6 col-md-4"><label class="form-label small mb-0">🖼️ Portrait Mode</label><select class="form-select" id="f_portrait_mode"><option>crop</option><option>blur</option></select></div>
-        <div class="col-6 col-md-4"><label class="form-label small mb-0">🎯 Face Tracking</label><select class="form-select" id="f_face_tracking_mode"><option>opencv</option><option>mediapipe</option></select></div>
-        <div class="col-6 col-md-4"><div class="form-check form-switch mt-4"><input class="form-check-input" type="checkbox" id="f_smooth_follow"><label class="form-check-label" for="f_smooth_follow">🎯 Smooth Follow</label></div></div>
-        <div class="col-6 col-md-4"><div class="form-check form-switch mt-4"><input class="form-check-input" type="checkbox" id="f_gpu"><label class="form-check-label" for="f_gpu">⚡️ GPU Accel</label></div></div>
-      </div>
-      <details class="mt-2"><summary class="text-info small">🎯 Lanjutan face tracking</summary>
-        <div class="row g-2 mt-1">
-          <div class="col-6 col-md-4"><label class="form-label small mb-0">Pan Speed Limit</label><input type="number" step="0.1" class="form-control" id="f_pan_speed_limit"></div>
-          <div class="col-6 col-md-4"><label class="form-label small mb-0">Center Weight</label><input type="number" step="0.05" class="form-control" id="f_center_weight"></div>
-          <div class="col-6 col-md-4"><label class="form-label small mb-0">Switch Threshold</label><input type="number" step="0.05" class="form-control" id="f_switch_threshold"></div>
-          <div class="col-6 col-md-6"><label class="form-label small mb-0">Min Shot Duration</label><input type="number" step="1" class="form-control" id="f_min_shot_duration"></div>
-          <div class="col-6 col-md-6"><label class="form-label small mb-0">Lip Activity</label><input type="number" step="0.01" class="form-control" id="f_lip_activity"></div>
-        </div>
-      </details>
-      <details class="mt-2" open><summary class="text-info small">🤖 AI & Transkripsi</summary>
-        <div class="row g-2 mt-1">
-          <div class="col-12 col-md-6"><label class="form-label small mb-0">🤖 HF Model</label><input type="text" class="form-control" id="f_hf_model" placeholder="AUTO"></div>
-          <div class="col-12 col-md-6"><label class="form-label small mb-0">🌐 Server</label><input type="text" class="form-control" id="f_server_url" placeholder="http://localhost:20128/v1"></div>
-          <div class="col-12"><label class="form-label small mb-0">🎙 Faster-Whisper <span id="fwBadge" class="small"></span></label>
-            <select class="form-select" id="f_fw_model"><option value="tiny">tiny</option><option value="base">base</option><option value="small">small</option><option value="medium">medium</option><option value="large-v3">large-v3</option></select></div>
-        </div>
-      </details>
-      <div id="saveMsg" class="small mt-2"></div>
-    </div>
-    <div class="card-footer border-secondary py-2">
-      <span class="fw-semibold small">🧰 Biner:</span>
-      <ul id="binList" class="small mb-0 ps-3"></ul>
-    </div>
-  </div>
-</div>
-
-<!-- ===== WORKFLOW ===== -->
-<div class="col-lg-7">
-  <div class="card h-100">
-    <div class="card-header border-secondary py-2"><span class="fw-semibold">🎬 Workflow</span></div>
-    <div class="card-body" id="wfArea">
-      <label class="form-label small">URL video (YouTube, TikTok, IG, X, dll)</label>
-      <div class="d-flex gap-2 align-items-end mb-3">
-        <input id="wUrl" class="form-control" placeholder="https://...">
-        <button class="btn btn-warning flex-shrink-0" id="startBtn" onclick="startCreate()">🔍 Analisis Highlight</button>
+    <div class="p-4" id="wfArea">
+      <label class="text-[10px] text-zinc-500 uppercase tracking-wider block mb-1.5">URL Video (YouTube, TikTok, IG, X)</label>
+      <div class="flex gap-2 mb-3">
+        <input id="wUrl" class="flex-1 bg-surface-2 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-accent" placeholder="https://...">
+        <button onclick="pasteUrl()" title="Paste" class="px-3 py-2 bg-surface-2 border border-zinc-700 rounded-lg text-sm text-zinc-300 hover:text-white hover:border-zinc-500 transition">📋</button>
+        <button onclick="startCreate()" id="startBtn" class="px-4 py-2 bg-accent text-black font-medium text-sm rounded-lg hover:bg-yellow-400 transition whitespace-nowrap">🔍 Analisis</button>
       </div>
       <div id="wStatus"></div>
-      <pre class="log d-none mt-2" id="wLog"></pre>
+      <pre class="log hidden mt-3" id="wLog"></pre>
     </div>
   </div>
-</div>
+</main>
 
-</div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script>fetch('/api/me').then(r=>r.json()).then(d=>{if(d.name)document.getElementById('whoami').textContent='👤 '+d.name;});</script>
-<script>
-// ===== template otomatis per tipe video (sama dgn halaman settings) =====
-const TEMPLATES = {
-  podcast2: { label: '🎙 Podcast 2 Orang', desc: 'tracking stabil, crop tengah, switch lambat', cfg: { face_tracking_mode:'mediapipe', portrait_mode:'crop', smooth_follow:true, pan_speed_limit:1.8, center_weight:0.45, switch_threshold:0.35, min_shot_duration:120, lip_activity:0.12, subtitle_style:'pop', sync_offset:-0.25, aspect_ratio:'9:16', hook:true, captions:true, gpu:true } },
-  podcast3: { label: '🎙 Podcast 3+ Orang', desc: 'blur mode, switch cepat antar pembicara', cfg: { face_tracking_mode:'mediapipe', portrait_mode:'blur', smooth_follow:false, pan_speed_limit:2.5, center_weight:0.25, switch_threshold:0.22, min_shot_duration:60, lip_activity:0.15, subtitle_style:'pop', sync_offset:-0.25, aspect_ratio:'9:16', hook:true, captions:true, gpu:true } },
-  game:     { label: '🎮 Live / Gaming', desc: 'follow agresif, caption tebal', cfg: { face_tracking_mode:'opencv', portrait_mode:'crop', smooth_follow:true, pan_speed_limit:4.0, center_weight:0.15, switch_threshold:0.15, min_shot_duration:30, lip_activity:0.2, subtitle_style:'bounce', sync_offset:-0.15, aspect_ratio:'9:16', hook:true, captions:true, gpu:true } },
-  news:     { label: '📰 Berita', desc: 'kamera diam, karaoke subtitle, hook off', cfg: { face_tracking_mode:'opencv', portrait_mode:'crop', smooth_follow:false, pan_speed_limit:1.2, center_weight:0.5, switch_threshold:0.4, min_shot_duration:150, lip_activity:0.1, subtitle_style:'karaoke', sync_offset:-0.3, aspect_ratio:'9:16', hook:false, captions:true, gpu:true } },
-  tutorial: { label: '🧑‍🏫 Tutorial', desc: 'fokus 1 pembicara, tempo tenang', cfg: { face_tracking_mode:'mediapipe', portrait_mode:'crop', smooth_follow:true, pan_speed_limit:1.5, center_weight:0.5, switch_threshold:0.4, min_shot_duration:180, lip_activity:0.1, subtitle_style:'animated', sync_offset:-0.3, aspect_ratio:'9:16', hook:false, captions:true, gpu:true } },
-  vlog:     { label: '📹 Vlog / Solo', desc: 'dinamis halus, hook aktif', cfg: { face_tracking_mode:'mediapipe', portrait_mode:'crop', smooth_follow:true, pan_speed_limit:2.2, center_weight:0.35, switch_threshold:0.3, min_shot_duration:90, lip_activity:0.15, subtitle_style:'pop_bounce', sync_offset:-0.25, aspect_ratio:'9:16', hook:true, captions:true, gpu:true } },
-};
-const tplEsc = s => String(s ?? '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-
-function applyTemplate(key) {
-  const t = TEMPLATES[key];
-  if (!t) return;
-  const c = t.cfg;
-  $('#f_hook').checked = !!c.hook; $('#f_captions').checked = !!c.captions;
-  $('#f_gpu').checked = !!c.gpu; $('#f_smooth_follow').checked = !!c.smooth_follow;
-  $('#f_face_tracking_mode').value = c.face_tracking_mode;
-  $('#f_portrait_mode').value = c.portrait_mode;
-  $('#f_subtitle_style').value = c.subtitle_style;
-  $('#f_aspect_ratio').value = c.aspect_ratio;
-  $('#f_sync_offset').value = c.sync_offset;
-  $('#f_pan_speed_limit').value = c.pan_speed_limit;
-  $('#f_center_weight').value = c.center_weight;
-  $('#f_switch_threshold').value = c.switch_threshold;
-  $('#f_min_shot_duration').value = c.min_shot_duration;
-  $('#f_lip_activity').value = c.lip_activity;
-  const m = document.getElementById('tplMsg');
-  m.textContent = `\u2705 Template "${t.label}" diterapkan (${t.desc}) \u2014 klik \ud83d\udcbe Simpan kalau mau jadi default.`;
-  m.style.display = 'block';
-  setTimeout(() => m.style.display = 'none', 6000);
-}
-
-(function initTemplates() {
-  const bar = document.getElementById('tplBar');
-  if (!bar || typeof TEMPLATES === 'undefined') return;
-  bar.innerHTML = Object.entries(TEMPLATES).map(([k, t]) =>
-    `<button class="btn btn-sm btn-outline-warning" title="${tplEsc(t.desc)}" onclick="applyTemplate('${k}')">${t.label}</button>`).join('');
-})();
-</script>
-<script>
-const $ = s => document.querySelector(s);
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-
-// ===== load config + binaries =====
-async function loadConfig() {
-  try {
-    const c = await (await fetch('/api/config')).json();
-    const setCh = (id, v) => $('#' + id).checked = !!v;
-    setCh('f_watermark', c.watermark); setCh('f_credit', c.credit);
-    setCh('f_hook', c.hook); setCh('f_captions', c.captions);
-    setCh('f_smooth_follow', c.smooth_follow); setCh('f_gpu', c.gpu);
-    $('#f_num_clips').value = c.num_clips;
-    $('#f_resolution').value = c.resolution;
-    $('#f_aspect_ratio').value = c.aspect_ratio;
-    $('#f_subtitle_style').value = c.subtitle_style;
-    $('#f_sync_offset').value = c.sync_offset;
-    $('#f_portrait_mode').value = c.portrait_mode;
-    $('#f_face_tracking_mode').value = c.face_tracking_mode;
-    $('#f_pan_speed_limit').value = c.pan_speed_limit;
-    $('#f_center_weight').value = c.center_weight;
-    $('#f_switch_threshold').value = c.switch_threshold;
-    $('#f_min_shot_duration').value = c.min_shot_duration;
-    $('#f_lip_activity').value = c.lip_activity;
-    $('#f_hf_model').value = c.hf_model || 'AUTO';
-    $('#f_server_url').value = c.server_url || '';
-    $('#f_fw_model').value = c.fw_model || 'small';
-    $('#fwBadge').textContent = c.fw_installed ? '🟢 terunduh' : '🔴 belum ada';
-  } catch { $('#saveMsg').innerHTML = '<span class="text-danger">Gagal memuat konfigurasi.</span>'; }
-}
-
-function collectConfig() {
-  return {
-    watermark: $('#f_watermark').checked,
-    credit: $('#f_credit').checked,
-    hook: $('#f_hook').checked,
-    captions: $('#f_captions').checked,
-    gpu: $('#f_gpu').checked,
-    smooth_follow: $('#f_smooth_follow').checked,
-    num_clips: parseFloat($('#f_num_clips').value),
-    resolution: $('#f_resolution').value,
-    aspect_ratio: $('#f_aspect_ratio').value,
-    subtitle_style: $('#f_subtitle_style').value,
-    sync_offset: parseFloat($('#f_sync_offset').value),
-    portrait_mode: $('#f_portrait_mode').value,
-    face_tracking_mode: $('#f_face_tracking_mode').value,
-    pan_speed_limit: parseFloat($('#f_pan_speed_limit').value),
-    center_weight: parseFloat($('#f_center_weight').value),
-    switch_threshold: parseFloat($('#f_switch_threshold').value),
-    min_shot_duration: parseFloat($('#f_min_shot_duration').value),
-    lip_activity: parseFloat($('#f_lip_activity').value),
-    hf_model: $('#f_hf_model').value.trim(),
-    server_url: $('#f_server_url').value.trim(),
-    fw_model: $('#f_fw_model').value.trim(),
-  };
-}
-
-async function saveConfig() {
-  const msg = $('#saveMsg');
-  $('#saveBtn').disabled = true;
-  try {
-    const r = await fetch('/api/config', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(collectConfig()) });
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok || !j.ok) throw new Error(j.error || ('HTTP ' + r.status));
-    msg.innerHTML = '<span class="text-success">✅ Tersimpan ke config.json.</span>';
-  } catch (e) { msg.innerHTML = `<span class="text-danger">❌ ${esc(String(e))}</span>`; }
-  $('#saveBtn').disabled = false;
-  setTimeout(() => { msg.textContent = ''; }, 4000);
-}
-
-async function loadBinaries() {
-  try {
-    const bins = await (await fetch('/api/binaries')).json();
-    $('#binList').innerHTML = bins.map(b =>
-      `<li>${b.ok ? '✅' : '❌'} ${esc(b.name)} — ${b.ok ? esc(b.detail) : '<span class="text-danger">' + esc(b.detail) + '</span>'}</li>`).join('');
-  } catch {}
-}
-
-// ===== phase 1 =====
-let PICK_SESSION = null;
-
-async function startCreate() {
-  const url = $('#wUrl').value.trim();
-  if (!/^https?:\/\//.test(url)) { alert('Isi URL video dulu'); return; }
-  const st = $('#wStatus'), logBox = $('#wLog');
-  $('#startBtn').disabled = true;
-  logBox.classList.remove('d-none');
-  st.innerHTML = '<div class="alert alert-info py-2 small mb-0 d-flex justify-content-between align-items-center gap-2"><span>⏳ Mengunduh subtitle & analisis AI… <span id="wElapsed"></span></span><button class="btn btn-sm btn-danger py-0 px-2 flex-shrink-0" id="wCancelBtn" onclick="cancelCreate()">⏹ Stop</button></div>';
-  try {
-    const r = await fetch('/api/create', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url }) });
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok || !j.ok) throw new Error(j.error || ('HTTP ' + r.status));
-  } catch (e) {
-    st.innerHTML = `<div class="alert alert-danger py-2 small">❌ ${esc(String(e))}</div>`;
-    $('#startBtn').disabled = false;
-    return;
-  }
-  const t0 = Date.now();
-  const poll = setInterval(async () => {
-    try {
-      const j = await (await fetch('/api/create/status')).json();
-      const stick = logBox.scrollTop + logBox.clientHeight >= logBox.scrollHeight - 60;
-      logBox.textContent = j.log || '';
-      if (stick) logBox.scrollTop = logBox.scrollHeight;
-      const el = document.getElementById('wElapsed');
-      if (el) el.textContent = `(${Math.round((Date.now()-t0)/1000)}s)`;
-      if (!j.running) {
-        clearInterval(poll);
-        if (j.code === 0 && j.result && j.result.ok) {
-          st.innerHTML = `<div class="alert alert-success py-2 small">✅ ${j.result.count} highlight ditemukan — pilih yang mau dirender:</div>`;
-          await showPicker(j.result.session_dir);
-        } else if (window._ph1Cancel) {
-          window._ph1Cancel = false;
-          st.insertAdjacentHTML('beforeend', '<div class="alert alert-secondary py-2 small">⏹ Analisis dibatalkan.</div>');
-          $('#startBtn').disabled = false;
-        } else {
-          const err = (j.result && j.result.error) || ('exit code ' + j.code);
-          st.insertAdjacentHTML('beforeend', `<div class="alert alert-danger py-2 small" style="white-space:pre-wrap">❌ Gagal: ${esc(err)}</div>`);
-          $('#startBtn').disabled = false;
-        }
-      }
-    } catch {}
-  }, 1000);
-}
-
-async function showPicker(sessionDir) {
-  PICK_SESSION = sessionDir.split('/').pop();
-  let hls = [];
-  try { hls = await (await fetch(`/api/highlights/${encodeURIComponent(PICK_SESSION)}`)).json(); } catch {}
-  if (!Array.isArray(hls) || !hls.length) {
-    $('#wStatus').insertAdjacentHTML('beforeend', '<div class="alert alert-warning py-2 small">Highlight tidak terbaca.</div>');
-    return;
-  }
-  const rows = hls.map(h => `
-    <label class="list-group-item bg-transparent hl-item d-flex align-items-start gap-2 py-1">
-      <input class="form-check-input mt-1 hl-check flex-shrink-0" type="checkbox" value="${h.i}" checked>
-      <span class="flex-grow-1">
-        <span class="fw-semibold">${esc(h.title)}</span>
-        ${h.score != null ? `<span class="badge bg-warning text-dark badge-score ms-1">⭐${h.score}</span>` : ''}
-        <br><span class="text-muted" style="font-size:.7rem">${esc(h.start)} → ${esc(h.end)} · ${h.duration}s</span>
-      </span>
-    </label>`).join('');
-  $('#wfArea').innerHTML = `
-    <div class="d-flex justify-content-between align-items-center mb-1">
-      <span class="small text-muted">Sesi: <code>${esc(PICK_SESSION)}</code> · ${hls.length} highlight</span>
-      <button class="btn btn-sm btn-outline-secondary py-0" onclick="location.reload()">← Ulang</button>
+<!-- RIGHT: Config -->
+<aside class="w-full lg:w-[380px] lg:sticky lg:top-14 lg:self-start lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto space-y-3 flex-shrink-0">
+  <!-- Templates -->
+  <div class="bg-surface-1 border border-zinc-800 rounded-lg p-3">
+    <div class="flex items-center justify-between mb-2">
+      <span class="text-xs font-medium text-zinc-400 uppercase tracking-wider">⚡ Template</span>
+      <span id="tplMsg" class="text-xs text-emerald-400 hidden"></span>
     </div>
-    <div class="list-group list-group-flush border rounded mb-2" style="max-height:38vh;overflow:auto">${rows}</div>
-    <div class="text-end mb-2"><a href="#" class="small text-info" onclick="toggleAll(this);return false">pilih semua / none</a></div>
-    <button class="btn btn-warning w-100 mb-2" id="procBtn" onclick="startProcess()">🎬 Render Klip Terpilih</button>
-    <div id="pStatus"></div>
-    <pre class="log d-none mt-2" id="pLog"></pre>`;
+    <div class="grid grid-cols-2 gap-1.5" id="tplBar"></div>
+  </div>
+
+  <!-- Config form -->
+  <div class="bg-surface-1 border border-zinc-800 rounded-lg">
+    <div class="flex items-center justify-between px-3 py-2.5 border-b border-zinc-800">
+      <span class="text-xs font-medium text-zinc-400 uppercase tracking-wider">⚙️ Config</span>
+      <button onclick="saveConfig()" id="saveBtn" class="px-3 py-1 text-xs font-medium bg-accent text-black rounded hover:bg-yellow-400 transition">💾 Simpan</button>
+    </div>
+    <div class="p-3 space-y-0.5" id="cfgForm">
+      <!-- Output toggles -->
+      <details class="cfg-group" open>
+        <summary class="px-2 py-1.5 text-xs font-semibold text-zinc-300 hover:text-white">🎬 Output</summary>
+        <div class="px-2 pb-2 grid grid-cols-2 gap-1.5">
+          <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="f_watermark" class="w-3.5 h-3.5 accent-[#facc15]"> 🖼️ Watermark</label>
+          <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="f_credit" class="w-3.5 h-3.5 accent-[#facc15]"> 🏷️ Credit</label>
+          <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="f_hook" class="w-3.5 h-3.5 accent-[#facc15]"> 🪝 Hook (TTS)</label>
+          <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="f_captions" class="w-3.5 h-3.5 accent-[#facc15]"> 💬 Subtitle</label>
+          <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="f_gpu" class="w-3.5 h-3.5 accent-[#facc15]"> ⚡ GPU</label>
+          <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="f_smooth_follow" class="w-3.5 h-3.5 accent-[#facc15]"> 🎯 Smooth</label>
+        </div>
+      </details>
+
+      <!-- Basic -->
+      <details class="cfg-group" open>
+        <summary class="px-2 py-1.5 text-xs font-semibold text-zinc-300 hover:text-white">📐 Basic</summary>
+        <div class="px-2 pb-2 grid grid-cols-2 gap-2">
+          <div><label class="text-[10px] text-zinc-500 block mb-0.5">Jumlah Clips</label><input type="number" min="1" id="f_num_clips" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"></div>
+          <div><label class="text-[10px] text-zinc-500 block mb-0.5">Resolusi</label><select id="f_resolution" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"><option>1080p</option><option>720p</option><option>480p</option><option>360p</option><option>auto</option></select></div>
+          <div><label class="text-[10px] text-zinc-500 block mb-0.5">Rasio</label><select id="f_aspect_ratio" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"><option>9:16</option><option>1:1</option><option>4:5</option><option>16:9</option></select></div>
+          <div><label class="text-[10px] text-zinc-500 block mb-0.5">Portrait Mode</label><select id="f_portrait_mode" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"><option>crop</option><option>blur</option></select></div>
+          <div><label class="text-[10px] text-zinc-500 block mb-0.5">Gaya Subtitle</label><select id="f_subtitle_style" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"><option>pop</option><option>karaoke</option><option>bounce</option><option>animated</option><option>pop_bounce</option></select></div>
+          <div><label class="text-[10px] text-zinc-500 block mb-0.5">Sync Offset (s)</label><input type="number" step="0.1" id="f_sync_offset" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"></div>
+        </div>
+      </details>
+
+      <!-- Face Tracking -->
+      <details class="cfg-group">
+        <summary class="px-2 py-1.5 text-xs font-semibold text-zinc-300 hover:text-white">🎯 Face Tracking</summary>
+        <div class="px-2 pb-2 grid grid-cols-2 gap-2">
+          <div><label class="text-[10px] text-zinc-500 block mb-0.5">Engine</label><select id="f_face_tracking_mode" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"><option>opencv</option><option>mediapipe</option></select></div>
+          <div><label class="text-[10px] text-zinc-500 block mb-0.5">Pan Speed</label><input type="number" step="0.1" id="f_pan_speed_limit" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"></div>
+          <div><label class="text-[10px] text-zinc-500 block mb-0.5">Center Weight</label><input type="number" step="0.05" id="f_center_weight" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"></div>
+          <div><label class="text-[10px] text-zinc-500 block mb-0.5">Switch Threshold</label><input type="number" step="0.05" id="f_switch_threshold" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"></div>
+          <div><label class="text-[10px] text-zinc-500 block mb-0.5">Min Shot (s)</label><input type="number" step="1" id="f_min_shot_duration" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"></div>
+          <div><label class="text-[10px] text-zinc-500 block mb-0.5">Lip Activity</label><input type="number" step="0.01" id="f_lip_activity" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"></div>
+        </div>
+      </details>
+
+      <!-- Pro Video Editing -->
+      <details class="cfg-group">
+        <summary class="px-2 py-1.5 text-xs font-semibold text-zinc-300 hover:text-white">🎬 Pro Video Editing</summary>
+        <div class="px-2 pb-2 space-y-2">
+          <div class="grid grid-cols-2 gap-2">
+            <div><label class="text-[10px] text-zinc-500 block mb-0.5">Color Grade</label><select id="f_color_grade" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"><option value="none">None</option><option value="cinematic">Cinematic</option><option value="warm">Warm</option><option value="cool">Cool</option><option value="vintage">Vintage</option><option value="vivid">Vivid</option><option value="news">News</option><option value="podcast">Podcast</option><option value="game">Game</option></select></div>
+            <div class="flex items-end pb-1"><label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="f_stabilize" class="w-3.5 h-3.5 accent-[#facc15]"> 📐 Stabilize</label></div>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div><label class="text-[10px] text-zinc-500 block mb-0.5">Motion Blur</label><input type="number" min="0" max="10" step="1" id="f_motion_blur" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"></div>
+            <div><label class="text-[10px] text-zinc-500 block mb-0.5">Vignette (0-1)</label><input type="number" min="0" max="1" step="0.05" id="f_vignette" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"></div>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div><label class="text-[10px] text-zinc-500 block mb-0.5">Ramp Start (s)</label><input type="number" min="0" step="0.5" id="f_speed_ramp_start" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"></div>
+            <div><label class="text-[10px] text-zinc-500 block mb-0.5">Ramp End (s)</label><input type="number" min="0" step="0.5" id="f_speed_ramp_end" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"></div>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div><label class="text-[10px] text-zinc-500 block mb-0.5">Speed Factor</label><input type="number" min="0.1" max="2" step="0.1" id="f_speed_factor" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"></div>
+            <div><label class="text-[10px] text-zinc-500 block mb-0.5">Duck Level (dB)</label><input type="number" min="-30" max="0" step="1" id="f_ducking_level_db" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"></div>
+          </div>
+        </div>
+      </details>
+    </div>
+    <div id="saveMsg" class="px-3 pb-2 text-xs"></div>
+  </div>
+</aside>
+
+</div>
+
+<script>
+const TEMPLATES = {
+  podcast2: { label:'🎙 Podcast 2', desc:'smooth cinematic', cfg:{ face_tracking_mode:'mediapipe',portrait_mode:'crop',smooth_follow:true,pan_speed_limit:1.3,center_weight:0.5,switch_threshold:0.4,min_shot_duration:150,lip_activity:0.08,subtitle_style:'pop',sync_offset:-0.25,aspect_ratio:'9:16',hook:true,captions:true,gpu:true,pro:{stabilize:false,color_grade:'podcast',motion_blur:0,vignette:0.3,speed_ramp_start:0,speed_ramp_end:0,speed_factor:0.5,ducking_level_db:-15}}},
+  podcast3: { label:'🎙 Podcast 3+', desc:'blur mode', cfg:{ face_tracking_mode:'mediapipe',portrait_mode:'blur',smooth_follow:false,pan_speed_limit:2.0,center_weight:0.3,switch_threshold:0.25,min_shot_duration:75,lip_activity:0.12,subtitle_style:'pop',sync_offset:-0.25,aspect_ratio:'9:16',hook:true,captions:true,gpu:true,pro:{stabilize:false,color_grade:'podcast',motion_blur:0,vignette:0.2,speed_ramp_start:0,speed_ramp_end:0,speed_factor:0.5,ducking_level_db:-15}}},
+  game:     { label:'🎮 Gaming', desc:'follow responsif', cfg:{ face_tracking_mode:'opencv',portrait_mode:'crop',smooth_follow:true,pan_speed_limit:2.5,center_weight:0.15,switch_threshold:0.15,min_shot_duration:25,lip_activity:0.2,subtitle_style:'bounce',sync_offset:-0.15,aspect_ratio:'9:16',hook:true,captions:true,gpu:true,pro:{stabilize:true,color_grade:'game',motion_blur:0,vignette:0,speed_ramp_start:0,speed_ramp_end:0,speed_factor:0.5,ducking_level_db:-20}}},
+  news:     { label:'📰 Berita', desc:'kamera statis', cfg:{ face_tracking_mode:'opencv',portrait_mode:'crop',smooth_follow:false,pan_speed_limit:1.8,center_weight:0.55,switch_threshold:0.45,min_shot_duration:180,lip_activity:0.08,subtitle_style:'karaoke',sync_offset:-0.3,aspect_ratio:'9:16',hook:false,captions:true,gpu:true,pro:{stabilize:true,color_grade:'news',motion_blur:0,vignette:0.15,speed_ramp_start:0,speed_ramp_end:0,speed_factor:0.5,ducking_level_db:-12}}},
+  tutorial: { label:'🧑‍🏫 Tutorial', desc:'tempo tenang', cfg:{ face_tracking_mode:'mediapipe',portrait_mode:'crop',smooth_follow:true,pan_speed_limit:1.3,center_weight:0.55,switch_threshold:0.45,min_shot_duration:200,lip_activity:0.08,subtitle_style:'animated',sync_offset:-0.3,aspect_ratio:'9:16',hook:false,captions:true,gpu:true,pro:{stabilize:false,color_grade:'cinematic',motion_blur:0,vignette:0.4,speed_ramp_start:0,speed_ramp_end:0,speed_factor:0.5,ducking_level_db:-15}}},
+  vlog:     { label:'📹 Vlog', desc:'follow dinamis', cfg:{ face_tracking_mode:'mediapipe',portrait_mode:'crop',smooth_follow:true,pan_speed_limit:1.8,center_weight:0.4,switch_threshold:0.35,min_shot_duration:100,lip_activity:0.12,subtitle_style:'pop_bounce',sync_offset:-0.25,aspect_ratio:'9:16',hook:true,captions:true,gpu:true,pro:{stabilize:false,color_grade:'warm',motion_blur:0,vignette:0.25,speed_ramp_start:0,speed_ramp_end:2,speed_factor:0.5,ducking_level_db:-15}}},
+  interview:{ label:'🎤 Interview', desc:'shot-reverse-shot', cfg:{ face_tracking_mode:'mediapipe',portrait_mode:'crop',smooth_follow:true,pan_speed_limit:1.6,center_weight:0.45,switch_threshold:0.3,min_shot_duration:120,lip_activity:0.1,subtitle_style:'animated',sync_offset:-0.25,aspect_ratio:'9:16',hook:false,captions:true,gpu:true,pro:{stabilize:true,color_grade:'cinematic',motion_blur:0,vignette:0.3,speed_ramp_start:0,speed_ramp_end:0,speed_factor:0.5,ducking_level_db:-15}}},
+  debate:   { label:'⚔️ Debate', desc:'switch dinamis', cfg:{ face_tracking_mode:'mediapipe',portrait_mode:'crop',smooth_follow:true,pan_speed_limit:2.2,center_weight:0.2,switch_threshold:0.2,min_shot_duration:45,lip_activity:0.15,subtitle_style:'pop',sync_offset:-0.2,aspect_ratio:'9:16',hook:true,captions:true,gpu:true,pro:{stabilize:true,color_grade:'cinematic',motion_blur:0,vignette:0.2,speed_ramp_start:0,speed_ramp_end:0,speed_factor:0.5,ducking_level_db:-18}}},
+  sports:   { label:'🏃 Sports', desc:'max responsif', cfg:{ face_tracking_mode:'opencv',portrait_mode:'crop',smooth_follow:true,pan_speed_limit:3.0,center_weight:0.1,switch_threshold:0.12,min_shot_duration:20,lip_activity:0.25,subtitle_style:'bounce',sync_offset:-0.1,aspect_ratio:'9:16',hook:true,captions:true,gpu:true,pro:{stabilize:true,color_grade:'vivid',motion_blur:2,vignette:0,speed_ramp_start:0,speed_ramp_end:3,speed_factor:0.4,ducking_level_db:-20}}},
+  shorts:   { label:'📱 Shorts', desc:'vertikal halus', cfg:{ face_tracking_mode:'mediapipe',portrait_mode:'crop',smooth_follow:true,pan_speed_limit:1.5,center_weight:0.5,switch_threshold:0.4,min_shot_duration:150,lip_activity:0.08,subtitle_style:'pop',sync_offset:-0.25,aspect_ratio:'9:16',hook:false,captions:true,gpu:true,pro:{stabilize:false,color_grade:'none',motion_blur:0,vignette:0,speed_ramp_start:0,speed_ramp_end:0,speed_factor:0.5,ducking_level_db:-15}}},
+};
+const tplEsc=s=>String(s??'').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function setCh(id,v){const el=$('#'+id);if(el)el.checked=!!v}
+function setVal(id,v){const el=$('#'+id);if(el)el.value=v??''}
+
+async function applyTemplate(key){
+  const t=TEMPLATES[key];if(!t)return;
+  const c=t.cfg,p2=c.pro||{};
+  document.querySelectorAll('.tpl-card').forEach(e=>e.classList.remove('active'));
+  const card=document.querySelector('[data-tpl="'+key+'"]');if(card)card.classList.add('active');
+  setCh('f_hook',c.hook);setCh('f_captions',c.captions);setCh('f_gpu',c.gpu);setCh('f_smooth_follow',c.smooth_follow);setCh('f_stabilize',p2.stabilize);
+  setVal('f_color_grade',p2.color_grade);setVal('f_motion_blur',p2.motion_blur);setVal('f_vignette',p2.vignette);
+  setVal('f_speed_ramp_start',p2.speed_ramp_start);setVal('f_speed_ramp_end',p2.speed_ramp_end);
+  setVal('f_speed_factor',p2.speed_factor);setVal('f_ducking_level_db',p2.ducking_level_db);
+  setVal('f_face_tracking_mode',c.face_tracking_mode);setVal('f_portrait_mode',c.portrait_mode);
+  setVal('f_subtitle_style',c.subtitle_style);setVal('f_aspect_ratio',c.aspect_ratio);
+  setVal('f_sync_offset',c.sync_offset);setVal('f_pan_speed_limit',c.pan_speed_limit);
+  setVal('f_center_weight',c.center_weight);setVal('f_switch_threshold',c.switch_threshold);
+  setVal('f_min_shot_duration',c.min_shot_duration);setVal('f_lip_activity',c.lip_activity);
+  const m=$('#tplMsg');m.textContent='⏳ Menyimpan "'+t.label+'"...';m.classList.remove('hidden');
+  try{
+    const r=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(collectConfig())});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    m.textContent='✅ "'+t.label+'" tersimpan.';m.className='text-xs text-emerald-400';
+  }catch(e){m.textContent='❌ '+esc(String(e));m.className='text-xs text-red-400'}
+  setTimeout(()=>m.classList.add('hidden'),4000);
 }
 
-function toggleAll(el) {
-  const boxes = [...document.querySelectorAll('.hl-check')];
-  const anyOff = boxes.some(b => !b.checked);
-  boxes.forEach(b => b.checked = anyOff);
+(function(){
+  const bar=$('#tplBar');if(!bar)return;
+  bar.innerHTML=Object.entries(TEMPLATES).map(([k,t])=>'<div class="tpl-card" data-tpl="'+k+'" onclick="applyTemplate(\''+k+'\')" title="'+tplEsc(t.desc)+'"><span class="text-xs font-medium text-zinc-200">'+t.label+'</span></div>').join('');
+})();
+
+async function loadConfig(){
+  try{
+    const c=await(await fetch('/api/config')).json();
+    setCh('f_watermark',c.watermark);setCh('f_credit',c.credit);setCh('f_hook',c.hook);setCh('f_captions',c.captions);setCh('f_smooth_follow',c.smooth_follow);setCh('f_gpu',c.gpu);
+    const pr=c.pro_settings||c.pro||{};
+    setCh('f_stabilize',pr.stabilize);setVal('f_color_grade',pr.color_grade);setVal('f_motion_blur',pr.motion_blur);setVal('f_vignette',pr.vignette);
+    setVal('f_speed_ramp_start',pr.speed_ramp_start);setVal('f_speed_ramp_end',pr.speed_ramp_end);setVal('f_speed_factor',pr.speed_factor);setVal('f_ducking_level_db',pr.ducking_level_db);
+    setVal('f_num_clips',c.num_clips);setVal('f_resolution',c.resolution);setVal('f_aspect_ratio',c.aspect_ratio);setVal('f_subtitle_style',c.subtitle_style);
+    setVal('f_sync_offset',c.sync_offset);setVal('f_portrait_mode',c.portrait_mode);setVal('f_face_tracking_mode',c.face_tracking_mode);
+    setVal('f_pan_speed_limit',c.pan_speed_limit);setVal('f_center_weight',c.center_weight);setVal('f_switch_threshold',c.switch_threshold);
+    setVal('f_min_shot_duration',c.min_shot_duration);setVal('f_lip_activity',c.lip_activity);
+  }catch{$('#saveMsg').innerHTML='<span class="text-red-400">Gagal memuat konfigurasi.</span>';}
 }
 
-// ===== phase 2 =====
-async function startProcess() {
-  const sel = [...document.querySelectorAll('.hl-check:checked')].map(b => parseInt(b.value));
-  if (!sel.length) { alert('Pilih minimal 1 highlight'); return; }
-  // hook/caption ikut nilai panel kiri (satu sumber)
-  const hookOn = $('#f_hook').checked, capsOn = $('#f_captions').checked;
-  const proc = $('#pStatus'), logBox = $('#pLog');
-  $('#procBtn').disabled = true;
-  logBox.classList.remove('d-none');
-  try {
-    const r = await fetch(`/api/process/${encodeURIComponent(PICK_SESSION)}`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ selected: sel, hook: hookOn, captions: capsOn }),
-    });
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok || !j.ok) throw new Error(j.error || ('HTTP ' + r.status));
-  } catch (e) {
-    proc.innerHTML = `<div class="alert alert-danger py-2 small">❌ ${esc(String(e))}</div>`;
-    $('#procBtn').disabled = false;
-    return;
+function collectConfig(){
+  return{watermark:$('#f_watermark').checked,credit:$('#f_credit').checked,hook:$('#f_hook').checked,captions:$('#f_captions').checked,gpu:$('#f_gpu').checked,smooth_follow:$('#f_smooth_follow').checked,
+    num_clips:parseFloat($('#f_num_clips').value),resolution:$('#f_resolution').value,aspect_ratio:$('#f_aspect_ratio').value,subtitle_style:$('#f_subtitle_style').value,
+    sync_offset:parseFloat($('#f_sync_offset').value),portrait_mode:$('#f_portrait_mode').value,face_tracking_mode:$('#f_face_tracking_mode').value,
+    pan_speed_limit:parseFloat($('#f_pan_speed_limit').value),center_weight:parseFloat($('#f_center_weight').value),switch_threshold:parseFloat($('#f_switch_threshold').value),
+    min_shot_duration:parseFloat($('#f_min_shot_duration').value),lip_activity:parseFloat($('#f_lip_activity').value),
+    stabilize:$('#f_stabilize').checked,color_grade:$('#f_color_grade').value,
+    motion_blur:parseFloat($('#f_motion_blur').value)||0,vignette:parseFloat($('#f_vignette').value)||0,
+    speed_ramp_start:parseFloat($('#f_speed_ramp_start').value)||0,speed_ramp_end:parseFloat($('#f_speed_ramp_end').value)||0,
+    speed_factor:parseFloat($('#f_speed_factor').value)||0.5,ducking_level_db:parseFloat($('#f_ducking_level_db').value)||-15};
+}
+
+async function saveConfig(){
+  const msg=$('#saveMsg'),btn=$('#saveBtn');btn.disabled=true;
+  try{
+    const r=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(collectConfig())});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok||!j.ok)throw new Error(j.error||('HTTP '+r.status));
+    msg.innerHTML='<span class="text-emerald-400">✅ Tersimpan.</span>';
+  }catch(e){msg.innerHTML='<span class="text-red-400">❌ '+esc(String(e))+'</span>';}
+  btn.disabled=false;setTimeout(()=>{msg.textContent='';},3000);
+}
+
+let PICK_SESSION=null;
+
+async function startCreate(){
+  const url=$('#wUrl').value.trim();
+  if(!/^https?:\/\//.test(url)){alert('Isi URL video dulu');return;}
+  const st=$('#wStatus'),logBox=$('#wLog');$('#startBtn').disabled=true;
+  logBox.classList.remove('hidden');
+  st.innerHTML='<div class="flex items-center justify-between bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2 text-xs text-blue-300"><span>⏳ Analisis AI… <span id="wElapsed"></span></span><button onclick="cancelCreate()" id="wCancelBtn" class="ml-2 px-2 py-0.5 bg-red-500/20 border border-red-500/30 rounded text-red-300 text-[10px] hover:bg-red-500/30 transition">⏹ Stop</button></div>';
+  try{
+    const r=await fetch('/api/create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok||!j.ok)throw new Error(j.error||('HTTP '+r.status));
+  }catch(e){
+    st.innerHTML='<div class="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 text-xs text-red-300">❌ '+esc(String(e))+'</div>';
+    $('#startBtn').disabled=false;return;
   }
-  proc.innerHTML = '<div class="alert alert-info py-2 small mb-0 d-flex justify-content-between align-items-center gap-2"><span>⏳ Download section & render… <span id="pElapsed"></span></span><button class="btn btn-sm btn-danger py-0 px-2 flex-shrink-0" id="pCancelBtn" onclick="cancelProcess()">⏹ Stop</button></div>';
-  const t0 = Date.now();
-  const poll = setInterval(async () => {
-    try {
-      const j = await (await fetch(`/api/process/status/${encodeURIComponent(PICK_SESSION)}`)).json();
-      const stick = logBox.scrollTop + logBox.clientHeight >= logBox.scrollHeight - 60;
-      logBox.textContent = j.log || '';
-      if (stick) logBox.scrollTop = logBox.scrollHeight;
-      const el = document.getElementById('pElapsed');
-      if (el) el.textContent = `(${Math.round((Date.now()-t0)/1000)}s)`;
-      if (!j.running) {
+  const t0=Date.now();
+  const poll=setInterval(async()=>{
+    try{
+      const j=await(await fetch('/api/create/status')).json();
+      const stick=logBox.scrollTop+logBox.clientHeight>=logBox.scrollHeight-60;
+      logBox.textContent=j.log||'';if(stick)logBox.scrollTop=logBox.scrollHeight;
+      const el=document.getElementById('wElapsed');if(el)el.textContent='('+Math.round((Date.now()-t0)/1000)+'s)';
+      if(!j.running){
         clearInterval(poll);
-        if (j.code === 0) {
-          proc.innerHTML = '<div class="alert alert-success py-2 small">✅ Render selesai! <a href="/" class="alert-link">Lihat hasil di beranda →</a></div>';
-        } else if (window._ph2Cancel) {
-          window._ph2Cancel = false;
-          proc.insertAdjacentHTML('beforeend', '<div class="alert alert-secondary py-2 small">⏹ Proses dibatalkan.</div>');
-          $('#procBtn').disabled = false;
-        } else {
-          proc.innerHTML = `<div class="alert alert-danger py-2 small">❌ Process gagal (exit ${j.code ?? '?'}) — lihat log.</div>`;
-          $('#procBtn').disabled = false;
+        if(j.code===0&&j.result&&j.result.ok){
+          st.innerHTML='<div class="bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2 text-xs text-emerald-300">✅ '+j.result.count+' highlight — pilih yang mau dirender:</div>';
+          await showPicker(j.result.session_dir);
+        }else if(window._ph1Cancel){
+          window._ph1Cancel=false;st.insertAdjacentHTML('beforeend','<div class="bg-zinc-500/10 border border-zinc-500/20 rounded-lg px-3 py-2 text-xs text-zinc-400">⏹ Dibatalkan.</div>');
+          $('#startBtn').disabled=false;
+        }else{
+          const err=(j.result&&j.result.error)||('exit code '+j.code);
+          st.insertAdjacentHTML('beforeend','<div class="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 text-xs text-red-300" style="white-space:pre-wrap">❌ '+esc(err)+'</div>');
+          $('#startBtn').disabled=false;
         }
       }
-    } catch {}
-  }, 1000);
+    }catch{}
+  },1000);
 }
 
-async function cancelCreate() {
-  window._ph1Cancel = true;
-  const b = document.getElementById('wCancelBtn');
-  if (b) { b.disabled = true; b.textContent = '⏳ menghentikan…'; }
-  try { await fetch('/api/create/cancel', { method: 'POST' }); } catch {}
+async function showPicker(sessionDir){
+  PICK_SESSION=sessionDir.split('/').pop();
+  let hls=[];
+  try{hls=await(await fetch('/api/highlights/'+encodeURIComponent(PICK_SESSION))).json();}catch{}
+  if(!Array.isArray(hls)||!hls.length){$('#wStatus').insertAdjacentHTML('beforeend','<div class="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 text-xs text-amber-300">Highlight tidak terbaca.</div>');return;}
+  const rows=hls.map(h=>'<label class="list-group-item bg-transparent hl-item flex items-start gap-2 py-1.5 px-2 rounded"><input type="checkbox" value="'+h.i+'" checked class="hl-check w-3.5 h-3.5 mt-0.5 accent-[#facc15] flex-shrink-0"><span class="flex-grow-1"><span class="text-xs font-medium text-zinc-200">'+esc(h.title)+'</span>'+(h.score!=null?'<span class="ml-1 px-1 py-0.5 bg-amber-500/20 text-amber-400 text-[10px] rounded">⭐'+h.score+'</span>':'')+'<br><span class="text-[10px] text-zinc-500">'+esc(h.start)+' → '+esc(h.end)+' · '+h.duration+'s</span></span></label>').join('');
+  $('#wfArea').innerHTML='<div class="flex items-center justify-between mb-2"><span class="text-xs text-zinc-500">Sesi: <code class="text-zinc-400">'+esc(PICK_SESSION)+'</code> · '+hls.length+' highlight</span><button onclick="location.reload()" class="text-xs text-zinc-400 hover:text-white transition">← Ulang</button></div><div class="space-y-1 border border-zinc-800 rounded-lg p-2 mb-3" style="max-height:38vh;overflow:auto">'+rows+'</div><div class="flex justify-end gap-3 mb-2"><button type="button" class="text-xs text-zinc-400 hover:text-white transition flex items-center gap-1" onclick="toggleAll(true)">☑️ Pilih Semua</button><button type="button" class="text-xs text-zinc-400 hover:text-white transition flex items-center gap-1" onclick="toggleAll(false)">⏹️ Kosongkan</button></div><button onclick="startProcess()" id="procBtn" class="w-full py-2.5 bg-accent text-black font-medium text-sm rounded-lg hover:bg-yellow-400 transition">🎬 Render Klip Terpilih</button><div id="pStatus" class="mt-3"></div><pre class="log hidden mt-3" id="pLog"></pre>';
 }
 
-async function cancelProcess() {
-  window._ph2Cancel = true;
-  const b = document.getElementById('pCancelBtn');
-  if (b) { b.disabled = true; b.textContent = '⏳ menghentikan…'; }
-  try { await fetch(`/api/process/cancel/${encodeURIComponent(PICK_SESSION)}`, { method: 'POST' }); } catch {}
+function toggleAll(val){
+  document.querySelectorAll('.hl-check').forEach(b=>b.checked=val);
 }
+
+async function startProcess(){
+  const sel=[...document.querySelectorAll('.hl-check:checked')].map(b=>parseInt(b.value));
+  if(!sel.length){alert('Pilih minimal 1 highlight');return;}
+  const hookOn=$('#f_hook').checked,capsOn=$('#f_captions').checked;
+  const proc=$('#pStatus'),logBox=$('#pLog');$('#procBtn').disabled=true;
+  logBox.classList.remove('hidden');
+  try{
+    const r=await fetch('/api/process/'+encodeURIComponent(PICK_SESSION),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({selected:sel,hook:hookOn,captions:capsOn})});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok||!j.ok)throw new Error(j.error||('HTTP '+r.status));
+  }catch(e){proc.innerHTML='<div class="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 text-xs text-red-300">❌ '+esc(String(e))+'</div>';$('#procBtn').disabled=false;return;}
+  proc.innerHTML='<div class="flex items-center justify-between bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2 text-xs text-blue-300"><span>⏳ Render… <span id="pElapsed"></span></span><button onclick="cancelProcess()" id="pCancelBtn" class="ml-2 px-2 py-0.5 bg-red-500/20 border border-red-500/30 rounded text-red-300 text-[10px] hover:bg-red-500/30 transition">⏹ Stop</button></div>';
+  const t0=Date.now();
+  const poll=setInterval(async()=>{
+    try{
+      const j=await(await fetch('/api/process/status/'+encodeURIComponent(PICK_SESSION))).json();
+      const stick=logBox.scrollTop+logBox.clientHeight>=logBox.scrollHeight-60;
+      logBox.textContent=j.log||'';if(stick)logBox.scrollTop=logBox.scrollHeight;
+      const el=document.getElementById('pElapsed');if(el)el.textContent='('+Math.round((Date.now()-t0)/1000)+'s)';
+      if(!j.running){
+        clearInterval(poll);
+        if(j.code===0){proc.innerHTML='<div class="bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2 text-xs text-emerald-300">✅ Render selesai! <a href="/" class="underline">Lihat hasil →</a></div>';
+        }else if(window._ph2Cancel){window._ph2Cancel=false;proc.insertAdjacentHTML('beforeend','<div class="bg-zinc-500/10 border border-zinc-500/20 rounded-lg px-3 py-2 text-xs text-zinc-400">⏹ Dibatalkan.</div>');$('#procBtn').disabled=false;
+        }else{proc.innerHTML='<div class="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 text-xs text-red-300">❌ Gagal (exit '+((j.code!=null)?j.code:'?')+') — lihat log.</div>';$('#procBtn').disabled=false;}
+      }
+    }catch{}
+  },1000);
+}
+
+async function cancelCreate(){window._ph1Cancel=true;const b=document.getElementById('wCancelBtn');if(b){b.disabled=true;b.textContent='⏳ stopping…';}try{await fetch('/api/create/cancel',{method:'POST'});}catch{}}
+async function cancelProcess(){window._ph2Cancel=true;const b=document.getElementById('pCancelBtn');if(b){b.disabled=true;b.textContent='⏳ stopping…';}try{await fetch('/api/process/cancel/'+encodeURIComponent(PICK_SESSION),{method:'POST'});}catch{}}
+async function pasteUrl(){try{const t=await navigator.clipboard.readText();$('#wUrl').value=t.trim();}catch{alert('Gagal baca clipboard — izinkan akses clipboard di browser.');}}
 
 loadConfig();
-loadBinaries();
 </script>
 </body>
 </html>

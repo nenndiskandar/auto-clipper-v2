@@ -198,6 +198,21 @@ function sendFile(req, res, fp, download) {
   }
 }
 
+// ponytail: baca ekor file doang, bukan seluruh log
+function lastLogLine(p) {
+  try {
+    const st = fs.statSync(p);
+    if (!st.isFile() || !st.size) return '';
+    const len = Math.min(st.size, 4096);
+    const buf = Buffer.alloc(len);
+    const fd = fs.openSync(p, 'r');
+    fs.readSync(fd, buf, 0, len, st.size - len);
+    fs.closeSync(fd);
+    const lines = buf.toString('utf8').split('\n').filter(l => l.trim());
+    return (lines[lines.length - 1] || '').slice(-300);
+  } catch { return ''; }
+}
+
 function tailFile(fp, max = 12000) {
   try {
     const stat = fs.existsSync(fp) ? fs.statSync(fp).size : 0;
@@ -337,6 +352,8 @@ const server = http.createServer((req, res) => {
           subtitle_language: cfg.subtitle_language || 'id',
           hf_system_message: ((ap.highlight_finder || {}).system_message) || '',
           hf_api_key_set: !!((ap.highlight_finder || {}).api_key),
+          // Pro video editing features
+          pro_settings: cfg.pro_settings || {},
         });
       } catch { return json(res, 500, { error: 'config.json tidak terbaca' }); }
     }
@@ -368,6 +385,16 @@ const server = http.createServer((req, res) => {
         for (const k of ['pan_speed_limit', 'center_weight', 'switch_threshold']) if (isNum(o[k])) cfg.mediapipe_settings[k] = o[k];
         if (isNum(o.min_shot_duration)) cfg.mediapipe_settings.min_shot_duration = Math.max(1, Math.round(o.min_shot_duration));
         if (isNum(o.lip_activity)) cfg.mediapipe_settings.lip_activity_threshold = o.lip_activity;
+        // Pro video editing features
+        cfg.pro_settings = cfg.pro_settings || {};
+        if ('stabilize' in o) cfg.pro_settings.stabilize = !!o.stabilize;
+        if (typeof o.color_grade === 'string') cfg.pro_settings.color_grade = o.color_grade;
+        if (isNum(o.motion_blur)) cfg.pro_settings.motion_blur = Math.max(0, Math.min(10, o.motion_blur));
+        if (isNum(o.vignette)) cfg.pro_settings.vignette = Math.max(0, Math.min(1, o.vignette));
+        if (isNum(o.speed_ramp_start)) cfg.pro_settings.speed_ramp_start = Math.max(0, o.speed_ramp_start);
+        if (isNum(o.speed_ramp_end)) cfg.pro_settings.speed_ramp_end = Math.max(0, o.speed_ramp_end);
+        if (isNum(o.speed_factor)) cfg.pro_settings.speed_factor = Math.max(0.1, Math.min(2, o.speed_factor));
+        if (isNum(o.ducking_level_db)) cfg.pro_settings.ducking_level_db = Math.max(-30, Math.min(0, o.ducking_level_db));
         cfg.ai_providers = cfg.ai_providers || {};
         cfg.ai_providers.highlight_finder = cfg.ai_providers.highlight_finder || {};
         if (typeof o.hf_model === 'string' && o.hf_model.trim()) cfg.ai_providers.highlight_finder.model = o.hf_model.trim();
@@ -593,15 +620,45 @@ const server = http.createServer((req, res) => {
         result,
       });
     }
+    // POST /api/tasks/stop — hentikan job berjalan (SIGTERM → SIGKILL tree)
+    if (p === '/api/tasks/stop' && req.method === 'POST') {
+      let body = '';
+      req.on('data', c => body += c);
+      req.on('end', () => {
+        let o = {};
+        try { o = JSON.parse(body || '{}'); } catch {}
+        const kind = o.kind, qs = String(o.session || ''), qc = String(o.clip || '');
+        let job = null, label = '';
+        if (kind === 'create') { job = CREATE_JOB; label = 'find highlight'; }
+        else if (kind === 'refind') { job = REFIND_JOBS.get(qs); label = `re-find ${qs}`; }
+        else if (kind === 'process') { job = PROCESS_JOBS.get(qs); label = `process ${qs}`; }
+        else if (kind === 'render') { job = RENDER_JOBS.get(`${qs}/${qc}`); label = `render ${qs}/${qc}`; }
+        if (!job) return json(res, 404, { error: 'job tidak ditemukan' });
+        if (job.code !== undefined) return json(res, 409, { error: 'job sudah selesai' });
+        try {
+          const pid = job.proc.pid;
+          // bunuh subtree (python bisa spawn ffmpeg)
+          execFile('pkill', ['-TERM', '-P', String(pid)], () => {});
+          try { process.kill(-pid, 'SIGTERM'); } catch { try { job.proc.kill('SIGTERM'); } catch {} }
+          setTimeout(() => { try { process.kill(-pid, 'SIGKILL'); } catch { try { job.proc.kill('SIGKILL'); } catch {} } }, 4000);
+        } catch {}
+        json(res, 200, { ok: true, stopped: label });
+      });
+      return;
+    }
     // GET /api/tasks — daftar semua job per sesi (buat halaman tasks)
     if (p === '/api/tasks') {
       const jobs = [];
-      if (CREATE_JOB) jobs.push({ kind: 'create', type: '🔍 Find Highlight', session: '-', detail: CREATE_JOB.url || '', running: CREATE_JOB.code === undefined, code: CREATE_JOB.code, elapsed_s: Math.round((Date.now() - CREATE_JOB.startedAt) / 1000) });
-      for (const [sid, j] of REFIND_JOBS) jobs.push({ kind: 'refind', type: '🔁 Re-find', session: sid, detail: '', running: j.code === undefined, code: j.code, elapsed_s: Math.round((Date.now() - j.startedAt) / 1000) });
-      for (const [sid, j] of PROCESS_JOBS) jobs.push({ kind: 'process', type: '🎬 Process', session: sid, detail: '', running: j.code === undefined, code: j.code, elapsed_s: Math.round((Date.now() - j.startedAt) / 1000) });
+      if (CREATE_JOB) jobs.push({ kind: 'create', type: '🔍 Find Highlight', session: '-', detail: CREATE_JOB.url || '', running: CREATE_JOB.code === undefined, code: CREATE_JOB.code, elapsed_s: Math.round((Date.now() - CREATE_JOB.startedAt) / 1000), logPath: CREATE_JOB.logPath });
+      for (const [sid, j] of REFIND_JOBS) jobs.push({ kind: 'refind', type: '🔁 Re-find', session: sid, detail: '', running: j.code === undefined, code: j.code, elapsed_s: Math.round((Date.now() - j.startedAt) / 1000), logPath: path.join(SESSIONS, sid, 'refind.log') });
+      for (const [sid, j] of PROCESS_JOBS) jobs.push({ kind: 'process', type: '🎬 Process', session: sid, detail: '', running: j.code === undefined, code: j.code, elapsed_s: Math.round((Date.now() - j.startedAt) / 1000), logPath: path.join(SESSIONS, sid, 'process.log') });
       for (const [key, j] of RENDER_JOBS) {
         const [sid, clip] = key.split('/');
-        jobs.push({ kind: 'render', type: '⚙️ Render', session: sid, detail: clip, running: j.code === undefined, code: j.code, elapsed_s: Math.round((Date.now() - j.startedAt) / 1000) });
+        jobs.push({ kind: 'render', type: '⚙️ Render', session: sid, detail: clip, running: j.code === undefined, code: j.code, elapsed_s: Math.round((Date.now() - j.startedAt) / 1000), logPath: path.join(SESSIONS, sid, 'clips', clip, 'render.log') });
+      }
+      for (const j of jobs) {
+        try { j.last_line = lastLogLine(j.logPath); } catch { j.last_line = ''; }
+        delete j.logPath;
       }
       return json(res, 200, jobs);
     }

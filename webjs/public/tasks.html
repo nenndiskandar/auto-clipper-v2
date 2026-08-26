@@ -1,71 +1,125 @@
 <!doctype html>
-<html lang="id" data-bs-theme="dark">
+<html lang="id">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tasks — YT Short Clipper</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: { extend: { colors: {
+    surface: { 0:'#09090b', 1:'#18181b', 2:'#27272a', 3:'#3f3f46' },
+    accent: '#facc15',
+  }}}
+}
+</script>
 <style>
-body{background:#0d1117;font-size:.85rem}
-.card{background:#161b22;border-color:#30363d}
-.table{--bs-table-bg:transparent}
-.badge-running{background:#ffc107;color:#000}
+body{background:#09090b;color:#fafafa;font-family:system-ui,-apple-system,sans-serif}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#3f3f46;border-radius:3px}
+pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:75vh;overflow-y:auto;white-space:pre-wrap;border-radius:.5rem}
 </style>
 </head>
-<body>
-<nav class="navbar navbar-dark px-3 py-2" style="background:#010409;border-bottom:1px solid #30363d">
-  <a class="btn btn-sm btn-outline-light" href="/">← Beranda</a>
-  <span class="navbar-brand mb-0 fw-bold">📋 Tasks Aktif</span>
-  <div class="ms-auto d-flex align-items-center gap-2">
-    <span class="text-muted small" id="whoami"></span>
-    <a class="btn btn-sm btn-outline-light" href="/logout">Logout</a>
+<body class="min-h-screen flex flex-col">
+
+<!-- NAV -->
+<nav class="sticky top-0 z-50 flex items-center justify-between px-4 py-2.5 border-b border-zinc-800 bg-surface-0/80 backdrop-blur-md">
+  <div class="flex items-center gap-3">
+    <a href="/" class="text-sm text-zinc-400 hover:text-white transition">← Beranda</a>
+    <span class="font-semibold text-sm tracking-wide text-accent flex items-center gap-1.5">📋 Tasks Aktif</span>
+  </div>
+  <div class="flex items-center gap-3">
+    <span class="text-xs text-zinc-500" id="whoami"></span>
+    <a href="/logout" class="text-xs text-zinc-400 hover:text-white transition">Logout</a>
   </div>
 </nav>
 
-<div class="container-fluid py-3">
-<div class="card">
-  <div class="card-header border-secondary py-2 d-flex justify-content-between align-items-center">
-    <span class="fw-semibold">Semua job berjalan & terakhir</span>
-    <span class="small text-muted">auto-refresh 3s · klik baris untuk lihat log</span>
-  </div>
-  <div class="card-body p-0">
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead><tr class="small text-muted">
-          <th class="ps-3">Job</th><th>Sesi</th><th>Detail</th><th>Status</th><th>Durasi</th><th></th>
-        </tr></thead>
-        <tbody id="taskBody"><tr><td colspan="6" class="text-muted small ps-3">memuat…</td></tr></tbody>
+<!-- MAIN CONTENT -->
+<main class="flex-1 max-w-6xl w-full mx-auto p-4">
+  <div class="bg-surface-1 border border-zinc-800 rounded-xl overflow-hidden shadow-lg">
+    <div class="px-4 py-3 border-b border-zinc-800 flex justify-between items-center bg-surface-0/50 flex-wrap gap-2">
+      <div>
+        <h2 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Daftar Job</h2>
+        <p class="text-[10px] text-zinc-500">Semua job berjalan & terakhir</p>
+      </div>
+      <span class="text-[10px] text-zinc-500 bg-zinc-850 px-2 py-0.5 rounded border border-zinc-800">auto-refresh 1.5s</span>
+    </div>
+    
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-xs border-collapse">
+        <thead>
+          <tr class="border-b border-zinc-800 bg-surface-2/30 text-zinc-400 text-[10px] uppercase tracking-wider">
+            <th class="py-2.5 px-4 font-semibold">Job</th>
+            <th class="py-2.5 px-4 font-semibold">Sesi</th>
+            <th class="py-2.5 px-4 font-semibold hidden md:table-cell">Detail</th>
+            <th class="py-2.5 px-4 font-semibold">Status</th>
+            <th class="py-2.5 px-4 font-semibold hidden md:table-cell">Durasi</th>
+            <th class="py-2.5 px-4 font-semibold hidden lg:table-cell">Debug Terakhir</th>
+            <th class="py-2.5 px-4 font-semibold text-right">Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="taskBody" class="divide-y divide-zinc-800/60">
+          <tr>
+            <td colspan="7" class="py-6 px-4 text-center text-zinc-500">memuat…</td>
+          </tr>
+        </tbody>
       </table>
     </div>
-    <div id="empty" class="text-muted small text-center py-4" style="display:none">Tidak ada job aktif/terakhir.</div>
+    
+    <div id="empty" class="text-zinc-500 text-xs text-center py-8 hidden bg-surface-2/10">
+      Tidak ada job aktif atau terakhir saat ini.
+    </div>
   </div>
-</div>
-</div>
+</main>
 
-<!-- modal log -->
-<div class="modal fade" id="logModal" tabindex="-1">
-  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-    <div class="modal-content bg-dark text-light">
-      <div class="modal-header border-secondary py-2">
-        <h6 class="modal-title" id="logTitle">Log</h6>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body p-2">
-        <pre id="logBox" class="bg-black text-light p-2 rounded small mb-0" style="max-height:70vh;overflow-y:auto;white-space:pre-wrap;overscroll-behavior:contain">memuat…</pre>
-      </div>
+<!-- MODAL: LOG -->
+<div id="logModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+  <div class="bg-surface-1 border border-zinc-800 rounded-xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-surface-0/50">
+      <h3 class="text-xs font-semibold text-zinc-300 uppercase tracking-wider truncate" id="logTitle">Log</h3>
+      <button onclick="Modal.hide('logModal')" class="text-zinc-400 hover:text-white text-lg">✕</button>
+    </div>
+    <div class="p-4 overflow-y-auto flex-1 bg-black">
+      <pre id="logBox" class="log font-mono">memuat…</pre>
+    </div>
+    <div class="flex justify-end px-4 py-2.5 border-t border-zinc-800 bg-surface-1">
+      <button onclick="Modal.hide('logModal')" class="px-3 py-1 text-xs bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700 rounded transition">Tutup</button>
     </div>
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script>fetch('/api/me').then(r=>r.json()).then(d=>{if(d.name)document.getElementById('whoami').textContent='👤 '+d.name;});</script>
 <script>
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+fetch('/api/me').then(r=>r.json()).then(d=>{if(d.name)document.getElementById('whoami').textContent='👤 '+d.name;});
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const dur = s => s == null ? '-' : (s >= 60 ? Math.floor(s / 60) + 'm ' + (s % 60) + 's' : s + 's');
-const sessLink = sid => sid === '-' ? '<span class="text-muted">-</span>' : `<a href="/#${esc(sid)}">${esc(sid)}</a>`;
+const sessLink = sid => sid === '-' ? '<span class="text-zinc-600 font-mono">-</span>' : `<a href="/#${esc(sid)}" class="text-accent hover:underline font-mono text-[11px]">${esc(sid)}</a>`;
+
 const statusBadge = j => j.running
-  ? '<span class="badge badge-running">⏳ berjalan</span>'
-  : (j.code === 0 ? '<span class="badge bg-success">✅ selesai</span>' : `<span class="badge bg-danger">❌ gagal (${j.code ?? '?'})</span>`);
+  ? '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded animate-pulse">⏳ berjalan</span>'
+  : (j.code === 0 ? '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded">✅ selesai</span>' : `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-medium bg-red-500/10 text-red-400 border border-red-500/20 rounded">❌ gagal (${j.code ?? '?'})</span>`);
+
+const Modal = {
+  show(id) {
+    const el = document.getElementById(id);
+    el.classList.remove('hidden');
+    el.classList.add('flex');
+    document.body.classList.add('overflow-hidden');
+  },
+  hide(id) {
+    const el = document.getElementById(id);
+    el.classList.add('hidden');
+    el.classList.remove('flex');
+    document.body.classList.remove('overflow-hidden');
+  }
+};
+
+// Close modal on escape key
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') Modal.hide('logModal');
+});
 
 let JOBS = [];
 
@@ -76,19 +130,30 @@ async function refresh() {
   JOBS = jobs;
   document.getElementById('empty').style.display = jobs.length ? 'none' : 'block';
   document.getElementById('taskBody').innerHTML = jobs.map((j, i) => `
-    <tr${j.running ? ' class="table-warning"' : ''} style="cursor:pointer" title="Klik untuk lihat log"
-        onclick="openLog(${i})">
-      <td class="ps-3 fw-semibold">${esc(j.type)}</td>
-      <td onclick="event.stopPropagation()">${sessLink(j.session)}</td>
-      <td class="small text-muted text-truncate" style="max-width:340px">${esc(j.detail)}</td>
-      <td>${statusBadge(j)}</td>
-      <td class="small">${dur(j.elapsed_s)}</td>
-      <td class="pe-3 text-info small">log →</td>
+    <tr class="group hover:bg-zinc-800/30 transition cursor-pointer ${j.running ? 'bg-amber-500/[0.02]' : ''}" onclick="openLog(${i})">
+      <td class="py-2.5 px-4 font-semibold text-white text-[12px]">${esc(j.type)}</td>
+      <td class="py-2.5 px-4" onclick="event.stopPropagation()">${sessLink(j.session)}</td>
+      <td class="py-2.5 px-4 text-zinc-400 text-[11px] truncate max-w-[200px] hidden md:table-cell" title="${esc(j.detail)}">${esc(j.detail)}</td>
+      <td class="py-2.5 px-4">${statusBadge(j)}</td>
+      <td class="py-2.5 px-4 text-zinc-400 font-mono text-[11px] hidden md:table-cell">${dur(j.elapsed_s)}</td>
+      <td class="py-2.5 px-4 text-zinc-500 font-mono text-[10px] truncate max-w-[300px] hidden lg:table-cell" title="${esc(j.last_line || '')}">${esc(j.last_line || '—')}</td>
+      <td class="py-2.5 px-4 text-right" onclick="event.stopPropagation()">
+        ${j.running ? `<button class="px-2 py-0.5 text-[10px] font-medium bg-red-950/20 text-red-400 border border-red-900/30 hover:bg-red-900/20 rounded transition" onclick="stopTask(event,${i})" title="Stop job">■ Stop</button>` : ''}
+      </td>
     </tr>`).join('');
 }
 
-// ===== log viewer per job =====
-const logModal = () => bootstrap.Modal.getOrCreateInstance('#logModal');
+async function stopTask(ev, i) {
+  ev.stopPropagation();
+  const j = JOBS[i];
+  if (!j || !j.running) return;
+  if (!confirm(`Stop ${j.type} (${j.session === '-' ? j.detail : 'sesi ' + j.session})?`)) return;
+  try {
+    await fetch('/api/tasks/stop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: j.kind, session: j.session === '-' ? '' : j.session, clip: j.kind === 'render' ? (j.detail || '') : '' }) });
+    refresh();
+  } catch {}
+}
+
 let logPoll = null, logTarget = null;
 
 function openLog(i) {
@@ -98,10 +163,10 @@ function openLog(i) {
   const label = j.type + (j.session !== '-' ? ` — sesi ${j.session}` : '') + (j.kind === 'render' && j.detail ? ` — ${j.detail}` : '');
   document.getElementById('logTitle').textContent = '📋 ' + label;
   document.getElementById('logBox').textContent = 'memuat…';
-  logModal().show();
+  Modal.show('logModal');
   loadLog();
   clearInterval(logPoll);
-  logPoll = setInterval(() => { if (!document.querySelector('#logModal.show')) { clearInterval(logPoll); return; } loadLog(); }, 1000);
+  logPoll = setInterval(() => { if (!document.querySelector('#logModal:not(.hidden)')) { clearInterval(logPoll); return; } loadLog(); }, 1000);
 }
 
 async function loadLog() {
@@ -121,6 +186,7 @@ async function loadLog() {
     if (j.running) delete box.dataset.done;
   } catch {}
 }
+
 refresh();
 setInterval(refresh, 1500);
 </script>

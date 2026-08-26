@@ -1,143 +1,273 @@
 <!doctype html>
-<html lang="id" data-bs-theme="dark">
+<html lang="id">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Settings — YT Short Clipper</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: { extend: { colors: {
+    surface: { 0:'#09090b', 1:'#18181b', 2:'#27272a', 3:'#3f3f46' },
+    accent: '#facc15',
+  }}}
+}
+</script>
 <style>
-body{background:#0d1117;font-size:.85rem}
-.form-control,.form-select{font-size:.8rem}
-.form-check-label{white-space:normal;line-height:1.2}
-.card{background:#161b22;border-color:#30363d}
+body{background:#09090b;color:#fafafa;font-family:system-ui,-apple-system,sans-serif}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#3f3f46;border-radius:3px}
+.tpl-btn{border:1px solid #27272a;border-radius:.375rem;padding:.35rem .6rem;cursor:pointer;transition:all .15s;font-size:.75rem}
+.tpl-btn:hover{border-color:#facc15;background:#18181b}
 </style>
 </head>
-<body>
-<nav class="navbar navbar-dark px-3 py-2" style="background:#010409;border-bottom:1px solid #30363d">
-  <a class="btn btn-sm btn-outline-light" href="/">← Beranda</a>
-  <span class="navbar-brand mb-0 fw-bold">⚙️ Settings</span>
-  <div class="ms-auto d-flex align-items-center gap-2">
-    <span class="text-muted small" id="whoami"></span>
-    <a class="btn btn-sm btn-outline-light" href="/logout">Logout</a>
+<body class="min-h-screen flex flex-col">
+
+<!-- NAV -->
+<nav class="sticky top-0 z-50 flex items-center justify-between px-4 py-2.5 border-b border-zinc-800 bg-surface-0/80 backdrop-blur-md">
+  <div class="flex items-center gap-3">
+    <a href="/" class="text-sm text-zinc-400 hover:text-white transition">← Beranda</a>
+    <span class="font-semibold text-sm tracking-wide text-accent">⚙️ Settings</span>
+  </div>
+  <div class="flex items-center gap-3">
+    <span class="text-xs text-zinc-500" id="whoami"></span>
+    <a href="/logout" class="text-xs text-zinc-400 hover:text-white transition">Logout</a>
   </div>
 </nav>
 
-<div class="container-fluid py-3">
-
-<!-- ===== TEMPLATE CEPAT ===== -->
-<div class="card mb-3">
-  <div class="card-header border-secondary py-2 fw-semibold">⚡ Template Otomatis <span class="text-muted fw-normal small">— klik sesuai tipe video, lalu 💾 Simpan Semua</span></div>
-  <div class="card-body py-2">
-    <div class="d-flex flex-wrap gap-2" id="tplBar"></div>
-    <div id="tplMsg" class="small text-success mt-2" style="display:none"></div>
+<!-- MAIN CONTENT -->
+<main class="flex-1 max-w-6xl w-full mx-auto p-4 space-y-4">
+  
+  <!-- TEMPLATES -->
+  <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 shadow-md">
+    <div class="mb-3">
+      <h2 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">⚡ Template Otomatis</h2>
+      <p class="text-[10px] text-zinc-500">Klik sesuai tipe video untuk memuat preset config, lalu klik 💾 Simpan Semua</p>
+    </div>
+    <div class="flex flex-wrap gap-2" id="tplBar"></div>
+    <div id="tplMsg" class="text-xs mt-3 text-emerald-400 hidden"></div>
   </div>
-</div>
 
-<div class="row g-3">
-
-<div class="col-lg-6">
-  <div class="card h-100">
-    <div class="card-header border-secondary py-2 fw-semibold">🤖 AI & Analisis</div>
-    <div class="card-body">
-      <div class="row g-2">
-        <div class="col-12 col-md-4"><label class="form-label small mb-0">Model analisis</label><input class="form-control" id="s_core_model"></div>
-        <div class="col-6 col-md-4"><label class="form-label small mb-0">TTS Model</label><input class="form-control" id="s_tts_model" placeholder="tts-1"></div>
-        <div class="col-6 col-md-4"><label class="form-label small mb-0">Temperature</label><input type="number" step="0.05" min="0" max="2" class="form-control" id="s_temperature"></div>
-        <div class="col-6 col-md-4"><label class="form-label small mb-0">HF Model</label><input class="form-control" id="s_hf_model" placeholder="AUTO"></div>
-        <div class="col-6 col-md-8"><label class="form-label small mb-0">Server URL (OpenAI-compatible)</label><input class="form-control" id="s_server_url" placeholder="http://localhost:20128/v1"></div>
-        <div class="col-12 col-md-6"><label class="form-label small mb-0">HF API Key <span class="text-muted" id="keyState"></span></label><input type="password" class="form-control" id="s_hf_api_key" placeholder="(tidak diubah)"></div>
-        <div class="col-12 col-md-6"><label class="form-label small mb-0">Bahasa Subtitle</label><input class="form-control" id="s_subtitle_language" placeholder="id"></div>
-        <div class="col-12"><label class="form-label small mb-0">System message (highlight finder)</label><textarea class="form-control" rows="3" id="s_hf_system_message"></textarea></div>
-        <div class="col-12 col-md-6"><label class="form-label small mb-0">🎙 Faster-Whisper <span id="fwBadge" class="small"></span></label>
-          <select class="form-select" id="s_fw_model"><option value="tiny">tiny</option><option value="base">base</option><option value="small">small</option><option value="medium">medium</option><option value="large-v3">large-v3</option></select></div>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    
+    <!-- AI & ANALISIS -->
+    <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 shadow-md space-y-3">
+      <h3 class="text-xs font-semibold text-zinc-450 uppercase tracking-wider pb-2 border-b border-zinc-800">🤖 AI & Analisis</h3>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="col-span-2">
+          <label class="text-[10px] text-zinc-500 block mb-0.5">Model Analisis</label>
+          <input id="s_core_model" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+        </div>
+        <div>
+          <label class="text-[10px] text-zinc-500 block mb-0.5">TTS Model</label>
+          <input id="s_tts_model" placeholder="tts-1" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+        </div>
+        <div>
+          <label class="text-[10px] text-zinc-500 block mb-0.5">Temperature</label>
+          <input type="number" step="0.05" min="0" max="2" id="s_temperature" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+        </div>
+        <div>
+          <label class="text-[10px] text-zinc-500 block mb-0.5">HF Model</label>
+          <input id="s_hf_model" placeholder="AUTO" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+        </div>
+        <div class="col-span-2">
+          <label class="text-[10px] text-zinc-500 block mb-0.5">Server URL (OpenAI-compatible)</label>
+          <input id="s_server_url" placeholder="http://localhost:20128/v1" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+        </div>
+        <div class="col-span-2">
+          <label class="text-[10px] text-zinc-500 block mb-0.5">HF API Key <span class="text-zinc-500 font-mono text-[9px]" id="keyState"></span></label>
+          <input type="password" id="s_hf_api_key" placeholder="(tidak diubah)" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+        </div>
+        <div class="col-span-2">
+          <label class="text-[10px] text-zinc-500 block mb-0.5">Bahasa Subtitle</label>
+          <input id="s_subtitle_language" placeholder="id" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+        </div>
+        <div class="col-span-2">
+          <label class="text-[10px] text-zinc-500 block mb-0.5">System message (highlight finder)</label>
+          <textarea rows="3" id="s_hf_system_message" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"></textarea>
+        </div>
+        <div class="col-span-2">
+          <label class="text-[10px] text-zinc-500 block mb-0.5">🎙 Faster-Whisper <span id="fwBadge" class="text-[9px] px-1 py-0.5 rounded font-mono ml-1"></span></label>
+          <select id="s_fw_model" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"><option value="tiny">tiny</option><option value="base">base</option><option value="small">small</option><option value="medium">medium</option><option value="large-v3">large-v3</option></select>
+        </div>
       </div>
     </div>
-  </div>
-</div>
 
-<div class="col-lg-6">
-  <div class="card h-100">
-    <div class="card-header border-secondary py-2 fw-semibold">🎬 Render & Tracking</div>
-    <div class="card-body">
-      <div class="row g-2">
-        <div class="col-6 col-md-3"><div class="form-check form-switch mt-1"><input class="form-check-input" type="checkbox" id="s_hook"><label class="form-check-label" for="s_hook">🪝 Hook</label></div></div>
-        <div class="col-6 col-md-3"><div class="form-check form-switch mt-1"><input class="form-check-input" type="checkbox" id="s_captions"><label class="form-check-label" for="s_captions">💬 Subtitle</label></div></div>
-        <div class="col-6 col-md-3"><div class="form-check form-switch mt-1"><input class="form-check-input" type="checkbox" id="s_gpu"><label class="form-check-label" for="s_gpu">⚡ GPU</label></div></div>
-        <div class="col-6 col-md-3"><div class="form-check form-switch mt-1"><input class="form-check-input" type="checkbox" id="s_smooth_follow"><label class="form-check-label" for="s_smooth_follow">Smooth Follow</label></div></div>
-        <div class="col-6 col-md-3"><label class="form-label small mb-0">Jumlah klip</label><input type="number" min="1" class="form-control" id="s_num_clips"></div>
-        <div class="col-6 col-md-3"><label class="form-label small mb-0">Resolusi</label><select class="form-select" id="s_resolution"><option>1080p</option><option>720p</option><option>480p</option><option>360p</option><option>auto</option></select></div>
-        <div class="col-6 col-md-3"><label class="form-label small mb-0">Rasio</label><select class="form-select" id="s_aspect_ratio"><option>9:16</option><option>1:1</option><option>4:5</option><option>16:9</option></select></div>
-        <div class="col-6 col-md-3"><label class="form-label small mb-0">Gaya Subtitle</label><select class="form-select" id="s_subtitle_style"><option>pop</option><option>karaoke</option><option>bounce</option><option>animated</option><option>pop_bounce</option></select></div>
-        <div class="col-6 col-md-3"><label class="form-label small mb-0">Sync Offset (s)</label><input type="number" step="0.1" class="form-control" id="s_sync_offset"></div>
-        <div class="col-6 col-md-3"><label class="form-label small mb-0">Portrait Mode</label><select class="form-select" id="s_portrait_mode"><option>crop</option><option>blur</option></select></div>
-        <div class="col-6 col-md-3"><label class="form-label small mb-0">Face Tracking</label><select class="form-select" id="s_face_tracking_mode"><option>opencv</option><option>mediapipe</option></select></div>
-        <div class="col-6 col-md-3"><label class="form-label small mb-0">Pan Speed Limit</label><input type="number" step="0.1" class="form-control" id="s_pan_speed_limit"></div>
-        <div class="col-6 col-md-3"><label class="form-label small mb-0">Center Weight</label><input type="number" step="0.05" class="form-control" id="s_center_weight"></div>
-        <div class="col-6 col-md-3"><label class="form-label small mb-0">Switch Threshold</label><input type="number" step="0.05" class="form-control" id="s_switch_threshold"></div>
-        <div class="col-6 col-md-3"><label class="form-label small mb-0">Min Shot Duration</label><input type="number" step="1" class="form-control" id="s_min_shot_duration"></div>
-        <div class="col-6 col-md-3"><label class="form-label small mb-0">Lip Activity</label><input type="number" step="0.01" class="form-control" id="s_lip_activity"></div>
+    <!-- RENDER & TRACKING -->
+    <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 shadow-md space-y-3">
+      <h3 class="text-xs font-semibold text-zinc-450 uppercase tracking-wider pb-2 border-b border-zinc-800">🎬 Render & Tracking</h3>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="col-span-2 grid grid-cols-2 gap-1.5 bg-surface-2/40 p-2.5 rounded-lg border border-zinc-800">
+          <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="s_hook" class="w-3.5 h-3.5 accent-[#facc15]"> 🪝 Hook</label>
+          <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="s_captions" class="w-3.5 h-3.5 accent-[#facc15]"> 💬 Subtitle</label>
+          <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="s_gpu" class="w-3.5 h-3.5 accent-[#facc15]"> ⚡ GPU</label>
+          <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="s_smooth_follow" class="w-3.5 h-3.5 accent-[#facc15]"> Smooth Follow</label>
+        </div>
+        <div>
+          <label class="text-[10px] text-zinc-500 block mb-0.5">Jumlah Klip</label>
+          <input type="number" min="1" id="s_num_clips" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+        </div>
+        <div>
+          <label class="text-[10px] text-zinc-500 block mb-0.5">Resolusi</label>
+          <select id="s_resolution" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"><option>1080p</option><option>720p</option><option>480p</option><option>360p</option><option>auto</option></select>
+        </div>
+        <div>
+          <label class="text-[10px] text-zinc-500 block mb-0.5">Rasio</label>
+          <select id="s_aspect_ratio" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"><option>9:16</option><option>1:1</option><option>4:5</option><option>16:9</option></select>
+        </div>
+        <div>
+          <label class="text-[10px] text-zinc-500 block mb-0.5">Gaya Subtitle</label>
+          <select id="s_subtitle_style" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"><option>pop</option><option>karaoke</option><option>bounce</option><option>animated</option><option>pop_bounce</option></select>
+        </div>
+        <div>
+          <label class="text-[10px] text-zinc-500 block mb-0.5">Sync Offset (s)</label>
+          <input type="number" step="0.1" id="s_sync_offset" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+        </div>
+        <div>
+          <label class="text-[10px] text-zinc-500 block mb-0.5">Portrait Mode</label>
+          <select id="s_portrait_mode" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"><option>crop</option><option>blur</option></select>
+        </div>
+        <div>
+          <label class="text-[10px] text-zinc-500 block mb-0.5">Face Tracking</label>
+          <select id="s_face_tracking_mode" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"><option>opencv</option><option>mediapipe</option></select>
+        </div>
+        <div>
+          <label class="text-[10px] text-zinc-500 block mb-0.5">Pan Speed Limit</label>
+          <input type="number" step="0.1" id="s_pan_speed_limit" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+        </div>
+        <div>
+          <label class="text-[10px] text-zinc-500 block mb-0.5">Center Weight</label>
+          <input type="number" step="0.05" id="s_center_weight" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+        </div>
+        <div>
+          <label class="text-[10px] text-zinc-500 block mb-0.5">Switch Threshold</label>
+          <input type="number" step="0.05" id="s_switch_threshold" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+        </div>
+        <div>
+          <label class="text-[10px] text-zinc-500 block mb-0.5">Min Shot Duration</label>
+          <input type="number" step="1" id="s_min_shot_duration" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+        </div>
+        <div>
+          <label class="text-[10px] text-zinc-500 block mb-0.5">Lip Activity</label>
+          <input type="number" step="0.01" id="s_lip_activity" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+        </div>
       </div>
     </div>
-  </div>
-</div>
 
-<div class="col-lg-6">
-  <div class="card h-100">
-    <div class="card-header border-secondary py-2 fw-semibold">🖼️ Watermark</div>
-    <div class="card-body">
-      <div class="d-flex align-items-center gap-3 mb-2">
-        <div class="form-check form-switch mb-0"><input class="form-check-input" type="checkbox" id="s_wm_on"><label class="form-check-label" for="s_wm_on">Aktif</label></div>
-        <input type="file" accept=".png,.jpg,.jpeg" class="form-control form-control-sm" id="wmFile" style="max-width:280px">
-        <button class="btn btn-sm btn-warning flex-shrink-0" onclick="uploadWm()">⬆ Upload</button>
-      </div>
-      <div id="wmMsg" class="small text-muted mb-2"></div>
-      <div class="row g-2">
-        <div class="col-6 col-md-3"><label class="form-label small mb-0">Posisi X (0-1)</label><input type="number" step="0.01" min="0" max="1" class="form-control" id="s_wm_x"></div>
-        <div class="col-6 col-md-3"><label class="form-label small mb-0">Posisi Y (0-1)</label><input type="number" step="0.01" min="0" max="1" class="form-control" id="s_wm_y"></div>
-        <div class="col-6 col-md-3"><label class="form-label small mb-0">Scale (0-1)</label><input type="number" step="0.01" min="0.01" max="1" class="form-control" id="s_wm_scale"></div>
-        <div class="col-6 col-md-3"><label class="form-label small mb-0">Opacity (0-1)</label><input type="number" step="0.05" min="0" max="1" class="form-control" id="s_wm_op"></div>
+    <!-- WATERMARK -->
+    <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 shadow-md space-y-3">
+      <h3 class="text-xs font-semibold text-zinc-450 uppercase tracking-wider pb-2 border-b border-zinc-800">🖼️ Watermark</h3>
+      <div class="space-y-3">
+        <div class="flex items-center gap-3 bg-surface-2/45 p-3 rounded-lg border border-zinc-800 flex-wrap justify-between">
+          <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="s_wm_on" class="w-3.5 h-3.5 accent-[#facc15]"> Aktif</label>
+          <div class="flex items-center gap-2 flex-1 min-w-[200px] justify-end">
+            <input type="file" accept=".png,.jpg,.jpeg" id="wmFile" class="text-xs text-zinc-400 bg-surface-2 border border-zinc-700 rounded px-2 py-1 max-w-[200px] focus:outline-none">
+            <button onclick="uploadWm()" class="px-3 py-1 bg-accent text-black text-xs font-medium rounded hover:bg-yellow-400 transition whitespace-nowrap">Upload</button>
+          </div>
+        </div>
+        <div id="wmMsg" class="text-[11px] text-zinc-500 font-mono italic"></div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-[10px] text-zinc-500 block mb-0.5">Posisi X (0-1)</label>
+            <input type="number" step="0.01" min="0" max="1" id="s_wm_x" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+          </div>
+          <div>
+            <label class="text-[10px] text-zinc-500 block mb-0.5">Posisi Y (0-1)</label>
+            <input type="number" step="0.01" min="0" max="1" id="s_wm_y" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+          </div>
+          <div>
+            <label class="text-[10px] text-zinc-500 block mb-0.5">Scale (0-1)</label>
+            <input type="number" step="0.01" min="0.01" max="1" id="s_wm_scale" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+          </div>
+          <div>
+            <label class="text-[10px] text-zinc-500 block mb-0.5">Opacity (0-1)</label>
+            <input type="number" step="0.05" min="0" max="1" id="s_wm_op" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-</div>
 
-<div class="col-lg-6">
-  <div class="card h-100">
-    <div class="card-header border-secondary py-2 fw-semibold">🏷️ Credit Watermark & 🪝 Hook Style</div>
-    <div class="card-body">
-      <div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" id="s_cw_on"><label class="form-check-label" for="s_cw_on">Credit Watermark aktif</label></div>
-      <div class="row g-2 mb-3">
-        <div class="col-6 col-md-3"><label class="form-label small mb-0">Pos X</label><input type="number" step="0.01" min="0" max="1" class="form-control" id="s_cw_x"></div>
-        <div class="col-6 col-md-3"><label class="form-label small mb-0">Pos Y</label><input type="number" step="0.01" min="0" max="1" class="form-control" id="s_cw_y"></div>
-        <div class="col-6 col-md-3"><label class="form-label small mb-0">Size</label><input type="number" step="0.005" min="0.001" class="form-control" id="s_cw_size"></div>
-        <div class="col-6 col-md-3"><label class="form-label small mb-0">Opacity</label><input type="number" step="0.05" min="0" max="1" class="form-control" id="s_cw_op"></div>
+    <!-- CREDIT & HOOK STYLE -->
+    <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 shadow-md space-y-3">
+      <h3 class="text-xs font-semibold text-zinc-450 uppercase tracking-wider pb-2 border-b border-zinc-800">🏷️ Credit Watermark & 🪝 Hook Style</h3>
+      <div class="space-y-3">
+        <div class="p-3 bg-surface-2/30 border border-zinc-800/80 rounded-lg space-y-2.5">
+          <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="s_cw_on" class="w-3.5 h-3.5 accent-[#facc15]"> Credit Watermark Aktif</label>
+          <div class="grid grid-cols-4 gap-2">
+            <div>
+              <label class="text-[9px] text-zinc-500 block mb-0.5">Pos X</label>
+              <input type="number" step="0.01" min="0" max="1" id="s_cw_x" class="w-full bg-surface-2 border border-zinc-700 rounded px-1.5 py-1 text-xs text-white focus:outline-none focus:border-accent">
+            </div>
+            <div>
+              <label class="text-[9px] text-zinc-500 block mb-0.5">Pos Y</label>
+              <input type="number" step="0.01" min="0" max="1" id="s_cw_y" class="w-full bg-surface-2 border border-zinc-700 rounded px-1.5 py-1 text-xs text-white focus:outline-none focus:border-accent">
+            </div>
+            <div>
+              <label class="text-[9px] text-zinc-500 block mb-0.5">Size</label>
+              <input type="number" step="0.005" min="0.001" id="s_cw_size" class="w-full bg-surface-2 border border-zinc-700 rounded px-1.5 py-1 text-xs text-white focus:outline-none focus:border-accent">
+            </div>
+            <div>
+              <label class="text-[9px] text-zinc-500 block mb-0.5">Opacity</label>
+              <input type="number" step="0.05" min="0" max="1" id="s_cw_op" class="w-full bg-surface-2 border border-zinc-700 rounded px-1.5 py-1 text-xs text-white focus:outline-none focus:border-accent">
+            </div>
+          </div>
+        </div>
+
+        <div class="p-3 bg-surface-2/30 border border-zinc-800/80 rounded-lg space-y-2.5">
+          <div class="text-[10px] text-zinc-400 font-semibold uppercase tracking-wide">Hook Style Config</div>
+          <div class="grid grid-cols-3 gap-2">
+            <div>
+              <label class="text-[9px] text-zinc-500 block mb-0.5">Font Size</label>
+              <input type="number" step="0.005" min="0.01" id="s_hs_size" class="w-full bg-surface-2 border border-zinc-700 rounded px-1.5 py-1 text-xs text-white focus:outline-none focus:border-accent">
+            </div>
+            <div>
+              <label class="text-[9px] text-zinc-500 block mb-0.5">Corner Radius</label>
+              <input type="number" step="1" min="0" id="s_hs_radius" class="w-full bg-surface-2 border border-zinc-700 rounded px-1.5 py-1 text-xs text-white focus:outline-none focus:border-accent">
+            </div>
+            <div>
+              <label class="text-[9px] text-zinc-500 block mb-0.5">Glitch Effect</label>
+              <label class="flex items-center h-8 cursor-pointer"><input type="checkbox" id="s_hs_glitch" class="w-3.5 h-3.5 accent-[#facc15]"></label>
+            </div>
+            <div>
+              <label class="text-[9px] text-zinc-500 block mb-0.5">Pos X</label>
+              <input type="number" step="0.01" min="0" max="1" id="s_hs_x" class="w-full bg-surface-2 border border-zinc-700 rounded px-1.5 py-1 text-xs text-white focus:outline-none focus:border-accent">
+            </div>
+            <div>
+              <label class="text-[9px] text-zinc-500 block mb-0.5">Pos Y</label>
+              <input type="number" step="0.01" min="0" max="1" id="s_hs_y" class="w-full bg-surface-2 border border-zinc-700 rounded px-1.5 py-1 text-xs text-white focus:outline-none focus:border-accent">
+            </div>
+            <div>
+              <label class="text-[9px] text-zinc-500 block mb-0.5">Font Color</label>
+              <input type="color" id="s_hs_fc" class="w-full h-8 bg-surface-2 border border-zinc-700 rounded p-0.5 cursor-pointer">
+            </div>
+            <div class="col-span-3">
+              <label class="text-[9px] text-zinc-500 block mb-0.5">BG Color</label>
+              <input type="color" id="s_hs_bc" class="w-full h-8 bg-surface-2 border border-zinc-700 rounded p-0.5 cursor-pointer">
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-1.5">
+          <label class="text-[10px] text-zinc-500 block mb-1.5 font-semibold uppercase tracking-wider">🔥 Template Hook Style Viral</label>
+          <div class="flex flex-wrap gap-1.5" id="hsBar"></div>
+        </div>
       </div>
-      <div class="row g-2">
-        <div class="col-6 col-md-3"><label class="form-label small mb-0">Font Size</label><input type="number" step="0.005" min="0.01" class="form-control" id="s_hs_size"></div>
-        <div class="col-6 col-md-3"><label class="form-label small mb-0">Corner Radius</label><input type="number" step="1" min="0" class="form-control" id="s_hs_radius"></div>
-        <div class="col-6 col-md-3"><label class="form-label small mb-0">Pos X</label><input type="number" step="0.01" min="0" max="1" class="form-control" id="s_hs_x"></div>
-        <div class="col-6 col-md-3"><label class="form-label small mb-0">Pos Y</label><input type="number" step="0.01" min="0" max="1" class="form-control" id="s_hs_y"></div>
-        <div class="col-6 col-md-3"><label class="form-label small mb-0">Font Color</label><input type="color" class="form-control form-control-color w-100" id="s_hs_fc"></div>
-        <div class="col-6 col-md-3"><label class="form-label small mb-0">BG Color</label><input type="color" class="form-control form-control-color w-100" id="s_hs_bc"></div>
-        <div class="col-6 col-md-6"><div class="form-check form-switch mt-2"><input class="form-check-input" type="checkbox" id="s_hs_glitch"><label class="form-check-label small" for="s_hs_glitch">✨ Efek Glitch TikTok (cyan+merah)</label></div></div>
-      </div>
-      <hr class="border-secondary my-2">
-      <label class="form-label small mb-1 fw-semibold">🔥 Template Hook Style Viral</label>
-      <div class="d-flex flex-wrap gap-2" id="hsBar"></div>
     </div>
+
   </div>
-</div>
 
-</div>
-<div class="d-flex gap-2 align-items-center my-3">
-  <button class="btn btn-warning" id="saveBtn" onclick="saveAll()">💾 Simpan Semua</button>
-  <span id="msg" class="small"></span>
-</div>
-</div>
+  <div class="sticky bottom-0 z-10 bg-surface-0 border-t border-zinc-800 p-4 flex items-center gap-3 justify-end rounded-xl shadow-lg mt-2">
+    <span id="msg" class="text-xs"></span>
+    <button id="saveBtn" onclick="saveAll()" class="px-6 py-2 bg-accent text-black font-semibold rounded hover:bg-yellow-400 transition shadow">💾 Simpan Semua</button>
+  </div>
+  
+</main>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script>fetch('/api/me').then(r=>r.json()).then(d=>{if(d.name)document.getElementById('whoami').textContent='👤 '+d.name;});</script>
 <script>
+fetch('/api/me').then(r=>r.json()).then(d=>{if(d.name)document.getElementById('whoami').textContent='👤 '+d.name;});
+
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num = v => (v === '' || v == null || isNaN(v)) ? null : parseFloat(v);
@@ -161,7 +291,16 @@ async function load() {
     $('#s_hf_system_message').value = C.hf_system_message || '';
     $('#keyState').textContent = C.hf_api_key_set ? '(tersimpan)' : '(belum ada)';
     v('#s_fw_model', C.fw_model || 'small');
-    $('#fwBadge').textContent = C.fw_installed ? '🟢' : '🔴 belum terunduh';
+    
+    const fwBadge = $('#fwBadge');
+    if (C.fw_installed) {
+      fwBadge.textContent = '🟢 Aktif';
+      fwBadge.className = 'text-[9px] px-1.5 py-0.5 rounded font-mono ml-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+    } else {
+      fwBadge.textContent = '🔴 Belum Terunduh';
+      fwBadge.className = 'text-[9px] px-1.5 py-0.5 rounded font-mono ml-1 bg-red-500/10 text-red-400 border border-red-500/20';
+    }
+    
     // watermark
     const wm = C.wm || {}, cw = C.cw || {}, hs = C.hookstyle || {};
     $('#s_wm_on').checked = !!C.watermark;
@@ -199,7 +338,12 @@ function collect() {
   };
 }
 
-function msg(t, ok) { const m = $('#msg'); m.textContent = t; m.className = 'small ' + (ok ? 'text-success' : 'text-danger'); setTimeout(() => m.textContent = '', 5000); }
+function msg(t, ok) {
+  const m = $('#msg');
+  m.textContent = t;
+  m.className = 'text-xs ' + (ok ? 'text-emerald-400' : 'text-red-400');
+  setTimeout(() => m.textContent = '', 5000);
+}
 
 async function saveAll() {
   const body = collect();
@@ -231,7 +375,6 @@ async function uploadWm() {
 
 load();
 
-// ===== template otomatis per tipe video =====
 const TEMPLATES = {
   podcast2: {
     label: '🎙 Podcast 2 Orang', desc: 'tracking wajah stabil, crop tengah, caption jelas',
@@ -255,21 +398,21 @@ const TEMPLATES = {
       hook: true, captions: true, gpu: true },
   },
   news: {
-    label: '📰 Berita / Vlog Berita', desc: 'stabil, formal, subtitle rapi',
+    label: '📰 Berita', desc: 'stabil, formal, subtitle rapi',
     cfg: { face_tracking_mode: 'opencv', portrait_mode: 'crop', smooth_follow: false,
       pan_speed_limit: 1.2, center_weight: 0.5, switch_threshold: 0.4, min_shot_duration: 150,
       lip_activity: 0.1, subtitle_style: 'karaoke', sync_offset: -0.3, aspect_ratio: '9:16',
       hook: false, captions: true, gpu: true },
   },
   tutorial: {
-    label: '🧑‍🏫 Tutorial / Edukasi', desc: 'fokus 1 pembicara, tempo tenang',
+    label: '🧑‍🏫 Tutorial', desc: 'fokus 1 pembicara, tempo tenang',
     cfg: { face_tracking_mode: 'mediapipe', portrait_mode: 'crop', smooth_follow: true,
       pan_speed_limit: 1.5, center_weight: 0.5, switch_threshold: 0.4, min_shot_duration: 180,
       lip_activity: 0.1, subtitle_style: 'animated', sync_offset: -0.3, aspect_ratio: '9:16',
       hook: false, captions: true, gpu: true },
   },
   vlog: {
-    label: '📹 Vlog / Solo Creator', desc: 'dinamis tapi halus, hook aktif',
+    label: '📹 Vlog', desc: 'dinamis tapi halus, hook aktif',
     cfg: { face_tracking_mode: 'mediapipe', portrait_mode: 'crop', smooth_follow: true,
       pan_speed_limit: 2.2, center_weight: 0.35, switch_threshold: 0.3, min_shot_duration: 90,
       lip_activity: 0.15, subtitle_style: 'pop_bounce', sync_offset: -0.25, aspect_ratio: '9:16',
@@ -281,10 +424,8 @@ function applyTemplate(key) {
   const t = TEMPLATES[key];
   if (!t) return;
   const c = t.cfg;
-  // switch
   $('#s_hook').checked = !!c.hook; $('#s_captions').checked = !!c.captions; $('#s_gpu').checked = !!c.gpu;
   $('#s_smooth_follow').checked = !!c.smooth_follow;
-  // select & angka
   $('#s_face_tracking_mode').value = c.face_tracking_mode;
   $('#s_portrait_mode').value = c.portrait_mode;
   $('#s_subtitle_style').value = c.subtitle_style;
@@ -295,19 +436,19 @@ function applyTemplate(key) {
   $('#s_switch_threshold').value = c.switch_threshold;
   $('#s_min_shot_duration').value = c.min_shot_duration;
   $('#s_lip_activity').value = c.lip_activity;
+  
   const m = $('#tplMsg');
+  m.classList.remove('hidden');
   m.textContent = `✅ Template "${t.label}" diterapkan (${t.desc}) — cek lalu 💾 Simpan Semua.`;
-  m.style.display = 'block';
-  setTimeout(() => m.style.display = 'none', 6000);
+  setTimeout(() => m.classList.add('hidden'), 6000);
 }
 
 (function initTemplates() {
   const bar = document.getElementById('tplBar');
   bar.innerHTML = Object.entries(TEMPLATES).map(([k, t]) =>
-    `<button class="btn btn-sm btn-outline-warning" title="${esc(t.desc)}" onclick="applyTemplate('${k}')">${t.label}</button>`).join('');
+    `<button class="tpl-btn text-zinc-300 hover:text-white" title="${esc(t.desc)}" onclick="applyTemplate('${k}')">${t.label}</button>`).join('');
 })();
 
-// ===== template hook style viral =====
 const HOOK_PRESETS = {
   tiktok: {
     label: '🎵 TikTok Glitch', desc: 'putih di kotak hitam + bayangan cyan/merah khas TikTok',
@@ -339,16 +480,17 @@ function applyHookPreset(key) {
   $('#s_hs_radius').value = p.cfg.corner_radius;
   $('#s_hs_size').value = p.cfg.font_size;
   $('#s_hs_glitch').checked = !!p.cfg.glitch;
+  
   const m = $('#tplMsg');
+  m.classList.remove('hidden');
   m.textContent = `✅ Hook style "${p.label}" diterapkan (${p.desc}) — jangan lupa 💾 Simpan Semua.`;
-  m.style.display = 'block';
-  setTimeout(() => m.style.display = 'none', 6000);
+  setTimeout(() => m.classList.add('hidden'), 6000);
 }
 
 (function initHookPresets() {
   const bar = document.getElementById('hsBar');
   bar.innerHTML = Object.entries(HOOK_PRESETS).map(([k, p]) =>
-    `<button class="btn btn-sm btn-outline-info" title="${esc(p.desc)}" onclick="applyHookPreset('${k}')">${p.label}</button>`).join('');
+    `<button class="px-2 py-1 border border-zinc-700 rounded text-[10px] text-zinc-300 hover:text-white hover:border-zinc-500 transition" title="${esc(p.desc)}" onclick="applyHookPreset('${k}')">${p.label}</button>`).join('');
 })();
 </script>
 </body>

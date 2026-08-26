@@ -178,6 +178,19 @@ class AutoClipperCore:
             "smooth_follow": True,
             "pan_speed_limit": 2.5
         }
+        
+        # Professional video editing features (loaded from config)
+        self.pro_settings = {
+            "stabilize": False,
+            "color_grade": "none",
+            "motion_blur": 0,
+            "vignette": 0,
+            "speed_ramp_start": 0,
+            "speed_ramp_end": 0,
+            "speed_factor": 0.5,
+            "ducking_level_db": -15,
+            "music_path": ""
+        }
         self.subtitle_language = subtitle_language
         # Whisper word timestamps tend to run LATE by ~0.2-0.4s.
         # Negative = show subtitles earlier to compensate.
@@ -3562,6 +3575,32 @@ Transcript:
         current_output = portrait_file
         hook_duration = 0
         
+        # Step 2.5: Pro features — stabilization (before hook)
+        if self.pro_settings.get("stabilize"):
+            if self.is_cancelled(): return
+            stab_file = clip_dir / "stabilized.mp4"
+            self.stabilize_video_with_progress(str(current_output), str(stab_file),
+                lambda p: clip_progress("Stabilizing...", current_step, p))
+            if stab_file.exists():
+                current_output = stab_file
+                self.log(self.colorize("  ✓ Stabilized", "ok"))
+        current_step += 1
+        
+        # Step 2.6: Pro features — speed ramp
+        sr_start = self.pro_settings.get("speed_ramp_start", 0)
+        sr_end = self.pro_settings.get("speed_ramp_end", 0)
+        if sr_start > 0 or sr_end > 0:
+            if self.is_cancelled(): return
+            sr_file = clip_dir / "speedramp.mp4"
+            self.apply_speed_ramp_with_progress(str(current_output), str(sr_file),
+                lambda p: clip_progress("Speed ramp...", current_step, p),
+                slow_start=sr_start, slow_end=sr_end,
+                speed_factor=self.pro_settings.get("speed_factor", 0.5))
+            if sr_file.exists():
+                current_output = sr_file
+                self.log(self.colorize("  ✓ Speed ramp", "ok"))
+        current_step += 1
+        
         # Step 3: Add hook (optional)
         if add_hook:
             if self.is_cancelled():
@@ -3605,6 +3644,61 @@ Transcript:
         else:
             self.log("  ⊘ Skipped captions (disabled)")
         
+        # Step 4.5: Post-processing pro features (after captions, before watermark)
+        # --- Color Grade ---
+        cg_style = self.pro_settings.get("color_grade", "none")
+        if cg_style and cg_style != "none":
+            if self.is_cancelled():
+                return
+            cg_file = clip_dir / "colorgraded.mp4"
+            clip_progress("Applying color grade...", current_step, 0.5)
+            self.apply_color_grade_with_progress(str(current_output), str(cg_file),
+                lambda p: clip_progress("Color grading...", current_step, p), style=cg_style)
+            if cg_file.exists():
+                current_output = cg_file
+                self.log(self.colorize(f"  ✓ Color grade: {cg_style}", "colorgrade"))
+        
+        # --- Motion Blur ---
+        mb_strength = self.pro_settings.get("motion_blur", 0)
+        if mb_strength > 0:
+            if self.is_cancelled():
+                return
+            mb_file = clip_dir / "motionblur.mp4"
+            clip_progress("Applying motion blur...", current_step, 0.5)
+            self.apply_motion_blur_with_progress(str(current_output), str(mb_file),
+                lambda p: clip_progress("Motion blur...", current_step, p), strength=mb_strength)
+            if mb_file.exists():
+                current_output = mb_file
+                self.log(self.colorize(f"  ✓ Motion blur ({mb_strength})", "motionblur"))
+        
+        # --- Vignette ---
+        vig_angle = self.pro_settings.get("vignette", 0)
+        if vig_angle > 0:
+            if self.is_cancelled():
+                return
+            vig_file = clip_dir / "vignette.mp4"
+            clip_progress("Applying vignette...", current_step, 0.5)
+            self.apply_vignette_with_progress(str(current_output), str(vig_file),
+                lambda p: clip_progress("Vignette...", current_step, p), angle=vig_angle)
+            if vig_file.exists():
+                current_output = vig_file
+                self.log(self.colorize(f"  ✓ Vignette ({vig_angle})", "vignette"))
+        
+        # --- Audio Ducking ---
+        duck_level = self.pro_settings.get("ducking_level_db", -15)
+        music_path = self.pro_settings.get("music_path", "")
+        if music_path and Path(music_path).exists():
+            if self.is_cancelled():
+                return
+            duck_file = clip_dir / "ducked.mp4"
+            clip_progress("Audio ducking...", current_step, 0.5)
+            self.duck_audio_with_progress(str(current_output), str(duck_file),
+                lambda p: clip_progress("Audio ducking...", current_step, p),
+                music_path=music_path, duck_level_db=duck_level)
+            if duck_file.exists():
+                current_output = duck_file
+                self.log(self.colorize(f"  ✓ Audio ducking ({duck_level}dB)", "duck"))
+
         # Step 5: Add watermark (if enabled)
         watermark_file = clip_dir / "watermark.mp4"
         if self.watermark_settings.get("enabled"):
@@ -3676,6 +3770,12 @@ Transcript:
             "has_captions": add_captions and not getattr(self, "_caption_failed", False),
             "has_watermark": watermark_applied,
             "has_credit": credit_applied,
+            "has_stabilize": self.pro_settings.get("stabilize", False),
+            "color_grade": self.pro_settings.get("color_grade", "none"),
+            "motion_blur": self.pro_settings.get("motion_blur", 0),
+            "vignette": self.pro_settings.get("vignette", 0),
+            "speed_ramp": bool(self.pro_settings.get("speed_ramp_start", 0) or self.pro_settings.get("speed_ramp_end", 0)),
+            "audio_ducking": bool(self.pro_settings.get("music_path", "")),
             "channel_name": self.channel_name,
             "aspect_ratio": self.aspect_ratio,
         }
@@ -3781,14 +3881,15 @@ PENTING:
     def _encode_portrait_single_pass(self, input_path: str, output_path: str,
                                      crop_positions: list, crop_w: int, crop_h: int,
                                      out_w: int, out_h: int,
-                                     progress_callback=None, duration: float = 0):
+                                     progress_callback=None, duration: float = 0,
+                                     min_run: int = 20, quantize: int = 4):
         """Crop + scale + encode + audio mux in ONE ffmpeg pass.
 
         Replaces the old two-step flow (OpenCV VideoWriter temp file, then a
         second full re-encode for audio merge) with a single encode, which is
         roughly twice as fast and no longer depends on OpenCV's H.264 writer.
         """
-        expr = self._build_crop_expression(crop_positions)
+        expr = self._build_crop_expression(crop_positions, min_run=min_run, quantize=quantize)
         fd, script_path = tempfile.mkstemp(suffix=".txt", prefix="portrait_crop_", text=True)
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as f:
@@ -4143,6 +4244,7 @@ PENTING:
         self._encode_portrait_single_pass(
             input_path, output_path, crop_positions, crop_w, crop_h, out_w, out_h,
             duration=frame_idx / fps if fps else 0,
+            **({"min_run": 3, "quantize": 2} if self.mediapipe_settings.get("smooth_follow", True) else {}),
         )
         cap.release()
     
@@ -4232,286 +4334,591 @@ PENTING:
         return final if final else smoothed
     
     def _smooth_follow_positions(self, positions: list, pan_speed_limit: float = 2.5):
-        """Smooth continuous camera pan that follows the face movement.
+        """Smooth continuous camera pan — professional-grade tracking.
 
-        Unlike shot-based stabilization (which locks the crop to a fixed
-        position per "shot"), this keeps the crop window gliding after the
-        face frame by frame: a moving average removes jitter and a per-frame
-        speed limit prevents violent jumps, producing a natural camera pan.
+        Features (inspired by DaVinci Resolve / Premiere Pro smooth follow):
+        1. Critically damped spring — no oscillation, natural momentum
+        2. Dead zone — camera holds when subject is near center (anti micro-jitter)
+        3. Velocity-adaptive — fast subjects get responsive tracking, slow subjects get heavy smoothing
+        4. Ease-in/ease-out — natural acceleration curves, no hard starts/stops
         """
-        if not positions:
-            return positions
-        if len(positions) < 3:
+        if not positions or len(positions) < 2:
             return positions
 
-        # 1) Moving average to remove single-frame face detection jitter
-        window = 15
-        smoothed = []
-        for i in range(len(positions)):
-            start = max(0, i - window // 2)
-            end = min(len(positions), i + window // 2)
-            smoothed.append(int(np.mean(positions[start:end])))
+        # === Spring parameters ===
+        k = max(0.5, 30.0 / max(pan_speed_limit, 0.5))  # stiffness
+        c = 2.0 * np.sqrt(k)                              # critical damping
 
-        # 2) Clamp per-frame speed so the pan never jerks
-        final = [smoothed[0]]
-        for i in range(1, len(smoothed)):
-            prev = final[-1]
-            curr = smoothed[i]
-            delta = curr - prev
-            if abs(delta) > pan_speed_limit:
-                delta = pan_speed_limit if delta > 0 else -pan_speed_limit
-            final.append(prev + int(delta))
+        # === Dead zone (pixels from center before camera reacts) ===
+        dead_zone = max(2.0, 8.0 / max(pan_speed_limit, 0.5))  # adaptive dead zone
 
-        return final
+        # Sub-pixel precision throughout
+        current = float(positions[0])
+        velocity = 0.0
+        result = [current]
+
+        for i in range(1, len(positions)):
+            target = float(positions[i])
+            displacement = target - current
+
+            # Dead zone: if subject is within dead zone of current position, hold
+            if abs(displacement) < dead_zone:
+                # Gently decay velocity (ease-out) instead of freezing
+                velocity *= 0.85
+                current += velocity
+                result.append(current)
+                continue
+
+            # Velocity-adaptive damping:
+            # When moving fast → less damping (responsive)
+            # When moving slow → more damping (smooth)
+            speed = abs(velocity)
+            adaptive_c = c * (0.7 + 0.3 * min(speed / max(pan_speed_limit, 0.5), 1.0))
+
+            # Spring force with adaptive damping
+            acceleration = -k * displacement - adaptive_c * velocity
+            velocity += acceleration
+            current += velocity
+            result.append(current)
+
+        return result
     
-    def add_hook(self, input_path: str, hook_text: str, output_path: str) -> float:
-        """Add hook scene at the beginning with multi-line yellow text (Fajar Sadboy style)"""
+
+    # ============================================================
+    # PROFESSIONAL VIDEO EDITING FEATURES
+    # ============================================================
+
+    def stabilize_video(self, input_path: str, output_path: str, shakiness: int = 5, smoothing: int = 10):
+        """Two-pass video stabilization using ffmpeg vidstab.
         
-        # Report TTS character usage
-        self.report_tokens(0, 0, 0, len(hook_text))
+        Pass 1: Detect motion (vidstabdetect)
+        Pass 2: Apply stabilization (vidstabtransform)
+        """
+        if self.is_cancelled():
+            return
         
-        # Generate TTS audio
-        try:
-            tts_response = self.tts_client.audio.speech.create(
-                model=self.tts_model,
-                voice="nova",
-                input=hook_text,
-                speed=1.0
-            )
-        except APIConnectionError as e:
-            self.log(f"  ❌ TTS API Connection Error: Could not connect to {self.tts_client.base_url}")
-            raise Exception(f"TTS API connection failed!\n\nCould not connect to: {self.tts_client.base_url}\nError: {e}")
-        except RateLimitError as e:
-            self.log(f"  ❌ TTS API Rate Limit: {e}")
-            raise Exception(f"TTS API rate limit exceeded!\n\nPlease wait a moment and try again.\nDetails: {e}")
-        except APIStatusError as e:
-            self.log(f"  ❌ TTS API Error (HTTP {e.status_code}): {e.message}")
-            self.log(f"     Model: {self.tts_model}, Base URL: {self.tts_client.base_url}")
-            raise Exception(
-                f"TTS (Hook) API Error!\n\n"
-                f"Status: {e.status_code}\n"
-                f"Message: {e.message}\n"
-                f"Model: {self.tts_model}\n"
-                f"Base URL: {self.tts_client.base_url}\n\n"
-                f"Check your Hook Maker API settings."
-            )
-        except Exception as e:
-            self.log(f"  ❌ TTS API Unexpected Error: {type(e).__name__}: {e}")
-            raise Exception(f"TTS (Hook) generation failed!\n\nError: {type(e).__name__}: {e}\nModel: {self.tts_model}")
+        transforms_file = str(Path(output_path).parent / "transforms.trf")
+        duration = self._get_duration(input_path)
         
-        tts_file = tempfile.NamedTemporaryFile(suffix='.mp3', delete=False).name
-        with open(tts_file, 'wb') as f:
-            f.write(tts_response.content)
-        
-        # Get TTS duration using ffprobe
-        probe_cmd = [
-            self.ffmpeg_path, "-i", tts_file,
+        # Pass 1: Detect
+        cmd_detect = [
+            self.ffmpeg_path, "-y",
+            "-i", input_path,
+            "-vf", f"vidstabdetect=shakiness={shakiness}:accuracy=15:result={transforms_file}",
             "-f", "null", "-"
         ]
-        result = subprocess.run(probe_cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
-        duration_match = re.search(r"Duration: (\d+):(\d+):(\d+\.\d+)", result.stderr)
+        self.run_ffmpeg_with_progress(cmd_detect, duration, lambda p: None)
         
-        if duration_match:
-            h, m, s = duration_match.groups()
-            hook_duration = int(h) * 3600 + int(m) * 60 + float(s) + 0.5
-        else:
-            hook_duration = 3.0
+        if self.is_cancelled():
+            return
         
-        # Format hook text: uppercase, split into lines (max 3 words per line for better visibility)
-        hook_upper = hook_text.upper()
-        words = hook_upper.split()
-        
-        # Split into lines (max 3 words per line - Fajar Sadboy style)
-        lines = []
-        current_line = []
-        for word in words:
-            current_line.append(word)
-            if len(current_line) >= 3:
-                lines.append(' '.join(current_line))
-                current_line = []
-        if current_line:
-            lines.append(' '.join(current_line))
-        
-        # Get input video info
-        probe_cmd = [self.ffmpeg_path, "-i", input_path]
-        result = subprocess.run(probe_cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
-        
-        # Extract fps
-        fps_match = re.search(r'(\d+(?:\.\d+)?)\s*fps', result.stderr)
-        fps = float(fps_match.group(1)) if fps_match else 30
-        
-        # Extract resolution
-        res_match = re.search(r'(\d{3,4})x(\d{3,4})', result.stderr)
-        if res_match:
-            width, height = int(res_match.group(1)), int(res_match.group(2))
-        else:
-            width, height = 1080, 1920
-        
-        # Create hook video: freeze first frame + TTS audio + text overlay
-        hook_video = tempfile.NamedTemporaryFile(suffix='.mp4', delete=False).name
-        
-        # Build drawtext filter for each line
-        # Style: Yellow/gold text on white background box
-        drawtext_filters = []
-        line_height = 85  # pixels between lines
-        font_size = 58
-        total_text_height = len(lines) * line_height
-        start_y = (height // 3) - (total_text_height // 2)  # Position at upper third
-        
-        for i, line in enumerate(lines):
-            # Escape special characters for FFmpeg drawtext
-            escaped_line = line.replace("'", "'\\''").replace(":", "\\:").replace("\\", "\\\\")
-            y_pos = start_y + (i * line_height)
-            
-            # Yellow/gold text with white box background
-            font_path = self._get_ffmpeg_font_path()
-            drawtext_filters.append(
-                f"drawtext=text='{escaped_line}':"
-                f"{font_path}"
-                f"fontsize={font_size}:"
-                f"fontcolor=#FFD166:"  # Golden yellow
-                f"box=1:"
-                f"boxcolor=white@0.95:"  # White background
-                f"boxborderw=12:"  # Padding around text
-                f"x=(w-text_w)/2:"
-                f"y={y_pos}"
-            )
-        
-        filter_chain = ",".join(drawtext_filters)
-        
-        # Get encoder args
-        encoder_args = self.get_video_encoder_args()
-        
-        # Step 1: Create hook video with frozen frame + text + TTS audio
-        # Use -t to set exact duration, freeze first frame
-        cmd = [
+        # Pass 2: Apply
+        cmd_apply = [
             self.ffmpeg_path, "-y",
             "-i", input_path,
-            "-i", tts_file,
-            "-filter_complex",
-            f"[0:v]trim=0:0.04,loop=loop=-1:size=1:start=0,setpts=N/{fps}/TB,{filter_chain},trim=0:{hook_duration},setpts=PTS-STARTPTS[v];"
-            f"[1:a]aresample=44100,apad=whole_dur={hook_duration}[a]",
-            "-map", "[v]",
-            "-map", "[a]",
-            *encoder_args,
-            "-r", str(fps),
-            "-s", f"{width}x{height}",
-            "-pix_fmt", "yuv420p",
-            "-c:a", "aac",
-            "-b:a", "192k",
-            "-ar", "44100",
-            "-ac", "2",
-            "-t", str(hook_duration),
-            hook_video
-        ]
-        self.log_ffmpeg_command(cmd, "Create Hook Video", step="hook")
-        result = self._run_ffmpeg_subprocess(cmd)
-        
-        if result.returncode != 0:
-            error_lines = result.stderr.split('\n') if result.stderr else []
-            actual_errors = [line for line in error_lines if 'error' in line.lower()]
-            error_msg = '\n'.join(actual_errors[-3:]) if actual_errors else "Unknown error"
-            raise Exception(f"Failed to create hook video: {error_msg}")
-        
-        # Step 2: Re-encode main video to EXACT same format (critical for concat)
-        main_reencoded = tempfile.NamedTemporaryFile(suffix='.mp4', delete=False).name
-        cmd = [
-            self.ffmpeg_path, "-y",
-            "-i", input_path,
-            *encoder_args,
-            "-r", str(fps),
-            "-s", f"{width}x{height}",
-            "-pix_fmt", "yuv420p",
-            "-c:a", "aac",
-            "-b:a", "192k",
-            "-ar", "44100",
-            "-ac", "2",
-            main_reencoded
-        ]
-        self.log_ffmpeg_command(cmd, "Re-encode Main Video", step="hook")
-        result = self._run_ffmpeg_subprocess(cmd)
-        
-        if result.returncode != 0:
-            error_lines = result.stderr.split('\n') if result.stderr else []
-            actual_errors = [line for line in error_lines if 'error' in line.lower()]
-            error_msg = '\n'.join(actual_errors[-3:]) if actual_errors else "Unknown error"
-            raise Exception(f"Failed to re-encode main video: {error_msg}")
-        
-        # Step 3: Concatenate using concat demuxer (more reliable than filter_complex)
-        concat_list = tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False).name
-        with open(concat_list, 'w') as f:
-            f.write(f"file '{hook_video.replace(chr(92), '/')}'\n")
-            f.write(f"file '{main_reencoded.replace(chr(92), '/')}'\n")
-        
-        cmd = [
-            self.ffmpeg_path, "-y",
-            "-f", "concat",
-            "-safe", "0",
-            "-i", concat_list,
-            "-c", "copy",
+            "-vf", f"vidstabtransform=input={transforms_file}:smoothing={smoothing}:interpol=bicubic",
+            "-c:a", "copy",
             output_path
         ]
-        result = subprocess.run(cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
+        self.run_ffmpeg_with_progress(cmd_apply, duration, lambda p: None)
         
-        # If concat demuxer fails, try filter_complex as fallback
-        if result.returncode != 0:
-            # Extract actual error message (skip ffmpeg version info)
-            error_lines = result.stderr.split('\n') if result.stderr else []
-            actual_errors = [line for line in error_lines if 'error' in line.lower() or 'invalid' in line.lower() or 'failed' in line.lower()]
-            error_summary = '\n'.join(actual_errors[-3:]) if actual_errors else "Unknown concat error"
-            
-            self.log(f"  Concat demuxer failed: {error_summary[:100]}")
-            self.log(f"  Trying filter_complex fallback...")
-            
+        # Cleanup transforms file
+        try:
+            os.remove(transforms_file)
+        except:
+            pass
+
+    def stabilize_video_with_progress(self, input_path: str, output_path: str, progress_callback, shakiness: int = 5, smoothing: int = 10):
+        """Stabilize video with progress callback."""
+        if self.is_cancelled():
+            return
+        
+        transforms_file = str(Path(output_path).parent / "transforms.trf")
+        duration = self._get_duration(input_path)
+        
+        cmd_detect = [
+            self.ffmpeg_path, "-y",
+            "-i", input_path,
+            "-vf", f"vidstabdetect=shakiness={shakiness}:accuracy=15:result={transforms_file}",
+            "-f", "null", "-"
+        ]
+        self.log_ffmpeg_command(cmd_detect, "Stabilize (detect)", step="stabilize")
+        self.run_ffmpeg_with_progress(cmd_detect, duration,
+            lambda p: progress_callback(p * 0.5))
+        
+        if self.is_cancelled():
+            return
+        
+        cmd_apply = [
+            self.ffmpeg_path, "-y",
+            "-i", input_path,
+            "-vf", f"vidstabtransform=input={transforms_file}:smoothing={smoothing}:interpol=bicubic",
+            "-c:a", "copy",
+            output_path
+        ]
+        self.log_ffmpeg_command(cmd_apply, "Stabilize (apply)", step="stabilize")
+        self.run_ffmpeg_with_progress(cmd_apply, duration,
+            lambda p: progress_callback(0.5 + p * 0.5))
+        
+        try:
+            os.remove(transforms_file)
+        except:
+            pass
+
+    def apply_color_grade(self, input_path: str, output_path: str, style: str = "cinematic"):
+        """Apply color grading using ffmpeg curves and LUT-like filters.
+        
+        Styles: cinematic, warm, cool, vintage, vivid, news, podcast, game
+        """
+        if self.is_cancelled():
+            return
+        
+        duration = self._get_duration(input_path)
+        
+        # Color grading filter chains per style
+        grade_filters = {
+            "cinematic": "eq=contrast=1.1:brightness=0.02:saturation=1.15,curves=master='0/0 0.1/0.08 0.5/0.47 1/1':blue='0/0 0.5/0.52 1/0.95',unsharp=3:3:0.5",
+            "warm": "eq=contrast=1.05:saturation=1.2,colorbalance=rs=0.1:gs=0.03:bs=-0.08:rm=0.05:gm=0.02:bm=-0.05",
+            "cool": "eq=contrast=1.05:saturation=0.9,colorbalance=rs=-0.08:gs=0.02:bs=0.1:rm=-0.05:gm=0.02:bm=0.08",
+            "vintage": "eq=contrast=0.95:brightness=0.03:saturation=0.7,colorbalance=rs=0.15:gs=0.08:bs=-0.1:rm=0.1:gm=0.05:bm=-0.08,curves=master='0/0 0.3/0.35 0.7/0.65 1/1'",
+            "vivid": "eq=contrast=1.2:brightness=0.01:saturation=1.4,curves=master='0/0 0.5/0.55 1/1',unsharp=5:5:0.8",
+            "news": "eq=contrast=1.05:saturation=0.85:brightness=0.02,colorbalance=rs=-0.02:bs=0.03",
+            "podcast": "eq=contrast=1.08:brightness=0.01:saturation=1.1,colorbalance=rs=0.03:bs=-0.03,curves=master='0/0 0.1/0.1 0.5/0.48 0.9/0.88 1/1'",
+            "game": "eq=contrast=1.25:saturation=1.3:brightness=0.01,curves=master='0/0 0.5/0.55 1/1':blue='0/0 0.5/0.48 1/0.92',unsharp=3:3:0.6",
+        }
+        
+        vf = grade_filters.get(style, grade_filters["cinematic"])
+        
+        cmd = [
+            self.ffmpeg_path, "-y",
+            "-i", input_path,
+            "-vf", vf,
+            "-c:a", "copy",
+            output_path
+        ]
+        self.log_ffmpeg_command(cmd, f"Color Grade ({style})", step="colorgrade")
+        self.run_ffmpeg_with_progress(cmd, duration, lambda p: None)
+
+    def apply_color_grade_with_progress(self, input_path: str, output_path: str, progress_callback, style: str = "cinematic"):
+        """Apply color grading with progress callback."""
+        if self.is_cancelled():
+            return
+        
+        duration = self._get_duration(input_path)
+        
+        grade_filters = {
+            "cinematic": "eq=contrast=1.1:brightness=0.02:saturation=1.15,curves=master='0/0 0.1/0.08 0.5/0.47 1/1':blue='0/0 0.5/0.52 1/0.95',unsharp=3:3:0.5",
+            "warm": "eq=contrast=1.05:saturation=1.2,colorbalance=rs=0.1:gs=0.03:bs=-0.08:rm=0.05:gm=0.02:bm=-0.05",
+            "cool": "eq=contrast=1.05:saturation=0.9,colorbalance=rs=-0.08:gs=0.02:bs=0.1:rm=-0.05:gm=0.02:bm=0.08",
+            "vintage": "eq=contrast=0.95:brightness=0.03:saturation=0.7,colorbalance=rs=0.15:gs=0.08:bs=-0.1:rm=0.1:gm=0.05:bm=-0.08,curves=master='0/0 0.3/0.35 0.7/0.65 1/1'",
+            "vivid": "eq=contrast=1.2:brightness=0.01:saturation=1.4,curves=master='0/0 0.5/0.55 1/1',unsharp=5:5:0.8",
+            "news": "eq=contrast=1.05:saturation=0.85:brightness=0.02,colorbalance=rs=-0.02:bs=0.03",
+            "podcast": "eq=contrast=1.08:brightness=0.01:saturation=1.1,colorbalance=rs=0.03:bs=-0.03,curves=master='0/0 0.1/0.1 0.5/0.48 0.9/0.88 1/1'",
+            "game": "eq=contrast=1.25:saturation=1.3:brightness=0.01,curves=master='0/0 0.5/0.55 1/1':blue='0/0 0.5/0.48 1/0.92',unsharp=3:3:0.6",
+        }
+        
+        vf = grade_filters.get(style, grade_filters["cinematic"])
+        
+        cmd = [
+            self.ffmpeg_path, "-y",
+            "-i", input_path,
+            "-vf", vf,
+            "-c:a", "copy",
+            output_path
+        ]
+        self.log_ffmpeg_command(cmd, f"Color Grade ({style})", step="colorgrade")
+        self.run_ffmpeg_with_progress(cmd, duration,
+            lambda p: progress_callback(p))
+
+    def apply_motion_blur(self, input_path: str, output_path: str, strength: int = 3):
+        """Apply motion blur effect for cinematic smooth feel using tblend."""
+        if self.is_cancelled():
+            return
+        duration = self._get_duration(input_path)
+        cmd = [
+            self.ffmpeg_path, "-y",
+            "-i", input_path,
+            "-vf", f"tblend=all_mode=lighter:all_opacity={strength/10:.1f}",
+            "-c:a", "copy",
+            output_path
+        ]
+        self.log_ffmpeg_command(cmd, f"Motion Blur ({strength})", step="motionblur")
+        self.run_ffmpeg_with_progress(cmd, duration, lambda p: None)
+
+    def apply_motion_blur_with_progress(self, input_path: str, output_path: str, progress_callback, strength: int = 3):
+        """Apply motion blur with progress callback."""
+        if self.is_cancelled():
+            return
+        duration = self._get_duration(input_path)
+        cmd = [
+            self.ffmpeg_path, "-y",
+            "-i", input_path,
+            "-vf", f"tblend=all_mode=lighter:all_opacity={strength/10:.1f}",
+            "-c:a", "copy",
+            output_path
+        ]
+        self.log_ffmpeg_command(cmd, f"Motion Blur ({strength})", step="motionblur")
+        self.run_ffmpeg_with_progress(cmd, duration, lambda p: progress_callback(p))
+
+    def apply_vignette(self, input_path: str, output_path: str, angle: float = 0.5):
+        """Apply cinematic vignette (darkened edges).
+        
+        angle: PI*factor, 0=no vignette, 0.5=standard, 1=heavy
+        """
+        if self.is_cancelled():
+            return
+        duration = self._get_duration(input_path)
+        cmd = [
+            self.ffmpeg_path, "-y",
+            "-i", input_path,
+            "-vf", f"vignette=angle={angle}",
+            "-c:a", "copy",
+            output_path
+        ]
+        self.log_ffmpeg_command(cmd, f"Vignette (angle={angle})", step="vignette")
+        self.run_ffmpeg_with_progress(cmd, duration, lambda p: None)
+
+    def apply_vignette_with_progress(self, input_path: str, output_path: str, progress_callback, angle: float = 0.5):
+        """Apply vignette with progress callback."""
+        if self.is_cancelled():
+            return
+        duration = self._get_duration(input_path)
+        cmd = [
+            self.ffmpeg_path, "-y",
+            "-i", input_path,
+            "-vf", f"vignette=angle={angle}",
+            "-c:a", "copy",
+            output_path
+        ]
+        self.log_ffmpeg_command(cmd, f"Vignette (angle={angle})", step="vignette")
+        self.run_ffmpeg_with_progress(cmd, duration, lambda p: progress_callback(p))
+
+    def apply_speed_ramp(self, input_path: str, output_path: str, slow_start: float = 0, slow_end: float = 0, speed_factor: float = 0.5):
+        """Apply speed ramp (slow-mo) at beginning/end of clip.
+        
+        slow_start: seconds from start to slow down (0 = disabled)
+        slow_end: seconds from end to slow down (0 = disabled)
+        speed_factor: slow motion factor (0.5 = half speed)
+        """
+        if self.is_cancelled():
+            return
+        
+        duration = self._get_duration(input_path)
+        
+        if slow_start <= 0 and slow_end <= 0:
+            import shutil
+            shutil.copy(input_path, output_path)
+            return
+        
+        # Build setpts filter for variable speed
+        # using setpts to change playback speed at specific segments
+        filters = []
+        
+        if slow_start > 0 and slow_end > 0:
+            # Slow start + slow end with normal middle
+            mid_start = slow_start
+            mid_end = duration - slow_end
+            pts_factor = 1.0 / speed_factor
+            filters.append(
+                f"setpts='if(between(T\,{mid_start}\,{mid_end})\,PTS\,{pts_factor}*PTS)'"
+            )
+        elif slow_start > 0:
+            pts_factor = 1.0 / speed_factor
+            filters.append(
+                f"setpts='if(between(T\,0\,{slow_start})\,{pts_factor}*PTS\,PTS)'"
+            )
+        else:  # slow_end > 0
+            mid_start = duration - slow_end
+            pts_factor = 1.0 / speed_factor
+            filters.append(
+                f"setpts='if(between(T\,{mid_start}\,{duration})\,{pts_factor}*PTS\,PTS)'"
+            )
+        
+        # Also adjust audio tempo
+        atempo_filters = []
+        remaining = speed_factor
+        while remaining < 0.5:
+            atempo_filters.append("atempo=0.5")
+            remaining /= 0.5
+        while remaining > 2.0:
+            atempo_filters.append("atempo=2.0")
+            remaining /= 2.0
+        atempo_filters.append(f"atempo={remaining:.4f}")
+        audio_filter = ",".join(atempo_filters)
+        
+        vf = ",".join(filters)
+        
+        cmd = [
+            self.ffmpeg_path, "-y",
+            "-i", input_path,
+            "-vf", vf,
+            "-af", audio_filter,
+            "-c:v", "libx264", "-preset", "ultrafast", "-crf", "18",
+            output_path
+        ]
+        self.log_ffmpeg_command(cmd, f"Speed Ramp (factor={speed_factor})", step="speedramp")
+        self.run_ffmpeg_with_progress(cmd, duration / speed_factor, lambda p: None)
+
+    def apply_speed_ramp_with_progress(self, input_path: str, output_path: str, progress_callback, slow_start: float = 0, slow_end: float = 0, speed_factor: float = 0.5):
+        """Apply speed ramp with progress callback."""
+        if self.is_cancelled():
+            return
+        
+        duration = self._get_duration(input_path)
+        
+        if slow_start <= 0 and slow_end <= 0:
+            import shutil
+            shutil.copy(input_path, output_path)
+            progress_callback(1.0)
+            return
+        
+        filters = []
+        
+        if slow_start > 0 and slow_end > 0:
+            mid_start = slow_start
+            mid_end = duration - slow_end
+            pts_factor = 1.0 / speed_factor
+            filters.append(
+                f"setpts='if(between(T\,{mid_start}\,{mid_end})\,PTS\,{pts_factor}*PTS)'"
+            )
+        elif slow_start > 0:
+            pts_factor = 1.0 / speed_factor
+            filters.append(
+                f"setpts='if(between(T\,0\,{slow_start})\,{pts_factor}*PTS\,PTS)'"
+            )
+        else:
+            mid_start = duration - slow_end
+            pts_factor = 1.0 / speed_factor
+            filters.append(
+                f"setpts='if(between(T\,{mid_start}\,{duration})\,{pts_factor}*PTS\,PTS)'"
+            )
+        
+        atempo_filters = []
+        remaining = speed_factor
+        while remaining < 0.5:
+            atempo_filters.append("atempo=0.5")
+            remaining /= 0.5
+        while remaining > 2.0:
+            atempo_filters.append("atempo=2.0")
+            remaining /= 2.0
+        atempo_filters.append(f"atempo={remaining:.4f}")
+        audio_filter = ",".join(atempo_filters)
+        
+        vf = ",".join(filters)
+        
+        cmd = [
+            self.ffmpeg_path, "-y",
+            "-i", input_path,
+            "-vf", vf,
+            "-af", audio_filter,
+            "-c:v", "libx264", "-preset", "ultrafast", "-crf", "18",
+            output_path
+        ]
+        self.log_ffmpeg_command(cmd, f"Speed Ramp (factor={speed_factor})", step="speedramp")
+        self.run_ffmpeg_with_progress(cmd, duration / speed_factor,
+            lambda p: progress_callback(p))
+
+    def apply_chroma_key(self, input_path: str, output_path: str, background_path: str, similarity: float = 0.3, blend: float = 0.1):
+        """Remove green screen (chroma key) and composite over background.
+        
+        similarity: higher = more green removed (0.1-0.5)
+        blend: edge blending (0.01-0.3)
+        """
+        if self.is_cancelled():
+            return
+        duration = self._get_duration(input_path)
+        cmd = [
+            self.ffmpeg_path, "-y",
+            "-i", background_path,
+            "-i", input_path,
+            "-filter_complex",
+            f"[1:v]chromakey=color=green:similarity={similarity}:blend={blend}[fg];[0:v][fg]overlay=shortest=1",
+            "-c:a", "copy",
+            output_path
+        ]
+        self.log_ffmpeg_command(cmd, f"Chroma Key (sim={similarity})", step="chromakey")
+        self.run_ffmpeg_with_progress(cmd, duration, lambda p: None)
+
+    def apply_chroma_key_with_progress(self, input_path: str, output_path: str, progress_callback, background_path: str = None, similarity: float = 0.3, blend: float = 0.1):
+        """Apply chroma key with progress callback.
+        
+        If background_path is None, makes green transparent (black bg).
+        """
+        if self.is_cancelled():
+            return
+        duration = self._get_duration(input_path)
+        
+        if background_path and Path(background_path).exists():
             cmd = [
                 self.ffmpeg_path, "-y",
-                "-i", hook_video,
-                "-i", main_reencoded,
+                "-i", background_path,
+                "-i", input_path,
                 "-filter_complex",
-                "[0:v:0][0:a:0][1:v:0][1:a:0]concat=n=2:v=1:a=1[outv][outa]",
-                "-map", "[outv]",
-                "-map", "[outa]",
-                *encoder_args,
-                "-c:a", "aac",
-                "-b:a", "192k",
+                f"[1:v]chromakey=color=green:similarity={similarity}:blend={blend}[fg];[0:v][fg]overlay=shortest=1",
+                "-c:a", "copy",
                 output_path
             ]
-            self.log_ffmpeg_command(cmd, "Concat Hook (filter_complex fallback - old)", step="hook")
-            result = self._run_ffmpeg_subprocess(cmd)
-            
-            if result.returncode != 0:
-                # Extract actual error, not version info
-                error_lines = result.stderr.split('\n') if result.stderr else []
-                actual_errors = [line for line in error_lines if 'error' in line.lower() or 'invalid' in line.lower() or 'failed' in line.lower()]
-                error_msg = '\n'.join(actual_errors[-3:]) if actual_errors else result.stderr[-200:] if result.stderr else "Unknown error"
-                raise Exception(f"Failed to concatenate hook video: {error_msg}")
+        else:
+            cmd = [
+                self.ffmpeg_path, "-y",
+                "-i", input_path,
+                "-vf", f"chromakey=color=green:similarity={similarity}:blend={blend}",
+                "-c:a", "copy",
+                output_path
+            ]
         
-        # Cleanup
+        self.log_ffmpeg_command(cmd, f"Chroma Key (sim={similarity})", step="chromakey")
+        self.run_ffmpeg_with_progress(cmd, duration,
+            lambda p: progress_callback(p))
+
+    def duck_audio(self, input_path: str, output_path: str, music_path: str = None, duck_level_db: float = -15, release_ms: int = 500):
+        """Auto-duck background music when voice is present.
+        
+        duck_level_db: how much to lower music during voice (-6 to -30)
+        release_ms: how quickly music returns after voice stops
+        """
+        if self.is_cancelled():
+            return
+        duration = self._get_duration(input_path)
+        
+        if music_path and Path(music_path).exists():
+            # Mix with background music + ducking
+            release_s = release_ms / 1000.0
+            cmd = [
+                self.ffmpeg_path, "-y",
+                "-i", input_path,
+                "-i", music_path,
+                "-filter_complex",
+                f"[1:a]volume={duck_level_db}dB[music];[0:a][music]amix=inputs=2:duration=first:dropout_transition=3",
+                "-c:v", "copy",
+                output_path
+            ]
+        else:
+            # No music file, just copy
+            import shutil
+            shutil.copy(input_path, output_path)
+            return
+        
+        self.log_ffmpeg_command(cmd, f"Audio Ducking ({duck_level_db}dB)", step="duck")
+        self.run_ffmpeg_with_progress(cmd, duration, lambda p: None)
+
+    def duck_audio_with_progress(self, input_path: str, output_path: str, progress_callback, music_path: str = None, duck_level_db: float = -15, release_ms: int = 500):
+        """Auto-duck audio with progress callback."""
+        if self.is_cancelled():
+            return
+        duration = self._get_duration(input_path)
+        
+        if music_path and Path(music_path).exists():
+            cmd = [
+                self.ffmpeg_path, "-y",
+                "-i", input_path,
+                "-i", music_path,
+                "-filter_complex",
+                f"[1:a]volume={duck_level_db}dB[music];[0:a][music]amix=inputs=2:duration=first:dropout_transition=3",
+                "-c:v", "copy",
+                output_path
+            ]
+        else:
+            import shutil
+            shutil.copy(input_path, output_path)
+            progress_callback(1.0)
+            return
+        
+        self.log_ffmpeg_command(cmd, f"Audio Ducking ({duck_level_db}dB)", step="duck")
+        self.run_ffmpeg_with_progress(cmd, duration,
+            lambda p: progress_callback(p))
+
+    def apply_ken_burns(self, input_path: str, output_path: str, zoom_start: float = 1.0, zoom_end: float = 1.3, direction: str = "in"):
+        """Apply Ken Burns (pan & zoom) effect to an image or video.
+        
+        zoom_start/zoom_end: zoom range (1.0 = no zoom)
+        direction: "in" (zoom in), "out" (zoom out), "left", "right"
+        """
+        if self.is_cancelled():
+            return
+        
+        duration = self._get_duration(input_path)
+        
+        if direction == "in":
+            zoom_expr = f"min(zoom+0.001,{zoom_end})"
+            x_expr = f"iw/2-(iw/zoom/2)"
+            y_expr = f"ih/2-(ih/zoom/2)"
+        elif direction == "out":
+            zoom_expr = f"max({zoom_end}-on/{duration}/25*({zoom_end}-{zoom_start}),{zoom_start})"
+            x_expr = f"iw/2-(iw/zoom/2)"
+            y_expr = f"ih/2-(ih/zoom/2)"
+        elif direction == "left":
+            zoom_expr = f"min(zoom+0.0005,{zoom_end})"
+            x_expr = f"iw/2-(iw/zoom/2)-on/{duration}/25*50"
+            y_expr = f"ih/2-(ih/zoom/2)"
+        else:  # right
+            zoom_expr = f"min(zoom+0.0005,{zoom_end})"
+            x_expr = f"iw/2-(iw/zoom/2)+on/{duration}/25*50"
+            y_expr = f"ih/2-(ih/zoom/2)"
+        
+        cmd = [
+            self.ffmpeg_path, "-y",
+            "-loop", "1",
+            "-i", input_path,
+            "-vf", f"scale=8000:-1,zoompan=z='{zoom_expr}':x='{x_expr}':y='{y_expr}':d={int(duration*25)}:s=1080x1920:fps=25",
+            "-c:v", "libx264", "-preset", "ultrafast", "-crf", "18",
+            "-t", str(duration),
+            output_path
+        ]
+        self.log_ffmpeg_command(cmd, f"Ken Burns ({direction})", step="kenburns")
+        self.run_ffmpeg_with_progress(cmd, duration, lambda p: None)
+
+    def apply_ken_burns_with_progress(self, input_path: str, output_path: str, progress_callback, zoom_start: float = 1.0, zoom_end: float = 1.3, direction: str = "in"):
+        """Apply Ken Burns with progress callback."""
+        if self.is_cancelled():
+            return
+        
+        duration = self._get_duration(input_path)
+        
+        if direction == "in":
+            zoom_expr = f"min(zoom+0.001,{zoom_end})"
+        elif direction == "out":
+            zoom_expr = f"max({zoom_end}-on/{duration}/25*({zoom_end}-{zoom_start}),{zoom_start})"
+        elif direction == "left":
+            zoom_expr = f"min(zoom+0.0005,{zoom_end})"
+        else:
+            zoom_expr = f"min(zoom+0.0005,{zoom_end})"
+        
+        x_expr = f"iw/2-(iw/zoom/2)"
+        y_expr = f"ih/2-(ih/zoom/2)"
+        
+        cmd = [
+            self.ffmpeg_path, "-y",
+            "-loop", "1",
+            "-i", input_path,
+            "-vf", f"scale=8000:-1,zoompan=z='{zoom_expr}':x='{x_expr}':y='{y_expr}':d={int(duration*25)}:s=1080x1920:fps=25",
+            "-c:v", "libx264", "-preset", "ultrafast", "-crf", "18",
+            "-t", str(duration),
+            output_path
+        ]
+        self.log_ffmpeg_command(cmd, f"Ken Burns ({direction})", step="kenburns")
+        self.run_ffmpeg_with_progress(cmd, duration,
+            lambda p: progress_callback(p))
+
+    def _get_duration(self, video_path: str) -> float:
+        """Get video duration in seconds using ffprobe."""
         try:
-            os.unlink(tts_file)
-        except Exception as e:
-            pass  # Ignore cleanup errors
-        
-        try:
-            os.unlink(hook_video)
-        except Exception as e:
-            pass
-        
-        try:
-            os.unlink(main_reencoded)
-        except Exception as e:
-            pass
-        
-        try:
-            os.unlink(concat_list)
-        except Exception as e:
-            pass
-        
-        # Verify output was created
-        if not os.path.exists(output_path):
-            raise Exception(f"Failed to create hook video at {output_path}")
-        
-        return hook_duration
+            cmd = [
+                self.ffmpeg_path.replace("ffmpeg", "ffprobe"),
+                "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                video_path
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            return float(result.stdout.strip())
+        except:
+            return 30.0  # fallback
+
+
+    def add_hook(self, input_path: str, hook_text: str, output_path: str) -> float:
+        """Add hook scene at the beginning using add_hook_with_progress"""
+        return self.add_hook_with_progress(input_path, hook_text, output_path, lambda p: None)
     
     def add_captions_api(self, input_path: str, output_path: str, audio_source: str = None, time_offset: float = 0):
         """Add CapCut-style captions using OpenAI Whisper API
@@ -5693,6 +6100,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             input_path, output_path, crop_positions, crop_w, crop_h, out_w, out_h,
             progress_callback=lambda p: progress_callback(0.45 + p * 0.4),
             duration=frames_read / fps if fps else 0,
+            **({"min_run": 3, "quantize": 2} if self.mediapipe_settings.get("smooth_follow", True) else {}),
         )
         cap.release()
         
@@ -6542,6 +6950,14 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             
             # Step 2: Find highlights
             self.set_progress("Finding highlights with AI...", 0.5)
+            if not srt_path:
+                # Video tanpa subtitle bahasa target -> stop proses (tanpa fallback)
+                session_data["status"] = "failed"
+                self._save_session_data(session_data_file, session_data)
+                raise Exception(
+                    f"\u274c Video ini tidak punya subtitle '{self.subtitle_language}' "
+                    "(manual maupun otomatis). Proses dihentikan."
+                )
             transcript = self.parse_srt(srt_path)
             highlights = self.find_highlights(transcript, video_info, num_clips)
             

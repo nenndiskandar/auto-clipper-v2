@@ -4,25 +4,39 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Login — Iskan Clip</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: { extend: { colors: {
+    surface: { 0:'#09090b', 1:'#18181b', 2:'#27272a', 3:'#3f3f46' },
+    accent: '#facc15',
+  }}}
+}
+</script>
 <style>
-  html,body{height:100%}
-  .card{border:0;border-radius:1rem}
-  #err{display:none}
+body{background:#09090b;color:#fafafa;font-family:system-ui,-apple-system,sans-serif}
 </style>
 </head>
-<body class="bg-dark text-light d-flex align-items-center justify-content-center">
-<div class="card shadow p-4 p-md-5 text-center" style="max-width:26rem;width:92%">
-  <h4 class="mb-1">🎬 Iskan Clip</h4>
-  <p class="text-secondary small mb-4">Panel admin — akses terbatas</p>
-  <div id="widget">
+<body class="min-h-screen flex items-center justify-center p-4">
+<div class="bg-surface-1 border border-zinc-800 rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center space-y-6">
+  <div>
+    <h1 class="text-lg font-bold text-white tracking-wide">🎬 Iskan Clip</h1>
+    <p class="text-[11px] text-zinc-500 uppercase tracking-wider mt-1">Panel admin — akses terbatas</p>
+  </div>
+  
+  <div id="widget" class="flex justify-center py-2 bg-surface-2/30 border border-zinc-800/80 rounded-xl p-4">
     <script async src="https://telegram.org/js/telegram-widget.js?22"
       data-telegram-login="iskanclip_bot" data-size="large" data-radius="8"
       data-onauth="onTelegramAuth(user)" data-request-access="write"></script>
   </div>
-  <p class="text-secondary small mt-4 mb-0">Login pakai akun Telegram pemilik.</p>
-  <p id="err" class="small text-danger mt-2 mb-0"></p>
+  
+  <div class="space-y-1">
+    <p class="text-[11px] text-zinc-400">Login pakai akun Telegram pemilik.</p>
+    <p id="err" class="text-xs text-red-400 hidden mt-2"></p>
+  </div>
 </div>
+
 <script>
 function onTelegramAuth(user) {
   fetch('/api/auth/telegram', {
@@ -34,12 +48,12 @@ function onTelegramAuth(user) {
     else {
       const e = document.getElementById('err');
       e.textContent = d.error || 'Login gagal';
-      e.style.display = 'block';
+      e.classList.remove('hidden');
     }
   }).catch(() => {
     const e = document.getElementById('err');
     e.textContent = 'Gagal terhubung ke server';
-    e.style.display = 'block';
+    e.classList.remove('hidden');
   });
 }
 </script>
