@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YT Short Clipper — Results</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+  .clamp{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .card-text.clamp{-webkit-line-clamp:2}
+  video{background:#000;width:100%;max-height:70vh;display:block}
+  .thumb-img{display:block;margin:0 auto;width:100%;aspect-ratio:1/1;object-fit:cover;object-position:center;cursor:pointer;background:#14171c}
+  .clip-card{--bs-card-bg:#14171c;border:1px solid #39404a;border-radius:.6rem;overflow:hidden}
+  .clip-card .card-body{padding:.4rem .45rem .6rem}
+  .clip-title{font-size:.72rem;line-height:1.25;font-weight:700;color:#ffffff}
+  .clip-desc{font-size:.66rem;color:#eceff3}
+  .badge-score{font-size:.6rem;padding:.2em .4em}
+  .badge-tag{font-size:.58rem;padding:.15em .4em;opacity:.95}
+  .status-badge{font-size:.7rem}
+  .session-block{background:#16181d;border:1px solid #2b2f36;border-radius:.75rem;padding:.7rem}
+  .btn-sm{--bs-btn-padding-y:.1rem;--bs-btn-padding-x:.45rem;--bs-btn-font-size:.68rem}
+body{color:#f1f3f5}
+.text-muted{color:#c2c9d2 !important}
+code{color:#8ab4ff;background:#20242b;padding:0 .3em;border-radius:.25em}
+  #renderModal .form-check{display:flex;align-items:center;gap:.4rem;padding-left:0;margin-bottom:.25rem}
+  #renderModal .form-check-input{margin-left:0;flex-shrink:0}
+  #renderModal .form-check-label{white-space:normal;word-break:break-word;line-height:1.2;font-size:.78rem}
+
+  </style>
+</head>
+<body class="bg-dark text-light">
+<nav class="navbar navbar-dark bg-black border-bottom border-secondary sticky-top">
+  <div class="container-fluid">
+    <span class="navbar-brand fw-bold">⚡ YT Short Clipper</span>
+    <a class="btn btn-sm btn-warning ms-2" href="/create.html">＋ Create Clip</a>
+    <form class="d-flex" onsubmit="return false">
+      <input id="search" class="form-control form-control-sm bg-secondary text-light border-0" placeholder="Cari judul / hook...">
+    </form>
+    <div class="ms-auto d-flex align-items-center gap-2">
+      <span class="navbar-text small text-muted" id="whoami"></span>
+      <a class="btn btn-sm btn-outline-light" href="/logout">Logout</a>
+    </div>
+  </div>
+</nav>
+
+<div class="container-fluid py-3">
+  <div class="row g-3" id="sessions"></div>
+</div>
+
+<div class="modal fade" id="detailModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content bg-dark text-light">
+      <div class="modal-header border-secondary">
+        <h5 class="modal-title" id="dTitle"></h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="dBody"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="renderModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content bg-dark text-light">
+      <div class="modal-header border-secondary">
+        <h5 class="modal-title" id="rTitle">Render</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="rBody"></div>
+      <div class="modal-footer border-secondary py-2">
+        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button>
+        <button type="button" class="btn btn-sm btn-warning" id="renderGoBtn">⚙ Mulai Render</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>fetch('/api/me').then(r=>r.json()).then(d=>{if(d.name)document.getElementById('whoami').textContent='👤 '+d.name;});</script>
+<script>
+let DATA = [];
+const $ = s => document.querySelector(s);
+
+async function load() {
+  const r = await fetch('/api/sessions');
+  DATA = (await r.json()).sort((a, b) => new Date(b.created) - new Date(a.created));
+  render();
+}
+
+function esc(s) { return (s ?? '').toString().replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+const STATUS_BADGE = {
+  completed: '<span class="badge bg-success status-badge">selesai</span>',
+  processing: '<span class="badge bg-warning text-dark status-badge">processing</span>',
+  downloading: '<span class="badge bg-info text-dark status-badge">downloading</span>',
+};
+
+function render() {
+  const q = $('#search').value.toLowerCase();
+  $('#sessions').innerHTML = DATA.map(s => {
+    const hits = s.clips.filter(c =>
+      !q || (c.title + ' ' + c.hook_text + ' ' + c.post_title + ' ' + c.hashtags).toLowerCase().includes(q));
+    if (!hits.length && (q || !s.clips.length)) return '';
+    return `
+    <div class="col-12 session-block mb-4" data-id="${s.id}">
+      <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-1 border-bottom border-secondary pb-2">
+        <div class="d-flex align-items-center gap-2">
+          <h5 class="mb-0">🎬 ${esc(s.title)} ${STATUS_BADGE[s.status] || ''}</h5>
+          <button class="btn btn-sm btn-outline-danger py-0" title="Hapus seluruh sesi" onclick="deleteSession('${esc(s.id)}', this)">🗑</button>
+        </div>
+        <small class="text-muted">${s.channel ? esc(s.channel) + ' · ' : ''}${new Date(s.created).toLocaleString('id-ID')} · <code>${esc(s.id)}</code> · ${s.total} klip</small>
+      </div>
+      ${s.url ? `<a class="small d-block text-truncate mb-2" target="_blank" rel="noopener" href="${esc(s.url)}">${esc(s.url)}</a>` : ''}
+      <div class="row row-cols-2 row-cols-md-4 row-cols-lg-6 g-2">
+        ${hits.map((c, i) => clipCard(s, c)).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function fmtSize(b) {
+  if (!b) return '-';
+  if (b >= 1024 * 1024) return (b / 1048576).toFixed(1) + ' MB';
+  return Math.round(b / 1024) + ' KB';
+}
+
+function clipCard(s, c) {
+  const vsrc = `/video/${encodeURIComponent(s.id)}/${encodeURIComponent(c.dir)}/${encodeURIComponent(c.file)}`;
+  const dl = `/download/${encodeURIComponent(s.id)}/${encodeURIComponent(c.dir)}/${encodeURIComponent(c.file)}`;
+  const gi = DATA.indexOf(s);
+  const ci = s.clips.indexOf(c);
+  const tags = [
+    c.hook ? '<span class="badge bg-danger badge-tag">hook</span>' : '',
+    c.captions ? '<span class="badge bg-primary badge-tag">caption</span>' : '',
+    c.watermark ? '<span class="badge bg-info text-dark badge-tag">watermark</span>' : '',
+    c.credit ? '<span class="badge bg-success badge-tag">credit</span>' : '',
+  ].join(' ');
+  return `
+  <div class="col">
+    <div class="card clip-card h-100">
+      <img class="thumb-img" loading="lazy" alt="${esc(c.title)}" title="Klik untuk putar"
+           src="/thumb/${encodeURIComponent(s.id)}/${encodeURIComponent(c.dir)}" onclick="showDetail(${gi}, ${ci})">
+      <div class="card-body d-flex flex-column">
+        <div class="d-flex justify-content-between align-items-start gap-1 mb-1">
+          <span class="fw-semibold clamp clip-title flex-grow-1" title="${esc(c.title)}">${esc(c.title)}</span>
+          ${c.score != null ? `<span class="badge bg-warning text-dark badge-score flex-shrink-0">⭐${c.score}</span>` : ''}
+        </div>
+        ${c.hook_text ? `<p class="small mb-1 clamp clip-desc">🎯 ${esc(c.hook_text)}</p>` : ''}
+        <p class="card-text text-muted clamp clip-desc mb-1">${esc(c.desc)}</p>
+        <div class="mb-1 d-flex justify-content-between align-items-center">
+          <small class="text-muted" style="font-size:.62rem">💾 ${fmtSize(c.size_bytes)} · ${esc(c.file)}</small>
+        </div>
+        <div class="mb-2 d-flex flex-wrap gap-1 mt-auto">${tags}</div>
+        <div class="d-flex flex-wrap gap-1 align-items-center">
+          <button class="btn btn-sm btn-outline-info" onclick="showDetail(${gi}, ${ci})">Rincian</button>
+          <a class="btn btn-sm btn-primary" href="${dl}" download>⬇</a>
+          <button class="btn btn-sm btn-outline-warning" onclick="openRender(${gi}, ${ci})" title="Re-render dgn config">⚙ Render</button>
+          <button class="btn btn-sm btn-outline-danger" onclick="deleteClip(${gi}, ${ci}, this)">🗑</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function showDetail(gi, ci) {
+  // hentikan semua video di grid saat buka rincian
+  document.querySelectorAll('video.clip-video').forEach(v => { try { v.pause(); } catch {} });
+  const s = DATA[gi], c = s.clips[ci];
+  $('#dTitle').textContent = c.title;
+  const fmt = v => (v === '' || v == null) ? '-' : v;
+  const vsrc = `/video/${encodeURIComponent(s.id)}/${encodeURIComponent(c.dir)}/${encodeURIComponent(c.file)}`;
+  const dl = `/download/${encodeURIComponent(s.id)}/${encodeURIComponent(c.dir)}/${encodeURIComponent(c.file)}`;
+  $('#dBody').innerHTML = `
+    <video controls autoplay playsinline style="max-height:60vh;width:100%" src="${vsrc}" poster="/thumb/${encodeURIComponent(s.id)}/${encodeURIComponent(c.dir)}"></video>
+    <dl class="row mt-3 mb-0 small">
+      ${c.post_title ? `<dt class="col-sm-3">Judul posting</dt><dd class="col-sm-9">${esc(c.post_title)}</dd>` : ''}
+      <dt class="col-sm-3">Waktu</dt><dd class="col-sm-9">${fmt(c.start_time)} → ${fmt(c.end_time)} (${fmt(c.duration)}s)</dd>
+      <dt class="col-sm-3">Hook</dt><dd class="col-sm-9">${fmt(c.hook_text)}</dd>
+      <dt class="col-sm-3">Deskripsi</dt><dd class="col-sm-9">${fmt(c.desc)}</dd>
+      ${c.hashtags ? `<dt class="col-sm-3">Hashtag</dt><dd class="col-sm-9 text-wrap">${esc(c.hashtags)}</dd>` : ''}
+      ${c.analysis ? `<dt class="col-sm-3">Analisis AI</dt><dd class="col-sm-9">${esc(c.analysis)}</dd>` : ''}
+      ${c.score != null ? `<dt class="col-sm-3">Skor viral</dt><dd class="col-sm-9">${c.score} / 10</dd>` : ''}
+      <dt class="col-sm-3">Channel</dt><dd class="col-sm-9">${fmt(c.channel)}</dd>
+      <dt class="col-sm-3">Format</dt><dd class="col-sm-9">${esc(c.aspect || '-')} · <span class="badge bg-danger badge-tag">hook</span> ${c.hook ? 'ya' : 'tidak'} · <span class="badge bg-primary badge-tag">caption</span> ${c.captions ? 'ya' : 'tidak'} · <span class="badge bg-info text-dark badge-tag">watermark</span> ${c.watermark ? 'ya' : 'tidak'} · <span class="badge bg-success badge-tag">credit</span> ${c.credit ? 'ya' : 'tidak'}</dd>
+      <dt class="col-sm-3">File utama</dt><dd class="col-sm-9"><code>${esc(c.file)}</code> · ${fmtSize(c.size_bytes)}</dd>
+      ${s.url ? `<dt class="col-sm-3">Sumber</dt><dd class="col-sm-9"><a target="_blank" rel="noopener" href="${esc(s.url)}">${esc(s.url)}</a></dd>` : ''}
+      ${c.transcript ? `<dt class="col-sm-3">Transkrip</dt><dd class="col-sm-9 text-break">${esc(c.transcript)}</dd>` : ''}
+      <dt class="col-sm-3">Semua file</dt><dd class="col-sm-9">${c.files.map(f => `<code class="d-inline-block me-2">${esc(f)}</code>`).join('')}</dd>
+    </dl>
+    <details class="mt-3"><summary class="text-info small">Lihat subtitle SRT sesi ini</summary>
+      <pre class="bg-black p-2 rounded text-wrap small mt-2" style="max-height:40vh" id="srtBox">memuat...</pre></details>`;
+  fetch(`/api/sessions/${encodeURIComponent(s.id)}/subtitle`)
+    .then(r => r.text()).then(t => { $('#srtBox').textContent = t.slice(0, 20000); })
+    .catch(() => { $('#srtBox').textContent = 'gagal memuat'; });
+  bootstrap.Modal.getOrCreateInstance('#detailModal').show();
+}
+
+// tutup modal / klik X = stop video di dalam modal
+$('#detailModal').addEventListener('hide.bs.modal', () => {
+  const v = $('#dBody video');
+  if (v) { try { v.pause(); v.currentTime = 0; } catch {} }
+});
+
+// lazy load selesai — kartu pakai <img> thumbnail, video cuma di modal
+
+// render modal: semua setting seperti /config bot, default dari config.json
+const CFG = {};
+fetch('/api/config').then(r => r.json()).then(c => Object.assign(CFG, c)).catch(() => {});
+
+function cfgSwitch(key, label) {
+  return `<div class="form-check form-switch">
+    <input class="form-check-input" type="checkbox" id="cfg_${key}" ${CFG[key] ? 'checked' : ''} onchange="CFG['${key}']=this.checked">
+    <label class="form-check-label small" for="cfg_${key}">${label}</label>
+  </div>`;
+}
+
+function cfgSelect(key, label, options) {
+  const opts = options.map(o => `<option value="${o}" ${CFG[key] === o ? 'selected' : ''}>${o}</option>`).join('');
+  return `<label class="form-label small mb-0">${label}</label>
+    <select class="form-select form-select-sm bg-secondary text-light border-0" onchange="CFG['${key}']=this.value">${opts}</select>`;
+}
+
+function cfgNum(key, label, step = 'any') {
+  return `<label class="form-label small mb-0">${label}</label>
+    <input type="number" step="${step}" class="form-control form-control-sm bg-secondary text-light border-0"
+           value="${CFG[key] ?? ''}" oninput="CFG['${key}']=parseFloat(this.value)||0">`;
+}
+
+function openRender(gi, ci) {
+  const s = DATA[gi], c = s.clips[ci];
+  $('#rTitle').textContent = 'Render: ' + c.title;
+  $('#rBody').innerHTML = `
+    <div class="row g-2 mb-2">
+      <div class="col-6">${cfgSwitch('hook', '🪝 Hook (TTS Intro)')}</div>
+      <div class="col-6">${cfgSwitch('captions', '💬 Subtitle (Caption)')}</div>
+      <div class="col-6">${cfgSwitch('watermark', '🖼️ Watermark')}</div>
+      <div class="col-6">${cfgSwitch('credit', '🏷️ Credit Watermark')}</div>
+    </div>
+    <hr class="border-secondary my-2">
+    <div class="row g-2 mb-2">
+      <div class="col-6 col-md-3">${cfgSelect('aspect_ratio', '📐 Rasio', ['9:16', '1:1', '4:5', '16:9'])}</div>
+      <div class="col-6 col-md-3">${cfgSelect('subtitle_style', '✏️ Gaya Subtitle', ['pop', 'karaoke', 'bounce', 'animated', 'pop_bounce'])}</div>
+      <div class="col-6 col-md-3">${cfgSelect('portrait_mode', '🖼️ Portrait Mode', ['crop', 'blur'])}</div>
+      <div class="col-6 col-md-3">${cfgSelect('face_tracking_mode', '🎯 Face Tracking', ['opencv', 'mediapipe'])}</div>
+      <div class="col-6 col-md-4">${cfgNum('sync_offset', '⏱️ Sync Offset (detik)', '0.1')}</div>
+      <div class="col-6 col-md-4">${cfgSwitch('smooth_follow', '🎯 Smooth Follow')}</div>
+      <div class="col-6 col-md-4">${cfgSwitch('gpu', '⚡ GPU Accel')}</div>
+    </div>
+    <details class="small"><summary class="text-info">🎯 Lanjutan face tracking</summary>
+      <div class="row g-2 mt-1">
+        <div class="col-6 col-md-4">${cfgNum('pan_speed_limit', 'Pan Speed Limit', '0.1')}</div>
+        <div class="col-6 col-md-4">${cfgNum('center_weight', 'Center Weight', '0.05')}</div>
+        <div class="col-6 col-md-4">${cfgNum('switch_threshold', 'Switch Threshold', '0.05')}</div>
+        <div class="col-6 col-md-6">${cfgNum('min_shot_duration', 'Min Shot Duration', '1')}</div>
+        <div class="col-6 col-md-6">${cfgNum('lip_activity', 'Lip Activity', '0.01')}</div>
+      </div>
+    </details>
+    <p class="small text-muted mt-2 mb-0">Butuh <code>landscape.mp4</code> di folder klip & bisa makan waktu beberapa menit.</p>
+    <div id="renderStatus"></div>`;
+  bootstrap.Modal.getOrCreateInstance('#renderModal').show();
+  $('#renderGoBtn').onclick = () => doRender(s.id, c.dir);
+}
+
+async function doRender(sid, dir) {
+  const st = $('#renderStatus');
+  $('#renderGoBtn').disabled = true;
+  st.innerHTML = '<div class="alert alert-info py-2 small mb-0" id="rRun">⏳ Rendering… <span id="rElapsed"></span></div><pre class="bg-black text-light p-2 rounded mt-2 small" id="rLog" style="max-height:45vh;overflow-y:auto;overscroll-behavior:contain;white-space:pre-wrap">memulai…</pre>';
+  // mulai render
+  try {
+    const r = await fetch(`/api/render/${encodeURIComponent(sid)}/${encodeURIComponent(dir)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(CFG),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.ok) {
+      st.innerHTML = `<div class="alert alert-danger py-2 small mb-0">❌ Gagal mulai render: ${esc(j.error || 'HTTP ' + r.status)}</div>`;
+      $('#renderGoBtn').disabled = false;
+      return;
+    }
+  } catch (e) {
+    st.innerHTML = `<div class="alert alert-danger py-2 small mb-0">❌ ${esc(String(e))}</div>`;
+    $('#renderGoBtn').disabled = false;
+    return;
+  }
+  const started = Date.now();
+  const poll = setInterval(async () => {
+    try {
+      const j = await (await fetch(`/api/render/status/${encodeURIComponent(sid)}/${encodeURIComponent(dir)}`)).json();
+      const el = document.getElementById('rElapsed');
+      if (el) el.textContent = `(${Math.round((Date.now() - started) / 1000)}s)`;
+      const box = document.getElementById('rLog');
+      if (box && j.log) {
+        const atBottom = box.scrollTop + box.clientHeight >= box.scrollHeight - 30;
+        box.textContent = j.log;
+        if (atBottom) box.scrollTop = box.scrollHeight;
+      }
+      if (!j.running) {
+        clearInterval(poll);
+        if (j.code === 0) {
+          st.insertAdjacentHTML('afterbegin', '<div class="alert alert-success py-2 small mb-2">✅ Render selesai! Memuat ulang data…</div>');
+          setTimeout(async () => { await load(); bootstrap.Modal.getInstance('#renderModal').hide(); }, 1500);
+        } else {
+          st.insertAdjacentHTML('afterbegin', `<div class="alert alert-danger py-2 small mb-2">❌ Render gagal (exit ${j.code ?? '?'}) — lihat log di bawah.</div>`);
+          $('#renderGoBtn').disabled = false;
+        }
+      }
+    } catch {}
+  }, 2000);
+}
+
+async function deleteSession(sid, btn) {
+  if (!confirm(`Hapus SELURUH sesi ${sid}?\nSemua klip beserta foldernya ikut terhapus.`)) return;
+  btn.disabled = true;
+  try {
+    const r = await fetch(`/api/delete-session/${encodeURIComponent(sid)}`, { method: 'POST' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    await load();
+  } catch (e) {
+    alert('Gagal hapus sesi: ' + e);
+    btn.disabled = false;
+  }
+}
+
+async function deleteClip(gi, ci, btn) {
+  const s = DATA[gi], c = s.clips[ci];
+  if (!confirm(`Hapus klip "${c.title}"?\nFolder beserta semua file varian ikut terhapus.`)) return;
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    const r = await fetch(`/api/delete/${encodeURIComponent(s.id)}/${encodeURIComponent(c.dir)}`, { method: 'POST' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    await load();
+  } catch (e) {
+    alert('Gagal hapus: ' + e);
+    btn.disabled = false; btn.textContent = '🗑';
+  }
+}
+
+$('#search').addEventListener('input', render);
+load();
+</script>
+</body>
+</html>

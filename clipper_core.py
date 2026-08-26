@@ -1571,7 +1571,7 @@ Transcript:
         # token). Use clients that don't require one.
         ydl_opts['extractor_args'] = {
             'youtube': {
-                'player_client': ['web_embedded', 'tv_embedded', 'android_vr', 'web_safari']
+                'player_client': ['web', 'web_embedded', 'tv_embedded', 'android_vr', 'web_safari']
             }
         }
         
@@ -1705,7 +1705,7 @@ Transcript:
         # token). Use clients that don't require one.
         cmd.extend([
             "--extractor-args",
-            "youtube:player_client=web_embedded,tv_embedded,android_vr,web_safari"
+            "youtube:player_client=web,web_embedded,tv_embedded,android_vr,web_safari"
         ])
         
         cmd.append(url)
@@ -1797,7 +1797,7 @@ Transcript:
         # token). Use clients that don't require one.
         opts['extractor_args'] = {
             'youtube': {
-                'player_client': ['web_embedded', 'tv_embedded', 'android_vr', 'web_safari']
+                'player_client': ['web', 'web_embedded', 'tv_embedded', 'android_vr', 'web_safari']
             }
         }
 
@@ -1839,7 +1839,7 @@ Transcript:
         # token). Use clients that don't require one.
         opts['extractor_args'] = {
             'youtube': {
-                'player_client': ['web_embedded', 'tv_embedded', 'android_vr', 'web_safari']
+                'player_client': ['web', 'web_embedded', 'tv_embedded', 'android_vr', 'web_safari']
             }
         }
         
@@ -1991,7 +1991,7 @@ Transcript:
             # token). Use clients that don't require one.
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['web_embedded', 'tv_embedded', 'android_vr', 'web_safari']
+                    'player_client': ['web', 'web_embedded', 'tv_embedded', 'android_vr', 'web_safari']
                 }
             },
         }
@@ -2159,7 +2159,7 @@ Transcript:
             # token). Use clients that don't require one.
             cmd.extend([
                 "--extractor-args",
-                "youtube:player_client=web_embedded,tv_embedded,android_vr,web_safari"
+                "youtube:player_client=web,web_embedded,tv_embedded,android_vr,web_safari"
             ])
             cmd.append(url)
 
@@ -2177,10 +2177,16 @@ Transcript:
             # Stream both streams so progress reaches the bot. yt-dlp writes
             # '[download] xx%' on stdout, but stream-copy section cuts output
             # ffmpeg's 'time=...' progress on stderr. Handle both.
+            # Also collect all stderr lines into a buffer for error reporting
+            # (drain threads consume the pipe, so process.stderr.read() is empty after).
+            _stderr_buf = []
+
             def _drain_stream(stream, is_stderr: bool = False):
                 try:
                     for raw in stream:
                         line = raw.strip()
+                        if is_stderr:
+                            _stderr_buf.append(line)
                         if not line:
                             continue
                         if "[download]" in line and "%" in line:
@@ -2232,9 +2238,9 @@ Transcript:
                     self.log(f"  ✓ Section downloaded!")
                     return final
 
-            stderr_output = process.stderr.read() if process.stderr else ""
-            last_error = stderr_output.strip() or f"Return code {process.returncode}"
-            self.log(f"  ✗ Section download attempt {attempt} failed: {last_error[:150]}")
+            # Use the buffer (drain thread already consumed the pipe)
+            last_error = "\n".join(_stderr_buf[-30:]).strip() or f"Return code {process.returncode}"
+            self.log(f"  ✗ Section download attempt {attempt} failed: {last_error[:300]}")
             # brief pause before retry
             if attempt < MAX_ATTEMPTS:
                 time.sleep(2)
@@ -2278,7 +2284,7 @@ Transcript:
             # (needs PO token). Use clients that don't require one.
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['web_embedded', 'tv_embedded', 'android_vr', 'web_safari']
+                    'player_client': ['web', 'web_embedded', 'tv_embedded', 'android_vr', 'web_safari']
                 }
             },
         }
@@ -2418,7 +2424,7 @@ Transcript:
             # need one. tv/android/ios/web_safari are safe choices.
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['web_embedded', 'tv_embedded', 'android_vr', 'web_safari']
+                    'player_client': ['web', 'web_embedded', 'tv_embedded', 'android_vr', 'web_safari']
                 }
             },
         }
@@ -3176,14 +3182,27 @@ Transcript:
         # Use OpenAI-compatible API for all providers
         self.log(f"  Using API: {self.highlight_client.base_url} (Model: {self.model})")
         try:
-            self.log("  ⏳ Mengirim request ke AI... (mohon tunggu, sedang menganalisis transkrip)")
-            response = self.highlight_client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=self.temperature,
-                max_tokens=request_clips * 300 + 1000,
-                timeout=120.0  # 2 menit timeout agar tidak menggantung tanpa kejelasan
-            )
+            # ponytail: retry utk router lambat/kosong (AUTO -> model reasoning sering timeout); naikkan AI_HIGHLIGHT_ATTEMPTS kalau stabil
+            max_attempts = int(os.environ.get('AI_HIGHLIGHT_ATTEMPTS', '2'))
+            response = None
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    self.log(f"  ⏳ Mengirim request ke AI... (percobaan {attempt}/{max_attempts})")
+                    response = self.highlight_client.chat.completions.create(
+                        model=self.model,
+                        messages=[{"role": "user", "content": prompt}],
+                        temperature=self.temperature,
+                        max_tokens=request_clips * 300 + 2500,  # headroom ekstra: model reasoning buang token di reasoning_content
+                        timeout=float(os.environ.get('AI_HIGHLIGHT_TIMEOUT', '600.0'))  # transcript panjang + banyak klip butuh >2 menit
+                    )
+                    if getattr(response, 'choices', None):
+                        break
+                    self.log("  ⚠ Respons AI tanpa 'choices' — mengulang...")
+                except Exception as attempt_err:
+                    if attempt >= max_attempts:
+                        raise
+                    self.log(f"  ⚠ Percobaan {attempt} gagal: {str(attempt_err)[:150]}")
+                    self.log("  ↻ Mengulang request...")
             self.log("  ✓ Respons diterima dari AI!")
             
             # Validate response structure

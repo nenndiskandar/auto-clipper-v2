@@ -2956,16 +2956,31 @@ async def _process_selected(update: Update, context: ContextTypes.DEFAULT_TYPE, 
 
         elapsed = time.time() - render_start
         dur_str = _format_duration(elapsed)
+        session_id = Path(session_data["session_dir"]).name
         lines = [f"✅ *Berhasil merender {len(generated_clips)} klip dalam waktu {dur_str}:*", ""]
         for clip_path in generated_clips:
             lines.append(f"🎬 • `{clip_path.stem}`")
         lines.append("")
-        lines.append("📂 *Detail lengkap & unduhan:* ketik `/result` lalu pilih session-nya.")
+        lines.append("📂 /result auto-trigger untuk lihat detail & unduh.")
 
         await context.bot.send_message(
             chat_id=chat_id,
             text="\n".join(lines),
             parse_mode="Markdown",
+        )
+
+        # Auto-trigger /result: build session list + send session list message
+        # simulating /result command result
+        app_dir = Path(__file__).parent.resolve()
+        sessions_dir = app_dir / "output" / "sessions"
+        keyboard, sessions = load_session_keyboard(sessions_dir)
+        context.user_data["result_sessions"] = sessions
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=_session_list_text(sessions),
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML",
+            disable_web_page_preview=True,
         )
 
     except Exception as e:
