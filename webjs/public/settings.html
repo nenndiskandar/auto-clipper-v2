@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="id" data-bs-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings — YT Short Clipper</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+body{background:#0d1117;font-size:.85rem}
+.form-control,.form-select{font-size:.8rem}
+.form-check-label{white-space:normal;line-height:1.2}
+.card{background:#161b22;border-color:#30363d}
+</style>
+</head>
+<body>
+<nav class="navbar navbar-dark px-3 py-2" style="background:#010409;border-bottom:1px solid #30363d">
+  <a class="btn btn-sm btn-outline-light" href="/">← Beranda</a>
+  <span class="navbar-brand mb-0 fw-bold">⚙️ Settings</span>
+  <div class="ms-auto d-flex align-items-center gap-2">
+    <span class="text-muted small" id="whoami"></span>
+    <a class="btn btn-sm btn-outline-light" href="/logout">Logout</a>
+  </div>
+</nav>
+
+<div class="container-fluid py-3">
+
+<!-- ===== TEMPLATE CEPAT ===== -->
+<div class="card mb-3">
+  <div class="card-header border-secondary py-2 fw-semibold">⚡ Template Otomatis <span class="text-muted fw-normal small">— klik sesuai tipe video, lalu 💾 Simpan Semua</span></div>
+  <div class="card-body py-2">
+    <div class="d-flex flex-wrap gap-2" id="tplBar"></div>
+    <div id="tplMsg" class="small text-success mt-2" style="display:none"></div>
+  </div>
+</div>
+
+<div class="row g-3">
+
+<div class="col-lg-6">
+  <div class="card h-100">
+    <div class="card-header border-secondary py-2 fw-semibold">🤖 AI & Analisis</div>
+    <div class="card-body">
+      <div class="row g-2">
+        <div class="col-12 col-md-4"><label class="form-label small mb-0">Model analisis</label><input class="form-control" id="s_core_model"></div>
+        <div class="col-6 col-md-4"><label class="form-label small mb-0">TTS Model</label><input class="form-control" id="s_tts_model" placeholder="tts-1"></div>
+        <div class="col-6 col-md-4"><label class="form-label small mb-0">Temperature</label><input type="number" step="0.05" min="0" max="2" class="form-control" id="s_temperature"></div>
+        <div class="col-6 col-md-4"><label class="form-label small mb-0">HF Model</label><input class="form-control" id="s_hf_model" placeholder="AUTO"></div>
+        <div class="col-6 col-md-8"><label class="form-label small mb-0">Server URL (OpenAI-compatible)</label><input class="form-control" id="s_server_url" placeholder="http://localhost:20128/v1"></div>
+        <div class="col-12 col-md-6"><label class="form-label small mb-0">HF API Key <span class="text-muted" id="keyState"></span></label><input type="password" class="form-control" id="s_hf_api_key" placeholder="(tidak diubah)"></div>
+        <div class="col-12 col-md-6"><label class="form-label small mb-0">Bahasa Subtitle</label><input class="form-control" id="s_subtitle_language" placeholder="id"></div>
+        <div class="col-12"><label class="form-label small mb-0">System message (highlight finder)</label><textarea class="form-control" rows="3" id="s_hf_system_message"></textarea></div>
+        <div class="col-12 col-md-6"><label class="form-label small mb-0">🎙 Faster-Whisper <span id="fwBadge" class="small"></span></label>
+          <select class="form-select" id="s_fw_model"><option value="tiny">tiny</option><option value="base">base</option><option value="small">small</option><option value="medium">medium</option><option value="large-v3">large-v3</option></select></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="col-lg-6">
+  <div class="card h-100">
+    <div class="card-header border-secondary py-2 fw-semibold">🎬 Render & Tracking</div>
+    <div class="card-body">
+      <div class="row g-2">
+        <div class="col-6 col-md-3"><div class="form-check form-switch mt-1"><input class="form-check-input" type="checkbox" id="s_hook"><label class="form-check-label" for="s_hook">🪝 Hook</label></div></div>
+        <div class="col-6 col-md-3"><div class="form-check form-switch mt-1"><input class="form-check-input" type="checkbox" id="s_captions"><label class="form-check-label" for="s_captions">💬 Subtitle</label></div></div>
+        <div class="col-6 col-md-3"><div class="form-check form-switch mt-1"><input class="form-check-input" type="checkbox" id="s_gpu"><label class="form-check-label" for="s_gpu">⚡ GPU</label></div></div>
+        <div class="col-6 col-md-3"><div class="form-check form-switch mt-1"><input class="form-check-input" type="checkbox" id="s_smooth_follow"><label class="form-check-label" for="s_smooth_follow">Smooth Follow</label></div></div>
+        <div class="col-6 col-md-3"><label class="form-label small mb-0">Jumlah klip</label><input type="number" min="1" class="form-control" id="s_num_clips"></div>
+        <div class="col-6 col-md-3"><label class="form-label small mb-0">Resolusi</label><select class="form-select" id="s_resolution"><option>1080p</option><option>720p</option><option>480p</option><option>360p</option><option>auto</option></select></div>
+        <div class="col-6 col-md-3"><label class="form-label small mb-0">Rasio</label><select class="form-select" id="s_aspect_ratio"><option>9:16</option><option>1:1</option><option>4:5</option><option>16:9</option></select></div>
+        <div class="col-6 col-md-3"><label class="form-label small mb-0">Gaya Subtitle</label><select class="form-select" id="s_subtitle_style"><option>pop</option><option>karaoke</option><option>bounce</option><option>animated</option><option>pop_bounce</option></select></div>
+        <div class="col-6 col-md-3"><label class="form-label small mb-0">Sync Offset (s)</label><input type="number" step="0.1" class="form-control" id="s_sync_offset"></div>
+        <div class="col-6 col-md-3"><label class="form-label small mb-0">Portrait Mode</label><select class="form-select" id="s_portrait_mode"><option>crop</option><option>blur</option></select></div>
+        <div class="col-6 col-md-3"><label class="form-label small mb-0">Face Tracking</label><select class="form-select" id="s_face_tracking_mode"><option>opencv</option><option>mediapipe</option></select></div>
+        <div class="col-6 col-md-3"><label class="form-label small mb-0">Pan Speed Limit</label><input type="number" step="0.1" class="form-control" id="s_pan_speed_limit"></div>
+        <div class="col-6 col-md-3"><label class="form-label small mb-0">Center Weight</label><input type="number" step="0.05" class="form-control" id="s_center_weight"></div>
+        <div class="col-6 col-md-3"><label class="form-label small mb-0">Switch Threshold</label><input type="number" step="0.05" class="form-control" id="s_switch_threshold"></div>
+        <div class="col-6 col-md-3"><label class="form-label small mb-0">Min Shot Duration</label><input type="number" step="1" class="form-control" id="s_min_shot_duration"></div>
+        <div class="col-6 col-md-3"><label class="form-label small mb-0">Lip Activity</label><input type="number" step="0.01" class="form-control" id="s_lip_activity"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="col-lg-6">
+  <div class="card h-100">
+    <div class="card-header border-secondary py-2 fw-semibold">🖼️ Watermark</div>
+    <div class="card-body">
+      <div class="d-flex align-items-center gap-3 mb-2">
+        <div class="form-check form-switch mb-0"><input class="form-check-input" type="checkbox" id="s_wm_on"><label class="form-check-label" for="s_wm_on">Aktif</label></div>
+        <input type="file" accept=".png,.jpg,.jpeg" class="form-control form-control-sm" id="wmFile" style="max-width:280px">
+        <button class="btn btn-sm btn-warning flex-shrink-0" onclick="uploadWm()">⬆ Upload</button>
+      </div>
+      <div id="wmMsg" class="small text-muted mb-2"></div>
+      <div class="row g-2">
+        <div class="col-6 col-md-3"><label class="form-label small mb-0">Posisi X (0-1)</label><input type="number" step="0.01" min="0" max="1" class="form-control" id="s_wm_x"></div>
+        <div class="col-6 col-md-3"><label class="form-label small mb-0">Posisi Y (0-1)</label><input type="number" step="0.01" min="0" max="1" class="form-control" id="s_wm_y"></div>
+        <div class="col-6 col-md-3"><label class="form-label small mb-0">Scale (0-1)</label><input type="number" step="0.01" min="0.01" max="1" class="form-control" id="s_wm_scale"></div>
+        <div class="col-6 col-md-3"><label class="form-label small mb-0">Opacity (0-1)</label><input type="number" step="0.05" min="0" max="1" class="form-control" id="s_wm_op"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="col-lg-6">
+  <div class="card h-100">
+    <div class="card-header border-secondary py-2 fw-semibold">🏷️ Credit Watermark & 🪝 Hook Style</div>
+    <div class="card-body">
+      <div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" id="s_cw_on"><label class="form-check-label" for="s_cw_on">Credit Watermark aktif</label></div>
+      <div class="row g-2 mb-3">
+        <div class="col-6 col-md-3"><label class="form-label small mb-0">Pos X</label><input type="number" step="0.01" min="0" max="1" class="form-control" id="s_cw_x"></div>
+        <div class="col-6 col-md-3"><label class="form-label small mb-0">Pos Y</label><input type="number" step="0.01" min="0" max="1" class="form-control" id="s_cw_y"></div>
+        <div class="col-6 col-md-3"><label class="form-label small mb-0">Size</label><input type="number" step="0.005" min="0.001" class="form-control" id="s_cw_size"></div>
+        <div class="col-6 col-md-3"><label class="form-label small mb-0">Opacity</label><input type="number" step="0.05" min="0" max="1" class="form-control" id="s_cw_op"></div>
+      </div>
+      <div class="row g-2">
+        <div class="col-6 col-md-3"><label class="form-label small mb-0">Font Size</label><input type="number" step="0.005" min="0.01" class="form-control" id="s_hs_size"></div>
+        <div class="col-6 col-md-3"><label class="form-label small mb-0">Corner Radius</label><input type="number" step="1" min="0" class="form-control" id="s_hs_radius"></div>
+        <div class="col-6 col-md-3"><label class="form-label small mb-0">Pos X</label><input type="number" step="0.01" min="0" max="1" class="form-control" id="s_hs_x"></div>
+        <div class="col-6 col-md-3"><label class="form-label small mb-0">Pos Y</label><input type="number" step="0.01" min="0" max="1" class="form-control" id="s_hs_y"></div>
+        <div class="col-6 col-md-3"><label class="form-label small mb-0">Font Color</label><input type="color" class="form-control form-control-color w-100" id="s_hs_fc"></div>
+        <div class="col-6 col-md-3"><label class="form-label small mb-0">BG Color</label><input type="color" class="form-control form-control-color w-100" id="s_hs_bc"></div>
+        <div class="col-6 col-md-6"><div class="form-check form-switch mt-2"><input class="form-check-input" type="checkbox" id="s_hs_glitch"><label class="form-check-label small" for="s_hs_glitch">✨ Efek Glitch TikTok (cyan+merah)</label></div></div>
+      </div>
+      <hr class="border-secondary my-2">
+      <label class="form-label small mb-1 fw-semibold">🔥 Template Hook Style Viral</label>
+      <div class="d-flex flex-wrap gap-2" id="hsBar"></div>
+    </div>
+  </div>
+</div>
+
+</div>
+<div class="d-flex gap-2 align-items-center my-3">
+  <button class="btn btn-warning" id="saveBtn" onclick="saveAll()">💾 Simpan Semua</button>
+  <span id="msg" class="small"></span>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>fetch('/api/me').then(r=>r.json()).then(d=>{if(d.name)document.getElementById('whoami').textContent='👤 '+d.name;});</script>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num = v => (v === '' || v == null || isNaN(v)) ? null : parseFloat(v);
+
+let C = {};
+async function load() {
+  try {
+    C = await (await fetch('/api/config')).json();
+    const v = (id, val) => { if (val !== undefined && val !== null) $(id).value = val; };
+    $('#s_hook').checked = !!C.hook; $('#s_captions').checked = !!C.captions;
+    $('#s_gpu').checked = !!C.gpu; $('#s_smooth_follow').checked = !!C.smooth_follow;
+    v('#s_num_clips', C.num_clips); v('#s_resolution', C.resolution); v('#s_aspect_ratio', C.aspect_ratio);
+    v('#s_subtitle_style', C.subtitle_style); v('#s_sync_offset', C.sync_offset);
+    v('#s_portrait_mode', C.portrait_mode); v('#s_face_tracking_mode', C.face_tracking_mode);
+    v('#s_pan_speed_limit', C.pan_speed_limit); v('#s_center_weight', C.center_weight);
+    v('#s_switch_threshold', C.switch_threshold); v('#s_min_shot_duration', C.min_shot_duration);
+    v('#s_lip_activity', C.lip_activity);
+    v('#s_core_model', C.core_model); v('#s_tts_model', C.tts_model); v('#s_temperature', C.temperature);
+    v('#s_hf_model', C.hf_model); v('#s_server_url', C.server_url);
+    v('#s_subtitle_language', C.subtitle_language);
+    $('#s_hf_system_message').value = C.hf_system_message || '';
+    $('#keyState').textContent = C.hf_api_key_set ? '(tersimpan)' : '(belum ada)';
+    v('#s_fw_model', C.fw_model || 'small');
+    $('#fwBadge').textContent = C.fw_installed ? '🟢' : '🔴 belum terunduh';
+    // watermark
+    const wm = C.wm || {}, cw = C.cw || {}, hs = C.hookstyle || {};
+    $('#s_wm_on').checked = !!C.watermark;
+    v('#s_wm_x', wm.position_x); v('#s_wm_y', wm.position_y); v('#s_wm_scale', wm.scale); v('#s_wm_op', wm.opacity);
+    $('#wmMsg').textContent = wm.image_path ? ('File: ' + wm.image_path) : '';
+    $('#s_cw_on').checked = !!C.credit;
+    v('#s_cw_x', cw.position_x); v('#s_cw_y', cw.position_y); v('#s_cw_size', cw.size); v('#s_cw_op', cw.opacity);
+    v('#s_hs_size', hs.font_size); v('#s_hs_radius', hs.corner_radius);
+    v('#s_hs_x', hs.position_x); v('#s_hs_y', hs.position_y);
+    if (hs.font_color) $('#s_hs_fc').value = hs.font_color;
+    if (hs.bg_color) $('#s_hs_bc').value = hs.bg_color;
+    $('#s_hs_glitch').checked = !!hs.glitch;
+  } catch { msg('❌ Gagal memuat konfigurasi.', false); }
+}
+
+function collect() {
+  return {
+    hook: $('#s_hook').checked, captions: $('#s_captions').checked,
+    gpu: $('#s_gpu').checked, smooth_follow: $('#s_smooth_follow').checked,
+    num_clips: parseInt($('#s_num_clips').value) || undefined,
+    resolution: $('#s_resolution').value, aspect_ratio: $('#s_aspect_ratio').value,
+    subtitle_style: $('#s_subtitle_style').value, sync_offset: num($('#s_sync_offset').value),
+    portrait_mode: $('#s_portrait_mode').value, face_tracking_mode: $('#s_face_tracking_mode').value,
+    pan_speed_limit: num($('#s_pan_speed_limit').value), center_weight: num($('#s_center_weight').value),
+    switch_threshold: num($('#s_switch_threshold').value), min_shot_duration: num($('#s_min_shot_duration').value),
+    lip_activity: num($('#s_lip_activity').value),
+    core_model: $('#s_core_model').value.trim(), tts_model: $('#s_tts_model').value.trim(),
+    temperature: num($('#s_temperature').value),
+    hf_model: $('#s_hf_model').value.trim(), server_url: $('#s_server_url').value.trim(),
+    subtitle_language: $('#s_subtitle_language').value.trim(),
+    fw_model: $('#s_fw_model').value.trim(),
+    wm: { enabled: $('#s_wm_on').checked, position_x: num($('#s_wm_x').value), position_y: num($('#s_wm_y').value), scale: num($('#s_wm_scale').value), opacity: num($('#s_wm_op').value) },
+    cw: { enabled: $('#s_cw_on').checked, position_x: num($('#s_cw_x').value), position_y: num($('#s_cw_y').value), size: num($('#s_cw_size').value), opacity: num($('#s_cw_op').value) },
+    hookstyle: { font_size: num($('#s_hs_size').value), corner_radius: num($('#s_hs_radius').value), position_x: num($('#s_hs_x').value), position_y: num($('#s_hs_y').value), font_color: $('#s_hs_fc').value, bg_color: $('#s_hs_bc').value, glitch: $('#s_hs_glitch').checked },
+  };
+}
+
+function msg(t, ok) { const m = $('#msg'); m.textContent = t; m.className = 'small ' + (ok ? 'text-success' : 'text-danger'); setTimeout(() => m.textContent = '', 5000); }
+
+async function saveAll() {
+  const body = collect();
+  const key = $('#s_hf_api_key').value.trim();
+  if (key) body.hf_api_key = key;
+  $('#saveBtn').disabled = true;
+  try {
+    const r = await fetch('/api/config', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.ok) throw new Error(j.error || ('HTTP ' + r.status));
+    if (key) { $('#s_hf_api_key').value = ''; $('#keyState').textContent = '(tersimpan)'; }
+    msg('✅ Tersimpan ke config.json.', true);
+  } catch (e) { msg('❌ ' + e, false); }
+  $('#saveBtn').disabled = false;
+}
+
+async function uploadWm() {
+  const f = $('#wmFile').files[0];
+  if (!f) { msg('Pilih file gambar dulu.', false); return; }
+  const b64 = await new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(f); });
+  try {
+    const r = await fetch('/api/upload/watermark', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name: f.name, data: b64 }) });
+    const j = await r.json();
+    if (!r.ok || !j.ok) throw new Error(j.error || ('HTTP ' + r.status));
+    $('#wmMsg').textContent = 'File: ' + j.path;
+    msg('✅ Watermark terupload & dipasang.', true);
+  } catch (e) { msg('❌ Upload gagal: ' + e, false); }
+}
+
+load();
+
+// ===== template otomatis per tipe video =====
+const TEMPLATES = {
+  podcast2: {
+    label: '🎙 Podcast 2 Orang', desc: 'tracking wajah stabil, crop tengah, caption jelas',
+    cfg: { face_tracking_mode: 'mediapipe', portrait_mode: 'crop', smooth_follow: true,
+      pan_speed_limit: 1.8, center_weight: 0.45, switch_threshold: 0.35, min_shot_duration: 120,
+      lip_activity: 0.12, subtitle_style: 'pop', sync_offset: -0.25, aspect_ratio: '9:16',
+      hook: true, captions: true, gpu: true },
+  },
+  podcast3: {
+    label: '🎙 Podcast 3+ Orang', desc: 'switch cepat antar pembicara, frame lebar',
+    cfg: { face_tracking_mode: 'mediapipe', portrait_mode: 'blur', smooth_follow: false,
+      pan_speed_limit: 2.5, center_weight: 0.25, switch_threshold: 0.22, min_shot_duration: 60,
+      lip_activity: 0.15, subtitle_style: 'pop', sync_offset: -0.25, aspect_ratio: '9:16',
+      hook: true, captions: true, gpu: true },
+  },
+  game: {
+    label: '🎮 Live / Gaming', desc: 'gerak cepat, follow agresif, caption tebal',
+    cfg: { face_tracking_mode: 'opencv', portrait_mode: 'crop', smooth_follow: true,
+      pan_speed_limit: 4.0, center_weight: 0.15, switch_threshold: 0.15, min_shot_duration: 30,
+      lip_activity: 0.2, subtitle_style: 'bounce', sync_offset: -0.15, aspect_ratio: '9:16',
+      hook: true, captions: true, gpu: true },
+  },
+  news: {
+    label: '📰 Berita / Vlog Berita', desc: 'stabil, formal, subtitle rapi',
+    cfg: { face_tracking_mode: 'opencv', portrait_mode: 'crop', smooth_follow: false,
+      pan_speed_limit: 1.2, center_weight: 0.5, switch_threshold: 0.4, min_shot_duration: 150,
+      lip_activity: 0.1, subtitle_style: 'karaoke', sync_offset: -0.3, aspect_ratio: '9:16',
+      hook: false, captions: true, gpu: true },
+  },
+  tutorial: {
+    label: '🧑‍🏫 Tutorial / Edukasi', desc: 'fokus 1 pembicara, tempo tenang',
+    cfg: { face_tracking_mode: 'mediapipe', portrait_mode: 'crop', smooth_follow: true,
+      pan_speed_limit: 1.5, center_weight: 0.5, switch_threshold: 0.4, min_shot_duration: 180,
+      lip_activity: 0.1, subtitle_style: 'animated', sync_offset: -0.3, aspect_ratio: '9:16',
+      hook: false, captions: true, gpu: true },
+  },
+  vlog: {
+    label: '📹 Vlog / Solo Creator', desc: 'dinamis tapi halus, hook aktif',
+    cfg: { face_tracking_mode: 'mediapipe', portrait_mode: 'crop', smooth_follow: true,
+      pan_speed_limit: 2.2, center_weight: 0.35, switch_threshold: 0.3, min_shot_duration: 90,
+      lip_activity: 0.15, subtitle_style: 'pop_bounce', sync_offset: -0.25, aspect_ratio: '9:16',
+      hook: true, captions: true, gpu: true },
+  },
+};
+
+function applyTemplate(key) {
+  const t = TEMPLATES[key];
+  if (!t) return;
+  const c = t.cfg;
+  // switch
+  $('#s_hook').checked = !!c.hook; $('#s_captions').checked = !!c.captions; $('#s_gpu').checked = !!c.gpu;
+  $('#s_smooth_follow').checked = !!c.smooth_follow;
+  // select & angka
+  $('#s_face_tracking_mode').value = c.face_tracking_mode;
+  $('#s_portrait_mode').value = c.portrait_mode;
+  $('#s_subtitle_style').value = c.subtitle_style;
+  $('#s_sync_offset').value = c.sync_offset;
+  $('#s_aspect_ratio').value = c.aspect_ratio;
+  $('#s_pan_speed_limit').value = c.pan_speed_limit;
+  $('#s_center_weight').value = c.center_weight;
+  $('#s_switch_threshold').value = c.switch_threshold;
+  $('#s_min_shot_duration').value = c.min_shot_duration;
+  $('#s_lip_activity').value = c.lip_activity;
+  const m = $('#tplMsg');
+  m.textContent = `✅ Template "${t.label}" diterapkan (${t.desc}) — cek lalu 💾 Simpan Semua.`;
+  m.style.display = 'block';
+  setTimeout(() => m.style.display = 'none', 6000);
+}
+
+(function initTemplates() {
+  const bar = document.getElementById('tplBar');
+  bar.innerHTML = Object.entries(TEMPLATES).map(([k, t]) =>
+    `<button class="btn btn-sm btn-outline-warning" title="${esc(t.desc)}" onclick="applyTemplate('${k}')">${t.label}</button>`).join('');
+})();
+
+// ===== template hook style viral =====
+const HOOK_PRESETS = {
+  tiktok: {
+    label: '🎵 TikTok Glitch', desc: 'putih di kotak hitam + bayangan cyan/merah khas TikTok',
+    cfg: { font_color: '#ffffff', bg_color: '#000000', corner_radius: 14, font_size: 0.075, glitch: true },
+  },
+  sadboy: {
+    label: '💛 Kuning Viral', desc: 'gaya Fajar Sadboy — kuning emas di kotak putih',
+    cfg: { font_color: '#ffd166', bg_color: '#ffffff', corner_radius: 0, font_size: 0.0775, glitch: false },
+  },
+  hype: {
+    label: '🟥 Merah Hype', desc: 'putih tebal di kotak merah TikTok (#FE2C55)',
+    cfg: { font_color: '#ffffff', bg_color: '#fe2c55', corner_radius: 12, font_size: 0.08, glitch: false },
+  },
+  neon: {
+    label: '🟦 Neon Cyan', desc: 'cyan neon di kotak gelap, vibe gaming/tech',
+    cfg: { font_color: '#25f4ee', bg_color: '#111118', corner_radius: 12, font_size: 0.075, glitch: true },
+  },
+  meme: {
+    label: '⬜ Impact Meme', desc: 'kuning besar di kotak hitam solid, gaya meme klasik',
+    cfg: { font_color: '#ffe600', bg_color: '#141414', corner_radius: 4, font_size: 0.09, glitch: false },
+  },
+};
+
+function applyHookPreset(key) {
+  const p = HOOK_PRESETS[key];
+  if (!p) return;
+  $('#s_hs_fc').value = p.cfg.font_color;
+  $('#s_hs_bc').value = p.cfg.bg_color;
+  $('#s_hs_radius').value = p.cfg.corner_radius;
+  $('#s_hs_size').value = p.cfg.font_size;
+  $('#s_hs_glitch').checked = !!p.cfg.glitch;
+  const m = $('#tplMsg');
+  m.textContent = `✅ Hook style "${p.label}" diterapkan (${p.desc}) — jangan lupa 💾 Simpan Semua.`;
+  m.style.display = 'block';
+  setTimeout(() => m.style.display = 'none', 6000);
+}
+
+(function initHookPresets() {
+  const bar = document.getElementById('hsBar');
+  bar.innerHTML = Object.entries(HOOK_PRESETS).map(([k, p]) =>
+    `<button class="btn btn-sm btn-outline-info" title="${esc(p.desc)}" onclick="applyHookPreset('${k}')">${p.label}</button>`).join('');
+})();
+</script>
+</body>
+</html>

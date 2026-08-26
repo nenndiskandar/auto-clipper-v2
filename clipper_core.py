@@ -5888,34 +5888,51 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
         font_color_rgb = _hex_to_rgb(font_color_hex)
         bg_color_rgb = _hex_to_rgb(bg_color_hex)
+        glitch_on = bool(style.get("glitch"))
+        GLITCH_CYAN = (37, 244, 238)   # TikTok cyan
+        GLITCH_RED = (254, 44, 85)     # TikTok red
 
-        # Per-line geometry
-        padding = max(10, int(font_px * 0.22))
-        line_spacing = max(6, int(font_px * 0.25))
+        # Per-line geometry (closure supaya bisa diukur ulang saat font menyusut)
+        margin_x = max(16, int(width * 0.04))
 
-        line_metrics = []
-        for line in lines:
+        def _measure(fnt, fpx):
+            pad = max(10, int(fpx * 0.22))
+            ls = max(6, int(fpx * 0.25))
+            ms = []
+            for line in lines:
+                try:
+                    bbox = fnt.getbbox(line)
+                except AttributeError:
+                    w0, h0 = fnt.getsize(line)
+                    bbox = (0, 0, w0, h0)
+                text_w = bbox[2] - bbox[0]
+                text_h = bbox[3] - bbox[1]
+                ms.append({"text": line, "bbox": bbox, "box_w": text_w + pad * 2, "box_h": text_h + pad * 2})
+            t_h = sum(m["box_h"] for m in ms)
+            if len(ms) > 1:
+                t_h += ls * (len(ms) - 1)
+            return ms, pad, ls, t_h
+
+        line_metrics, padding, line_spacing, total_h = _measure(pil_font, font_px)
+
+        # Anti-terpotong: kecilkan font sampai baris terlebar muat di dalam margin frame
+        widest = max(m["box_w"] for m in line_metrics)
+        while widest > width - 2 * margin_x and font_px > 20:
+            font_px = max(20, int(font_px * 0.92))
             try:
-                bbox = pil_font.getbbox(line)
-            except AttributeError:
-                w, h = pil_font.getsize(line)
-                bbox = (0, 0, w, h)
-            text_w = bbox[2] - bbox[0]
-            text_h = bbox[3] - bbox[1]
-            line_metrics.append({
-                "text": line,
-                "bbox": bbox,
-                "box_w": text_w + padding * 2,
-                "box_h": text_h + padding * 2,
-            })
-
-        total_h = sum(m["box_h"] for m in line_metrics)
-        if len(line_metrics) > 1:
-            total_h += line_spacing * (len(line_metrics) - 1)
+                pil_font = ImageFont.truetype(pil_font.path, font_px)
+                self.log(f"  Hook font disusutkan otomatis ke {font_px}px agar tidak terpotong")
+            except Exception:
+                break
+            line_metrics, padding, line_spacing, total_h = _measure(pil_font, font_px)
+            widest = max(m["box_w"] for m in line_metrics)
 
         center_x = int(pos_x * width)
         center_y = int(pos_y * height)
-        block_top = center_y - total_h // 2
+        # Clamp blok vertikal agar tetap sepenuhnya di dalam frame
+        top_min = max(16, int(height * 0.04))
+        bot_max = height - top_min
+        block_top = max(top_min, min(center_y - total_h // 2, bot_max - total_h))
 
         # Compose the static overlay (transparent everywhere except the hook boxes)
         overlay_img = Image.new("RGBA", (width, height), (0, 0, 0, 0))
@@ -5925,7 +5942,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         for m in line_metrics:
             box_w = m["box_w"]
             box_h = m["box_h"]
-            box_x1 = center_x - box_w // 2
+            # Clamp horizontal: kotak tidak boleh keluar margin kiri/kanan
+            box_x1 = max(margin_x, min(center_x - box_w // 2, width - margin_x - box_w))
             box_y1 = cur_y
             box_x2 = box_x1 + box_w
             box_y2 = box_y1 + box_h
@@ -5948,6 +5966,21 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             # subtract bbox[0]/[1] so the glyphs sit cleanly inside the padding.
             text_x = box_x1 + padding - m["bbox"][0]
             text_y = box_y1 + padding - m["bbox"][1]
+            if glitch_on:
+                # Efek glitch ala TikTok: salinan cyan & merah digeser diagonal
+                off = max(2, font_px // 28)
+                draw.text(
+                    (text_x - off, text_y - off),
+                    m["text"],
+                    font=pil_font,
+                    fill=(*GLITCH_CYAN, 255),
+                )
+                draw.text(
+                    (text_x + off, text_y + off),
+                    m["text"],
+                    font=pil_font,
+                    fill=(*GLITCH_RED, 255),
+                )
             draw.text(
                 (text_x, text_y),
                 m["text"],
