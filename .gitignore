@@ -331,3 +331,16 @@ video_info.json
 cookies.txt
 ffmpeg
 bin
+
+# ============================================
+# Credentials & sessions
+# ============================================
+cookies*.txt
+*.session
+webjs/.auth.json
+
+# Local config copies
+config - Copy.json
+
+# Whisper models (runtime download)
+faster_whisper_models/
