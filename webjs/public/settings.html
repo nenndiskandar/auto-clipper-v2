@@ -1,497 +1,783 @@
 <!doctype html>
-<html lang="id">
+<html lang="id" class="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Settings — YT Short Clipper</title>
+<script src="/templates.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
 tailwind.config = {
   darkMode: 'class',
   theme: { extend: { colors: {
-    surface: { 0:'#09090b', 1:'#18181b', 2:'#27272a', 3:'#3f3f46' },
+    surface: { 0:'#09090b', 1:'#121215', 2:'#18181b', 3:'#27272a' },
+    zinc: { 450: '#8b8b96', 650: '#43434c' },
     accent: '#facc15',
   }}}
 }
 </script>
 <style>
-body{background:#09090b;color:#fafafa;font-family:system-ui,-apple-system,sans-serif}
+body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-serif}
 ::-webkit-scrollbar{width:6px;height:6px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:#3f3f46;border-radius:3px}
 .tpl-btn{border:1px solid #27272a;border-radius:.375rem;padding:.35rem .6rem;cursor:pointer;transition:all .15s;font-size:.75rem}
 .tpl-btn:hover{border-color:#facc15;background:#18181b}
+.card-head{cursor:pointer;user-select:none}
+.chev{transition:transform .15s}
+.subhead{font-size:9px;letter-spacing:.05em;text-transform:uppercase;color:#71717a;border-top:1px dashed #3f3f46;padding-top:.5rem;margin-top:.75rem}
+
+@keyframes subKaraoke { from { background-size: 0% 100%; } to { background-size: 100% 100%; } }
+@keyframes subBounce { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+@keyframes subAnimated { 0% { opacity: 0.7; } 50% { opacity: 1; filter: hue-rotate(90deg); } 100% { opacity: 0.7; } }
+@keyframes subPop { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 </style>
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="min-h-screen flex flex-col md:flex-row bg-[#09090b]">
 
-<!-- NAV -->
-<nav class="sticky top-0 z-50 flex items-center justify-between px-4 py-2.5 border-b border-zinc-800 bg-surface-0/80 backdrop-blur-md">
-  <div class="flex items-center gap-3">
-    <a href="/" class="text-sm text-zinc-400 hover:text-white transition">← Beranda</a>
-    <span class="font-semibold text-sm tracking-wide text-accent">⚙️ Settings</span>
+<!-- SIDEBAR -->
+<aside class="w-full md:w-60 border-b md:border-b-0 md:border-r border-zinc-800 bg-zinc-950 flex flex-col shrink-0">
+  <div class="p-4 border-b border-zinc-800 flex items-center justify-between">
+    <span class="font-bold text-sm tracking-wider text-accent">⚡ YT CLIPPER</span>
+    <a href="/logout" class="text-xs text-zinc-400 hover:text-white transition md:hidden">Logout</a>
   </div>
-  <div class="flex items-center gap-3">
-    <span class="text-xs text-zinc-500" id="whoami"></span>
-    <a href="/logout" class="text-xs text-zinc-400 hover:text-white transition">Logout</a>
+  <div class="p-3 flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-x-visible">
+    <a href="/" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🏠 Library</a>
+    <a href="/create.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">＋ Create Clip</a>
+    <a href="/tasks.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">📋 Tasks</a>
+    <a href="/settings.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition bg-zinc-900 text-white font-medium">⚙️ Settings</a>
   </div>
-</nav>
+  <div class="mt-auto p-4 border-t border-zinc-800 hidden md:flex items-center justify-between text-[11px]">
+    <span class="text-zinc-500 truncate max-w-[120px]" id="whoami"></span>
+    <a href="/logout" class="text-zinc-400 hover:text-white transition">Logout</a>
+  </div>
+</aside>
 
-<!-- MAIN CONTENT -->
-<main class="flex-1 max-w-6xl w-full mx-auto p-4 space-y-4">
-  
-  <!-- TEMPLATES -->
-  <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 shadow-md">
-    <div class="mb-3">
-      <h2 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">⚡ Template Otomatis</h2>
-      <p class="text-[10px] text-zinc-500">Klik sesuai tipe video untuk memuat preset config, lalu klik 💾 Simpan Semua</p>
+<!-- MAIN CONTENT WRAPPER -->
+<div class="flex-1 flex flex-col min-w-0 overflow-y-auto">
+  <main class="max-w-6xl w-full mx-auto p-4 md:p-6 space-y-5 flex-1 pb-32" id="main">
+
+    <!-- TEMPLATES & CUSTOM PRESETS -->
+    <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md p-4 space-y-3">
+      <div class="flex justify-between items-center flex-wrap gap-2">
+        <div>
+          <h2 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">⚡ Template & Custom Presets</h2>
+          <p class="text-[10px] text-zinc-500">Pilih preset bawaan atau simpan kombinasi setting kamu sendiri</p>
+        </div>
+        <button onclick="promptSaveCustomPreset()" class="px-3 py-1.5 bg-accent hover:bg-yellow-400 text-black text-xs font-semibold rounded transition shadow flex items-center gap-1">💾 Simpan Config Jadi Preset</button>
+      </div>
+      <div class="flex flex-wrap gap-2" id="tplBar"></div>
+      <div class="flex flex-wrap gap-2 border-t border-zinc-800/80 pt-2.5" id="customTplBar"></div>
+      <div id="tplMsg" class="text-xs text-emerald-400 hidden"></div>
     </div>
-    <div class="flex flex-wrap gap-2" id="tplBar"></div>
-    <div id="tplMsg" class="text-xs mt-3 text-emerald-400 hidden"></div>
-  </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-    
     <!-- AI & ANALISIS -->
-    <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 shadow-md space-y-3">
-      <h3 class="text-xs font-semibold text-zinc-450 uppercase tracking-wider pb-2 border-b border-zinc-800">🤖 AI & Analisis</h3>
-      <div class="grid grid-cols-2 gap-3">
-        <div class="col-span-2">
-          <label class="text-[10px] text-zinc-500 block mb-0.5">Model Analisis</label>
-          <input id="s_core_model" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
-        </div>
-        <div>
-          <label class="text-[10px] text-zinc-500 block mb-0.5">TTS Model</label>
-          <input id="s_tts_model" placeholder="tts-1" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
-        </div>
-        <div>
-          <label class="text-[10px] text-zinc-500 block mb-0.5">Temperature</label>
-          <input type="number" step="0.05" min="0" max="2" id="s_temperature" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
-        </div>
-        <div>
-          <label class="text-[10px] text-zinc-500 block mb-0.5">HF Model</label>
-          <input id="s_hf_model" placeholder="AUTO" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
-        </div>
-        <div class="col-span-2">
-          <label class="text-[10px] text-zinc-500 block mb-0.5">Server URL (OpenAI-compatible)</label>
-          <input id="s_server_url" placeholder="http://localhost:20128/v1" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
-        </div>
-        <div class="col-span-2">
-          <label class="text-[10px] text-zinc-500 block mb-0.5">HF API Key <span class="text-zinc-500 font-mono text-[9px]" id="keyState"></span></label>
-          <input type="password" id="s_hf_api_key" placeholder="(tidak diubah)" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
-        </div>
-        <div class="col-span-2">
-          <label class="text-[10px] text-zinc-500 block mb-0.5">Bahasa Subtitle</label>
-          <input id="s_subtitle_language" placeholder="id" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
-        </div>
-        <div class="col-span-2">
-          <label class="text-[10px] text-zinc-500 block mb-0.5">System message (highlight finder)</label>
-          <textarea rows="3" id="s_hf_system_message" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"></textarea>
-        </div>
-        <div class="col-span-2">
-          <label class="text-[10px] text-zinc-500 block mb-0.5">🎙 Faster-Whisper <span id="fwBadge" class="text-[9px] px-1 py-0.5 rounded font-mono ml-1"></span></label>
-          <select id="s_fw_model" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"><option value="tiny">tiny</option><option value="base">base</option><option value="small">small</option><option value="medium">medium</option><option value="large-v3">large-v3</option></select>
-        </div>
+    <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md">
+      <div class="card-head flex items-center gap-2 p-4" onclick="toggleCard(this)">
+        <span class="chev text-zinc-500">▾</span>
+        <h3 class="text-xs font-semibold text-zinc-450 uppercase tracking-wider">🤖 AI & Analisis</h3>
       </div>
-    </div>
-
-    <!-- RENDER & TRACKING -->
-    <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 shadow-md space-y-3">
-      <h3 class="text-xs font-semibold text-zinc-450 uppercase tracking-wider pb-2 border-b border-zinc-800">🎬 Render & Tracking</h3>
-      <div class="grid grid-cols-2 gap-3">
-        <div class="col-span-2 grid grid-cols-2 gap-1.5 bg-surface-2/40 p-2.5 rounded-lg border border-zinc-800">
-          <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="s_hook" class="w-3.5 h-3.5 accent-[#facc15]"> 🪝 Hook</label>
-          <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="s_captions" class="w-3.5 h-3.5 accent-[#facc15]"> 💬 Subtitle</label>
-          <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="s_gpu" class="w-3.5 h-3.5 accent-[#facc15]"> ⚡ GPU</label>
-          <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="s_smooth_follow" class="w-3.5 h-3.5 accent-[#facc15]"> Smooth Follow</label>
-        </div>
-        <div>
-          <label class="text-[10px] text-zinc-500 block mb-0.5">Jumlah Klip</label>
-          <input type="number" min="1" id="s_num_clips" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
-        </div>
-        <div>
-          <label class="text-[10px] text-zinc-500 block mb-0.5">Resolusi</label>
-          <select id="s_resolution" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"><option>1080p</option><option>720p</option><option>480p</option><option>360p</option><option>auto</option></select>
-        </div>
-        <div>
-          <label class="text-[10px] text-zinc-500 block mb-0.5">Rasio</label>
-          <select id="s_aspect_ratio" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"><option>9:16</option><option>1:1</option><option>4:5</option><option>16:9</option></select>
-        </div>
-        <div>
-          <label class="text-[10px] text-zinc-500 block mb-0.5">Gaya Subtitle</label>
-          <select id="s_subtitle_style" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"><option>pop</option><option>karaoke</option><option>bounce</option><option>animated</option><option>pop_bounce</option></select>
-        </div>
-        <div>
-          <label class="text-[10px] text-zinc-500 block mb-0.5">Sync Offset (s)</label>
-          <input type="number" step="0.1" id="s_sync_offset" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
-        </div>
-        <div>
-          <label class="text-[10px] text-zinc-500 block mb-0.5">Portrait Mode</label>
-          <select id="s_portrait_mode" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"><option>crop</option><option>blur</option></select>
-        </div>
-        <div>
-          <label class="text-[10px] text-zinc-500 block mb-0.5">Face Tracking</label>
-          <select id="s_face_tracking_mode" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"><option>opencv</option><option>mediapipe</option></select>
-        </div>
-        <div>
-          <label class="text-[10px] text-zinc-500 block mb-0.5">Pan Speed Limit</label>
-          <input type="number" step="0.1" id="s_pan_speed_limit" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
-        </div>
-        <div>
-          <label class="text-[10px] text-zinc-500 block mb-0.5">Center Weight</label>
-          <input type="number" step="0.05" id="s_center_weight" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
-        </div>
-        <div>
-          <label class="text-[10px] text-zinc-500 block mb-0.5">Switch Threshold</label>
-          <input type="number" step="0.05" id="s_switch_threshold" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
-        </div>
-        <div>
-          <label class="text-[10px] text-zinc-500 block mb-0.5">Min Shot Duration</label>
-          <input type="number" step="1" id="s_min_shot_duration" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
-        </div>
-        <div>
-          <label class="text-[10px] text-zinc-500 block mb-0.5">Lip Activity</label>
-          <input type="number" step="0.01" id="s_lip_activity" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
-        </div>
-      </div>
-    </div>
-
-    <!-- WATERMARK -->
-    <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 shadow-md space-y-3">
-      <h3 class="text-xs font-semibold text-zinc-450 uppercase tracking-wider pb-2 border-b border-zinc-800">🖼️ Watermark</h3>
-      <div class="space-y-3">
-        <div class="flex items-center gap-3 bg-surface-2/45 p-3 rounded-lg border border-zinc-800 flex-wrap justify-between">
-          <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="s_wm_on" class="w-3.5 h-3.5 accent-[#facc15]"> Aktif</label>
-          <div class="flex items-center gap-2 flex-1 min-w-[200px] justify-end">
-            <input type="file" accept=".png,.jpg,.jpeg" id="wmFile" class="text-xs text-zinc-400 bg-surface-2 border border-zinc-700 rounded px-2 py-1 max-w-[200px] focus:outline-none">
-            <button onclick="uploadWm()" class="px-3 py-1 bg-accent text-black text-xs font-medium rounded hover:bg-yellow-400 transition whitespace-nowrap">Upload</button>
+      <div class="card-body p-4 pt-0 space-y-3">
+        <div class="subhead">Provider (OpenAI-compatible)</div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div class="md:col-span-2">
+            <label class="text-[10px] text-zinc-500 block mb-0.5">Server URL</label>
+            <input id="s_server_url" placeholder="http://localhost:20128/v1" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+          </div>
+          <div class="md:col-span-2">
+            <label class="text-[10px] text-zinc-500 block mb-0.5">HF API Key <span class="text-zinc-500 font-mono text-[9px]" id="keyState"></span></label>
+            <input type="password" id="s_hf_api_key" placeholder="(tidak diubah)" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+          </div>
+          <div class="md:col-span-2 flex items-center gap-2">
+            <button onclick="testConnection()" class="px-2.5 py-1 bg-surface-2 hover:bg-surface-3 border border-zinc-700 text-zinc-200 text-xs rounded transition">🔌 Tes Koneksi</button>
+            <span id="connMsg" class="text-[11px]"></span>
+          </div>
+          <div class="md:col-span-2">
+            <label class="text-[10px] text-zinc-500 block mb-0.5">System message (highlight finder)</label>
+            <textarea rows="3" id="s_hf_system_message" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"></textarea>
           </div>
         </div>
-        <div id="wmMsg" class="text-[11px] text-zinc-500 font-mono italic"></div>
+
+        <div class="subhead">Model & Transkripsi</div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div class="col-span-2">
+            <label class="text-[10px] text-zinc-500 block mb-0.5">Model Analisis</label>
+            <input id="s_core_model" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+          </div>
+          <div>
+            <label class="text-[10px] text-zinc-500 block mb-0.5">TTS Model</label>
+            <input id="s_tts_model" placeholder="tts-1" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+          </div>
+          <div>
+            <label class="text-[10px] text-zinc-500 block mb-0.5">Temperature</label>
+            <input type="number" step="0.05" min="0" max="2" id="s_temperature" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+          </div>
+          <div>
+            <label class="text-[10px] text-zinc-500 block mb-0.5">HF Model</label>
+            <input id="s_hf_model" placeholder="AUTO" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+          </div>
+          <div>
+            <label class="text-[10px] text-zinc-500 block mb-0.5">Bahasa Subtitle</label>
+            <input id="s_subtitle_language" placeholder="id" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+          </div>
+          <div class="col-span-2">
+            <label class="text-[10px] text-zinc-500 block mb-0.5">🎙 Faster-Whisper <span id="fwBadge" class="text-[9px] px-1 py-0.5 rounded font-mono ml-1"></span></label>
+            <select id="s_fw_model" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"><option value="tiny">tiny</option><option value="base">base</option><option value="small">small</option><option value="medium">medium</option><option value="large-v3">large-v3</option></select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTIONS: RENDER, TRACKING, SUBTITLE, HOOK, WATERMARK, CREDIT -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+
+      <!-- 1. RENDER & VIDEO CONFIG -->
+      <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md p-4 space-y-3">
+        <div class="flex items-center justify-between pb-2 border-b border-zinc-800">
+          <h3 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">🎬 Render Config</h3>
+          <span class="text-[10px] text-zinc-500">Kualitas & Format Video</span>
+        </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="text-[10px] text-zinc-500 block mb-0.5">Posisi X (0-1)</label>
-            <input type="number" step="0.01" min="0" max="1" id="s_wm_x" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+            <label class="text-[10px] text-zinc-500 block mb-0.5">Resolusi</label>
+            <select id="s_resolution" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"><option>1080p</option><option>720p</option><option>480p</option><option>360p</option><option>auto</option></select>
           </div>
           <div>
-            <label class="text-[10px] text-zinc-500 block mb-0.5">Posisi Y (0-1)</label>
-            <input type="number" step="0.01" min="0" max="1" id="s_wm_y" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+            <label class="text-[10px] text-zinc-500 block mb-0.5">Rasio Video</label>
+            <select id="s_aspect_ratio" onchange="updateAspectPreview()" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"><option>9:16</option><option>1:1</option><option>4:5</option><option>16:9</option></select>
           </div>
           <div>
-            <label class="text-[10px] text-zinc-500 block mb-0.5">Scale (0-1)</label>
-            <input type="number" step="0.01" min="0.01" max="1" id="s_wm_scale" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+            <label class="text-[10px] text-zinc-500 block mb-0.5">Portrait Mode</label>
+            <select id="s_portrait_mode" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"><option>crop</option><option>blur</option></select>
           </div>
           <div>
-            <label class="text-[10px] text-zinc-500 block mb-0.5">Opacity (0-1)</label>
-            <input type="number" step="0.05" min="0" max="1" id="s_wm_op" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+            <label class="text-[10px] text-zinc-500 block mb-0.5">Default Klip Sesi</label>
+            <input type="number" min="1" id="s_num_clips" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+          </div>
+          <div class="col-span-2 flex flex-wrap gap-4 pt-1">
+            <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="s_gpu" class="w-3.5 h-3.5 accent-[#facc15]"> ⚡ Akselerasi GPU</label>
+            <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="s_stabilize" class="w-3.5 h-3.5 accent-[#facc15]"> 🛡️ Stabilize Video</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. TRACKING & SMART FOLLOW -->
+      <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md p-4 space-y-3">
+        <div class="flex items-center justify-between pb-2 border-b border-zinc-800">
+          <h3 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">🎯 Tracking & Smart Follow</h3>
+          <span class="text-[10px] text-zinc-500">Auto Focus Speaker</span>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="col-span-2">
+            <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer pb-1"><input type="checkbox" id="s_smooth_follow" class="w-3.5 h-3.5 accent-[#facc15]"> Aktifkan Smooth Follow Kamera</label>
+          </div>
+          <div>
+            <label class="text-[10px] text-zinc-500 block mb-0.5">Deteksi Wajah</label>
+            <select id="s_face_tracking_mode" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"><option>opencv</option><option>mediapipe</option></select>
+          </div>
+          <div>
+            <label class="text-[10px] text-zinc-500 block mb-0.5">Pan Speed Limit</label>
+            <input type="number" step="0.1" id="s_pan_speed_limit" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+          </div>
+          <div>
+            <label class="text-[10px] text-zinc-500 block mb-0.5">Center Weight (0-1)</label>
+            <input type="number" step="0.05" min="0" max="1" id="s_center_weight" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+          </div>
+          <div>
+            <label class="text-[10px] text-zinc-500 block mb-0.5">Switch Shot Threshold</label>
+            <input type="number" step="0.05" min="0" max="1" id="s_switch_threshold" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+          </div>
+          <div>
+            <label class="text-[10px] text-zinc-500 block mb-0.5">Min Shot Duration (detik)</label>
+            <input type="number" step="1" min="1" id="s_min_shot_duration" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+          </div>
+          <div>
+            <label class="text-[10px] text-zinc-500 block mb-0.5">Lip Activity Threshold</label>
+            <input type="number" step="0.01" min="0" max="1" id="s_lip_activity" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. SUBTITLE STYLE & PREVIEW -->
+      <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md p-4 space-y-3">
+        <div class="flex items-center justify-between pb-2 border-b border-zinc-800">
+          <h3 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">💬 Subtitle Style</h3>
+          <label class="flex items-center gap-1.5 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="s_captions" class="w-3.5 h-3.5 accent-[#facc15]"> Bakar Subtitle</label>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-[10px] text-zinc-500 block mb-0.5">Animasi Subtitle</label>
+            <select id="s_subtitle_style" onchange="updateSubPreview()" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"><option value="pop">pop</option><option value="karaoke">karaoke</option><option value="bounce">bounce</option><option value="animated">animated</option><option value="pop_bounce">pop_bounce</option></select>
+          </div>
+          <div>
+            <label class="text-[10px] text-zinc-500 block mb-0.5">Sync Offset (detik)</label>
+            <input type="number" step="0.1" id="s_sync_offset" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+          </div>
+          <div class="col-span-2">
+            <label class="text-[10px] text-zinc-500 block mb-1">Preview Subtitle</label>
+            <div class="h-20 bg-zinc-950 border border-zinc-800 rounded-lg flex items-center justify-center relative overflow-hidden">
+              <div id="subPreviewBox" class="text-center font-extrabold text-lg tracking-wide transition-all drop-shadow-md">
+                KATA PERTAMA <span id="subHighlight" class="text-yellow-400 underline">KATA AKTIF</span> KATA AKHIR
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. HOOK STYLE & PREVIEW -->
+      <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md p-4 space-y-3">
+        <div class="flex items-center justify-between pb-2 border-b border-zinc-800">
+          <h3 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">🪝 Hook Style</h3>
+          <label class="flex items-center gap-1.5 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="s_hook" class="w-3.5 h-3.5 accent-[#facc15]"> Tampilkan Hook</label>
+        </div>
+        
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label class="text-[9px] text-zinc-500 block mb-0.5">Font Size</label>
+            <input type="number" step="0.005" min="0.01" id="s_hs_size" oninput="updateHookPreview()" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent">
+          </div>
+          <div>
+            <label class="text-[9px] text-zinc-500 block mb-0.5">Corner Radius</label>
+            <input type="number" step="1" min="0" id="s_hs_radius" oninput="updateHookPreview()" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent">
+          </div>
+          <div>
+            <label class="text-[9px] text-zinc-500 block mb-0.5">Glitch Effect</label>
+            <label class="flex items-center h-7 cursor-pointer"><input type="checkbox" id="s_hs_glitch" onchange="updateHookPreview()" class="w-3.5 h-3.5 accent-[#facc15]"></label>
+          </div>
+          <div>
+            <label class="text-[9px] text-zinc-500 block mb-0.5">Font Color</label>
+            <input type="color" id="s_hs_fc" oninput="updateHookPreview()" class="w-full h-7 bg-surface-2 border border-zinc-700 rounded p-0.5 cursor-pointer">
+          </div>
+          <div class="col-span-2">
+            <label class="text-[9px] text-zinc-500 block mb-0.5">BG Color</label>
+            <input type="color" id="s_hs_bc" oninput="updateHookPreview()" class="w-full h-7 bg-surface-2 border border-zinc-700 rounded p-0.5 cursor-pointer">
+          </div>
+          <div class="col-span-3 pt-1">
+            <label class="text-[9px] text-zinc-500 block mb-1">Preview Hook</label>
+            <div class="h-16 bg-zinc-950 border border-zinc-800 rounded-lg flex items-center justify-center overflow-hidden">
+              <div id="hookPreview" class="inline-block px-3 py-1.5 text-xs font-black tracking-wide uppercase transition-all shadow-md">🔥 INI HOOK VIRAL!</div>
+            </div>
+          </div>
+          <div class="col-span-3 pt-1">
+            <label class="text-[9px] text-zinc-500 block mb-1 font-semibold uppercase">Template Hook Viral</label>
+            <div class="flex flex-wrap gap-1.5" id="hsBar"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. WATERMARK STYLE & PREVIEW -->
+      <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md p-4 space-y-3">
+        <div class="flex items-center justify-between pb-2 border-b border-zinc-800">
+          <h3 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">🖼️ Image Watermark</h3>
+          <label class="flex items-center gap-1.5 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="s_wm_on" onchange="updateWmPreview()" class="w-3.5 h-3.5 accent-[#facc15]"> Aktif</label>
+        </div>
+        
+        <div class="flex items-center gap-2">
+          <input type="file" accept=".png,.jpg,.jpeg" id="wmFile" class="text-xs text-zinc-400 bg-surface-2 border border-zinc-700 rounded px-2 py-1 flex-1">
+          <button onclick="uploadWm()" class="px-2.5 py-1 bg-accent text-black text-xs font-medium rounded hover:bg-yellow-400 transition">Upload</button>
+        </div>
+        <div id="wmMsg" class="text-[10px] text-zinc-500 font-mono italic"></div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-[9px] text-zinc-500 block mb-0.5">Posisi X (0-1)</label>
+            <input type="number" step="0.01" min="0" max="1" id="s_wm_x" oninput="updateWmPreview()" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent">
+          </div>
+          <div>
+            <label class="text-[9px] text-zinc-500 block mb-0.5">Posisi Y (0-1)</label>
+            <input type="number" step="0.01" min="0" max="1" id="s_wm_y" oninput="updateWmPreview()" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent">
+          </div>
+          <div>
+            <label class="text-[9px] text-zinc-500 block mb-0.5">Scale (0.01-1)</label>
+            <input type="number" step="0.01" min="0.01" max="1" id="s_wm_scale" oninput="updateWmPreview()" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent">
+          </div>
+          <div>
+            <label class="text-[9px] text-zinc-500 block mb-0.5">Opacity (0-1)</label>
+            <input type="number" step="0.05" min="0" max="1" id="s_wm_op" oninput="updateWmPreview()" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent">
+          </div>
+          <div class="col-span-2 pt-1">
+            <label class="text-[9px] text-zinc-500 block mb-1">Preview Posisi di Layar</label>
+            <div id="wmPreviewBox" class="relative w-24 h-36 bg-zinc-950 border border-zinc-700 rounded overflow-hidden mx-auto shadow-inner flex items-center justify-center">
+              <div class="text-[9px] text-zinc-700 select-none">9:16 Video</div>
+              <div id="wmDot" class="absolute w-5 h-4 bg-accent border border-white/70 rounded-xs transition-all shadow" style="left:75%;top:85%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6. CREDIT WATERMARK STYLE & PREVIEW -->
+      <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md p-4 space-y-3">
+        <div class="flex items-center justify-between pb-2 border-b border-zinc-800">
+          <h3 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">🏷️ Credit Watermark</h3>
+          <label class="flex items-center gap-1.5 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="s_cw_on" onchange="updateCwPreview()" class="w-3.5 h-3.5 accent-[#facc15]"> Aktif</label>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-[9px] text-zinc-500 block mb-0.5">Posisi X (0-1)</label>
+            <input type="number" step="0.01" min="0" max="1" id="s_cw_x" oninput="updateCwPreview()" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent">
+          </div>
+          <div>
+            <label class="text-[9px] text-zinc-500 block mb-0.5">Posisi Y (0-1)</label>
+            <input type="number" step="0.01" min="0" max="1" id="s_cw_y" oninput="updateCwPreview()" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent">
+          </div>
+          <div>
+            <label class="text-[9px] text-zinc-500 block mb-0.5">Font Size</label>
+            <input type="number" step="0.005" min="0.001" id="s_cw_size" oninput="updateCwPreview()" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent">
+          </div>
+          <div>
+            <label class="text-[9px] text-zinc-500 block mb-0.5">Opacity (0-1)</label>
+            <input type="number" step="0.05" min="0" max="1" id="s_cw_op" oninput="updateCwPreview()" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent">
+          </div>
+          <div class="col-span-2 pt-1">
+            <label class="text-[9px] text-zinc-500 block mb-1">Preview Credit di Layar</label>
+            <div id="cwPreviewBox" class="relative w-24 h-36 bg-zinc-950 border border-zinc-700 rounded overflow-hidden mx-auto shadow-inner flex items-center justify-center">
+              <div class="text-[9px] text-zinc-700 select-none">9:16 Video</div>
+              <div id="cwDot" class="absolute text-[8px] font-mono text-zinc-300 bg-black/60 px-1 rounded transition-all whitespace-nowrap" style="left:10%;top:10%">@channel</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- PRO EDITING (COLLAPSIBLE) -->
+    <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md">
+      <div class="card-head flex items-center gap-2 p-4" onclick="toggleCard(this)">
+        <span class="chev text-zinc-500">▾</span>
+        <h3 class="text-xs font-semibold text-zinc-450 uppercase tracking-wider">🎛️ Pro Editing & Efek Video</h3>
+      </div>
+      <div class="card-body p-4 pt-0 space-y-3">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div class="col-span-2">
+            <label class="text-[10px] text-zinc-500 block mb-0.5">Color Grade</label>
+            <select id="s_color_grade" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"><option value="">none</option><option value="cinematic">cinematic</option><option value="warm">warm</option><option value="cool">cool</option><option value="bw">b/w</option></select>
+          </div>
+          <div>
+            <label class="text-[10px] text-zinc-500 block mb-0.5">Motion Blur (0-10)</label>
+            <input type="number" step="0.5" min="0" max="10" id="s_motion_blur" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+          </div>
+          <div>
+            <label class="text-[10px] text-zinc-500 block mb-0.5">Vignette (0-1)</label>
+            <input type="number" step="0.05" min="0" max="1" id="s_vignette" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+          </div>
+          <div>
+            <label class="text-[10px] text-zinc-500 block mb-0.5">Speed Ramp Start (s)</label>
+            <input type="number" step="0.5" min="0" id="s_speed_ramp_start" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+          </div>
+          <div>
+            <label class="text-[10px] text-zinc-500 block mb-0.5">Speed Ramp End (s)</label>
+            <input type="number" step="0.5" min="0" id="s_speed_ramp_end" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+          </div>
+          <div>
+            <label class="text-[10px] text-zinc-500 block mb-0.5">Speed Factor (0.1-2)</label>
+            <input type="number" step="0.05" min="0.1" max="2" id="s_speed_factor" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+          </div>
+          <div>
+            <label class="text-[10px] text-zinc-500 block mb-0.5">Ducking (dB)</label>
+            <input type="number" step="1" min="-30" max="0" id="s_ducking_level_db" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
           </div>
         </div>
       </div>
     </div>
 
-    <!-- CREDIT & HOOK STYLE -->
-    <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 shadow-md space-y-3">
-      <h3 class="text-xs font-semibold text-zinc-450 uppercase tracking-wider pb-2 border-b border-zinc-800">🏷️ Credit Watermark & 🪝 Hook Style</h3>
-      <div class="space-y-3">
-        <div class="p-3 bg-surface-2/30 border border-zinc-800/80 rounded-lg space-y-2.5">
-          <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="s_cw_on" class="w-3.5 h-3.5 accent-[#facc15]"> Credit Watermark Aktif</label>
-          <div class="grid grid-cols-4 gap-2">
-            <div>
-              <label class="text-[9px] text-zinc-500 block mb-0.5">Pos X</label>
-              <input type="number" step="0.01" min="0" max="1" id="s_cw_x" class="w-full bg-surface-2 border border-zinc-700 rounded px-1.5 py-1 text-xs text-white focus:outline-none focus:border-accent">
-            </div>
-            <div>
-              <label class="text-[9px] text-zinc-500 block mb-0.5">Pos Y</label>
-              <input type="number" step="0.01" min="0" max="1" id="s_cw_y" class="w-full bg-surface-2 border border-zinc-700 rounded px-1.5 py-1 text-xs text-white focus:outline-none focus:border-accent">
-            </div>
-            <div>
-              <label class="text-[9px] text-zinc-500 block mb-0.5">Size</label>
-              <input type="number" step="0.005" min="0.001" id="s_cw_size" class="w-full bg-surface-2 border border-zinc-700 rounded px-1.5 py-1 text-xs text-white focus:outline-none focus:border-accent">
-            </div>
-            <div>
-              <label class="text-[9px] text-zinc-500 block mb-0.5">Opacity</label>
-              <input type="number" step="0.05" min="0" max="1" id="s_cw_op" class="w-full bg-surface-2 border border-zinc-700 rounded px-1.5 py-1 text-xs text-white focus:outline-none focus:border-accent">
-            </div>
-          </div>
-        </div>
+  </main>
+</div>
 
-        <div class="p-3 bg-surface-2/30 border border-zinc-800/80 rounded-lg space-y-2.5">
-          <div class="text-[10px] text-zinc-400 font-semibold uppercase tracking-wide">Hook Style Config</div>
-          <div class="grid grid-cols-3 gap-2">
-            <div>
-              <label class="text-[9px] text-zinc-500 block mb-0.5">Font Size</label>
-              <input type="number" step="0.005" min="0.01" id="s_hs_size" class="w-full bg-surface-2 border border-zinc-700 rounded px-1.5 py-1 text-xs text-white focus:outline-none focus:border-accent">
-            </div>
-            <div>
-              <label class="text-[9px] text-zinc-500 block mb-0.5">Corner Radius</label>
-              <input type="number" step="1" min="0" id="s_hs_radius" class="w-full bg-surface-2 border border-zinc-700 rounded px-1.5 py-1 text-xs text-white focus:outline-none focus:border-accent">
-            </div>
-            <div>
-              <label class="text-[9px] text-zinc-500 block mb-0.5">Glitch Effect</label>
-              <label class="flex items-center h-8 cursor-pointer"><input type="checkbox" id="s_hs_glitch" class="w-3.5 h-3.5 accent-[#facc15]"></label>
-            </div>
-            <div>
-              <label class="text-[9px] text-zinc-500 block mb-0.5">Pos X</label>
-              <input type="number" step="0.01" min="0" max="1" id="s_hs_x" class="w-full bg-surface-2 border border-zinc-700 rounded px-1.5 py-1 text-xs text-white focus:outline-none focus:border-accent">
-            </div>
-            <div>
-              <label class="text-[9px] text-zinc-500 block mb-0.5">Pos Y</label>
-              <input type="number" step="0.01" min="0" max="1" id="s_hs_y" class="w-full bg-surface-2 border border-zinc-700 rounded px-1.5 py-1 text-xs text-white focus:outline-none focus:border-accent">
-            </div>
-            <div>
-              <label class="text-[9px] text-zinc-500 block mb-0.5">Font Color</label>
-              <input type="color" id="s_hs_fc" class="w-full h-8 bg-surface-2 border border-zinc-700 rounded p-0.5 cursor-pointer">
-            </div>
-            <div class="col-span-3">
-              <label class="text-[9px] text-zinc-500 block mb-0.5">BG Color</label>
-              <input type="color" id="s_hs_bc" class="w-full h-8 bg-surface-2 border border-zinc-700 rounded p-0.5 cursor-pointer">
-            </div>
-          </div>
-        </div>
-
-        <div class="pt-1.5">
-          <label class="text-[10px] text-zinc-500 block mb-1.5 font-semibold uppercase tracking-wider">🔥 Template Hook Style Viral</label>
-          <div class="flex flex-wrap gap-1.5" id="hsBar"></div>
-        </div>
-      </div>
-    </div>
-
+<!-- FLOATING BOTTOM SAVE BAR -->
+<div class="fixed bottom-0 left-0 right-0 z-40 bg-zinc-950/90 backdrop-blur-md border-t border-zinc-800 p-3 md:pl-64 flex items-center justify-between px-6">
+  <div id="saveMsg" class="text-xs font-semibold text-emerald-400 hidden"></div>
+  <div class="ml-auto flex items-center gap-3">
+    <button onclick="loadConfig()" class="px-3 py-1.5 bg-surface-2 hover:bg-surface-3 text-zinc-300 text-xs font-medium rounded border border-zinc-700 transition">↺ Reset</button>
+    <button onclick="saveAll()" class="px-5 py-1.5 bg-accent hover:bg-yellow-400 text-black text-xs font-bold rounded shadow transition">💾 Simpan Semua Config</button>
   </div>
-
-  <div class="sticky bottom-0 z-10 bg-surface-0 border-t border-zinc-800 p-4 flex items-center gap-3 justify-end rounded-xl shadow-lg mt-2">
-    <span id="msg" class="text-xs"></span>
-    <button id="saveBtn" onclick="saveAll()" class="px-6 py-2 bg-accent text-black font-semibold rounded hover:bg-yellow-400 transition shadow">💾 Simpan Semua</button>
-  </div>
-  
-</main>
+</div>
 
 <script>
-fetch('/api/me').then(r=>r.json()).then(d=>{if(d.name)document.getElementById('whoami').textContent='👤 '+d.name;});
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
-const $ = s => document.querySelector(s);
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const num = v => (v === '' || v == null || isNaN(v)) ? null : parseFloat(v);
+fetch('/api/me').then(r=>r.json()).then(d=>{if(d.name)$('#whoami').textContent='👤 '+d.name;});
 
-let C = {};
-async function load() {
-  try {
-    C = await (await fetch('/api/config')).json();
-    const v = (id, val) => { if (val !== undefined && val !== null) $(id).value = val; };
-    $('#s_hook').checked = !!C.hook; $('#s_captions').checked = !!C.captions;
-    $('#s_gpu').checked = !!C.gpu; $('#s_smooth_follow').checked = !!C.smooth_follow;
-    v('#s_num_clips', C.num_clips); v('#s_resolution', C.resolution); v('#s_aspect_ratio', C.aspect_ratio);
-    v('#s_subtitle_style', C.subtitle_style); v('#s_sync_offset', C.sync_offset);
-    v('#s_portrait_mode', C.portrait_mode); v('#s_face_tracking_mode', C.face_tracking_mode);
-    v('#s_pan_speed_limit', C.pan_speed_limit); v('#s_center_weight', C.center_weight);
-    v('#s_switch_threshold', C.switch_threshold); v('#s_min_shot_duration', C.min_shot_duration);
-    v('#s_lip_activity', C.lip_activity);
-    v('#s_core_model', C.core_model); v('#s_tts_model', C.tts_model); v('#s_temperature', C.temperature);
-    v('#s_hf_model', C.hf_model); v('#s_server_url', C.server_url);
-    v('#s_subtitle_language', C.subtitle_language);
-    $('#s_hf_system_message').value = C.hf_system_message || '';
-    $('#keyState').textContent = C.hf_api_key_set ? '(tersimpan)' : '(belum ada)';
-    v('#s_fw_model', C.fw_model || 'small');
-    
-    const fwBadge = $('#fwBadge');
-    if (C.fw_installed) {
-      fwBadge.textContent = '🟢 Aktif';
-      fwBadge.className = 'text-[9px] px-1.5 py-0.5 rounded font-mono ml-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
-    } else {
-      fwBadge.textContent = '🔴 Belum Terunduh';
-      fwBadge.className = 'text-[9px] px-1.5 py-0.5 rounded font-mono ml-1 bg-red-500/10 text-red-400 border border-red-500/20';
-    }
-    
-    // watermark
-    const wm = C.wm || {}, cw = C.cw || {}, hs = C.hookstyle || {};
-    $('#s_wm_on').checked = !!C.watermark;
-    v('#s_wm_x', wm.position_x); v('#s_wm_y', wm.position_y); v('#s_wm_scale', wm.scale); v('#s_wm_op', wm.opacity);
-    $('#wmMsg').textContent = wm.image_path ? ('File: ' + wm.image_path) : '';
-    $('#s_cw_on').checked = !!C.credit;
-    v('#s_cw_x', cw.position_x); v('#s_cw_y', cw.position_y); v('#s_cw_size', cw.size); v('#s_cw_op', cw.opacity);
-    v('#s_hs_size', hs.font_size); v('#s_hs_radius', hs.corner_radius);
-    v('#s_hs_x', hs.position_x); v('#s_hs_y', hs.position_y);
-    if (hs.font_color) $('#s_hs_fc').value = hs.font_color;
-    if (hs.bg_color) $('#s_hs_bc').value = hs.bg_color;
-    $('#s_hs_glitch').checked = !!hs.glitch;
-  } catch { msg('❌ Gagal memuat konfigurasi.', false); }
+function toggleCard(head) {
+  const body = head.nextElementSibling;
+  const chev = head.querySelector('.chev');
+  if (body) {
+    body.classList.toggle('hidden');
+    if (chev) chev.style.transform = body.classList.contains('hidden') ? 'rotate(-90deg)' : '';
+  }
 }
 
-function collect() {
-  return {
-    hook: $('#s_hook').checked, captions: $('#s_captions').checked,
-    gpu: $('#s_gpu').checked, smooth_follow: $('#s_smooth_follow').checked,
-    num_clips: parseInt($('#s_num_clips').value) || undefined,
-    resolution: $('#s_resolution').value, aspect_ratio: $('#s_aspect_ratio').value,
-    subtitle_style: $('#s_subtitle_style').value, sync_offset: num($('#s_sync_offset').value),
-    portrait_mode: $('#s_portrait_mode').value, face_tracking_mode: $('#s_face_tracking_mode').value,
-    pan_speed_limit: num($('#s_pan_speed_limit').value), center_weight: num($('#s_center_weight').value),
-    switch_threshold: num($('#s_switch_threshold').value), min_shot_duration: num($('#s_min_shot_duration').value),
-    lip_activity: num($('#s_lip_activity').value),
-    core_model: $('#s_core_model').value.trim(), tts_model: $('#s_tts_model').value.trim(),
-    temperature: num($('#s_temperature').value),
-    hf_model: $('#s_hf_model').value.trim(), server_url: $('#s_server_url').value.trim(),
-    subtitle_language: $('#s_subtitle_language').value.trim(),
-    fw_model: $('#s_fw_model').value.trim(),
-    wm: { enabled: $('#s_wm_on').checked, position_x: num($('#s_wm_x').value), position_y: num($('#s_wm_y').value), scale: num($('#s_wm_scale').value), opacity: num($('#s_wm_op').value) },
-    cw: { enabled: $('#s_cw_on').checked, position_x: num($('#s_cw_x').value), position_y: num($('#s_cw_y').value), size: num($('#s_cw_size').value), opacity: num($('#s_cw_op').value) },
-    hookstyle: { font_size: num($('#s_hs_size').value), corner_radius: num($('#s_hs_radius').value), position_x: num($('#s_hs_x').value), position_y: num($('#s_hs_y').value), font_color: $('#s_hs_fc').value, bg_color: $('#s_hs_bc').value, glitch: $('#s_hs_glitch').checked },
-  };
+// LIVE PREVIEWS
+function updateHookPreview() {
+  const fc = $('#s_hs_fc').value || '#ffffff';
+  const bc = $('#s_hs_bc').value || '#000000';
+  const radius = ($('#s_hs_radius').value || 0) + 'px';
+  const size = Math.max(10, Math.min(24, Math.round(($('#s_hs_size').value || 0.075) * 200))) + 'px';
+  const glitch = $('#s_hs_glitch').checked;
+
+  const el = $('#hookPreview');
+  el.style.color = fc;
+  el.style.backgroundColor = bc;
+  el.style.borderRadius = radius;
+  el.style.fontSize = size;
+  el.style.textShadow = glitch ? '2px 0 #fe2c55, -2px 0 #25f4ee' : 'none';
 }
 
-function msg(t, ok) {
-  const m = $('#msg');
-  m.textContent = t;
-  m.className = 'text-xs ' + (ok ? 'text-emerald-400' : 'text-red-400');
-  setTimeout(() => m.textContent = '', 5000);
-}
-
-async function saveAll() {
-  const body = collect();
-  const key = $('#s_hf_api_key').value.trim();
-  if (key) body.hf_api_key = key;
-  $('#saveBtn').disabled = true;
-  try {
-    const r = await fetch('/api/config', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok || !j.ok) throw new Error(j.error || ('HTTP ' + r.status));
-    if (key) { $('#s_hf_api_key').value = ''; $('#keyState').textContent = '(tersimpan)'; }
-    msg('✅ Tersimpan ke config.json.', true);
-  } catch (e) { msg('❌ ' + e, false); }
-  $('#saveBtn').disabled = false;
-}
-
-async function uploadWm() {
-  const f = $('#wmFile').files[0];
-  if (!f) { msg('Pilih file gambar dulu.', false); return; }
-  const b64 = await new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(f); });
-  try {
-    const r = await fetch('/api/upload/watermark', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name: f.name, data: b64 }) });
-    const j = await r.json();
-    if (!r.ok || !j.ok) throw new Error(j.error || ('HTTP ' + r.status));
-    $('#wmMsg').textContent = 'File: ' + j.path;
-    msg('✅ Watermark terupload & dipasang.', true);
-  } catch (e) { msg('❌ Upload gagal: ' + e, false); }
-}
-
-load();
-
-const TEMPLATES = {
-  podcast2: {
-    label: '🎙 Podcast 2 Orang', desc: 'tracking wajah stabil, crop tengah, caption jelas',
-    cfg: { face_tracking_mode: 'mediapipe', portrait_mode: 'crop', smooth_follow: true,
-      pan_speed_limit: 1.8, center_weight: 0.45, switch_threshold: 0.35, min_shot_duration: 120,
-      lip_activity: 0.12, subtitle_style: 'pop', sync_offset: -0.25, aspect_ratio: '9:16',
-      hook: true, captions: true, gpu: true },
-  },
-  podcast3: {
-    label: '🎙 Podcast 3+ Orang', desc: 'switch cepat antar pembicara, frame lebar',
-    cfg: { face_tracking_mode: 'mediapipe', portrait_mode: 'blur', smooth_follow: false,
-      pan_speed_limit: 2.5, center_weight: 0.25, switch_threshold: 0.22, min_shot_duration: 60,
-      lip_activity: 0.15, subtitle_style: 'pop', sync_offset: -0.25, aspect_ratio: '9:16',
-      hook: true, captions: true, gpu: true },
-  },
-  game: {
-    label: '🎮 Live / Gaming', desc: 'gerak cepat, follow agresif, caption tebal',
-    cfg: { face_tracking_mode: 'opencv', portrait_mode: 'crop', smooth_follow: true,
-      pan_speed_limit: 4.0, center_weight: 0.15, switch_threshold: 0.15, min_shot_duration: 30,
-      lip_activity: 0.2, subtitle_style: 'bounce', sync_offset: -0.15, aspect_ratio: '9:16',
-      hook: true, captions: true, gpu: true },
-  },
-  news: {
-    label: '📰 Berita', desc: 'stabil, formal, subtitle rapi',
-    cfg: { face_tracking_mode: 'opencv', portrait_mode: 'crop', smooth_follow: false,
-      pan_speed_limit: 1.2, center_weight: 0.5, switch_threshold: 0.4, min_shot_duration: 150,
-      lip_activity: 0.1, subtitle_style: 'karaoke', sync_offset: -0.3, aspect_ratio: '9:16',
-      hook: false, captions: true, gpu: true },
-  },
-  tutorial: {
-    label: '🧑‍🏫 Tutorial', desc: 'fokus 1 pembicara, tempo tenang',
-    cfg: { face_tracking_mode: 'mediapipe', portrait_mode: 'crop', smooth_follow: true,
-      pan_speed_limit: 1.5, center_weight: 0.5, switch_threshold: 0.4, min_shot_duration: 180,
-      lip_activity: 0.1, subtitle_style: 'animated', sync_offset: -0.3, aspect_ratio: '9:16',
-      hook: false, captions: true, gpu: true },
-  },
-  vlog: {
-    label: '📹 Vlog', desc: 'dinamis tapi halus, hook aktif',
-    cfg: { face_tracking_mode: 'mediapipe', portrait_mode: 'crop', smooth_follow: true,
-      pan_speed_limit: 2.2, center_weight: 0.35, switch_threshold: 0.3, min_shot_duration: 90,
-      lip_activity: 0.15, subtitle_style: 'pop_bounce', sync_offset: -0.25, aspect_ratio: '9:16',
-      hook: true, captions: true, gpu: true },
-  },
-};
-
-function applyTemplate(key) {
-  const t = TEMPLATES[key];
-  if (!t) return;
-  const c = t.cfg;
-  $('#s_hook').checked = !!c.hook; $('#s_captions').checked = !!c.captions; $('#s_gpu').checked = !!c.gpu;
-  $('#s_smooth_follow').checked = !!c.smooth_follow;
-  $('#s_face_tracking_mode').value = c.face_tracking_mode;
-  $('#s_portrait_mode').value = c.portrait_mode;
-  $('#s_subtitle_style').value = c.subtitle_style;
-  $('#s_sync_offset').value = c.sync_offset;
-  $('#s_aspect_ratio').value = c.aspect_ratio;
-  $('#s_pan_speed_limit').value = c.pan_speed_limit;
-  $('#s_center_weight').value = c.center_weight;
-  $('#s_switch_threshold').value = c.switch_threshold;
-  $('#s_min_shot_duration').value = c.min_shot_duration;
-  $('#s_lip_activity').value = c.lip_activity;
+function updateSubPreview() {
+  const style = $('#s_subtitle_style').value;
+  const hi = $('#subHighlight');
+  const box = $('#subPreviewBox');
   
-  const m = $('#tplMsg');
-  m.classList.remove('hidden');
-  m.textContent = `✅ Template "${t.label}" diterapkan (${t.desc}) — cek lalu 💾 Simpan Semua.`;
-  setTimeout(() => m.classList.add('hidden'), 6000);
+  // Reset animations
+  hi.style.animation = 'none';
+  hi.offsetHeight; // trigger reflow
+  
+  // Style and apply animations
+  if (style === 'karaoke') {
+    hi.className = 'text-yellow-400 underline font-black transition-all duration-300';
+    hi.style.animation = 'subKaraoke 1s infinite alternate';
+  } else if (style === 'bounce' || style === 'pop_bounce') {
+    hi.className = 'text-yellow-300 inline-block font-black';
+    hi.style.animation = 'subBounce 0.6s infinite ease-in-out';
+  } else if (style === 'animated') {
+    hi.className = 'text-cyan-400 font-bold';
+    hi.style.animation = 'subAnimated 1.5s infinite linear';
+  } else { // pop
+    hi.className = 'text-yellow-400 font-bold';
+    hi.style.animation = 'subPop 0.8s infinite ease-out';
+  }
 }
 
-(function initTemplates() {
-  const bar = document.getElementById('tplBar');
-  bar.innerHTML = Object.entries(TEMPLATES).map(([k, t]) =>
-    `<button class="tpl-btn text-zinc-300 hover:text-white" title="${esc(t.desc)}" onclick="applyTemplate('${k}')">${t.label}</button>`).join('');
-})();
+function updateWmPreview() {
+  const on = $('#s_wm_on').checked;
+  const x = Math.min(1, Math.max(0, parseFloat($('#s_wm_x').value) || 0.8));
+  const y = Math.min(1, Math.max(0, parseFloat($('#s_wm_y').value) || 0.85));
+  const op = Math.min(1, Math.max(0, parseFloat($('#s_wm_op').value) || 0.8));
+  const dot = $('#wmDot');
+  dot.style.display = on ? 'block' : 'none';
+  dot.style.left = (x * 80) + '%';
+  dot.style.top = (y * 85) + '%';
+  dot.style.opacity = op;
+}
 
+function updateCwPreview() {
+  const on = $('#s_cw_on').checked;
+  const x = Math.min(1, Math.max(0, parseFloat($('#s_cw_x').value) || 0.1));
+  const y = Math.min(1, Math.max(0, parseFloat($('#s_cw_y').value) || 0.1));
+  const op = Math.min(1, Math.max(0, parseFloat($('#s_cw_op').value) || 0.7));
+  const dot = $('#cwDot');
+  dot.style.display = on ? 'block' : 'none';
+  dot.style.left = (x * 70) + '%';
+  dot.style.top = (y * 85) + '%';
+  dot.style.opacity = op;
+}
+
+// HOOK PRESETS
 const HOOK_PRESETS = {
-  tiktok: {
-    label: '🎵 TikTok Glitch', desc: 'putih di kotak hitam + bayangan cyan/merah khas TikTok',
-    cfg: { font_color: '#ffffff', bg_color: '#000000', corner_radius: 14, font_size: 0.075, glitch: true },
-  },
-  sadboy: {
-    label: '💛 Kuning Viral', desc: 'gaya Fajar Sadboy — kuning emas di kotak putih',
-    cfg: { font_color: '#ffd166', bg_color: '#ffffff', corner_radius: 0, font_size: 0.0775, glitch: false },
-  },
-  hype: {
-    label: '🟥 Merah Hype', desc: 'putih tebal di kotak merah TikTok (#FE2C55)',
-    cfg: { font_color: '#ffffff', bg_color: '#fe2c55', corner_radius: 12, font_size: 0.08, glitch: false },
-  },
-  neon: {
-    label: '🟦 Neon Cyan', desc: 'cyan neon di kotak gelap, vibe gaming/tech',
-    cfg: { font_color: '#25f4ee', bg_color: '#111118', corner_radius: 12, font_size: 0.075, glitch: true },
-  },
-  meme: {
-    label: '⬜ Impact Meme', desc: 'kuning besar di kotak hitam solid, gaya meme klasik',
-    cfg: { font_color: '#ffe600', bg_color: '#141414', corner_radius: 4, font_size: 0.09, glitch: false },
-  },
+  tiktok: { label: '🎵 TikTok Glitch', cfg: { font_color: '#ffffff', bg_color: '#000000', corner_radius: 12, font_size: 0.075, glitch: true } },
+  sadboy: { label: '💛 Kuning Viral', cfg: { font_color: '#ffd166', bg_color: '#ffffff', corner_radius: 0, font_size: 0.075, glitch: false } },
+  hype: { label: '🟥 Merah Hype', cfg: { font_color: '#ffffff', bg_color: '#fe2c55', corner_radius: 10, font_size: 0.08, glitch: false } },
+  neon: { label: '🟦 Neon Cyan', cfg: { font_color: '#25f4ee', bg_color: '#111118', corner_radius: 10, font_size: 0.075, glitch: true } },
+  meme: { label: '⬜ Impact Meme', cfg: { font_color: '#ffe600', bg_color: '#141414', corner_radius: 4, font_size: 0.085, glitch: false } },
 };
 
-function applyHookPreset(key) {
-  const p = HOOK_PRESETS[key];
+function applyHookPreset(k) {
+  const p = HOOK_PRESETS[k];
   if (!p) return;
   $('#s_hs_fc').value = p.cfg.font_color;
   $('#s_hs_bc').value = p.cfg.bg_color;
   $('#s_hs_radius').value = p.cfg.corner_radius;
   $('#s_hs_size').value = p.cfg.font_size;
   $('#s_hs_glitch').checked = !!p.cfg.glitch;
-  
-  const m = $('#tplMsg');
-  m.classList.remove('hidden');
-  m.textContent = `✅ Hook style "${p.label}" diterapkan (${p.desc}) — jangan lupa 💾 Simpan Semua.`;
-  setTimeout(() => m.classList.add('hidden'), 6000);
+  updateHookPreview();
 }
 
 (function initHookPresets() {
-  const bar = document.getElementById('hsBar');
+  const bar = $('#hsBar');
   bar.innerHTML = Object.entries(HOOK_PRESETS).map(([k, p]) =>
-    `<button class="px-2 py-1 border border-zinc-700 rounded text-[10px] text-zinc-300 hover:text-white hover:border-zinc-500 transition" title="${esc(p.desc)}" onclick="applyHookPreset('${k}')">${p.label}</button>`).join('');
+    `<button type="button" class="px-2 py-0.5 border border-zinc-700 hover:border-accent rounded text-[10px] text-zinc-300 hover:text-white transition" onclick="applyHookPreset('${k}')">${p.label}</button>`).join('');
 })();
+
+// TEMPLATES
+const TEMPLATES = window.UNIFIED_TEMPLATES || {};
+
+function applyTemplate(k) {
+  const t = TEMPLATES[k];
+  if (!t) return;
+  populateForm({ ...collectFormData(), ...t.cfg });
+  
+  const m = $('#tplMsg');
+  m.classList.remove('hidden');
+  m.textContent = `✅ Template "${t.label}" diterapkan! (${t.desc})`;
+  setTimeout(() => m.classList.add('hidden'), 5000);
+}
+
+(function initTemplates() {
+  const bar = $('#tplBar');
+  bar.innerHTML = Object.entries(TEMPLATES).map(([k, t]) =>
+    `<button type="button" class="tpl-btn text-zinc-300 hover:text-white" title="${esc(t.desc)}" onclick="applyTemplate('${k}')">${t.label}</button>`).join('');
+})();
+
+// CUSTOM PRESETS
+async function loadCustomPresets() {
+  const bar = $('#customTplBar');
+  try {
+    const res = await fetch('/api/presets');
+    const presets = await res.json();
+    if (!presets || Object.keys(presets).length === 0) {
+      bar.innerHTML = '<span class="text-[10px] text-zinc-600 italic">Belum ada custom preset tersimpan.</span>';
+      return;
+    }
+    bar.innerHTML = Object.entries(presets).map(([k, p]) => `
+      <div class="inline-flex items-center bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300">
+        <button type="button" class="hover:text-accent font-medium mr-1.5" onclick="applyCustomPreset('${esc(k)}')">⭐ ${esc(p.name || k)}</button>
+        <button type="button" class="text-zinc-500 hover:text-red-400 font-bold" onclick="deleteCustomPreset('${esc(k)}')">×</button>
+      </div>
+    `).join('');
+  } catch (e) {
+    bar.innerHTML = '<span class="text-[10px] text-red-400">Gagal memuat preset: ' + e + '</span>';
+  }
+}
+
+async function promptSaveCustomPreset() {
+  const name = prompt('Masukkan nama preset baru:');
+  if (!name || !name.trim()) return;
+  const cfg = collectFormData();
+  try {
+    const res = await fetch('/api/presets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name.trim(), config: cfg })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    loadCustomPresets();
+    alert('Preset berhasil disimpan!');
+  } catch (e) {
+    alert('Gagal simpan preset: ' + e.message);
+  }
+}
+
+async function applyCustomPreset(id) {
+  try {
+    const res = await fetch('/api/presets');
+    const presets = await res.json();
+    const p = presets[id];
+    if (!p || !p.config) return;
+    populateForm(p.config);
+    const m = $('#tplMsg');
+    m.classList.remove('hidden');
+    m.textContent = `✅ Custom Preset "${p.name}" berhasil diterapkan!`;
+    setTimeout(() => m.classList.add('hidden'), 4000);
+  } catch (e) {
+    alert('Gagal menerapkan preset: ' + e);
+  }
+}
+
+async function deleteCustomPreset(id) {
+  if (!confirm('Hapus preset ini?')) return;
+  try {
+    await fetch(`/api/presets/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    loadCustomPresets();
+  } catch (e) {
+    alert('Gagal hapus preset: ' + e);
+  }
+}
+
+// LOAD & SAVE CONFIG
+function collectFormData() {
+  return {
+    server_url: $('#s_server_url').value,
+    hf_api_key: $('#s_hf_api_key').value || undefined,
+    hf_system_message: $('#s_hf_system_message').value,
+    core_model: $('#s_core_model').value,
+    tts_model: $('#s_tts_model').value,
+    temperature: parseFloat($('#s_temperature').value) || 0.7,
+    hf_model: $('#s_hf_model').value,
+    subtitle_language: $('#s_subtitle_language').value,
+    faster_whisper_model: $('#s_fw_model').value,
+    resolution: $('#s_resolution').value,
+    aspect_ratio: $('#s_aspect_ratio').value,
+    portrait_mode: $('#s_portrait_mode').value,
+    num_clips: parseInt($('#s_num_clips').value) || 5,
+    use_gpu: $('#s_gpu').checked,
+    stabilize: $('#s_stabilize').checked,
+    smooth_follow: $('#s_smooth_follow').checked,
+    face_tracking_mode: $('#s_face_tracking_mode').value,
+    pan_speed_limit: parseFloat($('#s_pan_speed_limit').value) || 1.5,
+    center_weight: parseFloat($('#s_center_weight').value) || 0.6,
+    switch_threshold: parseFloat($('#s_switch_threshold').value) || 0.35,
+    min_shot_duration: parseFloat($('#s_min_shot_duration').value) || 2.0,
+    lip_activity: parseFloat($('#s_lip_activity').value) || 0.05,
+    captions: $('#s_captions').checked,
+    subtitle_style: $('#s_subtitle_style').value,
+    sync_offset: parseFloat($('#s_sync_offset').value) || 0,
+    hook: $('#s_hook').checked,
+    hook_style: {
+      font_size: parseFloat($('#s_hs_size').value) || 0.075,
+      corner_radius: parseInt($('#s_hs_radius').value) || 12,
+      font_color: $('#s_hs_fc').value || '#ffffff',
+      bg_color: $('#s_hs_bc').value || '#000000',
+      glitch: $('#s_hs_glitch').checked,
+    },
+    watermark_enabled: $('#s_wm_on').checked,
+    watermark_x: parseFloat($('#s_wm_x').value) || 0.8,
+    watermark_y: parseFloat($('#s_wm_y').value) || 0.85,
+    watermark_scale: parseFloat($('#s_wm_scale').value) || 0.15,
+    watermark_opacity: parseFloat($('#s_wm_op').value) || 0.8,
+    credit_watermark: $('#s_cw_on').checked,
+    credit_watermark_x: parseFloat($('#s_cw_x').value) || 0.1,
+    credit_watermark_y: parseFloat($('#s_cw_y').value) || 0.1,
+    credit_watermark_size: parseFloat($('#s_cw_size').value) || 0.02,
+    credit_watermark_opacity: parseFloat($('#s_cw_op').value) || 0.7,
+    color_grade: $('#s_color_grade').value,
+    motion_blur: parseFloat($('#s_motion_blur').value) || 0,
+    vignette: parseFloat($('#s_vignette').value) || 0,
+    speed_ramp_start: parseFloat($('#s_speed_ramp_start').value) || 0,
+    speed_ramp_end: parseFloat($('#s_speed_ramp_end').value) || 0,
+    speed_factor: parseFloat($('#s_speed_factor').value) || 1.0,
+    ducking_level_db: parseFloat($('#s_ducking_level_db').value) || -12,
+  };
+}
+
+function populateForm(d) {
+  if (!d) return;
+  $('#s_server_url').value = d.server_url || '';
+  $('#s_hf_system_message').value = d.hf_system_message || '';
+  $('#s_core_model').value = d.core_model || '';
+  $('#s_tts_model').value = d.tts_model || '';
+  $('#s_temperature').value = d.temperature ?? 0.7;
+  $('#s_hf_model').value = d.hf_model || '';
+  $('#s_subtitle_language').value = d.subtitle_language || 'id';
+  $('#s_fw_model').value = d.faster_whisper_model || 'base';
+  $('#s_resolution').value = d.resolution || '1080p';
+  $('#s_aspect_ratio').value = d.aspect_ratio || '9:16';
+  $('#s_portrait_mode').value = d.portrait_mode || 'crop';
+  $('#s_num_clips').value = d.num_clips || 5;
+  $('#s_gpu').checked = !!d.use_gpu;
+  $('#s_stabilize').checked = !!d.stabilize;
+  $('#s_smooth_follow').checked = d.smooth_follow !== false;
+  $('#s_face_tracking_mode').value = d.face_tracking_mode || 'opencv';
+  $('#s_pan_speed_limit').value = d.pan_speed_limit ?? 1.5;
+  $('#s_center_weight').value = d.center_weight ?? 0.6;
+  $('#s_switch_threshold').value = d.switch_threshold ?? 0.35;
+  $('#s_min_shot_duration').value = d.min_shot_duration ?? 2.0;
+  $('#s_lip_activity').value = d.lip_activity ?? 0.05;
+  $('#s_captions').checked = d.captions !== false;
+  $('#s_subtitle_style').value = d.subtitle_style || 'pop';
+  $('#s_sync_offset').value = d.sync_offset ?? 0;
+  $('#s_hook').checked = !!d.hook;
+  
+  if (d.hook_style) {
+    $('#s_hs_size').value = d.hook_style.font_size ?? 0.075;
+    $('#s_hs_radius').value = d.hook_style.corner_radius ?? 12;
+    $('#s_hs_fc').value = d.hook_style.font_color || '#ffffff';
+    $('#s_hs_bc').value = d.hook_style.bg_color || '#000000';
+    $('#s_hs_glitch').checked = !!d.hook_style.glitch;
+  }
+  
+  $('#s_wm_on').checked = !!d.watermark_enabled;
+  $('#s_wm_x').value = d.watermark_x ?? 0.8;
+  $('#s_wm_y').value = d.watermark_y ?? 0.85;
+  $('#s_wm_scale').value = d.watermark_scale ?? 0.15;
+  $('#s_wm_op').value = d.watermark_opacity ?? 0.8;
+
+  $('#s_cw_on').checked = !!d.credit_watermark;
+  $('#s_cw_x').value = d.credit_watermark_x ?? 0.1;
+  $('#s_cw_y').value = d.credit_watermark_y ?? 0.1;
+  $('#s_cw_size').value = d.credit_watermark_size ?? 0.02;
+  $('#s_cw_op').value = d.credit_watermark_opacity ?? 0.7;
+
+  $('#s_color_grade').value = d.color_grade || '';
+  $('#s_motion_blur').value = d.motion_blur ?? 0;
+  $('#s_vignette').value = d.vignette ?? 0;
+  $('#s_speed_ramp_start').value = d.speed_ramp_start ?? 0;
+  $('#s_speed_ramp_end').value = d.speed_ramp_end ?? 0;
+  $('#s_speed_factor').value = d.speed_factor ?? 1.0;
+  $('#s_ducking_level_db').value = d.ducking_level_db ?? -12;
+
+  updateHookPreview();
+  updateSubPreview();
+  updateWmPreview();
+  updateCwPreview();
+}
+
+async function loadConfig() {
+  try {
+    const res = await fetch('/api/config');
+    const d = await res.json();
+    populateForm(d);
+  } catch (e) {
+    alert('Gagal memuat konfigurasi: ' + e);
+  }
+}
+
+async function saveAll() {
+  const data = collectFormData();
+  try {
+    const res = await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const m = $('#saveMsg');
+    m.classList.remove('hidden');
+    m.textContent = '✅ Semua konfigurasi berhasil disimpan!';
+    setTimeout(() => m.classList.add('hidden'), 4000);
+  } catch (e) {
+    alert('Gagal menyimpan: ' + e.message);
+  }
+}
+
+async function testConnection() {
+  const msg = $('#connMsg');
+  msg.textContent = 'Menguji…';
+  msg.className = 'text-[11px] text-zinc-400';
+  try {
+    const res = await fetch('/api/test-llm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        server_url: $('#s_server_url').value,
+        hf_api_key: $('#s_hf_api_key').value,
+        core_model: $('#s_core_model').value
+      })
+    });
+    const d = await res.json();
+    if (d.ok) {
+      msg.textContent = '✅ Terhubung (' + (d.model || 'OK') + ')';
+      msg.className = 'text-[11px] text-emerald-400';
+    } else {
+      msg.textContent = '❌ Gagal: ' + (d.error || 'Unknown');
+      msg.className = 'text-[11px] text-red-400';
+    }
+  } catch (e) {
+    msg.textContent = '❌ Error: ' + e.message;
+    msg.className = 'text-[11px] text-red-400';
+  }
+}
+
+async function uploadWm() {
+  const f = $('#wmFile').files[0];
+  if (!f) return alert('Pilih file watermark dulu!');
+  const fd = new FormData();
+  fd.append('watermark', f);
+  const msg = $('#wmMsg');
+  msg.textContent = 'Mengunggah…';
+  try {
+    const res = await fetch('/api/upload-watermark', { method: 'POST', body: fd });
+    if (!res.ok) throw new Error(await res.text());
+    msg.textContent = '✅ Watermark berhasil diunggah!';
+    msg.className = 'text-[10px] text-emerald-400 font-mono italic';
+  } catch (e) {
+    msg.textContent = '❌ Gagal upload: ' + e.message;
+    msg.className = 'text-[10px] text-red-400 font-mono italic';
+  }
+}
+
+loadConfig();
+loadCustomPresets();
 </script>
 </body>
 </html>
