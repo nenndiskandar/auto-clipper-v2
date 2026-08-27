@@ -24,29 +24,38 @@ pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y
 .tpl-btn:hover{border-color:#facc15;background:#18181b}
 </style>
 </head>
-<body class="min-h-screen">
+<body class="min-h-screen flex flex-col md:flex-row bg-[#09090b]">
 
-<!-- NAV -->
-<nav class="sticky top-0 z-50 flex flex-wrap items-center justify-between px-4 py-2.5 border-b border-zinc-800 bg-surface-0/80 backdrop-blur-md gap-3">
-  <div class="flex items-center gap-3">
-    <span class="font-bold text-base tracking-wide text-accent">⚡ YT Short Clipper</span>
-    <a class="px-3 py-1 text-xs font-semibold bg-accent text-black rounded hover:bg-yellow-400 transition" href="/create.html">＋ Create Clip</a>
-    <a class="p-1 text-zinc-400 hover:text-white transition" href="/tasks.html" title="Tasks aktif">📋 Tasks</a>
-    <a class="p-1 text-zinc-400 hover:text-white transition" href="/settings.html" title="Settings">⚙️ Settings</a>
+<!-- SIDEBAR -->
+<aside class="w-full md:w-60 border-b md:border-b-0 md:border-r border-zinc-800 bg-zinc-950 flex flex-col shrink-0">
+  <div class="p-4 border-b border-zinc-800 flex items-center justify-between">
+    <span class="font-bold text-sm tracking-wider text-accent">⚡ YT CLIPPER</span>
+    <a href="/logout" class="text-xs text-zinc-400 hover:text-white transition md:hidden">Logout</a>
   </div>
-  
-  <div class="flex items-center flex-1 max-w-xs min-w-[150px]">
-    <input id="search" class="w-full bg-surface-2 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-accent" placeholder="Cari judul / hook...">
+  <div class="p-3 flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-x-visible">
+    <a href="/" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition bg-zinc-900 text-white font-medium">🏠 Library</a>
+    <a href="/create.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">＋ Create Clip</a>
+    <a href="/tasks.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">📋 Tasks</a>
+    <a href="/settings.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">⚙️ Settings</a>
   </div>
+  <div class="mt-auto p-4 border-t border-zinc-800 hidden md:flex items-center justify-between text-[11px]">
+    <span class="text-zinc-500 truncate max-w-[120px]" id="whoami"></span>
+    <a href="/logout" class="text-zinc-400 hover:text-white transition">Logout</a>
+  </div>
+</aside>
 
-  <div class="flex items-center gap-3">
-    <span class="text-xs text-zinc-500" id="whoami"></span>
-    <a href="/logout" class="text-xs text-zinc-400 hover:text-white transition">Logout</a>
-  </div>
-</nav>
+<!-- MAIN CONTENT AREA -->
+<div class="flex-1 flex flex-col min-w-0">
+  <!-- TOP SUB-NAV -->
+  <header class="flex items-center justify-between px-6 py-3 border-b border-zinc-800 bg-zinc-950/20">
+    <div class="flex items-center flex-1 max-w-xs">
+      <input id="search" class="w-full bg-surface-2 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-accent" placeholder="Cari judul / hook...">
+    </div>
+  </header>
 
-<!-- MAIN CONTAINER -->
-<main class="max-w-[1600px] mx-auto p-4 space-y-6" id="sessions"></main>
+  <!-- CONTAINER -->
+  <main class="max-w-[1600px] w-full mx-auto p-6 space-y-6" id="sessions"></main>
+</div>
 
 <!-- MODAL: DETAIL -->
 <div id="detailModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
