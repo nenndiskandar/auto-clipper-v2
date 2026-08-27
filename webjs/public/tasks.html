@@ -10,6 +10,7 @@ tailwind.config = {
   darkMode: 'class',
   theme: { extend: { colors: {
     surface: { 0:'#09090b', 1:'#18181b', 2:'#27272a', 3:'#3f3f46' },
+    zinc: { 450: '#8b8b96', 650: '#43434c' },
     accent: '#facc15',
   }}}
 }
@@ -22,57 +23,66 @@ body{background:#09090b;color:#fafafa;font-family:system-ui,-apple-system,sans-s
 pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:75vh;overflow-y:auto;white-space:pre-wrap;border-radius:.5rem}
 </style>
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="min-h-screen flex flex-col md:flex-row bg-[#09090b]">
 
-<!-- NAV -->
-<nav class="sticky top-0 z-50 flex items-center justify-between px-4 py-2.5 border-b border-zinc-800 bg-surface-0/80 backdrop-blur-md">
-  <div class="flex items-center gap-3">
-    <a href="/" class="text-sm text-zinc-400 hover:text-white transition">← Beranda</a>
-    <span class="font-semibold text-sm tracking-wide text-accent flex items-center gap-1.5">📋 Tasks Aktif</span>
+<!-- SIDEBAR -->
+<aside class="w-full md:w-60 border-b md:border-b-0 md:border-r border-zinc-800 bg-zinc-950 flex flex-col shrink-0">
+  <div class="p-4 border-b border-zinc-800 flex items-center justify-between">
+    <span class="font-bold text-sm tracking-wider text-accent">⚡ YT CLIPPER</span>
+    <a href="/logout" class="text-xs text-zinc-400 hover:text-white transition md:hidden">Logout</a>
   </div>
-  <div class="flex items-center gap-3">
-    <span class="text-xs text-zinc-500" id="whoami"></span>
-    <a href="/logout" class="text-xs text-zinc-400 hover:text-white transition">Logout</a>
+  <div class="p-3 flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-x-visible">
+    <a href="/" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🏠 Library</a>
+    <a href="/create.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">＋ Create Clip</a>
+    <a href="/tasks.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition bg-zinc-900 text-white font-medium">📋 Tasks</a>
+    <a href="/settings.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">⚙️ Settings</a>
   </div>
-</nav>
+  <div class="mt-auto p-4 border-t border-zinc-800 hidden md:flex items-center justify-between text-[11px]">
+    <span class="text-zinc-500 truncate max-w-[120px]" id="whoami"></span>
+    <a href="/logout" class="text-zinc-400 hover:text-white transition">Logout</a>
+  </div>
+</aside>
 
-<!-- MAIN CONTENT -->
-<main class="flex-1 max-w-6xl w-full mx-auto p-4">
-  <div class="bg-surface-1 border border-zinc-800 rounded-xl overflow-hidden shadow-lg">
-    <div class="px-4 py-3 border-b border-zinc-800 flex justify-between items-center bg-surface-0/50 flex-wrap gap-2">
-      <div>
-        <h2 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Daftar Job</h2>
-        <p class="text-[10px] text-zinc-500">Semua job berjalan & terakhir</p>
+<!-- MAIN CONTENT WRAPPER -->
+<div class="flex-1 flex flex-col min-w-0 overflow-y-auto">
+  <!-- MAIN CONTENT -->
+  <main class="max-w-6xl w-full mx-auto p-4 md:p-6 flex-1">
+    <div class="bg-surface-1 border border-zinc-800 rounded-xl overflow-hidden shadow-lg">
+      <div class="px-4 py-3 border-b border-zinc-800 flex justify-between items-center bg-surface-0/50 flex-wrap gap-2">
+        <div>
+          <h2 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Daftar Job</h2>
+          <p class="text-[10px] text-zinc-500">Semua job berjalan & terakhir</p>
+        </div>
+        <span class="text-[10px] text-zinc-500 bg-zinc-850 px-2 py-0.5 rounded border border-zinc-800">auto-refresh 1.5s</span>
       </div>
-      <span class="text-[10px] text-zinc-500 bg-zinc-850 px-2 py-0.5 rounded border border-zinc-800">auto-refresh 1.5s</span>
+      
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs border-collapse">
+          <thead>
+            <tr class="border-b border-zinc-800 bg-surface-2/30 text-zinc-400 text-[10px] uppercase tracking-wider">
+              <th class="py-2.5 px-4 font-semibold">Job</th>
+              <th class="py-2.5 px-4 font-semibold">Sesi</th>
+              <th class="py-2.5 px-4 font-semibold hidden md:table-cell">Detail</th>
+              <th class="py-2.5 px-4 font-semibold">Status</th>
+              <th class="py-2.5 px-4 font-semibold hidden md:table-cell">Durasi</th>
+              <th class="py-2.5 px-4 font-semibold hidden lg:table-cell">Debug Terakhir</th>
+              <th class="py-2.5 px-4 font-semibold text-right">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="taskBody" class="divide-y divide-zinc-800/60">
+            <tr>
+              <td colspan="7" class="py-6 px-4 text-center text-zinc-500">memuat…</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      
+      <div id="empty" class="text-zinc-500 text-xs text-center py-8 hidden bg-surface-2/10">
+        Tidak ada job aktif atau terakhir saat ini.
+      </div>
     </div>
-    
-    <div class="overflow-x-auto">
-      <table class="w-full text-left text-xs border-collapse">
-        <thead>
-          <tr class="border-b border-zinc-800 bg-surface-2/30 text-zinc-400 text-[10px] uppercase tracking-wider">
-            <th class="py-2.5 px-4 font-semibold">Job</th>
-            <th class="py-2.5 px-4 font-semibold">Sesi</th>
-            <th class="py-2.5 px-4 font-semibold hidden md:table-cell">Detail</th>
-            <th class="py-2.5 px-4 font-semibold">Status</th>
-            <th class="py-2.5 px-4 font-semibold hidden md:table-cell">Durasi</th>
-            <th class="py-2.5 px-4 font-semibold hidden lg:table-cell">Debug Terakhir</th>
-            <th class="py-2.5 px-4 font-semibold text-right">Aksi</th>
-          </tr>
-        </thead>
-        <tbody id="taskBody" class="divide-y divide-zinc-800/60">
-          <tr>
-            <td colspan="7" class="py-6 px-4 text-center text-zinc-500">memuat…</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    
-    <div id="empty" class="text-zinc-500 text-xs text-center py-8 hidden bg-surface-2/10">
-      Tidak ada job aktif atau terakhir saat ini.
-    </div>
-  </div>
-</main>
+  </main>
+</div>
 
 <!-- MODAL: LOG -->
 <div id="logModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/80 backdrop-blur-sm">

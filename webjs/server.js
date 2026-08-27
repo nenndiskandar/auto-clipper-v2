@@ -164,6 +164,7 @@ function _listSessions() {
       try {
         const sd = path.join(SESSIONS, d);
         const data = JSON.parse(fs.readFileSync(path.join(sd, 'session_data.json')));
+        const hlCount = Array.isArray(data.highlights) ? data.highlights.length : 0;
         return {
           id: d,
           url: data.url || null,
@@ -172,6 +173,7 @@ function _listSessions() {
           channel: (data.video_info && data.video_info.channel) || '',
           created: fs.statSync(sd).mtime,
           total: listClips(sd, data.highlights).length,
+          total_highlights: hlCount,
           clips: listClips(sd, data.highlights),
         };
       } catch { return null; }
@@ -256,6 +258,31 @@ const server = http.createServer((req, res) => {
       res.writeHead(302, { Location: '/' });
       return res.end();
     }
+    // --- public routes: video stream & download (tanpa auth) ---
+    const mVidPub = p.match(/^\/(video|download)\/([^/]+)\/(.+)$/);
+    if (mVidPub) {
+      const parts = mVidPub[3].split('/').map(safe);
+      if (parts.length !== 2) return json(res, 400, { error: 'bad path' });
+      const fp = path.join(SESSIONS, safe(mVidPub[2]), 'clips', parts[0], parts[1]);
+      if (!fp.startsWith(SESSIONS)) return json(res, 403, { error: 'forbidden' });
+      return sendFile(req, res, fp, mVidPub[1] === 'download');
+    }
+    // --- thumbnail juga publik ---
+    const mThPub = p.match(/^\/thumb\/([^/]+)\/([^/]+)$/);
+    if (mThPub) {
+      const clipDir = path.join(SESSIONS, safe(mThPub[1]), 'clips', safe(mThPub[2]));
+      if (!clipDir.startsWith(SESSIONS)) return json(res, 403, { error: 'forbidden' });
+      const thumbFiles = ['thumbnail.jpg','thumbnail.png','thumb.jpg','thumb.png'];
+      let found = null;
+      for (const t of thumbFiles) { const tp = path.join(clipDir, t); if (fs.existsSync(tp)) { found = tp; break; } }
+      if (!found) {
+        const mp4s = (fs.existsSync(clipDir) ? fs.readdirSync(clipDir) : []).filter(f => f.endsWith('.mp4'));
+        if (!mp4s.length) return json(res, 404, { error: 'no thumb' });
+      }
+      if (found) return sendFile(req, res, found, false);
+      return json(res, 404, { error: 'no thumb' });
+    }
+
     if (!checkToken(getCookie(req.headers.cookie)[COOKIE_NAME])) {
       if (p === '/' || p.endsWith('.html')) {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' });
@@ -268,13 +295,85 @@ const server = http.createServer((req, res) => {
       return json(res, 200, me ? { id: me.id, name: me.name } : {});
     }
     if (p === '/api/sessions') return json(res, 200, listSessions());
+    // GET /api/sessions/:session/clip/:clipDir — detail 1 klip (ringan, tanpa scan semua sesi)
+    const mClip = p.match(/^\/api\/sessions\/([^/]+)\/clip\/([^/]+)$/);
+    if (mClip) {
+      const sessId = safe(mClip[1]), clipId = safe(mClip[2]);
+      const sd = path.join(SESSIONS, sessId);
+      if (!sd.startsWith(SESSIONS) || !fs.existsSync(sd)) return json(res, 404, { error: 'session not found' });
+      try {
+        const sdata = JSON.parse(fs.readFileSync(path.join(sd, 'session_data.json'), 'utf8'));
+        const allClips = listClips(sd, sdata.highlights);
+        const clip = allClips.find(c => c.dir === clipId);
+        if (!clip) return json(res, 404, { error: 'clip not found' });
+        return json(res, 200, {
+          session: {
+            id: sessId,
+            url: sdata.url || null,
+            title: (sdata.video_info && sdata.video_info.title) || sessId,
+            channel: (sdata.video_info && sdata.video_info.channel) || '',
+          },
+          clip,
+        });
+      } catch { return json(res, 500, { error: 'read error' }); }
+    }
+    // GET/POST /api/sessions/:session/subtitle — ambil & simpan editan subtitle SRT
     const mSub = p.match(/^\/api\/sessions\/([^/]+)\/subtitle$/);
     if (mSub) {
       const dir = path.join(SESSIONS, safe(mSub[1]));
-      const srt = fs.readdirSync(dir).find(f => f.endsWith('.srt'));
-      if (!srt) return json(res, 404, { error: 'no srt' });
-      res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-      return res.end(fs.readFileSync(path.join(dir, srt)));
+      if (!dir.startsWith(SESSIONS) || !fs.existsSync(dir)) return json(res, 404, { error: 'session not found' });
+      let srt = fs.readdirSync(dir).find(f => f.endsWith('.srt'));
+      if (req.method === 'GET') {
+        if (!srt) return json(res, 404, { error: 'no srt' });
+        res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+        return res.end(fs.readFileSync(path.join(dir, srt)));
+      }
+      if (req.method === 'POST') {
+        let body = '';
+        req.on('data', c => body += c);
+        req.on('end', () => {
+          let o = {};
+          try { o = JSON.parse(body || '{}'); } catch {}
+          if (typeof o.content !== 'string') return json(res, 400, { error: 'content required' });
+          if (!srt) srt = 'transcript.srt';
+          const target = path.join(dir, srt);
+          fs.writeFileSync(target, o.content, 'utf8');
+          return json(res, 200, { ok: true });
+        });
+        return;
+      }
+    }
+    // GET/POST /api/presets — simpan & ambil custom presets
+    if (p === '/api/presets') {
+      const pFile = path.join(ROOT, 'config', 'custom_presets.json');
+      if (req.method === 'GET') {
+        try {
+          if (!fs.existsSync(pFile)) return json(res, 200, {});
+          return json(res, 200, JSON.parse(fs.readFileSync(pFile, 'utf8')));
+        } catch { return json(res, 200, {}); }
+      }
+      if (req.method === 'POST') {
+        let body = '';
+        req.on('data', c => body += c);
+        req.on('end', () => {
+          let o = {};
+          try { o = JSON.parse(body || '{}'); } catch {}
+          if (!o.name || typeof o.name !== 'string' || !o.cfg) return json(res, 400, { error: 'invalid preset format' });
+          try {
+            fs.mkdirSync(path.dirname(pFile), { recursive: true });
+            let current = {};
+            try { if (fs.existsSync(pFile)) current = JSON.parse(fs.readFileSync(pFile, 'utf8')); } catch {}
+            if (o.delete) {
+              delete current[o.name];
+            } else {
+              current[o.name] = { label: o.label || o.name, desc: o.desc || 'Custom preset', cfg: o.cfg };
+            }
+            fs.writeFileSync(pFile, JSON.stringify(current, null, 2), 'utf8');
+            return json(res, 200, { ok: true, presets: current });
+          } catch (e) { return json(res, 500, { error: String(e) }); }
+        });
+        return;
+      }
     }
     // /video|download/:session/:clipDir/:file
     const mVid = p.match(/^\/(video|download)\/([^/]+)\/(.+)$/);
@@ -435,7 +534,33 @@ const server = http.createServer((req, res) => {
       });
       return;
     }
-    // GET /api/binaries — status dependensi
+    // POST /api/test-connection — cek reachable + valid API key (list models, OpenAI-compatible)
+const TC_SRC = `import os, json
+from openai import OpenAI
+u=os.environ.get('TC_URL','').strip()
+k=os.environ.get('TC_KEY','').strip()
+try:
+    c=OpenAI(api_key=k or 'x', base_url=u or None)
+    m=c.models.list()
+    ids=[getattr(x,'id',str(x)) for x in m.data][:20]
+    print(json.dumps({'ok':True,'count':len(ids),'sample':ids}))
+except Exception as e:
+    print(json.dumps({'ok':False,'error':str(e)[:300]}))`;
+if (p === '/api/test-connection' && req.method === 'POST') {
+  let body = '';
+  req.on('data', c => body += c);
+  req.on('end', () => {
+    let o = {};
+    try { o = JSON.parse(body || '{}'); } catch {}
+    const env = { ...process.env, TC_URL: String(o.server_url || '').trim(), TC_KEY: String(o.api_key || '') };
+    execFile('/usr/bin/python3', ['-c', TC_SRC], { env }, (err, stdout, stderr) => {
+      const out = (stdout || '').toString().trim().split('\n').pop();
+      try { return json(res, 200, JSON.parse(out)); } catch { return json(res, 200, { ok: false, error: (stderr || stdout || '').toString().slice(-300) }); }
+    });
+  });
+  return;
+}
+// GET /api/binaries — status dependensi
     if (p === '/api/binaries') {
       const bin = [
         { name: 'ffmpeg', ok: fs.existsSync(path.join(ROOT, 'ffmpeg')), detail: path.join(ROOT, 'ffmpeg') + ' (bundled)' },
