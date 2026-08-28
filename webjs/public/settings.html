@@ -547,7 +547,7 @@ function applyHookPreset(k) {
 })();
 
 // TEMPLATES
-const TEMPLATES = window.UNIFIED_TEMPLATES || {};
+let TEMPLATES = window.UNIFIED_TEMPLATES || {};
 
 function applyTemplate(k) {
   const t = TEMPLATES[k];
@@ -560,11 +560,14 @@ function applyTemplate(k) {
   setTimeout(() => m.classList.add('hidden'), 5000);
 }
 
-(function initTemplates() {
+function initTemplates() {
+  TEMPLATES = window.UNIFIED_TEMPLATES || {};
   const bar = $('#tplBar');
   bar.innerHTML = Object.entries(TEMPLATES).map(([k, t]) =>
     `<button type="button" class="tpl-btn text-zinc-300 hover:text-white" title="${esc(t.desc)}" onclick="applyTemplate('${k}')">${t.label}</button>`).join('');
-})();
+}
+initTemplates();
+if (window.TemplatesAPI) window.TemplatesAPI.poll(5000, (t) => { TEMPLATES = t; initTemplates(); });
 
 // CUSTOM PRESETS
 async function loadCustomPresets() {
