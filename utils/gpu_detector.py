@@ -468,13 +468,14 @@ class GPUDetector:
         # Build encoder-specific arguments
         if encoder == 'h264_nvenc':
             # NVIDIA NVENC
-            # -pix_fmt yuv420p required for compatibility with various source formats
             return [
                 '-c:v', 'h264_nvenc',
                 '-preset', preset,
                 '-rc', 'vbr',
-                '-cq', '19',  # Similar quality to CRF 18
-                '-b:v', '0',  # Variable bitrate
+                '-cq', '23',
+                '-b:v', '4M',
+                '-maxrate', '5M',
+                '-bufsize', '10M',
                 '-pix_fmt', 'yuv420p'
             ]
         
