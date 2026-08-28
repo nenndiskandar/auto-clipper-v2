@@ -304,8 +304,8 @@ class AutoClipperCore(SubtitleGeneratorMixin, EffectsMixin):
         if self.gpu_enabled and self.gpu_encoder_args:
             return self.gpu_encoder_args
         else:
-            # Default CPU encoding
-            return ['-c:v', 'libx264', '-preset', 'superfast', '-crf', '18']
+            # Default CPU encoding - CRF 23 provides good quality with optimal file size
+            return ['-c:v', 'libx264', '-preset', 'superfast', '-crf', '23', '-maxrate', '4M', '-bufsize', '8M']
 
     # ------------------------------------------------------------------
     # GPU encoder safety net
