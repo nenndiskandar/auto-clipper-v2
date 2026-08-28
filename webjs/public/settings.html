@@ -100,10 +100,6 @@ body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-s
 
         <div class="subhead">Model & Transkripsi</div>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div class="col-span-2">
-            <label class="text-[10px] text-zinc-500 block mb-0.5">Model Analisis</label>
-            <input id="s_core_model" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
-          </div>
           <div>
             <label class="text-[10px] text-zinc-500 block mb-0.5">TTS Model</label>
             <input id="s_tts_model" placeholder="tts-1" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
@@ -113,8 +109,8 @@ body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-s
             <input type="number" step="0.05" min="0" max="2" id="s_temperature" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
           </div>
           <div>
-            <label class="text-[10px] text-zinc-500 block mb-0.5">HF Model</label>
-            <input id="s_hf_model" placeholder="AUTO" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+            <label class="text-[10px] text-zinc-500 block mb-0.5">HF Model <button onclick="fetchModels()" class="ml-1 text-[9px] px-1 py-0.5 border border-zinc-700 rounded hover:border-accent">↻ Fetch</button></label>
+            <select id="s_hf_model" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"><option value="AUTO">AUTO</option></select>
           </div>
           <div>
             <label class="text-[10px] text-zinc-500 block mb-0.5">Bahasa Subtitle</label>
@@ -590,12 +586,11 @@ function collectFormData() {
     server_url: $('#s_server_url').value,
     hf_api_key: $('#s_hf_api_key').value || undefined,
     hf_system_message: $('#s_hf_system_message').value,
-    core_model: $('#s_core_model').value,
     tts_model: $('#s_tts_model').value,
     temperature: parseFloat($('#s_temperature').value) || 0.7,
     hf_model: $('#s_hf_model').value,
     subtitle_language: $('#s_subtitle_language').value,
-    faster_whisper_model: $('#s_fw_model').value,
+    fw_model: $('#s_fw_model').value,
     resolution: $('#s_resolution').value,
     aspect_ratio: $('#s_aspect_ratio').value,
     portrait_mode: $('#s_portrait_mode').value,
@@ -644,7 +639,6 @@ function populateForm(d) {
   if (!d) return;
   $('#s_server_url').value = d.server_url || '';
   $('#s_hf_system_message').value = d.hf_system_message || '';
-  $('#s_core_model').value = d.core_model || '';
   $('#s_tts_model').value = d.tts_model || '';
   $('#s_temperature').value = d.temperature ?? 0.7;
   $('#s_hf_model').value = d.hf_model || '';
@@ -707,6 +701,8 @@ async function loadConfig() {
     const res = await fetch('/api/config');
     const d = await res.json();
     populateForm(d);
+    // auto fetch models dari server
+    fetchModels().then(()=>{ if(d.hf_model) $('#s_hf_model').value=d.hf_model; }).catch(()=>{});
   } catch (e) {
     alert('Gagal memuat konfigurasi: ' + e);
   }
@@ -730,32 +726,22 @@ async function saveAll() {
   }
 }
 
+async function fetchModels(){
+  const sel=$('#s_hf_model'); const cur=sel.value;
+  sel.innerHTML='<option>Loading…</option>';
+  try{
+    const r=await fetch('/api/test-llm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({server_url:$('#s_server_url').value,hf_api_key:$('#s_hf_api_key').value})});
+    const d=await r.json();
+    if(!d.ok) throw new Error(d.error);
+    const models=d.sample||d.models||[];
+    // keep AUTO on top
+    sel.innerHTML='<option value="AUTO">AUTO</option>'+models.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
+    if(cur) sel.value=cur;
+    $('#connMsg').textContent='✅ '+models.length+' model dimuat'; $('#connMsg').className='text-[11px] text-emerald-400';
+  }catch(e){ sel.innerHTML='<option value="AUTO">AUTO</option>'; $('#connMsg').textContent='❌ '+e.message; $('#connMsg').className='text-[11px] text-red-400'; }
+}
 async function testConnection() {
-  const msg = $('#connMsg');
-  msg.textContent = 'Menguji…';
-  msg.className = 'text-[11px] text-zinc-400';
-  try {
-    const res = await fetch('/api/test-llm', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        server_url: $('#s_server_url').value,
-        hf_api_key: $('#s_hf_api_key').value,
-        core_model: $('#s_core_model').value
-      })
-    });
-    const d = await res.json();
-    if (d.ok) {
-      msg.textContent = '✅ Terhubung (' + (d.model || 'OK') + ')';
-      msg.className = 'text-[11px] text-emerald-400';
-    } else {
-      msg.textContent = '❌ Gagal: ' + (d.error || 'Unknown');
-      msg.className = 'text-[11px] text-red-400';
-    }
-  } catch (e) {
-    msg.textContent = '❌ Error: ' + e.message;
-    msg.className = 'text-[11px] text-red-400';
-  }
+  await fetchModels();
 }
 
 async function uploadWm() {

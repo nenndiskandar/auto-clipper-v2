@@ -1,10 +1,10 @@
 """Shared bootstrap untuk skrip web (phase1/refind): bangun AutoClipperCore dari config.json."""
 import json
 import os
-import sys
 from pathlib import Path
+import sys
 
-APP_DIR = "/root/yt-short-clipper"
+APP_DIR = str(Path(__file__).resolve().parents[1])
 sys.path.insert(0, APP_DIR)
 
 
