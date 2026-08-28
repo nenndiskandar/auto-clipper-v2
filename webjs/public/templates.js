@@ -190,5 +190,51 @@ window.UNIFIED_TEMPLATES = {
       gpu: true,
       hook_style: { font_color: '#ffe600', bg_color: '#141414', corner_radius: 6, font_size: 0.08, glitch: false }
     }
+  },
+  quote_status: {
+    label: '💬 Quote / Status',
+    desc: 'Teks quote menonjol, background blur lembut, tanpa subtitle, fokus pesan',
+    cfg: {
+      aspect_ratio: '4:5',
+      portrait_mode: 'blur',
+      subtitle_style: 'none',
+      captions: false,
+      hook: true,
+      gpu: true,
+      hook_style: { font_color: '#ffffff', bg_color: '#000000', corner_radius: 14, font_size: 0.1, glitch: false },
+      smooth_follow: false,
+      face_tracking_mode: 'opencv',
+      pan_speed_limit: 0.6,
+      center_weight: 0.8,
+      switch_threshold: 0.5,
+      min_shot_duration: 3.5,
+      lip_activity: 0.08,
+      color_grade: 'warm',
+      vignette: 0.3,
+      stabilize: true,
+      sync_offset: 0
+    }
+  }
+};
+
+// Auto-reload shared presets: poll templates.js and fire onChange when it changes.
+window.TemplatesAPI = {
+  poll(intervalMs, onChange) {
+    intervalMs = intervalMs || 5000;
+    let lastHash = null;
+    const hash = s => { let h = 0; for (let i = 0; i < s.length; i++) { h = (h << 5) - h + s.charCodeAt(i); h |= 0; } return h; };
+    async function tick() {
+      try {
+        const txt = await (await fetch('/templates.js?ts=' + Date.now(), { cache: 'no-store' })).text();
+        const h = hash(txt);
+        if (h !== lastHash) {
+          lastHash = h;
+          new Function(txt)();                 // re-assigns window.UNIFIED_TEMPLATES
+          if (typeof onChange === 'function') onChange(window.UNIFIED_TEMPLATES || {});
+        }
+      } catch (e) { /* ignore transient errors */ }
+    }
+    tick();
+    setInterval(tick, intervalMs);
   }
 };

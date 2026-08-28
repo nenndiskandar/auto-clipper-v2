@@ -122,7 +122,7 @@ pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y
 <script>
 fetch('/api/me').then(r=>r.json()).then(d=>{if(d.name)document.getElementById('whoami').textContent='👤 '+d.name;});
 
-const TEMPLATES = window.UNIFIED_TEMPLATES || {};
+let TEMPLATES = window.UNIFIED_TEMPLATES || {};
 const tplEsc=s=>String(s??'').replace(/"/g,'&quot;').replace(/</g,'&lt;');
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -134,6 +134,7 @@ async function applyTemplate(key){
   const c=t.cfg,p2=c.pro||c;
   document.querySelectorAll('.tpl-card').forEach(e=>e.classList.remove('active'));
   const card=document.querySelector('[data-tpl="'+key+'"]');if(card)card.classList.add('active');
+  _activeTpl=key;
   setCh('f_hook',c.hook);setCh('f_captions',c.captions);setCh('f_gpu',c.gpu);setCh('f_smooth_follow',c.smooth_follow);setCh('f_stabilize',p2.stabilize);
   setVal('f_color_grade',p2.color_grade);setVal('f_motion_blur',p2.motion_blur);setVal('f_vignette',p2.vignette);
   setVal('f_speed_ramp_start',p2.speed_ramp_start);setVal('f_speed_ramp_end',p2.speed_ramp_end);
@@ -152,10 +153,15 @@ async function applyTemplate(key){
   setTimeout(()=>m.classList.add('hidden'),4000);
 }
 
-(function initTemplates(){
+let _activeTpl=null;
+function initTemplates(){
+  TEMPLATES=window.UNIFIED_TEMPLATES||{};
   const bar=$('#tplBar');if(!bar)return;
   bar.innerHTML=Object.entries(TEMPLATES).map(([k,t])=>'<div class="tpl-card" data-tpl="'+k+'" onclick="applyTemplate(\''+k+'\')" title="'+tplEsc(t.desc)+'"><span class="text-xs font-medium text-zinc-200">'+t.label+'</span></div>').join('');
-})();
+  if(_activeTpl){const c=document.querySelector('[data-tpl="'+_activeTpl+'"]');if(c)c.classList.add('active');}
+}
+initTemplates();
+if(window.TemplatesAPI)window.TemplatesAPI.poll(5000,(t)=>{TEMPLATES=t;initTemplates();});
 
 async function loadConfig(){
   try{
