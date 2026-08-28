@@ -454,13 +454,13 @@ class GPUDetector:
         """
         if not use_gpu:
             # CPU encoding (default)
-            return ['-c:v', 'libx264', '-preset', 'fast', '-crf', '18']
+            return ['-c:v', 'libx264', '-preset', 'superfast', '-crf', '23', '-maxrate', '4M', '-bufsize', '8M']
         
         recommendation = self.get_recommended_encoder()
         
         if not recommendation['available']:
             # Fallback to CPU
-            return ['-c:v', 'libx264', '-preset', 'fast', '-crf', '18']
+            return ['-c:v', 'libx264', '-preset', 'superfast', '-crf', '23', '-maxrate', '4M', '-bufsize', '8M']
         
         encoder = recommendation['encoder']
         preset = recommendation['preset']
