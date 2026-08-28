@@ -82,8 +82,8 @@ def main():
     )
     if "gpu" in opts:
         core.enable_gpu_acceleration(bool(opts["gpu"]))
-    elif (cfg.get("gpu_acceleration") or {}).get("enabled"):
-        core.enable_gpu_acceleration(True)
+    el# GPU selalu aktif
+    core.enable_gpu_acceleration(True)
 
     sd_path = Path(SESSION_DIR) / "session_data.json"
     sd = json.loads(sd_path.read_text(encoding="utf-8"))

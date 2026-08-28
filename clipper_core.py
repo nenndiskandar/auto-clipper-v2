@@ -1520,6 +1520,27 @@ Transcript:
             return Path(self.last_session_dir)
         return self.temp_dir
 
+    def _srt_to_sec(self, srt_time: str) -> float:
+        try:
+            m=re.match(r'(\d+):(\d+):(\d+)[,\.](\d+)', str(srt_time))
+            if m: return int(m.group(1))*3600+int(m.group(2))*60+int(m.group(3))+int(m.group(4))/1000
+            m=re.match(r'(\d+):(\d+):(\d+)', str(srt_time))
+            if m: return int(m.group(1))*3600+int(m.group(2))*60+int(m.group(3))
+        except: pass
+        return 0
+    def _download_full_video(self, url: str, out_path: str):
+        import yt_dlp
+        # TikTok: simple best, no youtube extractor args
+        ydl_opts={'outtmpl': out_path, 'format': 'best', 'quiet': False, 'ffmpeg_location': self.ffmpeg_path}
+        if 'tiktok.com' in url:
+            ydl_opts={'outtmpl': out_path, 'quiet': False}
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
+        if not Path(out_path).exists():
+            # yt-dlp may add extension
+            for ext in ['.mp4','.mkv','.webm']:
+                if Path(out_path+ext).exists(): return
+            raise Exception('Full video download failed')
     def _relocate_srt(self, srt_path) -> str:
         """Move an SRT file from _temp into the session folder (if different)."""
         try:
@@ -3045,10 +3066,12 @@ Transcript:
     
     @staticmethod
     def _sanitize_name(name: str, max_len: int = 60) -> str:
-        """Sanitize a title into a safe folder/file name (Windows-safe)."""
+        """Sanitize to safe file name tanpa spasi/symbol."""
         import re as re_module
-        safe = re_module.sub(r'[<>:"/\\|?*\x00-\x1f]', '', str(name or "")).strip()
-        safe = re_module.sub(r'\s+', ' ', safe).strip('. ')
+        safe = re_module.sub(r'[^\w\-]+', '_', str(name or "").strip(), flags=re_module.UNICODE)
+        safe = re_module.sub(r'_+', '_', safe).strip('_')
+        safe = re_module.sub(r'^_+|_+$', '', safe)
+        if not safe: safe = 'clip'
         return safe[:max_len]
     
     def find_highlights_with_transcription(self, video_path: str, video_info: dict, 
@@ -4398,10 +4421,18 @@ PENTING:
             speed = abs(velocity)
             adaptive_c = c * (0.7 + 0.3 * min(speed / max(pan_speed_limit, 0.5), 1.0))
 
-            # Spring force with adaptive damping
-            acceleration = -k * displacement - adaptive_c * velocity
-            velocity += acceleration
-            current += velocity
+            # Spring force with adaptive damping — clamp to avoid overflow NaN
+            try:
+                acceleration = -k * displacement - adaptive_c * velocity
+                # clamp extreme values
+                if not np.isfinite(acceleration):
+                    acceleration = np.clip(acceleration, -50, 50) if np.isfinite(acceleration) else 0
+                acceleration = float(np.clip(acceleration, -100, 100))
+                velocity = float(np.clip(velocity + acceleration, -50, 50))
+                current = float(np.clip(current + velocity, 0, 1920))
+            except Exception:
+                velocity = 0
+                acceleration = 0
             result.append(current)
 
         return result
@@ -6053,6 +6084,24 @@ PENTING:
                 pass
         self._save_session_data(session_data_file, session_data)
         
+        is_youtube = 'youtube.com' in url or 'youtu.be' in url
+        if not is_youtube:
+            # Non-YouTube: skip subtitle + AI, create 1 highlight dari full video
+            self.log(f"  Non-YouTube URL terdeteksi — skip subtitle/AI, langsung download video.")
+            video_info = {"title": video_id, "channel": "Unknown", "duration": 0}
+            try:
+                # coba ambil info via yt-dlp
+                import yt_dlp
+                with yt_dlp.YoutubeDL({'quiet': True, 'skip_download': True}) as ydl:
+                    info=ydl.extract_info(url, download=False)
+                    video_info={"title": info.get('title') or video_id, "channel": info.get('uploader') or "Unknown", "duration": info.get('duration') or 0}
+            except: pass
+            dur = int(video_info.get('duration') or 60)
+            highlights=[{"start_time":"00:00:00,000","end_time": f"{dur//3600:02d}:{(dur%3600)//60:02d}:{dur%60:02d},000", "title": video_info["title"][:50], "description":"Full video (non-YouTube)", "virality_score": 8, "hook_text": video_info["title"][:40], "duration_seconds": dur, "transcript_text": ""}]
+            session_data.update({"video_info": video_info, "highlights": highlights, "status": "highlights_ready"})
+            self._save_session_data(session_data_file, session_data)
+            return {"session_dir": str(session_dir), "url": url, "srt_path": None, "highlights": highlights, "video_info": video_info}
+
         try:
             # Step 1: Download subtitle only (no video!)
             self.set_progress("Downloading subtitle...", 0.1)
@@ -6217,22 +6266,49 @@ PENTING:
                 clip_dir.mkdir(parents=True, exist_ok=True)
                 section_path = str(clip_dir / "landscape.mp4")
                 
+                is_youtube = 'youtube.com' in url or 'youtu.be' in url
+                is_tiktok_fb = 'tiktok.com' in url or 'facebook.com' in url or 'fb.watch' in url
                 try:
-                    video_path = self.download_video_section(
-                        url, 
-                        highlight["start_time"], 
-                        highlight["end_time"],
-                        section_path,
-                        resolution
-                    )
+                    if is_tiktok_fb:
+                        # TikTok/FB: full res tanpa section, tanpa resolusi filter
+                        self.log(f"  TikTok/FB detected — full download tanpa section (auto res)")
+                        full_tmp = str(session_dir / f"_full_{i}.mp4")
+                        self._download_full_video(url, full_tmp)
+                        s=self._srt_to_sec(highlight["start_time"]); ee=self._srt_to_sec(highlight["end_time"])
+                        dur=ee-s if (ee>s) else 60
+                        cut_cmd=[self.ffmpeg_path,"-y","-ss",str(max(0,s)),"-i",full_tmp,"-t",str(dur),"-c","copy",section_path]
+                        subprocess.run(cut_cmd, check=True, creationflags=SUBPROCESS_FLAGS)
+                        video_path=section_path
+                    else:
+                        video_path = self.download_video_section(
+                            url, 
+                            highlight["start_time"], 
+                            highlight["end_time"],
+                            section_path,
+                            resolution
+                        )
                 except Exception as e:
-                    self.log(f"  ✗ Failed to download section: {e}")
-                    raise Exception(
-                        f"Failed to download video section for clip {i}!\n\n"
-                        f"Title: {highlight.get('title', 'Untitled')}\n"
-                        f"Time: {highlight['start_time']} → {highlight['end_time']}\n\n"
-                        f"Error: {str(e)}"
-                    )
+                    if not is_youtube:
+                        self.log(f"  ⚠ Section download failed for non-YouTube, fallback ke full download + ffmpeg cut")
+                        try:
+                            full_tmp = str(session_dir / f"_full_{i}.mp4")
+                            self._download_full_video(url, full_tmp)
+                            s=self._srt_to_sec(highlight["start_time"]); ee=self._srt_to_sec(highlight["end_time"])
+                            dur=ee-s if (ee>s) else 60
+                            cut_cmd=[self.ffmpeg_path,"-y","-ss",str(max(0,s)),"-i",full_tmp,"-t",str(dur),"-c","copy",section_path]
+                            subprocess.run(cut_cmd, check=True, creationflags=SUBPROCESS_FLAGS)
+                            video_path=section_path
+                        except Exception as e2:
+                            self.log(f"  ✗ Fallback also failed: {e2}")
+                            raise e
+                    else:
+                        self.log(f"  ✗ Failed to download section: {e}")
+                        raise Exception(
+                            f"Failed to download video section for clip {i}!\n\n"
+                            f"Title: {highlight.get('title', 'Untitled')}\n"
+                            f"Time: {highlight['start_time']} → {highlight['end_time']}\n\n"
+                            f"Error: {str(e)}"
+                        )
                 
                 # Step B: Process the downloaded section
                 # Temporarily override output_dir so process_clip creates

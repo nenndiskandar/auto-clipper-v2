@@ -71,57 +71,105 @@ body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-s
       <div id="tplMsg" class="text-xs text-emerald-400 hidden"></div>
     </div>
 
-    <!-- AI & ANALISIS -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+    <!-- 1️⃣ SERVER AI -->
     <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md">
       <div class="card-head flex items-center gap-2 p-4" onclick="toggleCard(this)">
         <span class="chev text-zinc-500">▾</span>
-        <h3 class="text-xs font-semibold text-zinc-450 uppercase tracking-wider">🤖 AI & Analisis</h3>
+        <h3 class="text-xs font-semibold text-zinc-450 uppercase tracking-wider">🖥️ Server AI</h3>
+        <span id="hfStatus" class="ml-auto text-[10px] px-2 py-0.5 rounded-full border border-zinc-700 text-zinc-500">● checking…</span>
       </div>
       <div class="card-body p-4 pt-0 space-y-3">
-        <div class="subhead">Provider (OpenAI-compatible)</div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div class="md:col-span-2">
-            <label class="text-[10px] text-zinc-500 block mb-0.5">Server URL</label>
-            <input id="s_server_url" placeholder="http://localhost:20128/v1" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+        <div class="grid grid-cols-1 gap-3">
+          <div>
+            <label class="text-[10px] text-zinc-500 block mb-0.5">Base URL</label>
+            <input id="s_server_url" placeholder="http://localhost:20128/v1" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent" oninput="debounceHfCheck()">
           </div>
-          <div class="md:col-span-2">
-            <label class="text-[10px] text-zinc-500 block mb-0.5">HF API Key <span class="text-zinc-500 font-mono text-[9px]" id="keyState"></span></label>
-            <input type="password" id="s_hf_api_key" placeholder="(tidak diubah)" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+          <div>
+            <label class="text-[10px] text-zinc-500 block mb-0.5">API Key</label>
+            <input type="password" id="s_hf_api_key" placeholder="(tidak diubah)" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent" oninput="debounceHfCheck()">
           </div>
-          <div class="md:col-span-2 flex items-center gap-2">
+          <div>
+            <label class="text-[10px] text-zinc-500 block mb-0.5">Model <button onclick="fetchModels()" class="ml-1 text-[9px] px-1 py-0.5 border border-zinc-700 rounded hover:border-accent">↻ Fetch</button></label>
+            <select id="s_hf_model" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"><option value="AUTO">AUTO</option></select>
+          </div>
+          <div class="flex items-center gap-2">
             <button onclick="testConnection()" class="px-2.5 py-1 bg-surface-2 hover:bg-surface-3 border border-zinc-700 text-zinc-200 text-xs rounded transition">🔌 Tes Koneksi</button>
             <span id="connMsg" class="text-[11px]"></span>
           </div>
-          <div class="md:col-span-2">
-            <label class="text-[10px] text-zinc-500 block mb-0.5">System message (highlight finder)</label>
-            <textarea rows="3" id="s_hf_system_message" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"></textarea>
-          </div>
         </div>
+      </div>
+    </div>
 
-        <div class="subhead">Model & Transkripsi</div>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div>
-            <label class="text-[10px] text-zinc-500 block mb-0.5">TTS Model</label>
-            <input id="s_tts_model" placeholder="tts-1" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
-          </div>
+    <!-- 2️⃣ PENCARI MOMEN -->
+    <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md">
+      <div class="card-head flex items-center gap-2 p-4" onclick="toggleCard(this)">
+        <span class="chev text-zinc-500">▾</span>
+        <h3 class="text-xs font-semibold text-zinc-450 uppercase tracking-wider">🔍 Pencari Momen</h3>
+      </div>
+      <div class="card-body p-4 pt-0 space-y-3">
+        <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="text-[10px] text-zinc-500 block mb-0.5">Temperature</label>
             <input type="number" step="0.05" min="0" max="2" id="s_temperature" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
           </div>
           <div>
-            <label class="text-[10px] text-zinc-500 block mb-0.5">HF Model <button onclick="fetchModels()" class="ml-1 text-[9px] px-1 py-0.5 border border-zinc-700 rounded hover:border-accent">↻ Fetch</button></label>
-            <select id="s_hf_model" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"><option value="AUTO">AUTO</option></select>
+            <label class="text-[10px] text-zinc-500 block mb-0.5">Bahasa Subtitle</label>
+            <input id="s_subtitle_language" placeholder="id" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+          </div>
+          <div class="md:col-span-2">
+            <label class="text-[10px] text-zinc-500 block mb-0.5">Prompt</label>
+            <textarea rows="3" id="s_hf_system_message" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2️⃣ TTS ENGINE -->
+    <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md">
+      <div class="card-head flex items-center gap-2 p-4" onclick="toggleCard(this)">
+        <span class="chev text-zinc-500">▾</span>
+        <h3 class="text-xs font-semibold text-zinc-450 uppercase tracking-wider">🎙 TTS Engine — Hook Voice</h3>
+      </div>
+      <div class="card-body p-4 pt-0 space-y-3">
+        <div class="grid grid-cols-2 gap-3">
+          <div class="col-span-2 space-y-2">
+            <div class="space-y-2">
+              <div class="grid grid-cols-2 gap-2"><div><label class="text-[10px] text-zinc-500 block mb-0.5">Provider</label><select id="s_tts_provider" onchange="onTtsProvider()" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1.5 text-xs text-white"></select></div><div><label class="text-[10px] text-zinc-500 block mb-0.5">Model</label><select id="s_tts_model_sel" onchange="onTtsModel()" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1.5 text-xs text-white"></select></div></div>
+              <input type="hidden" id="s_tts_lang" value="Indonesian">
+              <div><label class="text-[10px] text-zinc-500 block mb-0.5">Voice ID</label><div id="s_tts_voice_chips" class="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-1 border border-zinc-800 rounded-lg bg-zinc-950"></div><select id="s_tts_voice" onchange="onTtsVoice()" class="hidden"></select></div>
+              <div><label class="text-[10px] text-zinc-500 block mb-0.5">Input</label><textarea id="s_tts_input" rows="2" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white" placeholder="Hello, this is a text to speech test.">Hello, this is a text to speech test.</textarea></div>
+            </div>
+            <input type="hidden" id="s_tts_model">
+            <input type="hidden" id="s_tts_model">
+            <div class="text-[9px] font-mono text-zinc-500 truncate" id="ttsModelLabel"></div>
+            <div class="flex items-center gap-2 flex-wrap w-full"><button onclick="fetchTtsModels()" class="px-2 py-0.5 border border-zinc-700 rounded text-[10px] hover:border-accent">↻ Fetch</button><button onclick="testTtsModel()" class="px-2.5 py-1 bg-surface-2 border border-zinc-700 rounded text-[10px] hover:border-accent shrink-0">▶ Test</button><button onclick="testAllTts()" class="px-2.5 py-1 bg-surface-2 border border-zinc-700 rounded text-[10px] hover:border-accent shrink-0">🔍 Cek Semua</button><span id="ttsTestMsg" class="text-[10px] leading-tight flex-1 min-w-0 truncate"></span><audio id="ttsAudio" controls class="hidden h-7 w-28"></audio></div>
+            <div id="ttsAll" class="border border-zinc-800 rounded-xl shadow-md overflow-hidden divide-y divide-zinc-800 max-h-72 overflow-y-auto hidden bg-surface-1 w-full"></div>
           </div>
           <div>
             <label class="text-[10px] text-zinc-500 block mb-0.5">Bahasa Subtitle</label>
             <input id="s_subtitle_language" placeholder="id" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
           </div>
-          <div class="col-span-2">
-            <label class="text-[10px] text-zinc-500 block mb-0.5">🎙 Faster-Whisper <span id="fwBadge" class="text-[9px] px-1 py-0.5 rounded font-mono ml-1"></span></label>
-            <select id="s_fw_model" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"><option value="tiny">tiny</option><option value="base">base</option><option value="small">small</option><option value="medium">medium</option><option value="large-v3">large-v3</option></select>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3️⃣ SUBTITLE ENGINE (Faster-Whisper) -->
+    <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md">
+      <div class="card-head flex items-center gap-2 p-4" onclick="toggleCard(this)">
+        <span class="chev text-zinc-500">▾</span>
+        <h3 class="text-xs font-semibold text-zinc-450 uppercase tracking-wider">💬 Subtitle Engine — Faster-Whisper (Offline)</h3>
+      </div>
+      <div class="card-body p-4 pt-0 space-y-3">
+        <div class="grid grid-cols-1 gap-3">
+          <div>
+            <label class="text-[10px] text-zinc-500 block mb-0.5">🎙 Model Size <span id="fwBadge" class="text-[9px] px-1 py-0.5 rounded font-mono ml-1"></span></label>
+            <select id="s_fw_model" onchange="checkFwModels()" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"><option value="tiny">tiny</option><option value="base">base</option><option value="small">small</option><option value="medium">medium</option><option value="large-v3">large-v3</option></select>
+            <div id="fwCheck" class="mt-1 text-[10px]"></div>
           </div>
         </div>
       </div>
+    </div>
     </div>
 
     <!-- SECTIONS: RENDER, TRACKING, SUBTITLE, HOOK, WATERMARK, CREDIT -->
@@ -408,16 +456,19 @@ function toggleCard(head) {
 function updateHookPreview() {
   const fc = $('#s_hs_fc').value || '#ffffff';
   const bc = $('#s_hs_bc').value || '#000000';
-  const radius = ($('#s_hs_radius').value || 0) + 'px';
-  const size = Math.max(10, Math.min(24, Math.round(($('#s_hs_size').value || 0.075) * 200))) + 'px';
+  const radius = Math.min(16, Math.round(($('#s_hs_radius').value || 0) * 0.4)) + 'px';
+  // backend: font_px = font_size * width (1080), preview upscaled ~4x for readability
+  const size = Math.max(12, Math.min(28, Math.round(($('#s_hs_size').value || 0.075) * 380))) + 'px';
   const glitch = $('#s_hs_glitch').checked;
-
   const el = $('#hookPreview');
   el.style.color = fc;
   el.style.backgroundColor = bc;
   el.style.borderRadius = radius;
   el.style.fontSize = size;
+  el.style.padding = '6px 10px';
   el.style.textShadow = glitch ? '2px 0 #fe2c55, -2px 0 #25f4ee' : 'none';
+  el.style.fontFamily = 'Corbel, sans-serif';
+  el.style.fontWeight = '900';
 }
 
 function updateSubPreview() {
@@ -643,7 +694,8 @@ function populateForm(d) {
   $('#s_temperature').value = d.temperature ?? 0.7;
   $('#s_hf_model').value = d.hf_model || '';
   $('#s_subtitle_language').value = d.subtitle_language || 'id';
-  $('#s_fw_model').value = d.faster_whisper_model || 'base';
+  $('#s_fw_model').value = d.fw_model || d.faster_whisper_model || 'small';
+  checkFwModels();
   $('#s_resolution').value = d.resolution || '1080p';
   $('#s_aspect_ratio').value = d.aspect_ratio || '9:16';
   $('#s_portrait_mode').value = d.portrait_mode || 'crop';
@@ -701,8 +753,8 @@ async function loadConfig() {
     const res = await fetch('/api/config');
     const d = await res.json();
     populateForm(d);
-    // auto fetch models dari server
-    fetchModels().then(()=>{ if(d.hf_model) $('#s_hf_model').value=d.hf_model; }).catch(()=>{});
+    fetchModels().then(()=>{ if(d.hf_model) $('#s_hf_model').value=d.hf_model; fetchTtsModels().then(()=>{ if(d.tts_model) $('#s_tts_model').value=d.tts_model; }); }).catch(()=>{});
+    checkHfStatus();
   } catch (e) {
     alert('Gagal memuat konfigurasi: ' + e);
   }
@@ -726,6 +778,17 @@ async function saveAll() {
   }
 }
 
+let _hfTimer=null; function debounceHfCheck(){ clearTimeout(_hfTimer); _hfTimer=setTimeout(checkHfStatus,800); }
+async function checkHfStatus(){
+  const badge=$('#hfStatus'); badge.textContent='● checking…'; badge.className='ml-auto text-[10px] px-2 py-0.5 rounded-full border border-zinc-700 text-zinc-500';
+  try{
+    const r=await fetch('/api/test-llm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({server_url:$('#s_server_url').value,hf_api_key:$('#s_hf_api_key').value})});
+    const d=await r.json();
+    if(d.ok){ badge.textContent='● connected ('+d.count+' models)'; badge.className='ml-auto text-[10px] px-2 py-0.5 rounded-full border border-emerald-700 bg-emerald-950 text-emerald-400'; }
+    else{ badge.textContent='● disconnected'; badge.className='ml-auto text-[10px] px-2 py-0.5 rounded-full border border-red-800 bg-red-950 text-red-400'; }
+    return d;
+  }catch{ badge.textContent='● offline'; badge.className='ml-auto text-[10px] px-2 py-0.5 rounded-full border border-red-800 bg-red-950 text-red-400'; return null; }
+}
 async function fetchModels(){
   const sel=$('#s_hf_model'); const cur=sel.value;
   sel.innerHTML='<option>Loading…</option>';
@@ -734,14 +797,153 @@ async function fetchModels(){
     const d=await r.json();
     if(!d.ok) throw new Error(d.error);
     const models=d.sample||d.models||[];
-    // keep AUTO on top
     sel.innerHTML='<option value="AUTO">AUTO</option>'+models.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
     if(cur) sel.value=cur;
     $('#connMsg').textContent='✅ '+models.length+' model dimuat'; $('#connMsg').className='text-[11px] text-emerald-400';
+    checkHfStatus();
   }catch(e){ sel.innerHTML='<option value="AUTO">AUTO</option>'; $('#connMsg').textContent='❌ '+e.message; $('#connMsg').className='text-[11px] text-red-400'; }
+}
+const TTS_PROVIDERS={
+  'edge-tts': { label:'Edge TTS', models:{ 'edge-tts':['id-ID-GadisNeural','id-ID-ArdiNeural','en-US-AriaNeural','en-US-GuyNeural'] } },
+  'google-tts': { label:'Google TTS', models:{ 'id':['-'] } },
+  'elevenlabs': { label:'ElevenLabs', models:{ 'eleven_multilingual_v2':['pNInz6obpgDQGcFmaJgB','IKne3meq5aSn9XLyUdCD'], 'eleven_flash_v2_5':['pNInz6obpgDQGcFmaJgB'] } },
+  'openai': { label:'OpenAI', models:{ 'tts-1':['alloy','nova','shimmer'], 'tts-1-hd':['alloy'], 'gpt-4o-mini-tts':['alloy'] } },
+  'gemini': { label:'Gemini', models:{ 'gemini-2.5-flash-preview-tts':['Zephyr','Puck','Charon','Kore','Fenrir','Leda','Orus','Aoede','Callirrhoe','Autonoe','Enceladus','Iapetus','Umbriel','Algieba','Despina','Erinome','Algenib','Rasalgethi','Laomedeia','Achernar','Alnilam','Schedar','Gacrux','Pulcherrima','Achird','Zubenelgenubi','Vindemiatrix','Sadachbia','Sadaltager','Sulafat'], 'gemini-3.1-flash-tts':['Zephyr','Puck','Charon'] } },
+  'local-device': { label:'Local Device', models:{ 'local-device':['tts-1'] } }
+};
+const TTS_VOICES={
+  'edge-tts': { 'Indonesian':['id-ID-GadisNeural','id-ID-ArdiNeural'], 'English':['en-US-AriaNeural','en-US-GuyNeural'], 'all':['id-ID-GadisNeural','id-ID-ArdiNeural','en-US-AriaNeural','en-US-GuyNeural'] },
+  'google-tts': { 'Indonesian':['id-ID-Wavenet-A','id-ID-Wavenet-B'], 'English':['en-US-Wavenet-D','en-US-Wavenet-F'], 'all':['id-ID-Wavenet-A','id-ID-Wavenet-B','en-US-Wavenet-D'] },
+  'elevenlabs': { 'Indonesian':['eleven_multilingual_v2','eleven_flash_v2_5'], 'all':['eleven_multilingual_v2','eleven_flash_v2_5'] },
+  'gemini': { 'Indonesian':['Zephyr','Puck','Charon','Kore','Fenrir','Leda','Orus','Aoede','Callirrhoe','Autonoe','Enceladus','Iapetus','Umbriel','Algieba','Despina','Erinome','Algenib','Rasalgethi','Laomedeia','Achernar','Alnilam','Schedar','Gacrux','Pulcherrima','Achird','Zubenelgenubi','Vindemiatrix','Sadachbia','Sadaltager','Sulafat'], 'English':['Zephyr','Puck','Charon','Kore','Fenrir','Leda'], 'all':['Zephyr','Puck','Charon','Kore','Fenrir','Leda','Orus','Aoede','Callirrhoe','Autonoe','Enceladus','Sadaltager'] },
+};
+let TTS_MODELS_CACHE=[];
+async function fetchTtsModels(){
+  try{
+    const r2=await fetch('/api/tts/9router',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({server_url:$('#s_server_url').value, password:'123456'})});
+    const d2=await r2.json();
+    if(d2.ok && d2.sample){ TTS_MODELS_CACHE=d2.sample; ACTIVE_PROVIDERS_CACHE=d2.activeProviders||[]; }
+  }catch{}
+  if(!TTS_MODELS_CACHE.length){
+    try{
+      const r=await fetch('/api/test-llm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({server_url:$('#s_server_url').value,hf_api_key:$('#s_hf_api_key').value})});
+      const d=await r.json(); if(d.ok) TTS_MODELS_CACHE=d.sample.filter(m=>/tts|audio/i.test(m));
+    }catch{}
+  }
+  buildTtsProvider();
+}
+let ACTIVE_PROVIDERS_CACHE=[];
+let DYNAMIC_TTS={};
+function rebuildDynamic(){
+  DYNAMIC_TTS={};
+  TTS_MODELS_CACHE.forEach(full=>{
+    // full: gemini/gemini-2.5-flash-preview-tts/Achernar atau edge-tts/id-ID-GadisNeural atau openrouter/openai/tts-1/alloy
+    const parts=full.split('/');
+    let prov, model, voice;
+    if(parts[0]==='openrouter'){ prov='openrouter'; model=parts.slice(1,3).join('/'); voice=parts[3]||''; }
+    else if(parts.length===3){ prov=parts[0]; model=parts[1]; voice=parts[2]; }
+    else if(parts.length===2){ prov=parts[0]; model=parts[0]; voice=parts[1]; }
+    else { prov=parts[0]; model=parts[1]||parts[0]; voice=parts.slice(2).join('/')||parts[1]; }
+    DYNAMIC_TTS[prov]=DYNAMIC_TTS[prov]||{};
+    DYNAMIC_TTS[prov][model]=DYNAMIC_TTS[prov][model]||[];
+    if(voice && !DYNAMIC_TTS[prov][model].includes(voice)) DYNAMIC_TTS[prov][model].push(voice);
+  });
+  // merge static edge/google yang tidak ada di server list tapi ready
+  Object.keys(TTS_PROVIDERS).forEach(p=>{
+    if(!DYNAMIC_TTS[p]){
+      DYNAMIC_TTS[p]=TTS_PROVIDERS[p].models;
+    }
+  });
+}
+function buildTtsProvider(){
+  rebuildDynamic();
+  let provs=Object.keys(DYNAMIC_TTS);
+  // filter hanya aktif
+  let filtered=provs.filter(p=> ACTIVE_PROVIDERS_CACHE.includes(p) || ACTIVE_PROVIDERS_CACHE.includes(p.replace('-tts','')) || (p==='gemini' && ACTIVE_PROVIDERS_CACHE.includes('antigravity')) );
+  if(filtered.length) provs=filtered;
+  const sel=$('#s_tts_provider');
+  sel.innerHTML=provs.map(p=>`<option value="${p}">${(TTS_PROVIDERS[p]&&TTS_PROVIDERS[p].label)||p}</option>`).join('');
+  const curModel=$('#s_tts_model').value||'';
+  let curProv=provs[0];
+  if(curModel){ curProv=provs.find(k=> curModel.startsWith(k))||provs[0]; }
+  sel.value=curProv;
+  onTtsProvider();
+  if(curModel) {
+    const parts=curModel.split('/');
+    let mod, voice;
+    if(parts[0]==='openrouter'){ mod=parts.slice(1,3).join('/'); voice=parts[3]||''; }
+    else if(parts.length>=3){ mod=parts[1]; voice=parts.slice(2).join('/'); }
+    else { voice=parts[1]||''; }
+    if(mod) $('#s_tts_model_sel').value=mod;
+    onTtsModel();
+    if(voice) selectVoice(voice);
+  }
+}
+function onTtsProvider(){
+  const prov=$('#s_tts_provider').value;
+  const modelSel=$('#s_tts_model_sel');
+  const models=DYNAMIC_TTS[prov]?Object.keys(DYNAMIC_TTS[prov]):[];
+  modelSel.innerHTML=models.map(m=>`<option value="${m}">${m}</option>`).join('');
+  onTtsModel();
+}
+function onTtsModel(){
+  const langSel=$('#s_tts_lang');
+  langSel.innerHTML='<option value="Indonesian">Indonesian (id)</option>';
+  langSel.value='Indonesian';
+  onTtsLang();
+}
+function onTtsLang(){
+  const prov=$('#s_tts_provider').value; const model=$('#s_tts_model_sel').value;
+  let list=(DYNAMIC_TTS[prov]&&DYNAMIC_TTS[prov][model]) || [];
+  const chipBox=$('#s_tts_voice_chips'); const sel=$('#s_tts_voice');
+  sel.innerHTML=list.map(v=>`<option value="${v}">${v}</option>`).join('');
+  chipBox.innerHTML=list.map(v=>`<button type="button" onclick="selectVoice('${v}')" data-voice="${v}" class="voice-chip px-2.5 py-1 rounded-full text-[10px] border border-zinc-700 bg-surface-2 hover:border-accent text-zinc-300">${v}</button>`).join('');
+  if(list.length) selectVoice(list[0]);
+}
+function selectVoice(v){
+  $('#s_tts_voice').value=v;
+  document.querySelectorAll('.voice-chip').forEach(b=>{ b.className=b.dataset.voice===v?'voice-chip px-2.5 py-1 rounded-full text-[10px] border border-accent bg-accent text-black font-bold':'voice-chip px-2.5 py-1 rounded-full text-[10px] border border-zinc-700 bg-surface-2 hover:border-accent text-zinc-300'; });
+  onTtsVoice();
+}
+function onTtsVoice(){
+  const prov=$('#s_tts_provider').value, model=$('#s_tts_model_sel').value, voice=$('#s_tts_voice').value;
+  let finalModel;
+  if(prov==='google-tts') finalModel = 'google-tts/id'; // google hanya butuh google-tts/id
+  else if(model.includes('/')) finalModel = model + '/' + voice;
+  else if(model===prov) finalModel = prov + '/' + voice;
+  else finalModel = prov + '/' + model + '/' + voice;
+  $('#s_tts_model').value = finalModel;
+  const lbl=document.getElementById('ttsModelLabel'); if(lbl) lbl.textContent=$('#s_tts_model').value;
+}
+async function testTtsModel(){
+  const m=$('#ttsTestMsg'); m.textContent='Testing…'; m.className='text-[10px] text-zinc-400';
+  const input=$('#s_tts_input').value||'Hello, this is a text to speech test.';
+  const language=$('#s_tts_lang').value||'Indonesian';
+  try{
+    const r=await fetch('/api/tts/test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({server_url:$('#s_server_url').value, api_key:$('#s_hf_api_key').value, model:$('#s_tts_model').value, input, language})});
+    const d=await r.json();
+    if(d.ok){ m.innerHTML='✅ '+ (d.bytes/1024).toFixed(1)+'KB'; m.className='text-[10px] text-emerald-400'; const a=document.getElementById('ttsAudio'); a.src='/api/tts/preview?model='+encodeURIComponent($('#s_tts_model').value)+'&input='+encodeURIComponent(input)+'&language='+encodeURIComponent(language); a.classList.remove('hidden'); a.play().catch(()=>{}); }
+    else{ m.textContent='❌ '+d.error.slice(0,120); m.className='text-[10px] text-red-400'; }
+  }catch(e){ m.textContent='❌ '+e.message; m.className='text-[10px] text-red-400'; }
+}
+function playFull(enc){ const box=document.getElementById('ttsPreviewFull'); box.classList.remove('hidden'); const a=document.getElementById('ttsAudio'); a.src='/api/tts/preview?model='+enc; a.play().catch(()=>{}); box.scrollIntoView({behavior:'smooth',block:'nearest'}); }
+async function testAllTts(){
+  const box=$('#ttsAll'); box.classList.remove('hidden'); box.innerHTML='<div class="p-2 text-[10px] text-zinc-500">Mengecek semua model…</div>';
+  const sel=$('#s_tts_model'); const models=[...sel.options].map(o=>o.value);
+  box.innerHTML='';
+  for(const model of models){
+    const row=document.createElement('div'); row.className='flex items-center gap-2 px-2.5 py-1.5 text-[10px] w-full'; row.innerHTML=`<span class="flex-1 truncate font-mono text-zinc-300">${esc(model)}</span><span class="text-zinc-500 text-[9px]">⏳</span>`; box.appendChild(row);
+    try{
+      const r=await fetch('/api/tts/test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({server_url:$('#s_server_url').value, model})});
+      const d=await r.json();
+      if(d.ok) row.innerHTML=`<span class="flex-1 truncate font-mono text-emerald-400">✅ ${esc(model)}</span><span class="text-[9px] text-zinc-500">${(d.bytes/1024).toFixed(1)}KB</span><button onclick="playFull('${encodeURIComponent(model)}')" class="px-1.5 py-0.5 bg-accent text-black rounded text-[9px] font-bold">▶ Play</button>`;
+      else row.innerHTML=`<span class="flex-1 truncate font-mono text-red-400">❌ ${esc(model)}</span><span class="flex-1 truncate text-[9px] text-zinc-500">${esc(d.error.slice(0,70))}</span>`;
+    }catch(e){ row.innerHTML=`<span class="flex-1 truncate font-mono text-red-400">❌ ${esc(model)}</span><span class="text-[9px] text-red-300">${esc(e.message.slice(0,50))}</span>`; }
+  }
 }
 async function testConnection() {
   await fetchModels();
+  await fetchTtsModels();
 }
 
 async function uploadWm() {
@@ -762,6 +964,26 @@ async function uploadWm() {
   }
 }
 
+async function checkFwModels(){
+  const sel=$('#s_fw_model').value, box=$('#fwCheck'), badge=$('#fwBadge');
+  box.textContent='Mengecek…';
+  try{
+    const r=await fetch('/api/whisper/models'); const list=await r.json();
+    const cur=list.find(x=>x.size===sel);
+    if(badge){ badge.textContent=cur&&cur.installed?'✓ installed '+cur.mb:'✗ belum download'; badge.className='text-[9px] px-1 py-0.5 rounded font-mono ml-1 '+(cur&&cur.installed?'bg-emerald-900 text-emerald-300':'bg-red-900 text-red-300'); }
+    // list all
+    box.innerHTML=list.map(x=>`<span class="inline-block mr-2 ${x.installed?'text-emerald-400':'text-zinc-500'}">${x.installed?'✓':'○'} ${x.size}${x.mb?' '+x.mb:''}</span>`).join('') + (cur&&!cur.installed?` <button onclick="downloadFwModel('${sel}')" class="ml-2 px-2 py-0.5 bg-accent text-black rounded text-[10px] font-bold">⬇ Download ${sel}</button>`:'');
+  }catch(e){ box.textContent='Gagal cek: '+e.message; }
+}
+async function downloadFwModel(size){
+  const box=$('#fwCheck'); box.textContent='Download '+size+'… (lihat output/whisper_download_'+size+'.log)';
+  try{
+    const r=await fetch('/api/whisper/download',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({size})});
+    const d=await r.json(); if(!d.ok) throw new Error(d.error||'gagal');
+    box.textContent='⏳ Download berjalan… refresh cek lagi dalam 30s';
+    setTimeout(checkFwModels, 5000);
+  }catch(e){ box.textContent='❌ '+e.message; }
+}
 loadConfig();
 loadCustomPresets();
 </script>
