@@ -199,7 +199,18 @@ class AutoClipperCore(SubtitleGeneratorMixin, EffectsMixin):
         self.subtitle_sync_offset = float(subtitle_sync_offset)
         # Set True when caption transcription/burning fails so metadata is honest
         self._caption_failed = False
-        self.log = log_callback or (lambda m: print(re.sub(r"\x1b\[[0-9;]*m", "", m)))
+        self.log = log_callback or (lambda m: print(re.sub(r"\x1b\[[0-9;]*m", "", m), flush=True) if True else None)
+        # fix Windows cp1252 crash on emoji ✓✗
+        _orig_log = self.log
+        def _safe_log(m):
+            try:
+                _orig_log(m)
+            except UnicodeEncodeError:
+                try:
+                    print(re.sub(r"\x1b\[[0-9;]*m", "", m).encode('cp1252','replace').decode('cp1252'), flush=True)
+                except Exception:
+                    pass
+        self.log = _safe_log if log_callback is None else log_callback
         self.set_progress = progress_callback or (lambda s, p: None)
         self.report_tokens = token_callback or (lambda gi, go, w, t: None)
         self.is_cancelled = cancel_check or (lambda: False)
@@ -213,6 +224,7 @@ class AutoClipperCore(SubtitleGeneratorMixin, EffectsMixin):
         
         # Faster-Whisper model (lazy loaded)
         self.faster_whisper_model = None
+        self.faster_whisper_model_size = None
         self.faster_whisper_compute_type = "int8" # Default to int8 for CPU
         
         # Create temp directory
@@ -252,6 +264,12 @@ class AutoClipperCore(SubtitleGeneratorMixin, EffectsMixin):
             self.log("  Using CPU (int8) for Faster-Whisper inference.")
 
         self.log(f"  Loading Faster-Whisper model '{model_size}' from {model_dir}...")
+        # unload previous model if size changed
+        if self.faster_whisper_model is not None and self.faster_whisper_model_size != model_size:
+            try: del self.faster_whisper_model
+            except: pass
+            self.faster_whisper_model = None
+        self.faster_whisper_model_size = model_size
         self.faster_whisper_model = WhisperModel(
             str(model_dir),
             device=device,
@@ -2792,9 +2810,12 @@ Transcript:
         fw_settings = cm_config.get("faster_whisper", {})
         model_size = fw_settings.get("model_size", "small")
         
-        # Initialize model if needed
-        if not self.faster_whisper_model:
-            self.log(f"  [Caption] Initializing local Faster-Whisper model '{model_size}'...")
+        # Initialize / reload model if config changed
+        if not self.faster_whisper_model or getattr(self, 'faster_whisper_model_size', None) != model_size:
+            if self.faster_whisper_model and self.faster_whisper_model_size != model_size:
+                self.log(f"  [Caption] Switching Faster-Whisper model {self.faster_whisper_model_size} → {model_size}...")
+            else:
+                self.log(f"  [Caption] Initializing local Faster-Whisper model '{model_size}'...")
             success = self._init_faster_whisper_model(model_size)
             if not success:
                 raise Exception(f"Failed to initialize local Faster-Whisper model '{model_size}'")

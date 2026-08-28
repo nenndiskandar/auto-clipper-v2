@@ -6,16 +6,16 @@ sync_offset,portrait_mode,face_tracking_mode,smooth_follow,pan_speed_limit,
 center_weight,switch_threshold,min_shot_duration,lip_activity,gpu}
 Default mengikuti config.json (satu sumber dengan bot /config).
 """
+from pathlib import Path
 import sys, os, json, traceback
 
 SESSION_DIR = sys.argv[1]
 CLIP_DIR = sys.argv[2]
 
-APP_DIR = "/root/yt-short-clipper"
+APP_DIR = str(Path(__file__).resolve().parents[1])
 sys.path.insert(0, APP_DIR)
 os.chdir(APP_DIR)
 
-from pathlib import Path
 from openai import OpenAI
 from config.config_manager import ConfigManager
 from utils.helpers import get_ffmpeg_path, get_ytdlp_path

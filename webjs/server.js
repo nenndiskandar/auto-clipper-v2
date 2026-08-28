@@ -11,6 +11,7 @@ const ROOT = path.resolve(__dirname, '..');
 const SESSIONS = path.join(ROOT, 'output', 'sessions');
 const PUBLIC = path.join(__dirname, 'public');
 const PORT = process.env.PORT || 3000;
+const PY = process.platform === 'win32' ? 'python' : '/usr/bin/python3';
 
 // --- Auth: Telegram Login Widget (cookie HMAC, total pengganti basic-auth) ---
 const OWNER_ID = '233439175';
@@ -231,33 +232,9 @@ const server = http.createServer((req, res) => {
   const u = new URL(req.url, 'http://x');
   const p = u.pathname;
   try {
-    // --- gate auth Telegram ---
-    if (p === '/api/auth/telegram' && req.method === 'POST') {
-      let body = '';
-      req.on('data', c => body += c);
-      req.on('end', () => {
-        let d = {};
-        try { d = JSON.parse(body || '{}'); } catch {}
-        const check = Object.keys(d).filter(k => k !== 'hash').sort().map(k => `${k}=${d[k]}`).join('\n');
-        let okHash = false;
-        try {
-          const secret = crypto.createHash('sha256').update(BOT_TOKEN).digest();
-          const hmac = crypto.createHmac('sha256', secret).update(check).digest('hex');
-          const a = Buffer.from(hmac), b = Buffer.from(String(d.hash || ''));
-          okHash = a.length === b.length && crypto.timingSafeEqual(a, b);
-        } catch {}
-        const fresh = Math.abs(Date.now() / 1000 - Number(d.auth_date)) < 86400;
-        if (!BOT_TOKEN || !okHash || !fresh || String(d.id) !== OWNER_ID) return json(res, 403, { error: 'Verifikasi Telegram gagal' });
-        res.setHeader('Set-Cookie', `${COOKIE_NAME}=${makeToken(d.id, d.first_name || d.username || 'admin')}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${7 * 86400}`);
-        json(res, 200, { ok: true, name: d.first_name || d.username || 'admin' });
-      });
-      return;
-    }
-    if (p === '/logout') {
-      res.setHeader('Set-Cookie', `${COOKIE_NAME}=; Path=/; HttpOnly; Max-Age=0`);
-      res.writeHead(302, { Location: '/' });
-      return res.end();
-    }
+    // auth disabled — login page removed
+    if (p === '/api/auth/telegram' && req.method === 'POST') return json(res, 200, { ok: true });
+    if (p === '/logout') { res.writeHead(302, { Location: '/' }); return res.end(); }
     // --- public routes: video stream & download (tanpa auth) ---
     const mVidPub = p.match(/^\/(video|download)\/([^/]+)\/(.+)$/);
     if (mVidPub) {
@@ -267,33 +244,9 @@ const server = http.createServer((req, res) => {
       if (!fp.startsWith(SESSIONS)) return json(res, 403, { error: 'forbidden' });
       return sendFile(req, res, fp, mVidPub[1] === 'download');
     }
-    // --- thumbnail juga publik ---
-    const mThPub = p.match(/^\/thumb\/([^/]+)\/([^/]+)$/);
-    if (mThPub) {
-      const clipDir = path.join(SESSIONS, safe(mThPub[1]), 'clips', safe(mThPub[2]));
-      if (!clipDir.startsWith(SESSIONS)) return json(res, 403, { error: 'forbidden' });
-      const thumbFiles = ['thumbnail.jpg','thumbnail.png','thumb.jpg','thumb.png'];
-      let found = null;
-      for (const t of thumbFiles) { const tp = path.join(clipDir, t); if (fs.existsSync(tp)) { found = tp; break; } }
-      if (!found) {
-        const mp4s = (fs.existsSync(clipDir) ? fs.readdirSync(clipDir) : []).filter(f => f.endsWith('.mp4'));
-        if (!mp4s.length) return json(res, 404, { error: 'no thumb' });
-      }
-      if (found) return sendFile(req, res, found, false);
-      return json(res, 404, { error: 'no thumb' });
-    }
 
-    if (!checkToken(getCookie(req.headers.cookie)[COOKIE_NAME])) {
-      if (p === '/' || p.endsWith('.html')) {
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' });
-        return res.end(fs.readFileSync(path.join(PUBLIC, 'login.html')));
-      }
-      return json(res, 401, { error: 'unauthorized' });
-    }
-    if (p === '/api/me') {
-      const me = checkToken(getCookie(req.headers.cookie)[COOKIE_NAME]);
-      return json(res, 200, me ? { id: me.id, name: me.name } : {});
-    }
+
+    if (p === '/api/me') return json(res, 200, { id: 'local', name: 'admin' });
     if (p === '/api/sessions') return json(res, 200, listSessions());
     // GET /api/sessions/:session/clip/:clipDir — detail 1 klip (ringan, tanpa scan semua sesi)
     const mClip = p.match(/^\/api\/sessions\/([^/]+)\/clip\/([^/]+)$/);
@@ -498,9 +451,10 @@ const server = http.createServer((req, res) => {
         cfg.ai_providers.highlight_finder = cfg.ai_providers.highlight_finder || {};
         if (typeof o.hf_model === 'string' && o.hf_model.trim()) cfg.ai_providers.highlight_finder.model = o.hf_model.trim();
         if (typeof o.server_url === 'string' && o.server_url.trim()) cfg.ai_providers.highlight_finder.base_url = o.server_url.trim();
-        if (typeof o.fw_model === 'string' && o.fw_model.trim()) {
+        const fwVal = (o.fw_model || o.faster_whisper_model || '').trim();
+        if (fwVal) {
           cfg.ai_providers.caption_maker = cfg.ai_providers.caption_maker || {};
-          cfg.ai_providers.caption_maker.faster_whisper = Object.assign({}, cfg.ai_providers.caption_maker.faster_whisper, { model_size: o.fw_model.trim() });
+          cfg.ai_providers.caption_maker.faster_whisper = Object.assign({}, cfg.ai_providers.caption_maker.faster_whisper, { model_size: fwVal });
         }
         if (o.wm && typeof o.wm === 'object') {
           cfg.watermark = cfg.watermark || {};
@@ -546,14 +500,14 @@ try:
     print(json.dumps({'ok':True,'count':len(ids),'sample':ids}))
 except Exception as e:
     print(json.dumps({'ok':False,'error':str(e)[:300]}))`;
-if (p === '/api/test-connection' && req.method === 'POST') {
+if ((p === '/api/test-connection' || p === '/api/test-llm') && req.method === 'POST') {
   let body = '';
   req.on('data', c => body += c);
   req.on('end', () => {
     let o = {};
     try { o = JSON.parse(body || '{}'); } catch {}
-    const env = { ...process.env, TC_URL: String(o.server_url || '').trim(), TC_KEY: String(o.api_key || '') };
-    execFile('/usr/bin/python3', ['-c', TC_SRC], { env }, (err, stdout, stderr) => {
+    const env = { ...process.env, TC_URL: String(o.server_url || '').trim(), TC_KEY: String(o.api_key || o.hf_api_key || '') };
+    execFile(PY, ['-c', TC_SRC], { env }, (err, stdout, stderr) => {
       const out = (stdout || '').toString().trim().split('\n').pop();
       try { return json(res, 200, JSON.parse(out)); } catch { return json(res, 200, { ok: false, error: (stderr || stdout || '').toString().slice(-300) }); }
     });
@@ -592,7 +546,7 @@ if (p === '/api/test-connection' && req.method === 'POST') {
         const logPath = path.join(clipDir, 'render.log');
         fs.appendFileSync(logPath, `\n===== render start ${new Date().toISOString()} opts=${JSON.stringify(opt)} =====\n`);
         const out = fs.createWriteStream(logPath, { flags: 'a' });
-        const child = spawn('/usr/bin/python3', [path.join(__dirname, 'render_clip.py'), sessDir, clipDir], { env });
+        const child = spawn(PY, [path.join(__dirname, 'render_clip.py'), sessDir, clipDir], { env });
         child.stdout.pipe(out);
         child.stderr.pipe(out);
         const job = { proc: child, code: undefined, startedAt: Date.now() };
@@ -645,7 +599,7 @@ if (p === '/api/test-connection' && req.method === 'POST') {
         } catch {}
         const out = fs.createWriteStream(logPath, { flags: 'a' });
         const resultFile = path.join(ROOT, 'output', `.phase1_result_${Date.now()}.json`);
-        const child = spawn('/usr/bin/python3', [path.join(__dirname, 'phase1_create.py'), String(o.url), String(parseInt(o.num_clips) || 0), resultFile], { detached: true });
+        const child = spawn(PY, [path.join(__dirname, 'phase1_create.py'), String(o.url), String(parseInt(o.num_clips) || 0), resultFile], { detached: true, env: { ...process.env, PYTHONIOENCODING: 'utf-8' } });
         child.stdout.pipe(out); child.stderr.pipe(out);
         CREATE_JOB = { proc: child, code: undefined, startedAt: Date.now(), resultFile, logPath, url: String(o.url) };
         child.on('close', code => { CREATE_JOB.code = code; out.end(); });
@@ -721,7 +675,7 @@ if (p === '/api/test-connection' && req.method === 'POST') {
         fs.mkdirSync(path.dirname(logPath), { recursive: true });
         fs.appendFileSync(logPath, `\n===== refind start ${new Date().toISOString()} n=${parseInt(o.num_clips) || 0} =====\n`);
         const out = fs.createWriteStream(logPath, { flags: 'a' });
-        const child = spawn('/usr/bin/python3', [path.join(__dirname, 'refind_highlights.py'), sid, String(parseInt(o.num_clips) || 0), resultFile], { detached: true });
+        const child = spawn(PY, [path.join(__dirname, 'refind_highlights.py'), sid, String(parseInt(o.num_clips) || 0), resultFile], { detached: true });
         child.stdout.pipe(out); child.stderr.pipe(out);
         const job = { proc: child, code: undefined, startedAt: Date.now(), resultFile };
         REFIND_JOBS.set(sid, job);
@@ -841,7 +795,7 @@ if (p === '/api/test-connection' && req.method === 'POST') {
         const logPath = path.join(sessDir, 'process.log');
         fs.appendFileSync(logPath, `\n===== process start ${new Date().toISOString()} sel=${env.SELECTED} hook=${env.ADD_HOOK} caps=${env.ADD_CAPS} =====\n`);
         const out = fs.createWriteStream(logPath, { flags: 'a' });
-        const child = spawn('/usr/bin/python3', [path.join(__dirname, 'process_session.py'), sessDir], { env, detached: true });
+        const child = spawn(PY, [path.join(__dirname, 'process_session.py'), sessDir], { env, detached: true });
         child.stdout.pipe(out); child.stderr.pipe(out);
         const job = { proc: child, code: undefined, startedAt: Date.now() };
         PROCESS_JOBS.set(mProc[1], job);

@@ -3,15 +3,15 @@
 Usage: process_session.py <session_dir>
 Env: SELECTED="0,2,3" ADD_HOOK=0/1 ADD_CAPS=0/1
 """
+from pathlib import Path
 import sys, os, json, traceback
 
 SESSION_DIR = sys.argv[1]
 
-APP_DIR = "/root/yt-short-clipper"
+APP_DIR = str(Path(__file__).resolve().parents[1])
 sys.path.insert(0, APP_DIR)
 os.chdir(APP_DIR)
 
-from pathlib import Path
 from openai import OpenAI
 from config.config_manager import ConfigManager
 from utils.helpers import get_ffmpeg_path, get_ytdlp_path

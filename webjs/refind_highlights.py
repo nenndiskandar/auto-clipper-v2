@@ -11,7 +11,7 @@ SID = sys.argv[1]
 NUM_CLIPS = int(sys.argv[2])
 RESULT_FILE = sys.argv[3]
 
-sys.path.insert(0, "/root/yt-short-clipper/webjs")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from clip_common import APP_DIR, build_core, write_json
 
 

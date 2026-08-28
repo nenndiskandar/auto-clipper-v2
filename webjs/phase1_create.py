@@ -4,16 +4,16 @@ Usage: phase1_create.py <url> <num_clips> <result_file>
 Tulis result JSON: {ok, session_dir, error?}
 """
 import sys, os, json, traceback
+from pathlib import Path
 
 URL = sys.argv[1]
 NUM_CLIPS = int(sys.argv[2])
 RESULT_FILE = sys.argv[3]
 
-APP_DIR = "/root/yt-short-clipper"
+APP_DIR = str(Path(__file__).resolve().parents[1])
 sys.path.insert(0, APP_DIR)
 os.chdir(APP_DIR)
 
-from pathlib import Path
 from openai import OpenAI
 from config.config_manager import ConfigManager
 from utils.helpers import get_ffmpeg_path, get_ytdlp_path
