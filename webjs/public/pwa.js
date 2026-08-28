@@ -13,38 +13,46 @@
   }
 
   function isPWA() {
-    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
   }
 
-  function showInstallBanner() {
-    if (isMobile() && !isPWA()) {
-      let b = document.getElementById('installBanner');
-      if (!b) {
-        b = document.createElement('div');
-        b.id = 'installBanner';
-        b.className = 'bg-accent text-black text-xs font-bold px-4 py-2 flex items-center justify-between shadow-md cursor-pointer';
-        b.innerHTML = '<span>📱 Pasang aplikasi untuk pengalaman lebih baik</span><button id="closeInstall" class="ml-2 text-black/50 hover:text-black">✕</button>';
-        
-        b.addEventListener('click', (e) => {
-          if (e.target.id === 'closeInstall') {
-            b.style.display = 'none';
-          } else if (deferredPrompt) {
-            deferredPrompt.prompt();
-            deferredPrompt.userChoice.then(() => { deferredPrompt = null; b.style.display = 'none'; });
-          } else {
-            alert('Gunakan menu browser "Add to Home screen" atau "Install app"');
-          }
-        });
-        
-        document.body.insertBefore(b, document.body.firstChild);
-      }
+  function renderInstallBanner() {
+    if (!isMobile() || isPWA()) return;
+    if (document.getElementById('installBanner')) return;
+
+    // Pasang banner di header / paling atas halaman index
+    const b = document.createElement('div');
+    b.id = 'installBanner';
+    b.className = 'w-full bg-accent text-black text-xs font-bold px-4 py-2 flex items-center justify-between shadow-md z-40 relative';
+    b.innerHTML = '<span>📱 Pasang aplikasi untuk pengalaman lebih baik</span><div class="flex items-center gap-2"><button id="btnInstallPwa" class="px-2 py-1 bg-black text-white rounded text-[10px] hover:bg-zinc-800">Install</button><button id="closeInstall" class="text-black/70 hover:text-black text-sm font-bold">✕</button></div>';
+
+    const header = document.querySelector('header') || document.body;
+    if (header === document.body) {
+      document.body.insertBefore(b, document.body.firstChild);
+    } else {
+      header.parentNode.insertBefore(b, header);
     }
+
+    document.getElementById('btnInstallPwa').addEventListener('click', () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then(() => { deferredPrompt = null; b.remove(); });
+      } else {
+        alert('Untuk install: buka menu titik tiga browser, lalu pilih "Simpan ke Layar Utama" / "Add to Home screen".');
+      }
+    });
+
+    document.getElementById('closeInstall').addEventListener('click', () => {
+      b.remove();
+    });
   }
 
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
-    showInstallBanner();
+    if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
+      renderInstallBanner();
+    }
   });
 
   function updateOfflineBanner() {
@@ -64,12 +72,11 @@
 
   window.addEventListener('online', updateOfflineBanner);
   window.addEventListener('offline', updateOfflineBanner);
-  
+
   function init() {
     updateOfflineBanner();
-    // Only show install banner on index page if needed
     if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
-      showInstallBanner();
+      renderInstallBanner();
     }
   }
 

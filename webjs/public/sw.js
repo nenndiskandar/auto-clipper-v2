@@ -1,4 +1,4 @@
-const CACHE_NAME = 'yt-clipper-v1';
+const CACHE_NAME = 'yt-clipper-v2';
 const ASSETS = [
   '/',
   '/index.html',
@@ -6,7 +6,9 @@ const ASSETS = [
   '/session.html',
   '/tasks.html',
   '/settings.html',
-  '/templates.js'
+  '/templates.js',
+  '/pwa.js',
+  '/manifest.json'
 ];
 
 self.addEventListener('install', e => {
