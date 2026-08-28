@@ -1,24 +1,4 @@
 // Shared presets across all pages (Create, Session, Settings)
-(function() {
-  function updateOfflineBanner() {
-    let b = document.getElementById('offlineBanner');
-    if (!navigator.onLine) {
-      if (!b) {
-        b = document.createElement('div');
-        b.id = 'offlineBanner';
-        b.className = 'fixed bottom-4 right-4 z-50 bg-red-600 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow-lg flex items-center gap-2';
-        b.innerHTML = '<span>⚠️ Tidak ada koneksi internet (Offline)</span>';
-        document.body.appendChild(b);
-      }
-    } else {
-      if (b) b.remove();
-    }
-  }
-  window.addEventListener('online', updateOfflineBanner);
-  window.addEventListener('offline', updateOfflineBanner);
-  document.addEventListener('DOMContentLoaded', updateOfflineBanner);
-})();
-
 window.UNIFIED_TEMPLATES = {
   tiktok_viral: {
     label: '🔥 TikTok Viral Hook',
