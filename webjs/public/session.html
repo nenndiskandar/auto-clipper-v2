@@ -153,6 +153,13 @@ function fmtSize(b) {
   return Math.round(b / 1024) + ' KB';
 }
 
+function fmtDur(s) {
+  if (!s && s !== 0) return '';
+  s = Math.round(Number(s));
+  if (s < 60) return s + 's';
+  return Math.floor(s / 60) + 'm' + (s % 60 ? s % 60 + 's' : '');
+}
+
 function renderClips(clips) {
   const container = document.getElementById('clipsGrid');
   if (!clips || !clips.length) {
@@ -177,7 +184,7 @@ function renderClips(clips) {
         <img class="w-full h-full object-cover group-hover:scale-105 transition duration-300" loading="lazy" alt="${esc(c.title)}"
              src="/thumb/${encodeURIComponent(sid)}/${encodeURIComponent(c.dir)}">
         ${c.score != null ? `<span class="absolute top-1.5 right-1.5 px-1 py-0.5 text-[9px] font-bold bg-amber-400 text-black rounded shadow">⭐ ${c.score}</span>` : ''}
-        ${c.duration ? `<span class="absolute top-1.5 left-1.5 px-1 py-0.5 text-[9px] font-bold bg-blue-600 text-white rounded shadow font-mono">⏱️ ${c.duration}s</span>` : ''}
+        ${c.duration ? `<span class="absolute top-1.5 left-1.5 px-1 py-0.5 text-[9px] font-bold bg-blue-600 text-white rounded shadow font-mono">⏱️ ${fmtDur(c.duration)}</span>` : ''}
       </a>
       <div class="p-2 flex flex-col flex-1">
         <a href="${detailUrl}" class="text-[11px] font-bold text-white line-clamp-2 mb-1 hover:text-accent transition" title="${esc(c.title)}">${esc(c.title)}</a>
