@@ -3,7 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Detail Klip — YT Short Clipper</title>
+<title>Detail Klip — Auto Clipper</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#facc15">
+<script src="/pwa.js"></script>
+<link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+<script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
 tailwind.config = {
@@ -146,6 +151,13 @@ async function loadDetail() {
     const player = document.getElementById('player');
     player.src = `/video/${encodeURIComponent(s.id)}/${encodeURIComponent(c.dir)}/${encodeURIComponent(c.file)}`;
     player.poster = `/thumb/${encodeURIComponent(s.id)}/${encodeURIComponent(c.dir)}`;
+    if (window.Plyr) {
+      if (window._plyrInstance) window._plyrInstance.destroy();
+      window._plyrInstance = new Plyr(player, {
+        controls: ['play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'captions', 'settings', 'pip', 'fullscreen'],
+        keyboard: { focused: true, global: true }
+      });
+    }
 
     if (s.url) {
       document.getElementById('sourceCard').classList.remove('hidden');
