@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>YT Short Clipper — Results</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#facc15">
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
 tailwind.config = {
@@ -603,6 +605,13 @@ async function deleteClip(gi, ci, btn) {
 
 $('#search').addEventListener('input', render);
 load();
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
 </script>
 </body>
 </html>
