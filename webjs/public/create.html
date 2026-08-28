@@ -107,54 +107,7 @@ pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y
           </div>
         </details>
 
-        <!-- Basic -->
-        <details class="cfg-group" open>
-          <summary class="px-2 py-1.5 text-xs font-semibold text-zinc-300 hover:text-white">📐 Basic</summary>
-          <div class="px-2 pb-2 grid grid-cols-2 gap-2">
-            <div><label class="text-[10px] text-zinc-500 block mb-0.5">Jumlah Clips</label><input type="number" min="1" id="f_num_clips" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"></div>
-            <div><label class="text-[10px] text-zinc-500 block mb-0.5">Resolusi</label><select id="f_resolution" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"><option>1080p</option><option>720p</option><option>480p</option><option>360p</option><option>auto</option></select></div>
-            <div><label class="text-[10px] text-zinc-500 block mb-0.5">Rasio</label><select id="f_aspect_ratio" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"><option>9:16</option><option>1:1</option><option>4:5</option><option>16:9</option></select></div>
-            <div><label class="text-[10px] text-zinc-500 block mb-0.5">Portrait Mode</label><select id="f_portrait_mode" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"><option>crop</option><option>blur</option></select></div>
-            <div><label class="text-[10px] text-zinc-500 block mb-0.5">Gaya Subtitle</label><select id="f_subtitle_style" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"><option>pop</option><option>karaoke</option><option>bounce</option><option>animated</option><option>pop_bounce</option></select></div>
-            <div><label class="text-[10px] text-zinc-500 block mb-0.5">Sync Offset (s)</label><input type="number" step="0.1" id="f_sync_offset" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"></div>
-          </div>
-        </details>
 
-        <!-- Face Tracking -->
-        <details class="cfg-group">
-          <summary class="px-2 py-1.5 text-xs font-semibold text-zinc-300 hover:text-white">🎯 Face Tracking</summary>
-          <div class="px-2 pb-2 grid grid-cols-2 gap-2">
-            <div><label class="text-[10px] text-zinc-500 block mb-0.5">Engine</label><select id="f_face_tracking_mode" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"><option>opencv</option><option>mediapipe</option></select></div>
-            <div><label class="text-[10px] text-zinc-500 block mb-0.5">Pan Speed</label><input type="number" step="0.1" id="f_pan_speed_limit" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"></div>
-            <div><label class="text-[10px] text-zinc-500 block mb-0.5">Center Weight</label><input type="number" step="0.05" id="f_center_weight" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"></div>
-            <div><label class="text-[10px] text-zinc-500 block mb-0.5">Switch Threshold</label><input type="number" step="0.05" id="f_switch_threshold" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"></div>
-            <div><label class="text-[10px] text-zinc-500 block mb-0.5">Min Shot (s)</label><input type="number" step="1" id="f_min_shot_duration" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"></div>
-            <div><label class="text-[10px] text-zinc-500 block mb-0.5">Lip Activity</label><input type="number" step="0.01" id="f_lip_activity" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"></div>
-          </div>
-        </details>
-
-        <!-- Pro Video Editing -->
-        <details class="cfg-group">
-          <summary class="px-2 py-1.5 text-xs font-semibold text-zinc-300 hover:text-white">🎬 Pro Video Editing</summary>
-          <div class="px-2 pb-2 space-y-2">
-            <div class="grid grid-cols-2 gap-2">
-              <div><label class="text-[10px] text-zinc-500 block mb-0.5">Color Grade</label><select id="f_color_grade" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"><option value="none">None</option><option value="cinematic">Cinematic</option><option value="warm">Warm</option><option value="cool">Cool</option><option value="vintage">Vintage</option><option value="vivid">Vivid</option><option value="news">News</option><option value="podcast">Podcast</option><option value="game">Game</option></select></div>
-              <div class="flex items-end pb-1"><label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="f_stabilize" class="w-3.5 h-3.5 accent-[#facc15]"> 📐 Stabilize</label></div>
-            </div>
-            <div class="grid grid-cols-2 gap-2">
-              <div><label class="text-[10px] text-zinc-500 block mb-0.5">Motion Blur</label><input type="number" min="0" max="10" step="1" id="f_motion_blur" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"></div>
-              <div><label class="text-[10px] text-zinc-500 block mb-0.5">Vignette (0-1)</label><input type="number" min="0" max="1" step="0.05" id="f_vignette" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"></div>
-            </div>
-            <div class="grid grid-cols-2 gap-2">
-              <div><label class="text-[10px] text-zinc-500 block mb-0.5">Ramp Start (s)</label><input type="number" min="0" step="0.5" id="f_speed_ramp_start" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"></div>
-              <div><label class="text-[10px] text-zinc-500 block mb-0.5">Ramp End (s)</label><input type="number" min="0" step="0.5" id="f_speed_ramp_end" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"></div>
-            </div>
-            <div class="grid grid-cols-2 gap-2">
-              <div><label class="text-[10px] text-zinc-500 block mb-0.5">Speed Factor</label><input type="number" min="0.1" max="2" step="0.1" id="f_speed_factor" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"></div>
-              <div><label class="text-[10px] text-zinc-500 block mb-0.5">Duck Level (dB)</label><input type="number" min="-30" max="0" step="1" id="f_ducking_level_db" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent"></div>
-            </div>
-          </div>
-        </details>
       </div>
       <div id="saveMsg" class="px-3 pb-2 text-xs"></div>
     </div>
@@ -216,15 +169,18 @@ async function loadConfig(){
 }
 
 function collectConfig(){
-  return{watermark:$('#f_watermark').checked,credit:$('#f_credit').checked,hook:$('#f_hook').checked,captions:$('#f_captions').checked,gpu:$('#f_gpu').checked,smooth_follow:$('#f_smooth_follow').checked,
-    num_clips:parseFloat($('#f_num_clips').value),resolution:$('#f_resolution').value,aspect_ratio:$('#f_aspect_ratio').value,subtitle_style:$('#f_subtitle_style').value,
-    sync_offset:parseFloat($('#f_sync_offset').value),portrait_mode:$('#f_portrait_mode').value,face_tracking_mode:$('#f_face_tracking_mode').value,
-    pan_speed_limit:parseFloat($('#f_pan_speed_limit').value),center_weight:parseFloat($('#f_center_weight').value),switch_threshold:parseFloat($('#f_switch_threshold').value),
-    min_shot_duration:parseFloat($('#f_min_shot_duration').value),lip_activity:parseFloat($('#f_lip_activity').value),
-    stabilize:$('#f_stabilize').checked,color_grade:$('#f_color_grade').value,
-    motion_blur:parseFloat($('#f_motion_blur').value)||0,vignette:parseFloat($('#f_vignette').value)||0,
-    speed_ramp_start:parseFloat($('#f_speed_ramp_start').value)||0,speed_ramp_end:parseFloat($('#f_speed_ramp_end').value)||0,
-    speed_factor:parseFloat($('#f_speed_factor').value)||0.5,ducking_level_db:parseFloat($('#f_ducking_level_db').value)||-15};
+  const v=id=>{const el=document.getElementById(id); return el?el.value:''};
+  const c=id=>{const el=document.getElementById(id); return el?el.checked:false};
+  const n=id=>{const el=document.getElementById(id); return el?parseFloat(el.value):0};
+  return{watermark:c('f_watermark'),credit:c('f_credit'),hook:c('f_hook'),captions:c('f_captions'),gpu:c('f_gpu'),smooth_follow:c('f_smooth_follow'),
+    num_clips:n('f_num_clips')||undefined,resolution:v('f_resolution')||undefined,aspect_ratio:v('f_aspect_ratio')||undefined,subtitle_style:v('f_subtitle_style')||undefined,
+    sync_offset:n('f_sync_offset'),portrait_mode:v('f_portrait_mode')||undefined,face_tracking_mode:v('f_face_tracking_mode')||undefined,
+    pan_speed_limit:n('f_pan_speed_limit'),center_weight:n('f_center_weight'),switch_threshold:n('f_switch_threshold'),
+    min_shot_duration:n('f_min_shot_duration'),lip_activity:n('f_lip_activity'),
+    stabilize:c('f_stabilize'),color_grade:v('f_color_grade')||undefined,
+    motion_blur:n('f_motion_blur')||0,vignette:n('f_vignette')||0,
+    speed_ramp_start:n('f_speed_ramp_start')||0,speed_ramp_end:n('f_speed_ramp_end')||0,
+    speed_factor:n('f_speed_factor')||0.5,ducking_level_db:n('f_ducking_level_db')||-15};
 }
 
 async function saveConfig(){
@@ -265,7 +221,7 @@ async function startCreate(){
         clearInterval(poll);
         if(j.code===0&&j.result&&j.result.ok){
           st.innerHTML='<div class="bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2 text-xs text-emerald-300">✅ '+j.result.count+' highlight — pilih yang mau dirender:</div>';
-          await showPicker(j.result.session_dir);
+          await showPicker(j.result.session_id || j.result.session_dir);
         }else if(window._ph1Cancel){
           window._ph1Cancel=false;st.insertAdjacentHTML('beforeend','<div class="bg-zinc-500/10 border border-zinc-500/20 rounded-lg px-3 py-2 text-xs text-zinc-400">⏹ Dibatalkan.</div>');
           $('#startBtn').disabled=false;
@@ -280,12 +236,12 @@ async function startCreate(){
 }
 
 async function showPicker(sessionDir){
-  PICK_SESSION=sessionDir.split('/').pop();
+  PICK_SESSION=sessionDir.split(/[\\/]/).pop();
   let hls=[];
   try{hls=await(await fetch('/api/highlights/'+encodeURIComponent(PICK_SESSION))).json();}catch{}
   if(!Array.isArray(hls)||!hls.length){$('#wStatus').insertAdjacentHTML('beforeend','<div class="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 text-xs text-amber-300">Highlight tidak terbaca.</div>');return;}
   const rows=hls.map(h=>'<label class="list-group-item bg-transparent hl-item flex items-start gap-2 py-1.5 px-2 rounded"><input type="checkbox" value="'+h.i+'" checked class="hl-check w-3.5 h-3.5 mt-0.5 accent-[#facc15] flex-shrink-0"><span class="flex-grow-1"><span class="text-xs font-medium text-zinc-200">'+esc(h.title)+'</span>'+(h.score!=null?'<span class="ml-1 px-1 py-0.5 bg-amber-500/20 text-amber-400 text-[10px] rounded">⭐'+h.score+'</span>':'')+'<br><span class="text-[10px] text-zinc-500">'+esc(h.start)+' → '+esc(h.end)+' · '+h.duration+'s</span></span></label>').join('');
-  $('#wfArea').innerHTML='<div class="flex items-center justify-between mb-2"><span class="text-xs text-zinc-500">Sesi: <code class="text-zinc-400">'+esc(PICK_SESSION)+'</code> · '+hls.length+' highlight</span><button onclick="location.reload()" class="text-xs text-zinc-400 hover:text-white transition">← Ulang</button></div><div class="space-y-1 border border-zinc-800 rounded-lg p-2 mb-3" style="max-height:38vh;overflow:auto">'+rows+'</div><div class="flex justify-end gap-3 mb-2"><button type="button" class="text-xs text-zinc-400 hover:text-white transition flex items-center gap-1" onclick="toggleAll(true)">☑️ Pilih Semua</button><button type="button" class="text-xs text-zinc-400 hover:text-white transition flex items-center gap-1" onclick="toggleAll(false)">⏹️ Kosongkan</button></div><button onclick="startProcess()" id="procBtn" class="w-full py-2.5 bg-accent text-black font-medium text-sm rounded-lg hover:bg-yellow-400 transition">🎬 Render Klip Terpilih</button><div id="pStatus" class="mt-3"></div><pre class="log hidden mt-3" id="pLog"></pre>';
+  $('#wfArea').innerHTML='<div class="flex items-center justify-between mb-2"><span class="text-xs text-zinc-500">Sesi: <code class="text-zinc-400">'+esc(PICK_SESSION)+'</code> · '+hls.length+' highlight</span><div class="flex gap-2"><button onclick="doRegenerate(PICK_SESSION)" class="text-xs px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded hover:border-accent">🔄 Re-generate</button><button onclick="location.reload()" class="text-xs text-zinc-400 hover:text-white transition">← Ulang</button></div></div><div class="space-y-1 border border-zinc-800 rounded-lg p-2 mb-3" style="max-height:38vh;overflow:auto">'+rows+'</div><div class="flex justify-end gap-3 mb-2"><button type="button" class="text-xs text-zinc-400 hover:text-white transition flex items-center gap-1" onclick="toggleAll(true)">☑️ Pilih Semua</button><button type="button" class="text-xs text-zinc-400 hover:text-white transition flex items-center gap-1" onclick="toggleAll(false)">⏹️ Kosongkan</button></div><button onclick="startProcess()" id="procBtn" class="w-full py-2.5 bg-accent text-black font-medium text-sm rounded-lg hover:bg-yellow-400 transition">🎬 Render Klip Terpilih</button><div id="pStatus" class="mt-3"></div><pre class="log hidden mt-3" id="pLog"></pre>';
 }
 
 function toggleAll(val){
@@ -325,7 +281,43 @@ async function cancelCreate(){window._ph1Cancel=true;const b=document.getElement
 async function cancelProcess(){window._ph2Cancel=true;const b=document.getElementById('pCancelBtn');if(b){b.disabled=true;b.textContent='⏳ stopping…';}try{await fetch('/api/process/cancel/'+encodeURIComponent(PICK_SESSION),{method:'POST'});}catch{}}
 async function pasteUrl(){try{const t=await navigator.clipboard.readText();$('#wUrl').value=t.trim();}catch{alert('Gagal baca clipboard — izinkan akses clipboard di browser.');}}
 
+async function doRegenerate(sid){
+  if(!confirm('Re-generate highlight untuk '+sid+' ?')) return;
+  const st=document.getElementById('wStatus');
+  st.innerHTML='<div class="bg-blue-500/10 border border-blue-500/20 rounded px-3 py-2 text-xs text-blue-300">⏳ Re-generate AI…</div>';
+  try{
+    const r=await fetch('/api/refind/'+encodeURIComponent(sid),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({num_clips:10})});
+    const j=await r.json(); if(!r.ok||!j.ok) throw new Error(j.error);
+    // poll
+    const poll=setInterval(async()=>{
+      const s=await (await fetch('/api/refind/status/'+encodeURIComponent(sid))).json();
+      if(!s.running){
+        clearInterval(poll);
+        if(s.code===0) location.reload();
+        else st.innerHTML='<div class="bg-red-500/10 border border-red-500/20 rounded px-3 py-2 text-xs text-red-300">❌ '+s.error+'</div>';
+      }
+    },1000);
+  }catch(e){ st.innerHTML='<div class="bg-red-500/10 border border-red-500/20 rounded px-3 py-2 text-xs text-red-300">❌ '+e.message+'</div>'; }
+}
 loadConfig();
+// jika dari session.html?session=ID -> langsung tampilkan Pilihan Momen
+const qsSid=new URLSearchParams(location.search).get('session');
+if(qsSid){
+  (async()=>{
+    const st=$('#wStatus');
+    st.innerHTML='<div class="bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2 text-xs text-blue-300">📂 Memuat highlight sesi '+qsSid+'…</div>';
+    try{
+      const r=await fetch('/api/highlights/'+encodeURIComponent(qsSid));
+      const hls=await r.json();
+      if(Array.isArray(hls)&&hls.length){
+        st.innerHTML='<div class="bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2 text-xs text-emerald-300 flex items-center justify-between">✅ '+hls.length+' highlight siap — pilih yang mau dirender:<button onclick="doRegenerate(\''+qsSid+'\')" class="ml-2 px-2 py-0.5 bg-amber-500 text-black rounded text-[10px] font-bold">🔄 Re-generate</button></div>';
+        await showPicker(qsSid);
+      } else {
+        st.innerHTML='<div class="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 text-xs text-amber-300">Highlight tidak ada untuk sesi ini.</div>';
+      }
+    }catch(e){ st.innerHTML='<div class="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 text-xs text-red-300">❌ '+esc(String(e))+'</div>'; }
+  })();
+}
 </script>
 </body>
 </html>

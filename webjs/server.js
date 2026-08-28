@@ -399,7 +399,7 @@ const server = http.createServer((req, res) => {
           cw: cfg.credit_watermark || {},
           hookstyle: cfg.hook_style || {},
           core_model: cfg.model || 'gpt-4.1',
-          tts_model: cfg.tts_model || 'tts-1',
+          tts_model: (cfg.ai_providers&&cfg.ai_providers.hook_maker&&cfg.ai_providers.hook_maker.model) || cfg.tts_model || 'tts-1',
           temperature: cfg.temperature ?? 1.0,
           subtitle_language: cfg.subtitle_language || 'id',
           hf_system_message: ((ap.highlight_finder || {}).system_message) || '',
@@ -474,7 +474,14 @@ const server = http.createServer((req, res) => {
         }
         if (isNum(o.temperature)) cfg.temperature = Math.min(2, Math.max(0, o.temperature));
         if (typeof o.core_model === 'string' && o.core_model.trim()) cfg.model = o.core_model.trim();
-        if (typeof o.tts_model === 'string' && o.tts_model.trim()) cfg.tts_model = o.tts_model.trim();
+        if (typeof o.tts_model === 'string' && o.tts_model.trim()) {
+          const v=o.tts_model.trim();
+          cfg.tts_model = v;
+          // sync ke hook_maker juga biar proses clip pakai model terbaru
+          cfg.ai_providers = cfg.ai_providers||{};
+          cfg.ai_providers.hook_maker = cfg.ai_providers.hook_maker||{};
+          cfg.ai_providers.hook_maker.model = v;
+        }
         if (typeof o.subtitle_language === 'string' && o.subtitle_language.trim()) cfg.subtitle_language = o.subtitle_language.trim();
         cfg.ai_providers.highlight_finder = cfg.ai_providers.highlight_finder || {};
         if (typeof o.hf_system_message === 'string' && o.hf_system_message.trim()) cfg.ai_providers.highlight_finder.system_message = o.hf_system_message;
@@ -500,7 +507,119 @@ try:
     print(json.dumps({'ok':True,'count':len(ids),'sample':ids}))
 except Exception as e:
     print(json.dumps({'ok':False,'error':str(e)[:300]}))`;
-if ((p === '/api/test-connection' || p === '/api/test-llm') && req.method === 'POST') {
+    // proxy TTS models via 9Router cookie auth (POST /api/auth/login {password} -> GET /api/providers)
+    if (p === '/api/tts/9router' && req.method === 'POST') {
+      let body=''; req.on('data',c=>body+=c); req.on('end',()=>{
+        let o={}; try{o=JSON.parse(body||'{}')}catch{}
+        const pwd=String(o.password||'123456').trim();
+        const serverUrl=String(o.server_url||'').trim().replace(/\/v1\/?$/,'').replace(/\/$/,'') || 'http://localhost:20128';
+        const http = require('http'); const https=require('https');
+        const loginUrl=new URL('/api/auth/login', serverUrl+'/');
+        const postData=JSON.stringify({password: pwd});
+        const mod = loginUrl.protocol==='https:'?https:http;
+        const reqLogin=mod.request({hostname: loginUrl.hostname, port: loginUrl.port||(loginUrl.protocol==='https:'?443:80), path: loginUrl.pathname, method:'POST', headers:{'Content-Type':'application/json','Content-Length': Buffer.byteLength(postData)}}, rLogin=>{
+          let d=''; rLogin.on('data',c=>d+=c); rLogin.on('end',()=>{
+            const cookies=(rLogin.headers['set-cookie']||[]).join('; ');
+            if(rLogin.statusCode!==200) return json(res,200,{ok:false, error:'Login gagal: '+d.slice(0,200)});
+            const provUrl=new URL('/api/providers', serverUrl+'/');
+            const mod2 = provUrl.protocol==='https:'?https:http;
+            const req2=mod2.request({hostname: provUrl.hostname, port: provUrl.port||(provUrl.protocol==='https:'?443:80), path: provUrl.pathname, method:'GET', headers:{'Cookie': cookies, 'Accept':'application/json'}}, r2=>{
+              let dd=''; r2.on('data',c=>dd+=c); r2.on('end',()=>{
+                try{
+                  const j=JSON.parse(dd);
+                  // extract TTS models dari connections keys modelLock_*tts*
+                  // dashboard: Edge TTS, Google TTS, Local Device selalu Ready; OpenRouter/NVIDIA/ElevenLabs = Connected
+                  const dashboardReady = ['edge-tts','google-tts','local-device','elevenlabs','openai','openrouter','nvidia','gemini','antigravity'];
+                  const activeProviders = new Set([...(j.connections||[]).filter(c=>c.testStatus==='active').map(c=>c.provider), ...dashboardReady]);
+                  const ids=[];
+                  const conns = j.connections ? (Array.isArray(j.connections) ? j.connections : [j.connections]) : [];
+                  conns.forEach(c=>{
+                    if(!activeProviders.has(c.provider)) return;
+                    Object.keys(c).forEach(k=>{
+                      if(!k.startsWith('modelLock_')) return;
+                      const raw=k.slice(10); // setelah modelLock_
+                      // format: provider/model/voice atau model/voice
+                      const full = raw.includes('/') ? (raw.startsWith(c.provider+'/')? raw : c.provider+'/'+raw) : raw;
+                      if(/tts/i.test(full)) ids.push(full);
+                    });
+                  });
+                  // fallback: cari di all keys jika masih kosong
+                  if(!ids.length && j.connections && typeof j.connections==='object' && !Array.isArray(j.connections)){
+                    Object.keys(j.connections).forEach(k=>{
+                      const m=k.match(/^modelLock_(.+?)\//);
+                      if(m && /tts/i.test(m[1])) ids.push(m[1]);
+                    });
+                  }
+                  // tambah model TTS statis untuk provider Ready yang tidak ada di modelLock
+                  const staticTts = [];
+                  if(activeProviders.has('edge-tts')) staticTts.push('edge-tts/id-ID-GadisNeural','edge-tts/id-ID-ArdiNeural','edge-tts/en-US-AriaNeural','edge-tts/en-US-GuyNeural');
+                  if(activeProviders.has('google-tts')) staticTts.push('google-tts/id','google-tts/en');
+                  if(activeProviders.has('local-device')) staticTts.push('local-device/tts-1');
+                  if(activeProviders.has('elevenlabs') || activeProviders.has('elevenlabs')) staticTts.push('elevenlabs/eleven_multilingual_v2','elevenlabs/eleven_flash_v2_5');
+                  const all=[...ids, ...staticTts];
+                  const uniq=[...new Set(all)];
+                  if(uniq.length) return json(res,200,{ok:true, count:uniq.length, sample:uniq, activeProviders:[...activeProviders]});
+                }catch(e){ return json(res,200,{ok:false, error:'Parse error:'+String(e)}); }
+                return json(res,200,{ok:false, error:'Tidak ada TTS model ditemukan. Providers aktif:'+[...activeProviders].join(',')});
+              });
+            });
+            req2.on('error',e=> json(res,200,{ok:false, error:String(e)})); req2.end();
+          });
+        });
+        reqLogin.on('error',e=> json(res,200,{ok:false, error:String(e)})); reqLogin.write(postData); reqLogin.end();
+      });
+      return;
+    }
+    // POST /api/tts/test {server_url, api_key, model} -> test audio/speech
+    if (p === '/api/tts/test' && req.method === 'POST') {
+      let body=''; req.on('data',c=>body+=c); req.on('end',()=>{
+        let o={}; try{o=JSON.parse(body||'{}')}catch{}
+        const serverUrl=String(o.server_url||'http://localhost:20128').trim().replace(/\/$/,'');
+        let apiKey=String(o.api_key||o.hf_api_key||'').trim();
+        // TTS Edge butuh key eleven/sk-624..., fb-shared tidak bisa -> fallback ke hook_maker key di config
+        if(!apiKey || apiKey==='fb-shared-040826'){
+          try{ const cfg=JSON.parse(require('fs').readFileSync(require('path').join(__dirname,'..','config.json'),'utf8')); apiKey=(cfg.ai_providers&&cfg.ai_providers.hook_maker&&cfg.ai_providers.hook_maker.api_key)||'sk-624626b7f6d25002-7pluyc-35e01fba'; }catch{ apiKey='sk-624626b7f6d25002-7pluyc-35e01fba'; }
+        }
+        const model=String(o.model||'gemini/gemini-2.5-flash-preview-tts/Erinome').trim();
+        const input=String(o.input||'Hello, this is a text to speech test.').slice(0,500);
+        const language=String(o.language||'Indonesian').trim();
+        const payload=JSON.stringify({model, input, language});
+        const u=new URL('/v1/audio/speech', serverUrl+'/');
+        const mod=u.protocol==='https:'?require('https'):require('http');
+        const req2=mod.request({hostname:u.hostname, port:u.port||(u.protocol==='https:'?443:80), path:u.pathname, method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`,'Content-Length': Buffer.byteLength(payload)}}, r2=>{
+          let chunks=[]; r2.on('data',c=>chunks.push(c)); r2.on('end',()=>{
+            const buf=Buffer.concat(chunks);
+            const ct=r2.headers['content-type']||'';
+            if(r2.statusCode===200 && ct.includes('audio')) return json(res,200,{ok:true, bytes:buf.length, content_type:ct});
+            return json(res,200,{ok:false, error: buf.toString('utf8').slice(0,400), status:r2.statusCode});
+          });
+        });
+        req2.on('error',e=> json(res,200,{ok:false, error:String(e)})); req2.write(payload); req2.end();
+      });
+      return;
+    }
+    // GET /api/tts/preview?model=... -> proxy audio mp3 untuk preview di browser
+    if (p.startsWith('/api/tts/preview')) {
+      const model = u.searchParams.get('model') || 'edge-tts/id-ID-GadisNeural';
+      const apiKey = (()=>{ try{ return JSON.parse(require('fs').readFileSync(require('path').join(ROOT,'config.json'),'utf8')).ai_providers.hook_maker.api_key; }catch{ return 'sk-624626b7f6d25002-7pluyc-35e01fba'; } })();
+      const serverUrl = (()=>{ try{ return JSON.parse(require('fs').readFileSync(require('path').join(ROOT,'config.json'),'utf8')).ai_providers.hook_maker.base_url || 'http://localhost:20128/v1'; }catch{ return 'http://localhost:20128/v1'; } })().replace(/\/$/,'');
+      const input=(new URL(req.url,'http://x').searchParams.get('input')||'Hello, this is a text to speech test.').slice(0,500);
+      const language=new URL(req.url,'http://x').searchParams.get('language')||'Indonesian';
+      const payload=JSON.stringify({model, input, language});
+      const uu=new URL('/v1/audio/speech', serverUrl+'/');
+      const mod=uu.protocol==='https:'?require('https'):require('http');
+      const req2=mod.request({hostname:uu.hostname, port:uu.port||(uu.protocol==='https:'?443:80), path:uu.pathname, method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`,'Content-Length': Buffer.byteLength(payload)}}, r2=>{
+        if(r2.statusCode===200 && (r2.headers['content-type']||'').includes('audio')){
+          res.writeHead(200, {'Content-Type': r2.headers['content-type']});
+          r2.pipe(res);
+        } else {
+          let b=''; r2.on('data',c=>b+=c); r2.on('end',()=> json(res, r2.statusCode, {error: b.slice(0,300)}));
+        }
+      });
+      req2.on('error',e=> json(res,500,{error:String(e)})); req2.write(payload); req2.end();
+      return;
+    }
+    if ((p === '/api/test-connection' || p === '/api/test-llm') && req.method === 'POST') {
   let body = '';
   req.on('data', c => body += c);
   req.on('end', () => {
@@ -514,7 +633,38 @@ if ((p === '/api/test-connection' || p === '/api/test-llm') && req.method === 'P
   });
   return;
 }
-// GET /api/binaries — status dependensi
+// GET /api/whisper/models — cek semua faster-whisper model (installed/ size)
+    if (p === '/api/whisper/models') {
+      const sizes = ['tiny','base','small','medium','large-v3'];
+      const PYCHK = `from pathlib import Path;import sys;sys.path.insert(0,r'${ROOT.replace(/\\/g,'\\\\')}');from utils.dependency_manager import check_dependency;import json;app=Path(r'${ROOT.replace(/\\/g,'\\\\')}');print(json.dumps({s: check_dependency(f'faster_whisper_model_'+s, app) for s in ['tiny','base','small','medium','large-v3']}))`;
+      execFile(PY, ['-c', PYCHK], (err, stdout) => {
+        let map={}; try{ map=JSON.parse(stdout.trim().split('\n').pop()); }catch{}
+        const out=sizes.map(s=>{
+          const dir=path.join(ROOT,'faster_whisper_models',s);
+          let bytes=0; try{ bytes=fs.statSync(path.join(dir,'model.bin')).size; }catch{}
+          return { size:s, installed:!!map[s], bytes, mb: bytes?(bytes/1048576).toFixed(1)+' MB':'' };
+        });
+        json(res, 200, out);
+      });
+      return;
+    }
+    // POST /api/whisper/download {size} — download model async
+    if (p === '/api/whisper/download' && req.method === 'POST') {
+      let body=''; req.on('data',c=>body+=c); req.on('end',()=>{
+        let o={}; try{o=JSON.parse(body||'{}')}catch{}
+        const size=String(o.size||'').trim();
+        if(!['tiny','base','small','medium','large-v3'].includes(size)) return json(res,400,{error:'invalid size'});
+        const logPath=path.join(ROOT,'output',`whisper_download_${size}.log`);
+        const out=fs.createWriteStream(logPath,{flags:'a'});
+        fs.appendFileSync(logPath,`\n===== download ${size} ${new Date().toISOString()} =====\n`);
+        const child=spawn(PY, ['-c', `from pathlib import Path;from utils.dependency_manager import setup_faster_whisper_model;import sys;ok=setup_faster_whisper_model(Path(r'${ROOT.replace(/\\/g,'\\\\')}'), '${size}');print('DONE:'+str(ok));sys.exit(0 if ok else 1)`], {env:{...process.env, PYTHONIOENCODING:'utf-8'}});
+        child.stdout.pipe(out); child.stderr.pipe(out);
+        child.on('close',code=>{ out.end(); });
+        json(res,200,{ok:true, started:true, log: logPath});
+      });
+      return;
+    }
+    // GET /api/binaries — status dependensi
     if (p === '/api/binaries') {
       const bin = [
         { name: 'ffmpeg', ok: fs.existsSync(path.join(ROOT, 'ffmpeg')), detail: path.join(ROOT, 'ffmpeg') + ' (bundled)' },

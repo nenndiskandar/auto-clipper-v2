@@ -53,8 +53,8 @@ def main():
         subtitle_language=cfg.get("subtitle_language", "id"),
         subtitle_sync_offset=cfg.get("subtitle_sync_offset", -0.3),
     )
-    if (cfg.get("gpu_acceleration") or {}).get("enabled"):
-        core.enable_gpu_acceleration(True)
+    # GPU selalu aktif
+    core.enable_gpu_acceleration(True)
 
     sd_path = Path(SESSION_DIR) / "session_data.json"
     sd = json.loads(sd_path.read_text(encoding="utf-8"))

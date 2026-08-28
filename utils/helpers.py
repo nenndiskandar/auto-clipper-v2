@@ -157,13 +157,29 @@ def get_mediapipe_model_path():
 
 
 def extract_video_id(url: str) -> str:
-    """Extract YouTube video ID from URL"""
-    patterns = [
-        r'(?:v=|\/)([0-9A-Za-z_-]{11}).*',
-        r'(?:youtu\.be\/)([0-9A-Za-z_-]{11})'
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, url)
-        if match:
-            return match.group(1)
-    return None
+    """Extract video ID with multi-platform prefix (fb_xxx, tiktok_xxx, ig_xxx)."""
+    # YouTube 11-char
+    for pat in [r'(?:v=|\/)([0-9A-Za-z_-]{11}).*', r'(?:youtu\.be\/)([0-9A-Za-z_-]{11})']:
+        m=re.search(pat, url)
+        if m: return m.group(1)
+    # FB
+    if 'facebook.com' in url or 'fb.watch' in url:
+        m=re.search(r'/videos/(\d+)|/reel/(\d+)|v=(\d+)', url)
+        if m:
+            for g in m.groups():
+                if g: return f'fb_{g[:12]}'
+        import hashlib; return 'fb_'+hashlib.md5(url.encode()).hexdigest()[:10]
+    if 'tiktok.com' in url:
+        m=re.search(r'/video/(\d+)', url)
+        if m: return f'tiktok_{m.group(1)[-10:]}'
+        import hashlib; return 'tiktok_'+hashlib.md5(url.encode()).hexdigest()[:10]
+    if 'instagram.com' in url:
+        m=re.search(r'/(?:p|reel)/([^/?#&]+)', url)
+        if m: return f'ig_{m.group(1)[:12]}'
+        import hashlib; return 'ig_'+hashlib.md5(url.encode()).hexdigest()[:10]
+    if 'twitter.com' in url or 'x.com' in url:
+        m=re.search(r'/status/(\d+)', url)
+        if m: return f'x_{m.group(1)[-10:]}'
+        import hashlib; return 'x_'+hashlib.md5(url.encode()).hexdigest()[:10]
+    import hashlib
+    return hashlib.md5(url.encode()).hexdigest()[:12]

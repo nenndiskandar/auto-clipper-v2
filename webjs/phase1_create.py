@@ -56,8 +56,8 @@ def main():
         subtitle_language=cfg.get("subtitle_language", "id"),
         subtitle_sync_offset=cfg.get("subtitle_sync_offset", -0.3),
     )
-    if (cfg.get("gpu_acceleration") or {}).get("enabled"):
-        core.enable_gpu_acceleration(True)
+    # GPU selalu aktif, gagal -> fallback CPU (clipper_core)
+    core.enable_gpu_acceleration(True)
 
     num_clips = NUM_CLIPS if NUM_CLIPS > 0 else int(cfg.get("num_clips", 5))
     sd = core.find_highlights_only(URL, num_clips)
@@ -85,7 +85,7 @@ def main():
     })
     with open(sdf, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
-    write_result({"ok": True, "session_dir": str(sess_dir), "count": len(highlights)})
+    write_result({"ok": True, "session_dir": str(sess_dir), "session_id": sess_dir.name, "count": len(highlights)})
 
 
 if __name__ == "__main__":

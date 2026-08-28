@@ -84,55 +84,13 @@ pre.log { background: #000; color: #a1a1aa; font-size: .75rem; max-height: 40vh;
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3" id="clipsGrid"></div>
       </div>
 
-      <!-- DAFTAR MOMEN HIGHLIGHT -->
-      <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 md:p-5 shadow-sm space-y-4">
-        <div class="flex flex-wrap justify-between items-center gap-2 pb-3 border-b border-zinc-800">
-          <div>
-            <h2 class="text-sm font-semibold text-white flex items-center gap-2">
-              <span>🔁 Pilihan Momen Highlight</span>
-              <span class="text-xs text-zinc-500 font-normal" id="hlCountInfo"></span>
-            </h2>
-            <p class="text-[11px] text-zinc-400">Pilih momen klip yang ingin diproses atau render ulang</p>
-          </div>
-          <button onclick="toggleAllCheck()" class="text-xs text-accent hover:underline">Pilih Semua / Batal</button>
+      <!-- RENDER ULANG -->
+      <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 md:p-5 shadow-sm flex items-center justify-between">
+        <div>
+          <h2 class="text-sm font-semibold text-white">🔁 Render Ulang</h2>
+          <p class="text-[11px] text-zinc-400">Buka Create untuk pilih momen & render ulang</p>
         </div>
-
-        <!-- TEMPLATE PICKER -->
-        <div class="flex flex-wrap items-center gap-2 bg-surface-2 border border-zinc-800 rounded-lg p-3">
-          <span class="text-xs text-zinc-400 font-medium">⚡ Template:</span>
-          <div class="flex flex-wrap gap-1.5" id="tplBar"></div>
-        </div>
-        <div id="tplMsg" class="text-xs text-emerald-400 hidden"></div>
-
-        <!-- LIST CHECKBOX MOMEN -->
-        <div id="hlListContainer" class="border border-zinc-800 rounded-lg overflow-hidden bg-surface-2 divide-y divide-zinc-800 max-h-96 overflow-y-auto"></div>
-
-        <!-- TOMBOL EKSEKUSI -->
-        <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
-          <div class="flex items-center gap-2">
-            <span class="px-2.5 py-1 text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded" id="selCount">0 klip dipilih</span>
-          </div>
-          <div class="flex flex-wrap gap-2 items-center">
-            <button onclick="startProcess()" class="px-4 py-2 text-xs font-semibold bg-accent text-black rounded-lg hover:bg-yellow-400 transition flex items-center gap-1.5 shadow order-1">
-              🎬 Render Momen Terpilih
-            </button>
-            <div class="flex items-center gap-1 order-2 bg-zinc-800 rounded-lg border border-zinc-700 overflow-hidden pr-1">
-              <select id="refindCount" class="bg-transparent text-xs text-zinc-300 py-2 pl-2 pr-1 focus:outline-none cursor-pointer">
-                <option value="5">5</option>
-                <option value="10" selected>10</option>
-                <option value="15">15</option>
-                <option value="20">20</option>
-              </select>
-              <button onclick="doRefind()" class="px-2.5 py-2 text-xs text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 transition">
-                🔄 Cari Ulang Highlight (AI)
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- STATUS & LOG -->
-        <div id="actionStatus" class="mt-4"></div>
-        <pre class="log hidden mt-3 p-3" id="actionLog"></pre>
+        <button onclick="goCreate()" class="px-4 py-2 text-xs font-semibold bg-accent text-black rounded-lg hover:bg-yellow-400 transition">🎬 Render Ulang → Create</button>
       </div>
 
     </div>
@@ -165,8 +123,6 @@ async function loadSession() {
     const sessions = await rSess.json();
     const s = sessions.find(x => x.id === sid);
 
-    const ht = document.getElementById('headerTitle');
-    if (ht) ht.textContent = s ? s.title : sid;
     document.getElementById('s_title').textContent = s ? s.title : sid;
     document.getElementById('s_meta').textContent = `${s && s.channel ? s.channel + ' · ' : ''}${s ? new Date(s.created).toLocaleString('id-ID') : ''} · ${s ? s.total : 0} klip tersimpan`;
     document.getElementById('s_id').textContent = sid;
@@ -178,8 +134,8 @@ async function loadSession() {
       uEl.textContent = s.url;
     }
 
-    renderHighlights();
-    initTemplateBar();
+    const hlEl=document.getElementById('hlListContainer'); if(hlEl) renderHighlights();
+    const tb=document.getElementById('tplBar'); if(tb) initTemplateBar();
     
     // Tampilkan klip hasil render
     if (s && s.clips) renderClips(s.clips);
@@ -259,13 +215,14 @@ async function deleteClip(clipDir, title, btn) {
 
 function renderHighlights() {
   const container = document.getElementById('hlListContainer');
+  if(!container) return;
   if (!Array.isArray(HIGHLIGHTS) || !HIGHLIGHTS.length) {
     container.innerHTML = '<div class="p-4 text-xs text-zinc-500 text-center">Belum ada highlight. Silakan klik Cari Ulang Highlight di bawah.</div>';
-    document.getElementById('hlCountInfo').textContent = '(0 momen)';
+    const a=document.getElementById('hlCountInfo'); if(a) a.textContent = '(0 momen)';
     updateCount();
     return;
   }
-  document.getElementById('hlCountInfo').textContent = `(${HIGHLIGHTS.length} momen siap)`;
+  const b=document.getElementById('hlCountInfo'); if(b) b.textContent = `(${HIGHLIGHTS.length} momen siap)`;
   container.innerHTML = HIGHLIGHTS.map(h => `
     <label class="flex items-start gap-3 p-3 hover:bg-zinc-800/40 transition cursor-pointer">
       <input class="rg-check mt-1 flex-shrink-0 w-4 h-4 accent-[#facc15]" type="checkbox" value="${h.i}" checked onchange="updateCount()">
@@ -283,7 +240,7 @@ function renderHighlights() {
 }
 
 function initTemplateBar() {
-  const bar = document.getElementById('tplBar');
+  const bar = document.getElementById('tplBar'); if(!bar) return;
   bar.innerHTML = Object.entries(TEMPLATES).map(([k, t]) =>
     `<button class="tpl-btn text-zinc-300 hover:text-white" title="${String(t.desc||'').replace(/"/g,'&quot;')}" onclick="applyTemplate('${k}')">${t.label}</button>`).join('');
 }
@@ -323,8 +280,9 @@ function toggleAllCheck() {
 
 function updateCount() {
   const all = document.querySelectorAll('.rg-check');
+  const el=document.getElementById('selCount'); if(!el) return;
   const sel = [...all].filter(x => x.checked).length;
-  document.getElementById('selCount').textContent = `🎬 ${sel} / ${all.length} klip dipilih`;
+  el.textContent = `🎬 ${sel} / ${all.length} klip dipilih`;
 }
 
 async function doRefind() {
@@ -418,6 +376,10 @@ function pollJob(url, logBox, onDone) {
   }, 1000);
 }
 
+function goCreate(){
+  // simpan sesi ke create via query
+  location.href='/create.html?session='+encodeURIComponent(sid);
+}
 loadSession();
 </script>
 </body>
