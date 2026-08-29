@@ -267,13 +267,33 @@ function parseOverall(logText) {
   return Math.max(0, Math.min(100, last));
 }
 
+const isLocalAddr = a => ['127.0.0.1','::1','::ffff:127.0.0.1','localhost'].includes(String(a).replace(/^::ffff:/, ''));
+const isLocalRequest = req => isLocalAddr(req.connection.remoteAddress);
+
 const server = http.createServer((req, res) => {
   const u = new URL(req.url, 'http://x');
   const p = u.pathname;
   try {
-    // auth disabled — login page removed
-    if (p === '/api/auth/telegram' && req.method === 'POST') return json(res, 200, { ok: true });
-    if (p === '/logout') { res.writeHead(302, { Location: '/' }); return res.end(); }
+    // --- public routes (no auth) ---
+    // login page & root are served as static files (handled below)
+    // auth endpoint
+    if (p === '/api/auth/telegram' && req.method === 'POST') {
+      let body = '';
+      req.on('data', c => body += c);
+      req.on('end', () => {
+        try {
+          const user = JSON.parse(body || '{}');
+          if (String(user.id) === OWNER_ID) {
+            const token = makeToken(user.id, user.first_name);
+            res.writeHead(200, { 'Set-Cookie': `${COOKIE_NAME}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800` });
+            return json(res, 200, { ok: true });
+          }
+          json(res, 403, { error: 'ID tidak diizinkan' });
+        } catch { json(res, 400, { error: 'invalid request' }); }
+      });
+      return;
+    }
+    if (p === '/logout') { res.writeHead(302, { Location: '/', 'Set-Cookie': `${COOKIE_NAME}=; Path=/; Max-Age=0` }); return res.end(); }
     // --- public routes: video stream & download (tanpa auth) ---
     const mVidPub = p.match(/^\/(video|download)\/([^/]+)\/(.+)$/);
     if (mVidPub) {
@@ -284,8 +304,26 @@ const server = http.createServer((req, res) => {
       return sendFile(req, res, fp, mVidPub[1] === 'download');
     }
 
+    // --- Auth middleware ---
+    const isLocal = isLocalRequest(req);
+    const cookie = getCookie(req.headers.cookie);
+    const authUser = !isLocal && cookie[COOKIE_NAME] ? checkToken(cookie[COOKIE_NAME]) : null;
+    const isAuthenticated = isLocal || !!authUser;
+    if (!isAuthenticated && p !== '/login.html') {
+      const ext = path.extname(p);
+      const isApi = p.startsWith('/api/');
+      const isHtml = !ext || ext === '.html';
+      if (isApi) return json(res, 401, { error: 'unauthorized' });
+      if (isHtml) { res.writeHead(302, { Location: '/login.html' }); return res.end(); }
+    }
 
-    if (p === '/api/me') return json(res, 200, { id: 'local', name: 'admin' });
+    if (p === '/api/me') {
+      if (isLocalRequest(req)) return json(res, 200, { id: 'local', name: 'admin' });
+      const cookie = getCookie(req.headers.cookie);
+      const user = checkToken(cookie[COOKIE_NAME]);
+      if (user) return json(res, 200, { id: user.id, name: user.name });
+      return json(res, 401, { error: 'unauthorized' });
+    }
     if (p === '/api/sessions') return json(res, 200, listSessions());
     // GET /api/sessions/:session/clip/:clipDir — detail 1 klip (ringan, tanpa scan semua sesi)
     const mClip = p.match(/^\/api\/sessions\/([^/]+)\/clip\/([^/]+)$/);
@@ -367,15 +405,6 @@ const server = http.createServer((req, res) => {
         });
         return;
       }
-    }
-    // /video|download/:session/:clipDir/:file
-    const mVid = p.match(/^\/(video|download)\/([^/]+)\/(.+)$/);
-    if (mVid) {
-      const parts = mVid[3].split('/').map(safe);
-      if (parts.length !== 2) return json(res, 400, { error: 'bad path' });
-      const fp = resolveClipFile(safe(mVid[2]), parts[0], parts[1]);
-      if (!fp) { res.writeHead(404, { 'Content-Type': 'video/mp4' }); return res.end(); }
-      return sendFile(req, res, fp, mVid[1] === 'download');
     }
     // POST /api/delete/:session/:clipDir — hapus folder klip (trash bila ada, fallback rm)
     const mDel = p.match(/^\/api\/delete\/([^/]+)\/([^/]+)$/);
@@ -1064,4 +1093,4 @@ except Exception as e:
   }
 });
 
-server.listen(PORT, () => console.log(`http://localhost:${PORT}`));
+server.listen(PORT, () => console.log(`http://localhost:${PORT}  (auth: telegram bot, owner ${OWNER_ID})`));
