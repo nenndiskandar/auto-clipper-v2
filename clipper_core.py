@@ -188,12 +188,12 @@ class AutoClipperCore(SubtitleGeneratorMixin, EffectsMixin, DownloadMixin, Trans
         self.subtitle_style = subtitle_style
         self.aspect_ratio = aspect_ratio
         self.mediapipe_settings = mediapipe_settings or {
-            "lip_activity_threshold": 0.15,
-            "switch_threshold": 0.3,
-            "min_shot_duration": 90,
-            "center_weight": 0.3,
+            "lip_activity_threshold": 0.08,
+            "switch_threshold": 0.18,
+            "min_shot_duration": 45,
+            "center_weight": 0.15,
             "smooth_follow": True,
-            "pan_speed_limit": 2.5
+            "pan_speed_limit": 1.8
         }
         
         # Professional video editing features (loaded from config)

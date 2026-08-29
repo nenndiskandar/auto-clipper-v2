@@ -46,6 +46,52 @@ window.UNIFIED_TEMPLATES = {
       sync_offset: -0.25
     }
   },
+  podcast_dynamic: {
+    label: '🎙️ Podcast Dynamic Split (OpusClip)',
+    desc: 'Split 2 orang face-centered 8px gap rapih, auto switch',
+    cfg: {
+      aspect_ratio: '9:16',
+      portrait_mode: 'split_podcast_dynamic',
+      subtitle_style: 'karaoke',
+      captions: true,
+      hook: true,
+      gpu: true,
+      hook_style: { font_color: '#ffd166', bg_color: '#000000', corner_radius: 8, font_size: 0.08, glitch: false },
+      smooth_follow: false,
+      face_tracking_mode: 'mediapipe',
+      pan_speed_limit: 1.5,
+      center_weight: 0.12,
+      switch_threshold: 0.18,
+      min_shot_duration: 1.5,
+      lip_activity: 0.08,
+      color_grade: 'warm',
+      stabilize: false,
+      sync_offset: -0.25
+    }
+  },
+  face_center_rapih: {
+    label: '⭐ Wajah Tengah Rapih',
+    desc: 'Center face follow anti-kacau — wajah di tengah, mediapipe akurat',
+    cfg: {
+      aspect_ratio: '9:16',
+      portrait_mode: 'center',
+      subtitle_style: 'pop',
+      captions: true,
+      hook: true,
+      gpu: true,
+      hook_style: { font_color: '#ffffff', bg_color: '#000000', corner_radius: 12, font_size: 0.075, glitch: false },
+      smooth_follow: true,
+      face_tracking_mode: 'mediapipe',
+      pan_speed_limit: 1.8,
+      center_weight: 0.12,
+      switch_threshold: 0.18,
+      min_shot_duration: 1.5,
+      lip_activity: 0.08,
+      color_grade: 'warm',
+      stabilize: false,
+      sync_offset: -0.25
+    }
+  },
   podcast_blur: {
     label: '🎙️ Podcast 3+ (Blur)',
     desc: 'Banyak orang/host, blur background, kamera responsif cepat',

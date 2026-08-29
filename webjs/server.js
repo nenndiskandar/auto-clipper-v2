@@ -425,11 +425,11 @@ const server = http.createServer((req, res) => {
           portrait_mode: cfg.portrait_mode || 'crop',
           face_tracking_mode: cfg.face_tracking_mode || 'opencv',
           smooth_follow: mp.smooth_follow !== false,
-          pan_speed_limit: mp.pan_speed_limit ?? 2.5,
-          center_weight: mp.center_weight ?? 0.3,
-          switch_threshold: mp.switch_threshold ?? 0.3,
-          min_shot_duration: mp.min_shot_duration ?? 90,
-          lip_activity: mp.lip_activity_threshold ?? 0.15,
+          pan_speed_limit: mp.pan_speed_limit ?? 1.8,
+          center_weight: mp.center_weight ?? 0.15,
+          switch_threshold: mp.switch_threshold ?? 0.18,
+          min_shot_duration: mp.min_shot_duration ?? 45,
+          lip_activity: mp.lip_activity_threshold ?? 0.08,
           gpu: !!(cfg.gpu_acceleration && cfg.gpu_acceleration.enabled),
           hf_model: (ap.highlight_finder || {}).model || 'AUTO',
           server_url: (ap.highlight_finder || {}).base_url || '',
@@ -743,7 +743,7 @@ except Exception as e:
         child.stderr.pipe(out);
         const job = { proc: child, code: undefined, startedAt: Date.now() };
         RENDER_JOBS.set(key, job);
-        child.on('close', code => { job.code = code; out.end(); });
+        child.on('close', code => { job.code = code; job.finishedAt = Date.now(); out.end(); });
         json(res, 200, { ok: true, started: true });
       });
       return;
@@ -770,7 +770,7 @@ except Exception as e:
       return json(res, 200, {
         running: !!(job && job.code === undefined),
         code: job ? job.code : null,
-        elapsed_s: job ? Math.round((Date.now() - job.startedAt) / 1000) : null,
+        elapsed_s: job ? Math.round(((job.code !== undefined && job.finishedAt ? job.finishedAt : Date.now()) - job.startedAt) / 1000) : null,
         log,
         progress: parseOverall(log),
       });
@@ -795,7 +795,7 @@ except Exception as e:
         const child = spawn(PY, [path.join(__dirname, 'phase1_create.py'), String(o.url), String(parseInt(o.num_clips) || 0), resultFile], { detached: true, env: { ...process.env, PYTHONIOENCODING: 'utf-8' } });
         child.stdout.pipe(out); child.stderr.pipe(out);
         CREATE_JOB = { proc: child, code: undefined, startedAt: Date.now(), resultFile, logPath, url: String(o.url) };
-        child.on('close', code => { CREATE_JOB.code = code; out.end(); });
+        child.on('close', code => { CREATE_JOB.code = code; CREATE_JOB.finishedAt = Date.now(); out.end(); });
         json(res, 200, { ok: true, started: true });
       });
       return;
@@ -808,7 +808,7 @@ except Exception as e:
       return json(res, 200, {
         running: !!(j && j.code === undefined),
         code: j ? j.code : null,
-        elapsed_s: j ? Math.round((Date.now() - j.startedAt) / 1000) : null,
+        elapsed_s: j ? Math.round(((j.code !== undefined && j.finishedAt ? j.finishedAt : Date.now()) - j.startedAt) / 1000) : null,
         url: j ? j.url : null,
         log: j && j.logPath ? tailFile(j.logPath) : '',
         progress: j && j.logPath ? parseOverall(tailFile(j.logPath)) : null,
@@ -873,7 +873,7 @@ except Exception as e:
         child.stdout.pipe(out); child.stderr.pipe(out);
         const job = { proc: child, code: undefined, startedAt: Date.now(), resultFile };
         REFIND_JOBS.set(sid, job);
-        child.on('close', code => { job.code = code; out.end(); });
+        child.on('close', code => { job.code = code; job.finishedAt = Date.now(); out.end(); });
         json(res, 200, { ok: true, started: true });
       });
       return;
@@ -888,7 +888,7 @@ except Exception as e:
       return json(res, 200, {
         running: !!(job && job.code === undefined),
         code: job ? job.code : null,
-        elapsed_s: job ? Math.round((Date.now() - job.startedAt) / 1000) : null,
+        elapsed_s: job ? Math.round(((job.code !== undefined && job.finishedAt ? job.finishedAt : Date.now()) - job.startedAt) / 1000) : null,
         log: tailFile(path.join(SESSIONS, sid, 'refind.log'), 6000),
         progress: parseOverall(tailFile(path.join(SESSIONS, sid, 'refind.log'), 6000)),
         result,
@@ -923,12 +923,20 @@ except Exception as e:
     // GET /api/tasks — daftar semua job per sesi (buat halaman tasks)
     if (p === '/api/tasks') {
       const jobs = [];
-      if (CREATE_JOB) jobs.push({ kind: 'create', type: '🔍 Find Highlight', session: '-', detail: CREATE_JOB.url || '', running: CREATE_JOB.code === undefined, code: CREATE_JOB.code, elapsed_s: Math.round((Date.now() - CREATE_JOB.startedAt) / 1000), logPath: CREATE_JOB.logPath });
-      for (const [sid, j] of REFIND_JOBS) jobs.push({ kind: 'refind', type: '🔁 Re-find', session: sid, detail: '', running: j.code === undefined, code: j.code, elapsed_s: Math.round((Date.now() - j.startedAt) / 1000), logPath: path.join(SESSIONS, sid, 'refind.log') });
-      for (const [sid, j] of PROCESS_JOBS) jobs.push({ kind: 'process', type: '🎬 Process', session: sid, detail: '', running: j.code === undefined, code: j.code, elapsed_s: Math.round((Date.now() - j.startedAt) / 1000), logPath: path.join(SESSIONS, sid, 'process.log') });
+      if (CREATE_JOB) {
+        let createSid = '-';
+        try { if (CREATE_JOB.resultFile && fs.existsSync(CREATE_JOB.resultFile)) { const r = JSON.parse(fs.readFileSync(CREATE_JOB.resultFile,'utf8')); if (r.session_id) createSid = r.session_id; } } catch {}
+        // fallback: coba baca highlight count dari session_data jika ada
+        if (createSid === '-' && CREATE_JOB.code === 0) {
+          try { const outFiles = fs.readdirSync(path.join(ROOT,'output')).filter(f=>f.startsWith('.phase1_result_')).sort(); if(outFiles.length){ const last=JSON.parse(fs.readFileSync(path.join(ROOT,'output',outFiles[outFiles.length-1]),'utf8')); if(last.session_id) createSid=last.session_id; } } catch {}
+        }
+        jobs.push({ kind: 'create', type: '🔍 Find Highlight', session: createSid, detail: CREATE_JOB.url || '', running: CREATE_JOB.code === undefined, code: CREATE_JOB.code, elapsed_s: Math.round(((CREATE_JOB.code !== undefined && CREATE_JOB.finishedAt ? CREATE_JOB.finishedAt : Date.now()) - CREATE_JOB.startedAt) / 1000), logPath: CREATE_JOB.logPath });
+      }
+      for (const [sid, j] of REFIND_JOBS) jobs.push({ kind: 'refind', type: '🔁 Re-find', session: sid, detail: '', running: j.code === undefined, code: j.code, elapsed_s: Math.round(((j.code !== undefined && j.finishedAt ? j.finishedAt : Date.now()) - j.startedAt) / 1000), logPath: path.join(SESSIONS, sid, 'refind.log') });
+      for (const [sid, j] of PROCESS_JOBS) jobs.push({ kind: 'process', type: '🎬 Process', session: sid, detail: '', running: j.code === undefined, code: j.code, elapsed_s: Math.round(((j.code !== undefined && j.finishedAt ? j.finishedAt : Date.now()) - j.startedAt) / 1000), logPath: path.join(SESSIONS, sid, 'process.log') });
       for (const [key, j] of RENDER_JOBS) {
         const [sid, clip] = key.split('/');
-        jobs.push({ kind: 'render', type: '⚙️ Render', session: sid, detail: clip, running: j.code === undefined, code: j.code, elapsed_s: Math.round((Date.now() - j.startedAt) / 1000), logPath: path.join(SESSIONS, sid, 'clips', clip, 'render.log') });
+        jobs.push({ kind: 'render', type: '⚙️ Render', session: sid, detail: clip, running: j.code === undefined, code: j.code, elapsed_s: Math.round(((j.code !== undefined && j.finishedAt ? j.finishedAt : Date.now()) - j.startedAt) / 1000), logPath: path.join(SESSIONS, sid, 'clips', clip, 'render.log') });
       }
       for (const j of jobs) {
         try { j.last_line = lastLogLine(j.logPath); } catch { j.last_line = ''; }
@@ -954,7 +962,7 @@ except Exception as e:
       return json(res, 200, {
         running: job.code === undefined,
         code: job.code,
-        elapsed_s: Math.round((Date.now() - job.startedAt) / 1000),
+        elapsed_s: Math.round(((job.code !== undefined && job.finishedAt ? job.finishedAt : Date.now()) - job.startedAt) / 1000),
         log: logPath ? tailFile(logPath) : '',
       });
     }
@@ -990,13 +998,13 @@ except Exception as e:
           ADD_CAPS: o.captions ? '1' : '0',
         };
         const logPath = path.join(sessDir, 'process.log');
-        fs.appendFileSync(logPath, `\n===== process start ${new Date().toISOString()} sel=${env.SELECTED} hook=${env.ADD_HOOK} caps=${env.ADD_CAPS} =====\n`);
+        fs.appendFileSync(logPath, `\n===== process start ${new Date().toISOString()} sel=${env.SELECTED} hook=${env.ADD_HOOK} caps=${env.ADD_CAPS} (overall: 5.0%) =====\n`);
         const out = fs.createWriteStream(logPath, { flags: 'a' });
         const child = spawn(PY, [path.join(__dirname, 'process_session.py'), sessDir], { env, detached: true });
         child.stdout.pipe(out); child.stderr.pipe(out);
         const job = { proc: child, code: undefined, startedAt: Date.now() };
         PROCESS_JOBS.set(mProc[1], job);
-        child.on('close', code => { job.code = code; out.end(); });
+        child.on('close', code => { job.code = code; job.finishedAt = Date.now(); out.end(); });
         json(res, 200, { ok: true, started: true });
       });
       return;
@@ -1009,7 +1017,7 @@ except Exception as e:
       return json(res, 200, {
         running: !!(job && job.code === undefined),
         code: job ? job.code : null,
-        elapsed_s: job ? Math.round((Date.now() - job.startedAt) / 1000) : null,
+        elapsed_s: job ? Math.round(((job.code !== undefined && job.finishedAt ? job.finishedAt : Date.now()) - job.startedAt) / 1000) : null,
         log: tailFile(path.join(SESSIONS, sid, 'process.log')),
         progress: parseOverall(tailFile(path.join(SESSIONS, sid, 'process.log'))),
       });

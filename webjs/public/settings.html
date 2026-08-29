@@ -34,6 +34,7 @@ body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-s
 </style>
 </head>
 <body class="min-h-screen flex flex-col md:flex-row bg-[#09090b]">
+<div id="toast" class="fixed top-4 right-4 z-50 hidden px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded shadow-lg"></div>
 
 <!-- SIDEBAR -->
 <aside class="w-full md:w-60 border-b md:border-b-0 md:border-r border-zinc-800 bg-zinc-950 flex flex-col shrink-0">
@@ -55,31 +56,29 @@ body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-s
 
 <!-- MAIN CONTENT WRAPPER -->
 <div class="flex-1 flex flex-col min-w-0 overflow-y-auto">
-  <main class="max-w-6xl w-full mx-auto p-4 md:p-6 space-y-5 flex-1 pb-32" id="main">
+  <main class="max-w-6xl w-full mx-auto p-4 md:p-6 space-y-5 flex-1 pb-6" id="main">
 
-    <!-- TEMPLATES & CUSTOM PRESETS -->
+    <!-- TEMPLATES -->
     <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md p-4 space-y-3">
       <div class="flex justify-between items-center flex-wrap gap-2">
         <div>
-          <h2 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">⚡ Template & Custom Presets</h2>
-          <p class="text-[10px] text-zinc-500">Pilih preset bawaan atau simpan kombinasi setting kamu sendiri</p>
+          <h2 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">⚡ Template</h2>
+          <p class="text-[10px] text-zinc-500">Pilih template bawaan</p>
         </div>
-        <button onclick="promptSaveCustomPreset()" class="px-3 py-1.5 bg-accent hover:bg-yellow-400 text-black text-xs font-semibold rounded transition shadow flex items-center gap-1">💾 Simpan Config Jadi Preset</button>
       </div>
       <div class="flex flex-wrap gap-2" id="tplBar"></div>
-      <div class="flex flex-wrap gap-2 border-t border-zinc-800/80 pt-2.5" id="customTplBar"></div>
       <div id="tplMsg" class="text-xs text-emerald-400 hidden"></div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
     <!-- 1️⃣ SERVER AI -->
     <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md">
       <div class="card-head flex items-center gap-2 p-4" onclick="toggleCard(this)">
-        <span class="chev text-zinc-500">▾</span>
+        <span class="chev text-zinc-500" style="transform:rotate(-90deg)">▾</span>
         <h3 class="text-xs font-semibold text-zinc-450 uppercase tracking-wider">🖥️ Server AI</h3>
         <span id="hfStatus" class="ml-auto text-[10px] px-2 py-0.5 rounded-full border border-zinc-700 text-zinc-500">● checking…</span>
       </div>
-      <div class="card-body p-4 pt-0 space-y-3">
+      <div class="card-body p-4 pt-0 space-y-3 hidden">
         <div class="grid grid-cols-1 gap-3">
           <div>
             <label class="text-[10px] text-zinc-500 block mb-0.5">Base URL</label>
@@ -104,10 +103,10 @@ body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-s
     <!-- 2️⃣ PENCARI MOMEN -->
     <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md">
       <div class="card-head flex items-center gap-2 p-4" onclick="toggleCard(this)">
-        <span class="chev text-zinc-500">▾</span>
+        <span class="chev text-zinc-500" style="transform:rotate(-90deg)">▾</span>
         <h3 class="text-xs font-semibold text-zinc-450 uppercase tracking-wider">🔍 Pencari Momen</h3>
       </div>
-      <div class="card-body p-4 pt-0 space-y-3">
+      <div class="card-body p-4 pt-0 space-y-3 hidden">
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="text-[10px] text-zinc-500 block mb-0.5">Temperature</label>
@@ -128,10 +127,10 @@ body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-s
     <!-- 2️⃣ SUBTITLE ENGINE (Faster-Whisper) -->
     <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md">
       <div class="card-head flex items-center gap-2 p-4" onclick="toggleCard(this)">
-        <span class="chev text-zinc-500">▾</span>
+        <span class="chev text-zinc-500" style="transform:rotate(-90deg)">▾</span>
         <h3 class="text-xs font-semibold text-zinc-450 uppercase tracking-wider">💬 Subtitle Engine</h3>
       </div>
-      <div class="card-body p-4 pt-0 space-y-3">
+      <div class="card-body p-4 pt-0 space-y-3 hidden">
         <div class="grid grid-cols-1 gap-3">
           <div>
             <label class="text-[10px] text-zinc-500 block mb-0.5">Bahasa Subtitle</label>
@@ -145,10 +144,6 @@ body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-s
         </div>
       </div>
     </div>
-    </div>
-
-    <!-- SECTIONS: RENDER, TRACKING, SUBTITLE, HOOK, WATERMARK, CREDIT -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
 
       <!-- 1. RENDER & VIDEO CONFIG -->
       <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md">
@@ -173,10 +168,12 @@ body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-s
               <label class="text-[10px] text-zinc-500 block mb-0.5">Portrait Mode</label>
               <select id="s_portrait_mode" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
                 <option value="crop">crop</option>
+                <option value="center">center — wajah di tengah rapih ⭐</option>
                 <option value="blur">blur</option>
                 <option value="split">split screen</option>
                 <option value="split_game">split screen game</option>
                 <option value="split_podcast">split screen podcast (2 orang)</option>
+                <option value="split_podcast_dynamic">split podcast dynamic (OpusClip-like)</option>
               </select>
             </div>
             <div>
@@ -207,27 +204,22 @@ body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-s
             </div>
             <div>
               <label class="text-[10px] text-zinc-500 block mb-0.5">Deteksi Wajah</label>
-              <select id="s_face_tracking_mode" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"><option>opencv</option><option>mediapipe</option></select>
+              <select id="s_face_tracking_mode" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"><option>mediapipe</option></select>
             </div>
-            <div>
-              <label class="text-[10px] text-zinc-500 block mb-0.5">Pan Speed Limit</label>
-              <input type="number" step="0.1" id="s_pan_speed_limit" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+            <div class="hidden">
+              <input type="hidden" id="s_pan_speed_limit" value="1.8">
             </div>
-            <div>
-              <label class="text-[10px] text-zinc-500 block mb-0.5">Center Weight (0-1)</label>
-              <input type="number" step="0.05" min="0" max="1" id="s_center_weight" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+            <div class="hidden">
+              <input type="hidden" id="s_center_weight" value="0.12">
             </div>
-            <div>
-              <label class="text-[10px] text-zinc-500 block mb-0.5">Switch Shot Threshold</label>
-              <input type="number" step="0.05" min="0" max="1" id="s_switch_threshold" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+            <div class="hidden">
+              <input type="hidden" id="s_switch_threshold" value="0.18">
             </div>
-            <div>
-              <label class="text-[10px] text-zinc-500 block mb-0.5">Min Shot Duration (detik)</label>
-              <input type="number" step="1" min="1" id="s_min_shot_duration" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+            <div class="hidden">
+              <input type="hidden" id="s_min_shot_duration" value="1.5">
             </div>
-            <div>
-              <label class="text-[10px] text-zinc-500 block mb-0.5">Lip Activity Threshold</label>
-              <input type="number" step="0.01" min="0" max="1" id="s_lip_activity" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+            <div class="hidden">
+              <input type="hidden" id="s_lip_activity" value="0.08">
             </div>
           </div>
         </div>
@@ -329,12 +321,13 @@ body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-s
         </div>
       </div>
 
-      <!-- 5. WATERMARK STYLE & PREVIEW -->
+      <!-- 5. WATERMARK STYLE & PREVIEW (posisi fix kanan atas) -->
       <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md">
         <div class="card-head flex items-center justify-between p-4 cursor-pointer" onclick="toggleCard(this)">
           <div class="flex items-center gap-2">
             <span class="chev text-zinc-500">▾</span>
             <h3 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">🖼️ Image Watermark</h3>
+            <span class="text-[9px] px-1.5 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-400">posisi fix kanan atas</span>
           </div>
           <label class="flex items-center gap-1.5 text-xs text-zinc-300 cursor-pointer" onclick="event.stopPropagation()"><input type="checkbox" id="s_wm_on" onchange="updateWmPreview()" class="w-3.5 h-3.5 accent-[#facc15]"> Aktif</label>
         </div>
@@ -347,14 +340,6 @@ body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-s
 
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="text-[9px] text-zinc-500 block mb-0.5">Posisi X (0-1)</label>
-              <input type="number" step="0.01" min="0" max="1" id="s_wm_x" oninput="updateWmPreview()" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent">
-            </div>
-            <div>
-              <label class="text-[9px] text-zinc-500 block mb-0.5">Posisi Y (0-1)</label>
-              <input type="number" step="0.01" min="0" max="1" id="s_wm_y" oninput="updateWmPreview()" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent">
-            </div>
-            <div>
               <label class="text-[9px] text-zinc-500 block mb-0.5">Scale (0.01-1)</label>
               <input type="number" step="0.01" min="0.01" max="1" id="s_wm_scale" oninput="updateWmPreview()" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent">
             </div>
@@ -363,48 +348,10 @@ body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-s
               <input type="number" step="0.05" min="0" max="1" id="s_wm_op" oninput="updateWmPreview()" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent">
             </div>
             <div class="col-span-2 pt-1">
-              <label class="text-[9px] text-zinc-500 block mb-1">Preview Posisi di Layar</label>
+              <label class="text-[9px] text-zinc-500 block mb-1">Preview (fix kanan atas 0.85/0.05)</label>
               <div id="wmPreviewBox" class="relative w-24 h-36 bg-zinc-950 border border-zinc-700 rounded overflow-hidden mx-auto shadow-inner flex items-center justify-center">
                 <div class="text-[9px] text-zinc-700 select-none">9:16 Video</div>
-                <div id="wmDot" class="absolute w-5 h-4 bg-accent border border-white/70 rounded-xs transition-all shadow" style="left:75%;top:85%"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 6. CREDIT WATERMARK STYLE & PREVIEW -->
-      <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md">
-        <div class="card-head flex items-center justify-between p-4 cursor-pointer" onclick="toggleCard(this)">
-          <div class="flex items-center gap-2">
-            <span class="chev text-zinc-500">▾</span>
-            <h3 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">🏷️ Credit Watermark</h3>
-          </div>
-          <label class="flex items-center gap-1.5 text-xs text-zinc-300 cursor-pointer" onclick="event.stopPropagation()"><input type="checkbox" id="s_cw_on" onchange="updateCwPreview()" class="w-3.5 h-3.5 accent-[#facc15]"> Aktif</label>
-        </div>
-        <div class="card-body p-4 pt-0 space-y-3 hidden">
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="text-[9px] text-zinc-500 block mb-0.5">Posisi X (0-1)</label>
-              <input type="number" step="0.01" min="0" max="1" id="s_cw_x" oninput="updateCwPreview()" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent">
-            </div>
-            <div>
-              <label class="text-[9px] text-zinc-500 block mb-0.5">Posisi Y (0-1)</label>
-              <input type="number" step="0.01" min="0" max="1" id="s_cw_y" oninput="updateCwPreview()" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent">
-            </div>
-            <div>
-              <label class="text-[9px] text-zinc-500 block mb-0.5">Font Size</label>
-              <input type="number" step="0.005" min="0.001" id="s_cw_size" oninput="updateCwPreview()" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent">
-            </div>
-            <div>
-              <label class="text-[9px] text-zinc-500 block mb-0.5">Opacity (0-1)</label>
-              <input type="number" step="0.05" min="0" max="1" id="s_cw_op" oninput="updateCwPreview()" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent">
-            </div>
-            <div class="col-span-2 pt-1">
-              <label class="text-[9px] text-zinc-500 block mb-1">Preview Credit di Layar</label>
-              <div id="cwPreviewBox" class="relative w-24 h-36 bg-zinc-950 border border-zinc-700 rounded overflow-hidden mx-auto shadow-inner flex items-center justify-center">
-                <div class="text-[9px] text-zinc-700 select-none">9:16 Video</div>
-                <div id="cwDot" class="absolute text-[8px] font-mono text-zinc-300 bg-black/60 px-1 rounded transition-all whitespace-nowrap" style="left:10%;top:10%">@channel</div>
+                <div id="wmDot" class="absolute w-5 h-4 bg-accent border border-white/70 rounded-xs shadow" style="left:68%;top:6%"></div>
               </div>
             </div>
           </div>
@@ -413,56 +360,13 @@ body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-s
 
     </div>
 
-    <!-- PRO EDITING (COLLAPSIBLE) -->
-    <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md">
-      <div class="card-head flex items-center gap-2 p-4" onclick="toggleCard(this)">
-        <span class="chev text-zinc-500">▾</span>
-        <h3 class="text-xs font-semibold text-zinc-450 uppercase tracking-wider">🎛️ Pro Editing & Efek Video</h3>
-      </div>
-      <div class="card-body p-4 pt-0 space-y-3">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div class="col-span-2">
-            <label class="text-[10px] text-zinc-500 block mb-0.5">Color Grade</label>
-            <select id="s_color_grade" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"><option value="">none</option><option value="cinematic">cinematic</option><option value="warm">warm</option><option value="cool">cool</option><option value="bw">b/w</option></select>
-          </div>
-          <div>
-            <label class="text-[10px] text-zinc-500 block mb-0.5">Motion Blur (0-10)</label>
-            <input type="number" step="0.5" min="0" max="10" id="s_motion_blur" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
-          </div>
-          <div>
-            <label class="text-[10px] text-zinc-500 block mb-0.5">Vignette (0-1)</label>
-            <input type="number" step="0.05" min="0" max="1" id="s_vignette" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
-          </div>
-          <div>
-            <label class="text-[10px] text-zinc-500 block mb-0.5">Speed Ramp Start (s)</label>
-            <input type="number" step="0.5" min="0" id="s_speed_ramp_start" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
-          </div>
-          <div>
-            <label class="text-[10px] text-zinc-500 block mb-0.5">Speed Ramp End (s)</label>
-            <input type="number" step="0.5" min="0" id="s_speed_ramp_end" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
-          </div>
-          <div>
-            <label class="text-[10px] text-zinc-500 block mb-0.5">Speed Factor (0.1-2)</label>
-            <input type="number" step="0.05" min="0.1" max="2" id="s_speed_factor" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
-          </div>
-          <div>
-            <label class="text-[10px] text-zinc-500 block mb-0.5">Ducking (dB)</label>
-            <input type="number" step="1" min="-30" max="0" id="s_ducking_level_db" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
-          </div>
-        </div>
-      </div>
-    </div>
-
-  </main>
+<!-- SAVE BAR (paling bawah, di dalam MAIN) -->
+<div class="mt-8 flex items-center gap-3">
+  <button onclick="loadConfig()" class="px-3 py-1.5 bg-surface-2 hover:bg-surface-3 text-zinc-300 text-xs font-medium rounded border border-zinc-700 transition">↺ Reset</button>
+  <button onclick="saveAll()" class="px-5 py-1.5 bg-accent hover:bg-yellow-400 text-black text-xs font-bold rounded shadow transition">💾 Simpan Semua Config</button>
+  <span id="saveMsg" class="text-xs font-semibold text-emerald-400 hidden ml-2"></span>
 </div>
-
-<!-- FLOATING BOTTOM SAVE BAR -->
-<div class="fixed bottom-0 left-0 right-0 z-40 bg-zinc-950/90 backdrop-blur-md border-t border-zinc-800 p-3 md:pl-64 flex items-center justify-between px-6">
-  <div id="saveMsg" class="text-xs font-semibold text-emerald-400 hidden"></div>
-  <div class="ml-auto flex items-center gap-3">
-    <button onclick="loadConfig()" class="px-3 py-1.5 bg-surface-2 hover:bg-surface-3 text-zinc-300 text-xs font-medium rounded border border-zinc-700 transition">↺ Reset</button>
-    <button onclick="saveAll()" class="px-5 py-1.5 bg-accent hover:bg-yellow-400 text-black text-xs font-bold rounded shadow transition">💾 Simpan Semua Config</button>
-  </div>
+  </main>
 </div>
 
 <script>
@@ -559,25 +463,12 @@ function updateSubPreview() {
 
 function updateWmPreview() {
   const on = $('#s_wm_on').checked;
-  const x = Math.min(1, Math.max(0, parseFloat($('#s_wm_x').value) || 0.8));
-  const y = Math.min(1, Math.max(0, parseFloat($('#s_wm_y').value) || 0.85));
+  // posisi fix kanan atas 0.85,0.05
   const op = Math.min(1, Math.max(0, parseFloat($('#s_wm_op').value) || 0.8));
   const dot = $('#wmDot');
   dot.style.display = on ? 'block' : 'none';
-  dot.style.left = (x * 80) + '%';
-  dot.style.top = (y * 85) + '%';
-  dot.style.opacity = op;
-}
-
-function updateCwPreview() {
-  const on = $('#s_cw_on').checked;
-  const x = Math.min(1, Math.max(0, parseFloat($('#s_cw_x').value) || 0.1));
-  const y = Math.min(1, Math.max(0, parseFloat($('#s_cw_y').value) || 0.1));
-  const op = Math.min(1, Math.max(0, parseFloat($('#s_cw_op').value) || 0.7));
-  const dot = $('#cwDot');
-  dot.style.display = on ? 'block' : 'none';
-  dot.style.left = (x * 70) + '%';
-  dot.style.top = (y * 85) + '%';
+  dot.style.left = '68%';
+  dot.style.top = '6%';
   dot.style.opacity = op;
 }
 
@@ -630,75 +521,10 @@ function initTemplates() {
   TEMPLATES = window.UNIFIED_TEMPLATES || {};
   const bar = $('#tplBar');
   bar.innerHTML = Object.entries(TEMPLATES).map(([k, t]) =>
-    `<button type="button" class="tpl-btn text-zinc-300 hover:text-white" title="${esc(t.desc)}" onclick="applyTemplate('${k}')">${t.label}</button>`).join('');
+    `<button type="button" class="tpl-btn text-zinc-300 hover:text-white text-center" title="${esc(t.desc)}" onclick="applyTemplate('${k}')">${t.label}</button>`).join('');
 }
 initTemplates();
 if (window.TemplatesAPI) window.TemplatesAPI.poll(5000, (t) => { TEMPLATES = t; initTemplates(); });
-
-// CUSTOM PRESETS
-async function loadCustomPresets() {
-  const bar = $('#customTplBar');
-  try {
-    const res = await fetch('/api/presets');
-    const presets = await res.json();
-    if (!presets || Object.keys(presets).length === 0) {
-      bar.innerHTML = '<span class="text-[10px] text-zinc-600 italic">Belum ada custom preset tersimpan.</span>';
-      return;
-    }
-    bar.innerHTML = Object.entries(presets).map(([k, p]) => `
-      <div class="inline-flex items-center bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300">
-        <button type="button" class="hover:text-accent font-medium mr-1.5" onclick="applyCustomPreset('${esc(k)}')">⭐ ${esc(p.name || k)}</button>
-        <button type="button" class="text-zinc-500 hover:text-red-400 font-bold" onclick="deleteCustomPreset('${esc(k)}')">×</button>
-      </div>
-    `).join('');
-  } catch (e) {
-    bar.innerHTML = '<span class="text-[10px] text-red-400">Gagal memuat preset: ' + e + '</span>';
-  }
-}
-
-async function promptSaveCustomPreset() {
-  const name = prompt('Masukkan nama preset baru:');
-  if (!name || !name.trim()) return;
-  const cfg = collectFormData();
-  try {
-    const res = await fetch('/api/presets', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: name.trim(), config: cfg })
-    });
-    if (!res.ok) throw new Error(await res.text());
-    loadCustomPresets();
-    alert('Preset berhasil disimpan!');
-  } catch (e) {
-    alert('Gagal simpan preset: ' + e.message);
-  }
-}
-
-async function applyCustomPreset(id) {
-  try {
-    const res = await fetch('/api/presets');
-    const presets = await res.json();
-    const p = presets[id];
-    if (!p || !p.config) return;
-    populateForm(p.config);
-    const m = $('#tplMsg');
-    m.classList.remove('hidden');
-    m.textContent = `✅ Custom Preset "${p.name}" berhasil diterapkan!`;
-    setTimeout(() => m.classList.add('hidden'), 4000);
-  } catch (e) {
-    alert('Gagal menerapkan preset: ' + e);
-  }
-}
-
-async function deleteCustomPreset(id) {
-  if (!confirm('Hapus preset ini?')) return;
-  try {
-    await fetch(`/api/presets/${encodeURIComponent(id)}`, { method: 'DELETE' });
-    loadCustomPresets();
-  } catch (e) {
-    alert('Gagal hapus preset: ' + e);
-  }
-}
 
 // LOAD & SAVE CONFIG
 function collectFormData() {
@@ -731,94 +557,87 @@ function collectFormData() {
       box_mode: $('#s_hs_box_mode')?.value || 'fit_text',
       font_size: parseFloat($('#s_hs_size').value) || 0.075,
       corner_radius: parseInt($('#s_hs_radius').value) || 12,
-      duration: parseFloat($('#s_hs_duration')?.value) || 3.0,
+      duration: parseFloat($('#s_hs_duration')?.value) || 1.0,
       bg_opacity: parseInt($('#s_hs_opacity')?.value ?? 100),
       font_color: $('#s_hs_fc').value || '#ffffff',
       bg_color: $('#s_hs_bc').value || '#000000',
       glitch: $('#s_hs_glitch').checked,
     },
     watermark_enabled: $('#s_wm_on').checked,
-    watermark_x: parseFloat($('#s_wm_x').value) || 0.8,
-    watermark_y: parseFloat($('#s_wm_y').value) || 0.85,
+    watermark_x: 0.85,
+    watermark_y: 0.05,
     watermark_scale: parseFloat($('#s_wm_scale').value) || 0.15,
     watermark_opacity: parseFloat($('#s_wm_op').value) || 0.8,
-    credit_watermark: $('#s_cw_on').checked,
-    credit_watermark_x: parseFloat($('#s_cw_x').value) || 0.1,
-    credit_watermark_y: parseFloat($('#s_cw_y').value) || 0.1,
-    credit_watermark_size: parseFloat($('#s_cw_size').value) || 0.02,
-    credit_watermark_opacity: parseFloat($('#s_cw_op').value) || 0.7,
-    color_grade: $('#s_color_grade').value,
-    motion_blur: parseFloat($('#s_motion_blur').value) || 0,
-    vignette: parseFloat($('#s_vignette').value) || 0,
-    speed_ramp_start: parseFloat($('#s_speed_ramp_start').value) || 0,
-    speed_ramp_end: parseFloat($('#s_speed_ramp_end').value) || 0,
-    speed_factor: parseFloat($('#s_speed_factor').value) || 1.0,
-    ducking_level_db: parseFloat($('#s_ducking_level_db').value) || -12,
+    credit_watermark: false,
+    credit_watermark_x: 0.1,
+    credit_watermark_y: 0.1,
+    credit_watermark_size: 0.02,
+    credit_watermark_opacity: 0.7,
+    color_grade: $('#s_color_grade')?.value || '',
+    motion_blur: parseFloat($('#s_motion_blur')?.value) || 0,
+    vignette: parseFloat($('#s_vignette')?.value) || 0,
+    speed_ramp_start: parseFloat($('#s_speed_ramp_start')?.value) || 0,
+    speed_ramp_end: parseFloat($('#s_speed_ramp_end')?.value) || 0,
+    speed_factor: parseFloat($('#s_speed_factor')?.value) || 1.0,
+    ducking_level_db: parseFloat($('#s_ducking_level_db')?.value) || -12,
   };
 }
 
 function populateForm(d) {
   if (!d) return;
-  $('#s_server_url').value = d.server_url || '';
-  $('#s_hf_system_message').value = d.hf_system_message || '';
-  $('#s_temperature').value = d.temperature ?? 0.7;
-  $('#s_hf_model').value = d.hf_model || '';
-  $('#s_subtitle_language').value = d.subtitle_language || 'id';
-  $('#s_fw_model').value = d.fw_model || d.faster_whisper_model || 'small';
-  checkFwModels();
-  $('#s_resolution').value = d.resolution || '1080p';
-  $('#s_aspect_ratio').value = d.aspect_ratio || '9:16';
-  $('#s_portrait_mode').value = d.portrait_mode || 'crop';
-  $('#s_num_clips').value = d.num_clips || 5;
-  $('#s_gpu').checked = !!d.use_gpu;
-  $('#s_stabilize').checked = !!d.stabilize;
-  $('#s_smooth_follow').checked = d.smooth_follow !== false;
-  $('#s_face_tracking_mode').value = d.face_tracking_mode || 'opencv';
-  $('#s_pan_speed_limit').value = d.pan_speed_limit ?? 1.5;
-  $('#s_center_weight').value = d.center_weight ?? 0.6;
-  $('#s_switch_threshold').value = d.switch_threshold ?? 0.35;
-  $('#s_min_shot_duration').value = d.min_shot_duration ?? 2.0;
-  $('#s_lip_activity').value = d.lip_activity ?? 0.05;
-  $('#s_captions').checked = d.captions !== false;
-  $('#s_subtitle_style').value = d.subtitle_style || 'pop';
-  $('#s_sync_offset').value = d.sync_offset ?? 0;
-  $('#s_hook').checked = !!d.hook;
+  const set = (id, v) => { const el=document.getElementById(id); if(el) el.value=v; };
+  const chk = (id, v) => { const el=document.getElementById(id); if(el) el.checked=!!v; };
+  set('s_server_url', d.server_url || '');
+  set('s_hf_system_message', d.hf_system_message || '');
+  set('s_temperature', d.temperature ?? 0.7);
+  set('s_hf_model', d.hf_model || '');
+  set('s_subtitle_language', d.subtitle_language || 'id');
+  set('s_fw_model', d.fw_model || d.faster_whisper_model || 'small');
+  try{ checkFwModels(); }catch(e){ console.warn('checkFw',e); }
+  set('s_resolution', d.resolution || '1080p');
+  set('s_aspect_ratio', d.aspect_ratio || '9:16');
+  set('s_portrait_mode', d.portrait_mode || 'crop');
+  set('s_num_clips', d.num_clips || 5);
+  chk('s_gpu', d.use_gpu);
+  chk('s_stabilize', d.stabilize);
+  chk('s_smooth_follow', d.smooth_follow !== false);
+  set('s_face_tracking_mode', d.face_tracking_mode || 'opencv');
+  set('s_pan_speed_limit', d.pan_speed_limit ?? 1.5);
+  set('s_center_weight', d.center_weight ?? 0.6);
+  set('s_switch_threshold', d.switch_threshold ?? 0.35);
+  set('s_min_shot_duration', d.min_shot_duration ?? 2.0);
+  set('s_lip_activity', d.lip_activity ?? 0.05);
+  chk('s_captions', d.captions !== false);
+  set('s_subtitle_style', d.subtitle_style || 'pop');
+  set('s_sync_offset', d.sync_offset ?? 0);
+  chk('s_hook', !!d.hook);
   
   if (d.hook_style) {
-    if ($('#s_hs_box_mode')) $('#s_hs_box_mode').value = d.hook_style.box_mode || 'fit_text';
-    $('#s_hs_size').value = d.hook_style.font_size ?? 0.075;
-    $('#s_hs_radius').value = d.hook_style.corner_radius ?? 12;
-    if ($('#s_hs_duration')) $('#s_hs_duration').value = d.hook_style.duration ?? 3.0;
-    if ($('#s_hs_opacity')) $('#s_hs_opacity').value = d.hook_style.bg_opacity ?? 100;
-    $('#s_hs_fc').value = d.hook_style.font_color || '#ffffff';
-    $('#s_hs_bc').value = d.hook_style.bg_color || '#000000';
-    $('#s_hs_glitch').checked = !!d.hook_style.glitch;
+    set('s_hs_box_mode', d.hook_style.box_mode || 'fit_text');
+    set('s_hs_size', d.hook_style.font_size ?? 0.075);
+    set('s_hs_radius', d.hook_style.corner_radius ?? 12);
+    set('s_hs_duration', d.hook_style.duration ?? 1.0);
+    set('s_hs_opacity', d.hook_style.bg_opacity ?? 100);
+    const f=document.getElementById('s_hs_fc'); if(f) f.value=d.hook_style.font_color || '#ffffff';
+    const b=document.getElementById('s_hs_bc'); if(b) b.value=d.hook_style.bg_color || '#000000';
+    chk('s_hs_glitch', !!d.hook_style.glitch);
   }
   
-  $('#s_wm_on').checked = !!d.watermark_enabled;
-  $('#s_wm_x').value = d.watermark_x ?? 0.8;
-  $('#s_wm_y').value = d.watermark_y ?? 0.85;
-  $('#s_wm_scale').value = d.watermark_scale ?? 0.15;
-  $('#s_wm_op').value = d.watermark_opacity ?? 0.8;
+  chk('s_wm_on', !!d.watermark_enabled);
+  set('s_wm_scale', d.watermark_scale ?? 0.15);
+  set('s_wm_op', d.watermark_opacity ?? 0.8);
 
-  $('#s_cw_on').checked = !!d.credit_watermark;
-  $('#s_cw_x').value = d.credit_watermark_x ?? 0.1;
-  $('#s_cw_y').value = d.credit_watermark_y ?? 0.1;
-  $('#s_cw_size').value = d.credit_watermark_size ?? 0.02;
-  $('#s_cw_op').value = d.credit_watermark_opacity ?? 0.7;
+  set('s_color_grade', d.color_grade || '');
+  set('s_motion_blur', d.motion_blur ?? 0);
+  set('s_vignette', d.vignette ?? 0);
+  set('s_speed_ramp_start', d.speed_ramp_start ?? 0);
+  set('s_speed_ramp_end', d.speed_ramp_end ?? 0);
+  set('s_speed_factor', d.speed_factor ?? 1.0);
+  set('s_ducking_level_db', d.ducking_level_db ?? -12);
 
-  $('#s_color_grade').value = d.color_grade || '';
-  $('#s_motion_blur').value = d.motion_blur ?? 0;
-  $('#s_vignette').value = d.vignette ?? 0;
-  $('#s_speed_ramp_start').value = d.speed_ramp_start ?? 0;
-  $('#s_speed_ramp_end').value = d.speed_ramp_end ?? 0;
-  $('#s_speed_factor').value = d.speed_factor ?? 1.0;
-  $('#s_ducking_level_db').value = d.ducking_level_db ?? -12;
-
-  updateThumbnailPreview();
-  updateSubPreview();
-  updateWmPreview();
-  updateCwPreview();
+  try{ updateThumbnailPreview(); }catch(e){}
+  try{ updateSubPreview(); }catch(e){}
+  try{ updateWmPreview(); }catch(e){}
 }
 
 async function loadConfig() {
@@ -826,7 +645,7 @@ async function loadConfig() {
     const res = await fetch('/api/config');
     const d = await res.json();
     populateForm(d);
-    fetchModels().then(()=>{ if(d.hf_model) $('#s_hf_model').value=d.hf_model; }).catch(()=>{});
+    fetchModels().then(()=>{ if(d.hf_model) { const el=document.getElementById('s_hf_model'); if(el) el.value=d.hf_model; } }).catch(()=>{});
     checkHfStatus();
   } catch (e) {
     alert('Gagal memuat konfigurasi: ' + e);
@@ -846,6 +665,8 @@ async function saveAll() {
     m.classList.remove('hidden');
     m.textContent = '✅ Semua konfigurasi berhasil disimpan!';
     setTimeout(() => m.classList.add('hidden'), 4000);
+    const toast=document.getElementById('toast');
+    if(toast){ toast.textContent='✅ Config tersimpan!'; toast.classList.remove('hidden'); setTimeout(()=>toast.classList.add('hidden'),3000); }
   } catch (e) {
     alert('Gagal menyimpan: ' + e.message);
   }
@@ -919,7 +740,6 @@ async function downloadFwModel(size){
   }catch(e){ box.textContent='❌ '+e.message; }
 }
 loadConfig();
-loadCustomPresets();
 </script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'yt-clipper-v3';
+const CACHE_NAME = 'yt-clipper-v4';
 const ASSETS = [
   '/',
   '/index.html',
@@ -23,10 +23,20 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   if (e.request.url.includes('/api/')) return;
-  // media (video/thumb/download) jangan di-cache: selalu ambil dari network terbaru
   const u = new URL(e.request.url);
   if (u.pathname.startsWith('/video/') || u.pathname.startsWith('/download/') || u.pathname.startsWith('/thumb/')) {
     e.respondWith(fetch(e.request));
+    return;
+  }
+  // HTML & templates.js: network-first biar reload langsung dapat versi terbaru (tidak stuck cache lama)
+  if (u.pathname.endsWith('.html') || u.pathname === '/' || u.pathname.endsWith('.js')) {
+    e.respondWith(
+      fetch(e.request).then(res => {
+        const copy = res.clone();
+        caches.open(CACHE_NAME).then(c => c.put(e.request, copy));
+        return res;
+      }).catch(() => caches.match(e.request))
+    );
     return;
   }
   e.respondWith(

@@ -218,7 +218,7 @@ class CaptionMixin:
                 h, m, s = duration_match.groups()
                 hook_duration = int(h) * 3600 + int(m) * 60 + float(s) + 0.5
             else:
-                hook_duration = float(style.get("duration", 3.0))
+                hook_duration = float(style.get("duration", 1.0))
         
             # Format hook text
             hook_upper = hook_text.upper()
@@ -755,10 +755,10 @@ class CaptionMixin:
         
             progress_callback(0.2)
         
-            # Calculate watermark size and position
+            # Calculate watermark size and position (fix kanan atas 0.85/0.05)
             scale = self.watermark_settings.get("scale", 0.15)
-            pos_x = self.watermark_settings.get("position_x", 0.85)
-            pos_y = self.watermark_settings.get("position_y", 0.05)
+            pos_x = 0.85
+            pos_y = 0.05
             opacity = self.watermark_settings.get("opacity", 0.8)
         
             # Calculate watermark width in pixels
@@ -972,7 +972,7 @@ class CaptionMixin:
         
             self.log(f"\n[Clip {index}] {highlight['title']}")
         
-            # Calculate total steps based on options
+            # Calculate total steps based on options (include Social Kit so overall goes 0→100 sequentially)
             total_steps = 1  # Re-encode/Cut is always 1 step
             total_steps += 1  # Portrait conversion always
             if add_hook:
@@ -983,14 +983,17 @@ class CaptionMixin:
                 total_steps += 1
             if self.credit_watermark_settings.get("enabled"):
                 total_steps += 1
+            has_social = bool(self.client)
+            if has_social:
+                total_steps += 1  # Social Kit metadata
         
-            # Helper to report sub-progress with percentage
+            # Helper to report sub-progress with percentage (clamp 0-100, anti gila >100)
             def clip_progress(step_name: str, step_num: int, sub_progress: float = 0):
-                # Calculate overall progress: base (30%) + clip progress (60%)
+                # Calculate overall progress: base (30%) + clip progress (60%) + 10% final
                 clip_base = 0.3 + (0.6 * (index - 1) / total_clips)
                 clip_portion = 0.6 / total_clips
-                step_progress = clip_portion * ((step_num + sub_progress) / total_steps)
-                overall = clip_base + step_progress
+                step_progress = clip_portion * ((step_num + sub_progress) / max(1, total_steps))
+                overall = min(1.0, max(0.0, clip_base + step_progress))
             
                 # Format with percentage
                 percent = int(sub_progress * 100)
@@ -1245,9 +1248,6 @@ class CaptionMixin:
                 import shutil
                 shutil.copy(str(current_output), str(final_file))
         
-            # Mark complete
-            clip_progress("Done", total_steps, 0)
-        
             # Temp files are kept for inspection (landscape, portrait, hooked, etc.)
         
             # Save metadata
@@ -1280,9 +1280,15 @@ class CaptionMixin:
                 "aspect_ratio": self.aspect_ratio,
             }
         
-            # Auto generate social kit metadata if client is available
+            # Auto generate social kit metadata if client is available (sequential overall 0→100)
             if self.client:
                 try:
+                    # sequential 90→100 for last clip, not langsung 100
+                    if index == total_clips:
+                        self.set_progress(f"Clip {index}/{total_clips}: Generating Social Kit... (15%) (overall: 91.5%)", 0.915)
+                        debug_log(f"[DEBUG] clip_progress: Clip {index}/{total_clips}: Generating Social Kit... (15%) (overall: 91.5%)")
+                    else:
+                        clip_progress("Generating Social Kit...", current_step, 0.15)
                     self.log("  Generating Social Kit metadata...")
                     prompt = f"""Kamu adalah expert Social Media Manager untuk konten short-form (TikTok, Instagram Reels, YouTube Shorts).
 
@@ -1322,9 +1328,27 @@ class CaptionMixin:
                 
                     social_data = json.loads(result)
                     metadata["social_kit"] = social_data
-                    self.log("  Social Kit metadata generated successfully!")
+                    if index == total_clips:
+                        self.set_progress(f"Clip {index}/{total_clips}: Social Kit... (85%) (overall: 98.5%)", 0.985)
+                        debug_log(f"[DEBUG] clip_progress: Clip {index}/{total_clips}: Social Kit... (85%) (overall: 98.5%)")
+                        self.log("  Social Kit metadata generated successfully! (overall: 98.5%)")
+                    else:
+                        clip_progress("Social Kit...", current_step, 0.85)
+                        self.log("  Social Kit metadata generated successfully!")
                 except Exception as e:
+                    if index == total_clips:
+                        self.set_progress(f"Clip {index}/{total_clips}: Social Kit... (85%) (overall: 98.5%)", 0.985)
+                        debug_log(f"[DEBUG] clip_progress: Clip {index}/{total_clips}: Social Kit... (85%) (overall: 98.5%)")
+                    else:
+                        clip_progress("Social Kit...", current_step, 0.85)
                     self.log(f"  Warning: Failed to auto-generate Social Kit: {e}")
+
+            # Mark complete — sequential 0→100 (Social Kit is last step)
+            if index == total_clips:
+                debug_log(f"[DEBUG] clip_progress: Clip {index}/{total_clips}: Social Kit done (overall: 100.0%)")
+                self.set_progress(f"Clip {index}/{total_clips}: Social Kit done (overall: 100.0%)", 1.0)
+            else:
+                clip_progress("Done", current_step, 1.0)
         
             with open(clip_dir / "data.json", "w", encoding="utf-8") as f:
                 json.dump(metadata, f, ensure_ascii=False, indent=2)

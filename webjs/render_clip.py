@@ -49,9 +49,9 @@ def main():
     cw["enabled"] = b("credit", cw.get("enabled", False))
 
     mp = dict(cfg.get("mediapipe_settings") or {
-        "lip_activity_threshold": 0.15, "switch_threshold": 0.3,
-        "min_shot_duration": 90, "center_weight": 0.3,
-        "smooth_follow": True, "pan_speed_limit": 2.5,
+        "lip_activity_threshold": 0.08, "switch_threshold": 0.18,
+        "min_shot_duration": 45, "center_weight": 0.15,
+        "smooth_follow": True, "pan_speed_limit": 1.8,
     })
     if "smooth_follow" in opts: mp["smooth_follow"] = bool(opts["smooth_follow"])
     if "pan_speed_limit" in opts: mp["pan_speed_limit"] = float(opts["pan_speed_limit"])
@@ -91,6 +91,7 @@ def main():
     info = sd.get("video_info") or {}
     core.channel_name = info.get("channel") or info.get("uploader") or ""
 
+    debug_log(f"[progress] Render start (overall: 0.0%)", flush=True)
     meta_path = Path(CLIP_DIR) / "data.json"
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
     landscape = Path(CLIP_DIR) / "landscape.mp4"
@@ -110,6 +111,7 @@ def main():
         add_hook=b("hook", cfg.get("hook_enabled", True)),
         pre_cut=True, clip_dir=str(Path(CLIP_DIR)),
     )
+    debug_log("[progress] Render complete (overall: 100.0%)", flush=True)
     debug_log("RENDER_OK")
 
 
