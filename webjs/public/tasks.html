@@ -62,8 +62,8 @@ pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:75vh;overflow-y
             <tr class="border-b border-zinc-800 bg-surface-2/30 text-zinc-400 text-[10px] uppercase tracking-wider">
               <th class="py-2.5 px-4 font-semibold">Job</th>
               <th class="py-2.5 px-4 font-semibold">Sesi</th>
-              <th class="py-2.5 px-4 font-semibold hidden md:table-cell">Detail</th>
               <th class="py-2.5 px-4 font-semibold">Status</th>
+              <th class="py-2.5 px-4 font-semibold">Progress</th>
               <th class="py-2.5 px-4 font-semibold hidden md:table-cell">Durasi</th>
               <th class="py-2.5 px-4 font-semibold hidden lg:table-cell">Log</th>
               <th class="py-2.5 px-4 font-semibold text-right">Aksi</th>
@@ -108,8 +108,14 @@ const dur = s => s == null ? '-' : (s >= 60 ? Math.floor(s / 60) + 'm ' + (s % 6
 const sessLink = sid => sid === '-' ? '<span class="text-zinc-600 font-mono">-</span>' : `<a href="/session.html?id=${encodeURIComponent(sid)}" class="text-accent hover:underline font-mono text-[11px]">${esc(sid)}</a>`;
 
 const statusBadge = j => j.running
-  ? '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded animate-pulse">⏳ berjalan</span>'
-  : (j.code === 0 ? '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded">✅ selesai</span>' : `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-medium bg-red-500/10 text-red-400 border border-red-500/20 rounded">❌ gagal (${j.code ?? '?'})</span>`);
+  ? '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold bg-[#7c3aed]/15 text-[#a78bfa] border border-[#7c3aed]/30 rounded-full animate-pulse">● PROCESSING</span>'
+  : (j.code === 0 ? '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full">● COMPLETED</span>' : `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20 rounded-full">● FAILED (${j.code ?? '?'})</span>`);
+const progressBar = j => {
+  if (j.progress == null) return '<span class="text-[11px] text-zinc-600">—</span>';
+  const pct = Math.round(j.progress);
+  const color = j.running ? 'from-[#7c3aed] to-[#a78bfa]' : (j.code===0 ? 'from-emerald-500 to-emerald-400' : 'from-red-500 to-red-400');
+  return `<div class="w-32"><div class="h-2 bg-zinc-800 rounded-full overflow-hidden"><div class="h-full bg-gradient-to-r ${color} transition-all duration-700 rounded-full" style="width:${pct}%"></div></div><div class="text-[10px] font-mono font-bold mt-1 ${j.running ? 'text-[#a78bfa]' : 'text-zinc-400'} tabular-nums">${pct}%</div></div>`;
+};
 
 const Modal = {
   show(id) {
@@ -140,18 +146,15 @@ async function refresh() {
   JOBS = jobs;
   document.getElementById('empty').style.display = jobs.length ? 'none' : 'block';
   document.getElementById('taskBody').innerHTML = jobs.map((j, i) => `
-    <tr class="group hover:bg-zinc-800/30 transition cursor-pointer ${j.running ? 'bg-amber-500/[0.02]' : ''}" onclick="openLog(${i})">
-      <td class="py-2.5 px-4 font-semibold text-white text-[12px]">${esc(j.type)}</td>
-      <td class="py-2.5 px-4" onclick="event.stopPropagation()">${sessLink(j.session)}</td>
-      <td class="py-2.5 px-4 text-zinc-400 text-[11px] truncate max-w-[200px] hidden md:table-cell" title="${esc(j.detail)}">${esc(j.detail)}</td>
-      <td class="py-2.5 px-4">
-        ${statusBadge(j)}
-        ${j.progress != null ? `<div class="mt-1.5 w-28"><div class="h-1.5 bg-zinc-800 rounded-full overflow-hidden"><div class="h-full bg-accent transition-all duration-500" style="width:${Math.round(j.progress)}%"></div></div><div class="text-[9px] text-zinc-400 mt-0.5 tabular-nums">${j.progress.toFixed(0)}%</div></div>` : ''}
-      </td>
-      <td class="py-2.5 px-4 text-zinc-400 font-mono text-[11px] hidden md:table-cell">${dur(j.elapsed_s)}</td>
-      <td class="py-2.5 px-4 text-zinc-500 font-mono text-[10px] hidden lg:table-cell" title="Klik baris untuk melihat log penuh"><button class="px-2 py-0.5 border border-zinc-700 rounded text-zinc-400 hover:text-white bg-zinc-800/50 hover:bg-zinc-800 transition">Lihat Log</button></td>
-      <td class="py-2.5 px-4 text-right" onclick="event.stopPropagation()">
-        ${j.running ? `<button class="px-2 py-0.5 text-[10px] font-medium bg-red-950/20 text-red-400 border border-red-900/30 hover:bg-red-900/20 rounded transition" onclick="stopTask(event,${i})" title="Stop job">■ Stop</button>` : ''}
+    <tr class="group hover:bg-zinc-800/40 transition cursor-pointer ${j.running ? 'bg-[#7c3aed]/[0.06]' : ''}" onclick="openLog(${i})">
+      <td class="py-3 px-4 font-bold text-[12px] tracking-tight">${j.session !== '-' ? `<a href="/session.html?id=${encodeURIComponent(j.session)}" onclick="event.stopPropagation()" class="text-white hover:text-accent hover:underline">${esc(j.type)}</a>` : `<span class="text-white">${esc(j.type)}</span>`}</td>
+      <td class="py-3 px-4" onclick="event.stopPropagation()">${sessLink(j.session)}</td>
+      <td class="py-3 px-4">${statusBadge(j)}</td>
+      <td class="py-3 px-4">${progressBar(j)}</td>
+      <td class="py-3 px-4 text-zinc-300 font-mono text-[11px] hidden md:table-cell">${dur(j.elapsed_s)}</td>
+      <td class="py-3 px-4 text-zinc-500 font-mono text-[10px] hidden lg:table-cell truncate max-w-[320px]" title="${esc(j.last_line || 'Klik baris untuk log penuh')}">${esc((j.last_line || '-').slice(0,120))}</td>
+      <td class="py-3 px-4 text-right" onclick="event.stopPropagation()">
+        ${j.running ? `<button class="px-3 py-1 text-[10px] font-bold bg-red-500 text-white hover:bg-red-600 rounded-full transition shadow" onclick="stopTask(event,${i})" title="Stop job">STOP</button>` : '<span class="text-zinc-600 text-[10px]">—</span>'}
       </td>
     </tr>`).join('');
 }

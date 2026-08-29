@@ -69,6 +69,7 @@ def main():
     core.enable_gpu_acceleration(True)
 
     num_clips = NUM_CLIPS if NUM_CLIPS > 0 else int(cfg.get("num_clips", 5))
+    debug_log(f"[progress] Starting Phase1 analyze (overall: 0.0%)", flush=True)
     sd = core.find_highlights_only(URL, num_clips, progress_callback=_progress_cb)
     highlights = sd.get("highlights") or []
     if not highlights:
@@ -94,6 +95,7 @@ def main():
     })
     with open(sdf, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
+    debug_log(f"[progress] Phase1 complete {len(highlights)} highlights (overall: 100.0%)", flush=True)
     write_result({"ok": True, "session_dir": str(sess_dir), "session_id": sess_dir.name, "count": len(highlights)})
 
 

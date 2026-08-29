@@ -1797,11 +1797,11 @@ def build_status(cfg: dict):
     num_clips = _status_val(cfg, "num_clips", 5)
     mp = cfg.get("mediapipe_settings", {})
     smooth = mp.get("smooth_follow", True)
-    pan = mp.get("pan_speed_limit", 2.5)
-    center = mp.get("center_weight", 0.3)
-    switch = mp.get("switch_threshold", 0.3)
-    shot = mp.get("min_shot_duration", 90)
-    lip = mp.get("lip_activity_threshold", 0.15)
+    pan = mp.get("pan_speed_limit", 1.8)
+    center = mp.get("center_weight", 0.15)
+    switch = mp.get("switch_threshold", 0.18)
+    shot = mp.get("min_shot_duration", 45)
+    lip = mp.get("lip_activity_threshold", 0.08)
     hf_model = _hf_model(cfg)
     srv = ((cfg.get("ai_providers") or {}).get("highlight_finder") or {}).get("base_url") or cfg.get("base_url", "-")
     fw_size = _fw_model_size(cfg)
@@ -1952,27 +1952,27 @@ async def status_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "pan":
         mp = cfg.setdefault("mediapipe_settings", {})
         opts = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0]
-        cur = float(mp.get("pan_speed_limit", 2.5))
+        cur = float(mp.get("pan_speed_limit", 1.8))
         mp["pan_speed_limit"] = opts[(opts.index(cur) + 1) % len(opts)] if cur in opts else opts[0]
     elif data == "center":
         mp = cfg.setdefault("mediapipe_settings", {})
         opts = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
-        cur = float(mp.get("center_weight", 0.3))
+        cur = float(mp.get("center_weight", 0.15))
         mp["center_weight"] = opts[(opts.index(cur) + 1) % len(opts)] if cur in opts else opts[0]
     elif data == "switch":
         mp = cfg.setdefault("mediapipe_settings", {})
         opts = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
-        cur = float(mp.get("switch_threshold", 0.3))
+        cur = float(mp.get("switch_threshold", 0.18))
         mp["switch_threshold"] = opts[(opts.index(cur) + 1) % len(opts)] if cur in opts else opts[0]
     elif data == "shot":
         mp = cfg.setdefault("mediapipe_settings", {})
         opts = [30, 45, 60, 90, 120, 150, 180]
-        cur = int(mp.get("min_shot_duration", 90))
+        cur = int(mp.get("min_shot_duration", 45))
         mp["min_shot_duration"] = opts[(opts.index(cur) + 1) % len(opts)] if cur in opts else opts[0]
     elif data == "lip":
         mp = cfg.setdefault("mediapipe_settings", {})
         opts = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3]
-        cur = float(mp.get("lip_activity_threshold", 0.15))
+        cur = float(mp.get("lip_activity_threshold", 0.08))
         mp["lip_activity_threshold"] = opts[(opts.index(cur) + 1) % len(opts)] if cur in opts else opts[0]
     elif data == "hfmodel":
         opts, _live = _hf_available_models(cfg)

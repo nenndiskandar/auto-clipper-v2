@@ -47,25 +47,29 @@ class ConfigManager:
                     }
                 # Add default face tracking mode if not exists
                 if "face_tracking_mode" not in config:
-                    config["face_tracking_mode"] = "opencv"  # "opencv" or "mediapipe"
+                    config["face_tracking_mode"] = "mediapipe"
+                # migrate old opencv/detector → mediapipe (hapus opencv biar ga ribet)
+                if config.get("face_tracking_mode") in ("opencv", "detector", "center"):
+                    config["face_tracking_mode"] = "mediapipe"
+                    self.save_config(config)
                 # Add default portrait mode if not exists
                 if "portrait_mode" not in config:
-                    config["portrait_mode"] = "crop"  # "crop" (smart crop) or "blur" (blurred background)
+                    config["portrait_mode"] = "crop"  # "crop" | "blur" | "split"|"split_game"|"split_podcast"|"split_podcast_dynamic"
                 # Add default subtitle style if not exists
                 if "subtitle_style" not in config:
                     config["subtitle_style"] = "pop"  # "pop" (word pop highlight), "karaoke", "bounce", or "animated"
                 # Add default aspect ratio if not exists
                 if "aspect_ratio" not in config:
                     config["aspect_ratio"] = "9:16"  # "9:16", "1:1", "4:5", or "16:9"
-                # Add default MediaPipe settings if not exists
+                # Add default MediaPipe settings if not exists — tuned for speaker-accurate (not center)
                 if "mediapipe_settings" not in config:
                     config["mediapipe_settings"] = {
-                        "lip_activity_threshold": 0.15,
-                        "switch_threshold": 0.3,
-                        "min_shot_duration": 90,
-                        "center_weight": 0.3,
+                        "lip_activity_threshold": 0.08,
+                        "switch_threshold": 0.18,
+                        "min_shot_duration": 45,
+                        "center_weight": 0.15,
                         "smooth_follow": True,
-                        "pan_speed_limit": 2.5,
+                        "pan_speed_limit": 1.8,
                     }
                 # Generate installation_id if not exists
                 if "installation_id" not in config:
@@ -117,12 +121,12 @@ class ConfigManager:
             "subtitle_style": "pop",
             "aspect_ratio": "9:16",
             "mediapipe_settings": {
-                "lip_activity_threshold": 0.15,
-                "switch_threshold": 0.3,
-                "min_shot_duration": 90,
-                "center_weight": 0.3,
+                "lip_activity_threshold": 0.08,
+                "switch_threshold": 0.18,
+                "min_shot_duration": 45,
+                "center_weight": 0.15,
                 "smooth_follow": True,
-                "pan_speed_limit": 2.5
+                "pan_speed_limit": 1.8
             },
             "repliz": {
                 "access_key": "",

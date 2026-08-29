@@ -57,6 +57,7 @@ def main():
     # GPU selalu aktif
     core.enable_gpu_acceleration(True)
 
+    debug_log(f"[progress] Process start {len(sel_idx)} clips (overall: 10%)", flush=True)
     sd_path = Path(SESSION_DIR) / "session_data.json"
     sd = json.loads(sd_path.read_text(encoding="utf-8"))
     hs = sd.get("highlights") or []
@@ -69,6 +70,7 @@ def main():
         add_captions=add_caps, add_hook=add_hook,
         resolution=str(cfg.get("resolution", "1080p")),
     )
+    debug_log("[progress] Process complete (overall: 100.0%)", flush=True)
     debug_log("PHASE2_OK")
 
 

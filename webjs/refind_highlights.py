@@ -34,6 +34,7 @@ def main():
     if not url:
         raise RuntimeError("Session tidak punya URL sumber.")
 
+    debug_log(f"[progress] Refind start (overall: 0.0%)", flush=True)
     debug_log(f"[refind] URL={url} num_clips={num}", flush=True)
     sd = core.find_highlights_only(url, num, progress_callback=_progress_cb)
     highlights = sd.get("highlights") or []
@@ -48,6 +49,7 @@ def main():
     data["video_info"] = sd.get("video_info") or data.get("video_info") or data.get("video_info")
     sdf.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
     debug_log(f"[refind] {len(highlights)} highlight tersimpan.", flush=True)
+    debug_log(f"[progress] Refind complete {len(highlights)} highlights (overall: 100.0%)", flush=True)
     write_json(RESULT_FILE, {"ok": True, "count": len(highlights)})
 
 

@@ -140,6 +140,11 @@ async function loadSession() {
     const hlEl=document.getElementById('hlListContainer'); if(hlEl) renderHighlights();
     const tb=document.getElementById('tplBar'); if(tb) initTemplateBar();
     
+    // Jika clip 0 → langsung arahkan ke create untuk render (opusclip-like)
+    if (!s || !s.clips || s.clips.length === 0) {
+      location.replace('/create.html?session=' + encodeURIComponent(sid));
+      return;
+    }
     // Tampilkan klip hasil render
     if (s && s.clips) renderClips(s.clips);
 
