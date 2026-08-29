@@ -1815,7 +1815,7 @@ def build_status(cfg: dict):
         "⚙️ *Konfigurasi Aktif:*\n\n"
         f"{ck if wm else no} Watermark\n"
         f"{ck if credit else no} Credit Watermark\n"
-        f"{ck if hook else no} Hook (TTS Intro)\n"
+        f"{ck if hook else no} Hook (Thumbnail Intro)\n"
         f"{ck if subtitle else no} Subtitle (Caption)\n\n"
         f"🎬 Jumlah Clips: `{num_clips}`\n"
         f"🎬 Resolusi: `{resolution}`\n"
@@ -1985,7 +1985,7 @@ async def status_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🌐 *Ganti Base URL*\n\n"
             "Kirim URL baru, contoh:\n"
             "`http://192.168.10.74:20128/v1`\n\n"
-            "Endpoint caption/TTS otomatis mengikuti.\n"
+            "Endpoint transkripsi/model otomatis mengikuti.\n"
             "Ketik `batal` untuk membatalkan.",
             parse_mode="Markdown",
         )

@@ -350,7 +350,8 @@ const server = http.createServer((req, res) => {
         req.on('end', () => {
           let o = {};
           try { o = JSON.parse(body || '{}'); } catch {}
-          if (!o.name || typeof o.name !== 'string' || !o.cfg) return json(res, 400, { error: 'invalid preset format' });
+          if (!o.name || typeof o.name !== 'string' || (!o.cfg && !o.config)) return json(res, 400, { error: 'invalid preset format' });
+          const presetCfg = o.cfg || o.config;
           try {
             fs.mkdirSync(path.dirname(pFile), { recursive: true });
             let current = {};
@@ -358,7 +359,7 @@ const server = http.createServer((req, res) => {
             if (o.delete) {
               delete current[o.name];
             } else {
-              current[o.name] = { label: o.label || o.name, desc: o.desc || 'Custom preset', cfg: o.cfg };
+              current[o.name] = { label: o.label || o.name, desc: o.desc || 'Custom preset', cfg: presetCfg, config: presetCfg };
             }
             fs.writeFileSync(pFile, JSON.stringify(current, null, 2), 'utf8');
             return json(res, 200, { ok: true, presets: current });
@@ -436,7 +437,7 @@ const server = http.createServer((req, res) => {
           fw_installed: fwInstalled,
           wm: cfg.watermark || {},
           cw: cfg.credit_watermark || {},
-          hookstyle: cfg.hook_style || {},
+          hook_style: cfg.hook_style || {},
           core_model: cfg.model || 'gpt-4.1',
           tts_model: (cfg.ai_providers&&cfg.ai_providers.hook_maker&&cfg.ai_providers.hook_maker.model) || cfg.tts_model || 'tts-1',
           temperature: cfg.temperature ?? 1.0,
@@ -505,11 +506,13 @@ const server = http.createServer((req, res) => {
           if ('enabled' in o.cw) cfg.credit_watermark.enabled = !!o.cw.enabled;
           for (const k of ['position_x', 'position_y', 'size', 'opacity']) if (isNum(o.cw[k])) cfg.credit_watermark[k] = o.cw[k];
         }
-        if (o.hookstyle && typeof o.hookstyle === 'object') {
+        if (o.hook_style && typeof o.hook_style === 'object') {
           cfg.hook_style = Object.assign({}, cfg.hook_style);
-          for (const k of ['font_size', 'corner_radius', 'position_x', 'position_y']) if (isNum(o.hookstyle[k])) cfg.hook_style[k] = o.hookstyle[k];
-          for (const k of ['font_color', 'bg_color']) if (typeof o.hookstyle[k] === 'string' && /^#[0-9a-fA-F]{6}$/.test(o.hookstyle[k])) cfg.hook_style[k] = o.hookstyle[k];
-          if ('glitch' in o.hookstyle) cfg.hook_style.glitch = !!o.hookstyle.glitch;
+          if (typeof o.hook_style.box_mode === 'string') cfg.hook_style.box_mode = o.hook_style.box_mode;
+          if (isNum(o.hook_style.bg_opacity)) cfg.hook_style.bg_opacity = Math.max(0, Math.min(100, Math.round(o.hook_style.bg_opacity)));
+          for (const k of ['font_size', 'corner_radius', 'position_x', 'position_y', 'duration']) if (isNum(o.hook_style[k])) cfg.hook_style[k] = o.hook_style[k];
+          for (const k of ['font_color', 'bg_color']) if (typeof o.hook_style[k] === 'string' && /^#[0-9a-fA-F]{6}$/.test(o.hook_style[k])) cfg.hook_style[k] = o.hook_style[k];
+          if ('glitch' in o.hook_style) cfg.hook_style.glitch = !!o.hook_style.glitch;
         }
         if (isNum(o.temperature)) cfg.temperature = Math.min(2, Math.max(0, o.temperature));
         if (typeof o.core_model === 'string' && o.core_model.trim()) cfg.model = o.core_model.trim();
@@ -866,7 +869,7 @@ except Exception as e:
         fs.mkdirSync(path.dirname(logPath), { recursive: true });
         fs.appendFileSync(logPath, `\n===== refind start ${new Date().toISOString()} n=${parseInt(o.num_clips) || 0} =====\n`);
         const out = fs.createWriteStream(logPath, { flags: 'a' });
-        const child = spawn(PY, [path.join(__dirname, 'refind_highlights.py'), sid, String(parseInt(o.num_clips) || 0), resultFile], { detached: true });
+        const child = spawn(PY, [path.join(__dirname, 'refind_highlights.py'), sid, String(parseInt(o.num_clips) || 0), resultFile]);
         child.stdout.pipe(out); child.stderr.pipe(out);
         const job = { proc: child, code: undefined, startedAt: Date.now(), resultFile };
         REFIND_JOBS.set(sid, job);
@@ -962,6 +965,7 @@ except Exception as e:
         const data = JSON.parse(fs.readFileSync(path.join(SESSIONS, safe(mHl[1]), 'session_data.json'), 'utf8'));
         return json(res, 200, (data.highlights || []).map((h, i) => ({
           i, title: h.title, duration: h.duration_seconds, score: h.virality_score ?? null,
+          reason: h.virality_reason || h.description || '',
           hook: h.hook_text || '', start: h.start_time, end: h.end_time,
         })));
       } catch { return json(res, 404, { error: 'not found' }); }

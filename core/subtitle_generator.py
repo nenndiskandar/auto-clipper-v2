@@ -1,6 +1,33 @@
 import os
+import re
+
+EMOJI_MAP = {
+    "uang": "💸", "duit": "💵", "kaya": "🤑", "miskin": "📉", "bisnis": "💼", "investasi": "📈", "saham": "📊",
+    "sukses": "🏆", "menang": "🥇", "gagal": "❌", "kerja": "🛠️", "kantor": "🏢", "dunia": "🌍", "negara": "🇮🇩",
+    "rahasia": "🤫", "bohong": "🤥", "jujur": "😇", "cinta": "❤️", "marah": "😡", "sedih": "😢", "kaget": "😱",
+    "takut": "😨", "senang": "😊", "tertawa": "😂", "lucu": "🤣", "gila": "🤪", "pintar": "🧠", "bodoh": "🤡",
+    "waktu": "⏱️", "jam": "⏰", "hari": "📅", "malam": "🌙", "pagi": "☀️", "cepat": "⚡", "lambat": "🐢",
+    "makanan": "🍔", "kopi": "☕", "minum": "🥤", "makan": "🍽️", "tidur": "😴", "rumah": "🏠", "mobil": "🚗",
+    "motor": "🏍️", "sepeda": "🚲", "pesawat": "✈️", "jalan": "🛣️", "api": "🔥", "air": "💧", "tanah": "🌱",
+    "buku": "📚", "belajar": "📖", "sekolah": "🏫", "kuliah": "🎓", "guru": "👨‍🏫", "dosen": "👩‍🏫", "murid": "👨‍🎓",
+    "game": "🎮", "main": "🕹️", "musik": "🎵", "lagu": "🎶", "film": "🎬", "nonton": "📺", "foto": "📷",
+    "ponsel": "📱", "hp": "📱", "laptop": "💻", "komputer": "🖥️", "internet": "🌐", "website": "💻",
+    "roket": "🚀", "bintang": "⭐", "bulan": "🌙", "matahari": "☀️", "awan": "☁️", "hujan": "🌧️",
+    "money": "💸", "cash": "💵", "rich": "🤑", "poor": "📉", "business": "💼", "invest": "📈", "stock": "📊",
+    "success": "🏆", "win": "🥇", "fail": "❌", "work": "🛠️", "office": "🏢", "world": "🌍",
+    "secret": "🤫", "lie": "🤥", "honest": "😇", "love": "❤️", "angry": "😡", "sad": "😢", "shocked": "😱",
+    "fear": "😨", "happy": "😊", "laugh": "😂", "funny": "🤣", "crazy": "🤪", "smart": "🧠", "dumb": "🤡",
+    "time": "⏱️", "clock": "⏰", "day": "📅", "night": "🌙", "morning": "☀️", "fast": "⚡", "slow": "🐢",
+    "food": "🍔", "coffee": "☕", "drink": "🥤", "eat": "🍽️", "sleep": "😴", "home": "🏠", "car": "🚗",
+    "rocket": "🚀", "star": "⭐", "sun": "☀️", "cloud": "☁️", "rain": "🌧️", "book": "📚", "music": "🎵",
+    "phone": "📱", "laptop": "💻", "computer": "🖥️", "internet": "🌐",
+}
 
 class SubtitleGeneratorMixin:
+    def _attach_emoji(self, word_str: str) -> str:
+        clean = re.sub(r'[^\w]', '', word_str).lower()
+        emoji = EMOJI_MAP.get(clean, '')
+        return f"{word_str} {emoji}" if emoji else word_str
     def format_time(self, seconds: float) -> str:
         """Convert seconds to ASS time format"""
         hours = int(seconds // 3600)
@@ -37,7 +64,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             parts = []
             for w in chunk:
                 dur_cs = max(1, int(round((w.end - w.start) * 100)))
-                parts.append("{\\kf%d}%s" % (dur_cs, str(w.word).strip().upper()))
+                parts.append("{\\kf%d}%s" % (dur_cs, self._attach_emoji(str(w.word).strip().upper())))
             return {
                 'start': self.format_time(chunk[0].start + time_offset),
                 'end': self.format_time(chunk[-1].end + time_offset),
@@ -116,7 +143,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     "\\t(%d,%d,1,\\fscx100\\fscy100)"
                     "\\t(%d,%d,1,\\c&HFFFFFF&)}%s"
                     % (offset_ms, p1, p1, p2, p2, end_ms,
-                       str(w.word).strip().upper())
+                       self._attach_emoji(str(w.word).strip().upper()))
                 )
             return {
                 'start': self.format_time(chunk[0].start + time_offset),
@@ -202,7 +229,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     "\\t(%d,%d,1,\\fscx100\\fscy100)"
                     "\\t(%d,%d,1,\\c&HFFFFFF&)}%s"
                     % (offset_ms, t1, t1, t2, t2, t3, t3, t4, t4, t5,
-                       str(w.word).strip().upper())
+                       self._attach_emoji(str(w.word).strip().upper()))
                 )
             return {
                 'start': self.format_time(chunk_start + time_offset),
@@ -285,7 +312,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                           "\\t(%d,%d,1,\\fscx105\\fscy105)"
                           "\\t(%d,%d,1,\\fscx100\\fscy100)}%s"
                           % (offset_ms, t1, t1, t2, t2, t3, t3, t4,
-                             str(w.word).strip().upper()))
+                             self._attach_emoji(str(w.word).strip().upper())))
                 if k == len(chunk) - 1:
                     parts.append(bounce)
                 else:
@@ -362,7 +389,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     word_end = current_word.end + time_offset
                     text_parts = []
                     for k, w in enumerate(chunk):
-                        word_text = w.word.strip().upper()
+                        word_text = self._attach_emoji(w.word.strip().upper())
                         if k == j:
                             text_parts.append(f"{{\\c&H00FFFF&}}{word_text}{{\\c&HFFFFFF&}}")
                         else:

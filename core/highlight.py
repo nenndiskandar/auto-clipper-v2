@@ -76,7 +76,8 @@ class HighlightMixin:
         "end_time": "00:02:15,000",
         "title": "Judul Klip Menarik",
         "description": "Deskripsi singkat klip ini.",
-        "virality_score": 8,
+        "virality_score": 95,
+        "virality_reason": "Topik ini sangat relevan dan kontroversial saat ini.",
         "hook_text": "Kalimat pendek yang menarik"
       }
     ]
