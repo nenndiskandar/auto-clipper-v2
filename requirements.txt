@@ -1,5 +1,4 @@
-# Desktop App Dependencies
-customtkinter>=5.2.0
+# Auto Clipper - Web & Telegram Bot Dependencies
 openai>=1.0.0
 opencv-python>=4.8.0
 numpy>=1.24.0

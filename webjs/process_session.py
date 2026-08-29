@@ -16,6 +16,7 @@ from openai import OpenAI
 from config.config_manager import ConfigManager
 from utils.helpers import get_ffmpeg_path, get_ytdlp_path
 from clipper_core import AutoClipperCore
+from utils.logger import debug_log
 
 
 def main():
@@ -68,7 +69,7 @@ def main():
         add_captions=add_caps, add_hook=add_hook,
         resolution=str(cfg.get("resolution", "1080p")),
     )
-    print("PHASE2_OK")
+    debug_log("PHASE2_OK")
 
 
 if __name__ == "__main__":

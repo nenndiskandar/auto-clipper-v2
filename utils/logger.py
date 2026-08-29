@@ -1,5 +1,5 @@
 """
-Logging utilities for YT Short Clipper
+Logging utilities for Auto Clipper
 """
 
 import sys
@@ -87,10 +87,14 @@ class ErrorLogWriter:
         pass
 
 
-def debug_log(msg):
+def debug_log(*args, **kwargs):
     """Log to console only in debug mode (running from terminal).
+    Accepts multiple positional args (joined with a space) and ignores
+    common print() kwargs (end/file/flush) so call sites can be migrated
+    from print() without behavioural changes.
     ANSI colors are kept for the GUI sink (LogPanel renders them) but
     stripped for plain-text console/file output."""
+    msg = " ".join(str(a) for a in args)
     if DEBUG_MODE:
         print(f"[DEBUG] {strip_ansi(msg)}")
     _emit_sink(msg)

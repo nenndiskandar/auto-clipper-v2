@@ -55,6 +55,7 @@ import requests
 from pathlib import Path
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlencode, parse_qs, urlparse
+from utils.logger import debug_log
 
 # Get app directory
 if getattr(sys, 'frozen', False):
@@ -112,7 +113,7 @@ class OAuthCallbackHandler(BaseHTTPRequestHandler):
             <head><title>TikTok Connected</title></head>
             <body style="font-family: Arial; text-align: center; padding: 50px;">
                 <h1 style="color: #00f2ea;">✓ TikTok Connected!</h1>
-                <p>You can close this window and return to YT Short Clipper.</p>
+                <p>You can close this window and return to Auto Clipper.</p>
             </body>
             </html>
             """
@@ -148,7 +149,7 @@ class TikTokUploader:
             status_callback: Function to call with status messages
         """
         self.config = config
-        self.status_callback = status_callback or (lambda msg: print(msg))
+        self.status_callback = status_callback or (lambda msg: debug_log(msg))
         
         # Load TikTok config
         tiktok_config = self.config.get("tiktok", {})
@@ -372,7 +373,7 @@ class TikTokUploader:
                 # Don't log full response if successful (contains sensitive tokens)
                 if result.get("error"):
                     self.status_callback(f"Token response: {result}")
-            except:
+            except Exception:
                 self.status_callback(f"Token response (raw): {response.text}")
                 raise
             
@@ -558,10 +559,10 @@ class TikTokUploader:
             total_chunks = 1
             
             # Debug logging to console
-            print(f"\n=== TikTok Upload Debug ===")
-            print(f"Video size: {video_size} bytes ({video_size / (1024*1024):.2f} MB)")
-            print(f"Chunk size: {chunk_size} bytes (single chunk)")
-            print(f"Total chunks: {total_chunks}")
+            debug_log(f"\n=== TikTok Upload Debug ===")
+            debug_log(f"Video size: {video_size} bytes ({video_size / (1024*1024):.2f} MB)")
+            debug_log(f"Chunk size: {chunk_size} bytes (single chunk)")
+            debug_log(f"Total chunks: {total_chunks}")
             
             init_data = {
                 "post_info": {
@@ -580,17 +581,17 @@ class TikTokUploader:
                 }
             }
             
-            print(f"Init data source_info: {init_data['source_info']}")
-            print(f"=========================\n")
+            debug_log(f"Init data source_info: {init_data['source_info']}")
+            debug_log(f"=========================\n")
             
             headers = {
                 "Authorization": f"Bearer {self.access_token}",
                 "Content-Type": "application/json"
             }
             
-            print(f"Init endpoint: {self.api_base}post/publish/video/init/")
-            print(f"Init headers: Authorization=Bearer {self.access_token[:20]}...")
-            print(f"Init data: {json.dumps(init_data, indent=2)}")
+            debug_log(f"Init endpoint: {self.api_base}post/publish/video/init/")
+            debug_log(f"Init headers: Authorization=Bearer {self.access_token[:20]}...")
+            debug_log(f"Init data: {json.dumps(init_data, indent=2)}")
             
             response = requests.post(
                 f"{self.api_base}post/publish/video/init/",
@@ -598,9 +599,9 @@ class TikTokUploader:
                 json=init_data
             )
             
-            print(f"Init response status: {response.status_code}")
-            print(f"Init response headers: {dict(response.headers)}")
-            print(f"Init response body: {response.text}")
+            debug_log(f"Init response status: {response.status_code}")
+            debug_log(f"Init response headers: {dict(response.headers)}")
+            debug_log(f"Init response body: {response.text}")
             
             # Check status code before parsing JSON
             if response.status_code != 200:
@@ -610,7 +611,7 @@ class TikTokUploader:
                     if error_data.get("error"):
                         error_code = error_data["error"].get("code", "")
                         error_msg = error_data["error"].get("message", error_msg)
-                        print(f"Error details: {json.dumps(error_data, indent=2)}")
+                        debug_log(f"Error details: {json.dumps(error_data, indent=2)}")
                         
                         # Provide helpful message for common errors
                         if error_code == "unaudited_client_can_only_post_to_private_accounts":
@@ -624,7 +625,7 @@ class TikTokUploader:
                                 "4. Try uploading again\n\n"
                                 "Note: Videos will still be saved as private drafts in sandbox mode."
                             )
-                except:
+                except Exception:
                     error_msg = f"{error_msg}: {response.text}"
                 raise Exception(error_msg)
             
@@ -632,31 +633,31 @@ class TikTokUploader:
             
             if result.get("error"):
                 error_detail = result.get('error', {}).get('message', 'Unknown error')
-                print(f"Error in response body: {json.dumps(result, indent=2)}")
+                debug_log(f"Error in response body: {json.dumps(result, indent=2)}")
                 raise Exception(f"Upload init failed: {error_detail}")
             
             publish_id = result["data"]["publish_id"]
             upload_url = result["data"]["upload_url"]
             
-            print(f"Got publish_id: {publish_id}")
-            print(f"Got upload_url: {upload_url[:50]}...")
+            debug_log(f"Got publish_id: {publish_id}")
+            debug_log(f"Got upload_url: {upload_url[:50]}...")
             
             # Step 2: Upload video chunks with Content-Range headers
             self.status_callback(f"Uploading video: {title}")
-            print(f"Opening video file: {video_path}")
+            debug_log(f"Opening video file: {video_path}")
             
             with open(video_path, 'rb') as f:
-                print(f"Video file opened successfully")
+                debug_log(f"Video file opened successfully")
                 for i in range(total_chunks):
                     start = i * chunk_size
                     end = min(start + chunk_size, video_size) - 1
                     
-                    print(f"Processing chunk {i+1}/{total_chunks}")
+                    debug_log(f"Processing chunk {i+1}/{total_chunks}")
                     
                     # Read chunk
                     f.seek(start)
                     chunk_data = f.read(end - start + 1)
-                    print(f"Read {len(chunk_data)} bytes from file")
+                    debug_log(f"Read {len(chunk_data)} bytes from file")
                     
                     # Upload chunk with Content-Range header
                     chunk_headers = {
@@ -664,9 +665,9 @@ class TikTokUploader:
                         "Content-Range": f"bytes {start}-{end}/{video_size}"
                     }
                     
-                    print(f"Uploading chunk {i+1}/{total_chunks}: bytes {start}-{end}/{video_size}")
-                    print(f"Upload URL: {upload_url[:80]}...")
-                    print(f"Headers: {chunk_headers}")
+                    debug_log(f"Uploading chunk {i+1}/{total_chunks}: bytes {start}-{end}/{video_size}")
+                    debug_log(f"Upload URL: {upload_url[:80]}...")
+                    debug_log(f"Headers: {chunk_headers}")
                     
                     try:
                         chunk_response = requests.put(
@@ -675,12 +676,12 @@ class TikTokUploader:
                             data=chunk_data,
                             timeout=300  # 5 minute timeout
                         )
-                        print(f"Chunk upload response status: {chunk_response.status_code}")
-                        print(f"Chunk upload response: {chunk_response.text[:200]}")
+                        debug_log(f"Chunk upload response status: {chunk_response.status_code}")
+                        debug_log(f"Chunk upload response: {chunk_response.text[:200]}")
                         chunk_response.raise_for_status()
-                        print(f"Chunk {i+1} uploaded successfully")
+                        debug_log(f"Chunk {i+1} uploaded successfully")
                     except Exception as chunk_error:
-                        print(f"ERROR uploading chunk {i+1}: {chunk_error}")
+                        debug_log(f"ERROR uploading chunk {i+1}: {chunk_error}")
                         raise
                     
                     # Update progress
@@ -690,7 +691,7 @@ class TikTokUploader:
                     
                     self.status_callback(f"Uploaded chunk {i+1}/{total_chunks}")
             
-            print(f"All chunks uploaded successfully")
+            debug_log(f"All chunks uploaded successfully")
             
             # Step 3: Complete upload
             self.status_callback("Finalizing upload...")
@@ -704,9 +705,9 @@ class TikTokUploader:
                 "publish_id": publish_id
             }
             
-            print(f"Calling complete endpoint with publish_id: {publish_id}")
-            print(f"Complete URL: {self.api_base}post/publish/video/complete/")
-            print(f"Complete data: {complete_data}")
+            debug_log(f"Calling complete endpoint with publish_id: {publish_id}")
+            debug_log(f"Complete URL: {self.api_base}post/publish/video/complete/")
+            debug_log(f"Complete data: {complete_data}")
             
             try:
                 complete_response = requests.post(
@@ -715,21 +716,21 @@ class TikTokUploader:
                     json=complete_data,
                     timeout=60
                 )
-                print(f"Complete response status: {complete_response.status_code}")
-                print(f"Complete response body: {complete_response.text}")
+                debug_log(f"Complete response status: {complete_response.status_code}")
+                debug_log(f"Complete response body: {complete_response.text}")
                 complete_response.raise_for_status()
                 
                 complete_result = complete_response.json()
-                print(f"Complete result parsed: {complete_result}")
+                debug_log(f"Complete result parsed: {complete_result}")
                 
                 if complete_result.get("error") and complete_result["error"].get("code") != "ok":
                     error_msg = complete_result.get('error', {}).get('message', 'Unknown error')
-                    print(f"ERROR from complete endpoint: {error_msg}")
+                    debug_log(f"ERROR from complete endpoint: {error_msg}")
                     raise Exception(f"Complete upload failed: {error_msg}")
                 
-                print(f"Upload completed successfully!")
+                debug_log(f"Upload completed successfully!")
             except Exception as complete_error:
-                print(f"ERROR in complete endpoint: {complete_error}")
+                debug_log(f"ERROR in complete endpoint: {complete_error}")
                 raise
             
             if progress_callback:
@@ -753,13 +754,13 @@ class TikTokUploader:
                 error_data = e.response.json()
                 if error_data.get("error"):
                     error_msg += f" - {error_data['error'].get('message', 'Unknown error')}"
-                    print(f"HTTP Error details: {json.dumps(error_data, indent=2)}")
+                    debug_log(f"HTTP Error details: {json.dumps(error_data, indent=2)}")
                 else:
                     error_msg += f" - {e.response.text}"
-            except:
+            except Exception:
                 error_msg += f" - {e.response.text}"
             
-            print(f"HTTPError: {error_msg}")
+            debug_log(f"HTTPError: {error_msg}")
             self.status_callback(error_msg)
             return {
                 "success": False,
@@ -767,7 +768,7 @@ class TikTokUploader:
             }
         except Exception as e:
             error_msg = f"Upload error: {str(e)}"
-            print(f"Exception: {error_msg}")
+            debug_log(f"Exception: {error_msg}")
             import traceback
             traceback.print_exc()
             self.status_callback(error_msg)

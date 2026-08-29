@@ -1,17 +1,18 @@
 """
-Helper utility functions for YT Short Clipper
+Helper utility functions for Auto Clipper
 """
 
 import sys
 import re
 import shutil
 from pathlib import Path
+from utils.logger import debug_log
 
 
 def get_app_dir():
     """Get application data directory
     
-    On macOS (.app bundle): ~/Library/Application Support/YTShortClipper/
+    On macOS (.app bundle): ~/Library/Application Support/AutoClipper/
     On Windows/Linux or dev mode: directory containing the executable/script
     
     This ensures user data (config, downloads, output) persists across app updates on macOS.
@@ -19,7 +20,7 @@ def get_app_dir():
     if getattr(sys, 'frozen', False):
         if sys.platform == "darwin":
             # macOS: use Application Support (survives .app replacement)
-            app_support = Path.home() / "Library" / "Application Support" / "YTShortClipper"
+            app_support = Path.home() / "Library" / "Application Support" / "AutoClipper"
             app_support.mkdir(parents=True, exist_ok=True)
             return app_support
         return Path(sys.executable).parent
@@ -151,7 +152,7 @@ def get_mediapipe_model_path():
             if model_path.exists():
                 return str(model_path)
     except Exception as e:
-        print(f"Error auto-downloading MediaPipe model: {e}")
+        debug_log(f"Error auto-downloading MediaPipe model: {e}")
         
     return str(model_path)
 

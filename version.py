@@ -1,5 +1,5 @@
 """
-YT-Short-Clipper Version Information
+Auto Clipper Version Information
 """
 
 __version__ = "0.1.2"

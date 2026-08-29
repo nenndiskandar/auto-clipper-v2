@@ -575,6 +575,27 @@ async function regenProcess(sid) {
   });
 }
 
+function ensureProgressBar(logBox) {
+  if (!logBox || !logBox.parentNode) return null;
+  let bar = logBox.parentNode.querySelector(':scope > .live-progress');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.className = 'live-progress mt-2';
+    bar.innerHTML = '<div class="h-1.5 bg-zinc-800 rounded-full overflow-hidden"><div class="h-full bg-accent transition-all duration-500" style="width:0%"></div></div><div class="text-[10px] text-zinc-400 mt-1 tabular-nums">0%</div>';
+    logBox.parentNode.insertBefore(bar, logBox);
+  }
+  return bar;
+}
+
+function updateProgressBar(logBox, p) {
+  const bar = ensureProgressBar(logBox);
+  if (!bar) return;
+  if (p == null) { bar.style.display = 'none'; return; }
+  bar.style.display = '';
+  bar.firstElementChild.firstElementChild.style.width = Math.round(p) + '%';
+  bar.lastElementChild.textContent = Math.round(p) + '%';
+}
+
 function pollJob(url, logBox, onDone) {
   const poll = setInterval(async () => {
     try {
@@ -584,7 +605,8 @@ function pollJob(url, logBox, onDone) {
         logBox.textContent = j.log || '';
         if (stick) logBox.scrollTop = logBox.scrollHeight;
       }
-      if (!j.running) { clearInterval(poll); onDone(j); }
+      updateProgressBar(logBox, j.progress);
+      if (!j.running) { clearInterval(poll); updateProgressBar(logBox, null); onDone(j); }
     } catch {}
   }, 1000);
 }

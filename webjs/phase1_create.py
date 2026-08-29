@@ -17,7 +17,16 @@ os.chdir(APP_DIR)
 from openai import OpenAI
 from config.config_manager import ConfigManager
 from utils.helpers import get_ffmpeg_path, get_ytdlp_path
+from utils.logger import debug_log
 from clipper_core import AutoClipperCore
+
+
+def _progress_cb(message, fraction):
+    try:
+        pct = max(0.0, min(1.0, float(fraction))) * 100.0
+        debug_log(f"[progress] {message} (overall: {pct:.1f}%)", flush=True)
+    except Exception:
+        pass
 
 
 def write_result(d):
@@ -60,7 +69,7 @@ def main():
     core.enable_gpu_acceleration(True)
 
     num_clips = NUM_CLIPS if NUM_CLIPS > 0 else int(cfg.get("num_clips", 5))
-    sd = core.find_highlights_only(URL, num_clips)
+    sd = core.find_highlights_only(URL, num_clips, progress_callback=_progress_cb)
     highlights = sd.get("highlights") or []
     if not highlights:
         write_result({"ok": False, "error": "AI tidak menemukan highlight dari video ini."})
