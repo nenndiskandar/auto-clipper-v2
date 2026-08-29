@@ -1,5 +1,5 @@
 """
-Telegram Bot interface for YT-Short-Clipper (Phase 1 & Phase 2 optimized flow)
+Telegram Bot interface for Auto Clipper (Phase 1 & Phase 2 optimized flow)
 """
 
 import os
@@ -547,7 +547,7 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
 
 
 MAIN_MENU_TEXT = (
-    "📊 <b>YT-Short-Clipper Bot</b>\n\n"
+    "📊 <b>Auto Clipper Bot</b>\n\n"
     "Bot pembuat klip short-form otomatis dari link video.\n\n"
     "━━━━━━━━━━━━━━━━━━━━\n"
     "📥 <b>Cara Pakai:</b>\n"
@@ -3075,7 +3075,7 @@ def main():
         print("Set TELEGRAM_BOT_TOKEN atau tambahkan 'telegram_bot_token' di config.json.")
         sys.exit(1)
 
-    print("🤖 YT-Short-Clipper Bot (Optimized Flow) berjalan...")
+    print("🤖 Auto Clipper Bot (Optimized Flow) berjalan...")
 
     # Telegram Bot API Server lokal (limit file naik dari 50MB → 2GB)
     # Telegram Bot API Server lokal (limit file naik dari 50MB → 2GB)
@@ -3101,7 +3101,7 @@ def main():
             try:
                 await application.bot.send_message(
                     chat_id=notify_chat_id,
-                    text="🤖 *YT-Short-Clipper Bot aktif!* Siap menerima link YouTube.",
+                    text="🤖 *Auto Clipper Bot aktif!* Siap menerima link YouTube.",
                     parse_mode="Markdown",
                 )
             except Exception as e:

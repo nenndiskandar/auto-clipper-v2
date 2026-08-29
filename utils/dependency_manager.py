@@ -27,13 +27,13 @@ def _log_to_file(msg):
         
         with open(log_file, "a", encoding="utf-8") as f:
             f.write(f"[{timestamp}] [DOWNLOAD] {msg}\n")
-    except:
+    except Exception:
         pass
 
 
 def debug_log(msg):
     """Log message to both console and file"""
-    print(f"[DEBUG] {msg}")
+    debug_log(f"[DEBUG] {msg}")
     _log_to_file(msg)
 
 
@@ -568,34 +568,34 @@ if __name__ == '__main__':
     else:
         app_dir = Path(__file__).parent.parent
         
-    print(f"App directory: {app_dir}")
+    debug_log(f"App directory: {app_dir}")
     
     # Check and setup FFmpeg
     if not check_dependency('ffmpeg', app_dir):
-        print("FFmpeg not found, attempting to download...")
+        debug_log("FFmpeg not found, attempting to download...")
         if setup_ffmpeg(app_dir):
-            print("FFmpeg setup successful.")
+            debug_log("FFmpeg setup successful.")
         else:
-            print("FFmpeg setup failed. Please install it manually.")
+            debug_log("FFmpeg setup failed. Please install it manually.")
     else:
-        print("FFmpeg is already installed.")
+        debug_log("FFmpeg is already installed.")
         
     # Check and setup Deno
     if not check_dependency('deno', app_dir):
-        print("Deno not found, attempting to download...")
+        debug_log("Deno not found, attempting to download...")
         if setup_deno(app_dir):
-            print("Deno setup successful.")
+            debug_log("Deno setup successful.")
         else:
-            print("Deno setup failed.")
+            debug_log("Deno setup failed.")
     else:
-        print("Deno is already installed.")
+        debug_log("Deno is already installed.")
         
     # Check and setup MediaPipe model
     if not check_dependency('mediapipe_model', app_dir):
-        print("MediaPipe model not found, attempting to download...")
+        debug_log("MediaPipe model not found, attempting to download...")
         if setup_mediapipe_model(app_dir):
-            print("MediaPipe model setup successful.")
+            debug_log("MediaPipe model setup successful.")
         else:
-            print("MediaPipe model setup failed.")
+            debug_log("MediaPipe model setup failed.")
     else:
-        print("MediaPipe model is already installed.")
+        debug_log("MediaPipe model is already installed.")

@@ -18,6 +18,7 @@ from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from googleapiclient.errors import HttpError
+from utils.logger import debug_log
 
 # YouTube API scopes
 SCOPES = [
@@ -44,7 +45,7 @@ class YouTubeUploader:
         self.credentials = None
         self.youtube = None
         self.channel_info = None
-        self.status_callback = status_callback or (lambda msg: print(msg))
+        self.status_callback = status_callback or (lambda msg: debug_log(msg))
     
     def is_configured(self) -> bool:
         """Check if client_secret.json exists"""
@@ -152,7 +153,7 @@ class YouTubeUploader:
                 }
                 return self.channel_info
         except Exception as e:
-            print(f"Error getting channel info: {e}")
+            debug_log(f"Error getting channel info: {e}")
         
         return None
     

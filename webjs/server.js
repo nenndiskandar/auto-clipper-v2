@@ -1,4 +1,4 @@
-// yt-short-clipper result viewer — zero deps, node >= 16
+// auto-clipper result viewer — zero deps, node >= 16
 const http = require('http');
 const crypto = require('crypto');
 const fs = require('fs');
@@ -12,6 +12,13 @@ const SESSIONS = path.join(ROOT, 'output', 'sessions');
 const PUBLIC = path.join(__dirname, 'public');
 const PORT = process.env.PORT || 3000;
 const PY = process.platform === 'win32' ? 'python' : '/usr/bin/python3';
+
+// Force Python child stdout/stderr to be line-buffered instead of block-buffered.
+// Without this, helper scripts (process_session, render_clip, phase1_create,
+// refind_highlights) buffer their output and process.log / the live-progress %
+// only flushes when the ~8KB buffer fills -- so long steps (e.g. local Whisper
+// transcription) appear "stuck" at a stale percentage until the process exits.
+process.env.PYTHONUNBUFFERED = '1';
 
 // --- Auth: Telegram Login Widget (cookie HMAC, total pengganti basic-auth) ---
 const OWNER_ID = '233439175';
@@ -186,8 +193,11 @@ function sendFile(req, res, fp, download) {
   if (!fs.existsSync(fp) || !fs.statSync(fp).isFile()) return json(res, 404, { error: 'not found' });
   const size = fs.statSync(fp).size;
   const range = req.headers.range;
-  const base = { 'Content-Type': 'video/mp4', 'Accept-Ranges': 'bytes' };
-  if (download) base['Content-Disposition'] = `attachment; filename="${path.basename(fp).replace(/"/g, '')}"`;
+  const base = { 'Content-Type': 'video/mp4', 'Accept-Ranges': 'bytes', 'Cache-Control': 'no-store' };
+  // inline wajib biar browser (terutama in-app/Telegram) MEMUTAR, bukan mendownload
+  base['Content-Disposition'] = download
+    ? `attachment; filename="${path.basename(fp).replace(/"/g, '')}"`
+    : `inline; filename="${path.basename(fp).replace(/"/g, '')}"`;
   if (range) {
     const m = range.match(/bytes=(\d*)-(\d*)/);
     let start = m[1] ? parseInt(m[1]) : 0;
@@ -199,6 +209,24 @@ function sendFile(req, res, fp, download) {
     res.writeHead(200, { ...base, 'Content-Length': size });
     fs.createReadStream(fp).pipe(res);
   }
+}
+
+// cari file video beneran di folder klip; fallback ke VARIANTS kalau file
+// yang diminta tidak ada (nama final bisa beda: captioned/portrait/dst).
+// Mengembalikan path absolut atau null. Mencegah browser mendownload JSON 404.
+function resolveClipFile(session, dir, file) {
+  const base = path.join(SESSIONS, session, 'clips', dir);
+  if (!base.startsWith(SESSIONS) || !fs.existsSync(base)) return null;
+  const cand = p => path.join(base, p);
+  if (file && fs.existsSync(cand(file)) && fs.statSync(cand(file)).isFile()) return cand(file);
+  const files = fs.readdirSync(base)
+    .filter(f => f.toLowerCase().endsWith('.mp4') && !['hook.mp4', 'landscape.mp4'].includes(f));
+  const byVariant = VARIANTS.find(v => files.includes(v));
+  if (byVariant) return cand(byVariant);
+  if (files.length) {
+    return files.slice().sort((a, b) => fs.statSync(cand(b)).mtimeMs - fs.statSync(cand(a)).mtimeMs)[0];
+  }
+  return null;
 }
 
 // ponytail: baca ekor file doang, bukan seluruh log
@@ -228,6 +256,17 @@ function tailFile(fp, max = 12000) {
   } catch { return ''; }
 }
 
+// Ekstrak persen progres terakhir dari log (format: "... (overall: 42.5%)")
+// Cocok untuk clip_progress (process/render) maupun [progress] (create/refind).
+function parseOverall(logText) {
+  if (!logText) return null;
+  let m, last = null;
+  const re = /overall:\s*([\d.]+)/g;
+  while ((m = re.exec(logText)) !== null) last = parseFloat(m[1]);
+  if (last === null || isNaN(last)) return null;
+  return Math.max(0, Math.min(100, last));
+}
+
 const server = http.createServer((req, res) => {
   const u = new URL(req.url, 'http://x');
   const p = u.pathname;
@@ -240,8 +279,8 @@ const server = http.createServer((req, res) => {
     if (mVidPub) {
       const parts = mVidPub[3].split('/').map(safe);
       if (parts.length !== 2) return json(res, 400, { error: 'bad path' });
-      const fp = path.join(SESSIONS, safe(mVidPub[2]), 'clips', parts[0], parts[1]);
-      if (!fp.startsWith(SESSIONS)) return json(res, 403, { error: 'forbidden' });
+      const fp = resolveClipFile(safe(mVidPub[2]), parts[0], parts[1]);
+      if (!fp) { res.writeHead(404, { 'Content-Type': 'video/mp4' }); return res.end(); }
       return sendFile(req, res, fp, mVidPub[1] === 'download');
     }
 
@@ -333,8 +372,8 @@ const server = http.createServer((req, res) => {
     if (mVid) {
       const parts = mVid[3].split('/').map(safe);
       if (parts.length !== 2) return json(res, 400, { error: 'bad path' });
-      const fp = path.join(SESSIONS, safe(mVid[2]), 'clips', parts[0], parts[1]);
-      if (!fp.startsWith(SESSIONS)) return json(res, 403, { error: 'forbidden' });
+      const fp = resolveClipFile(safe(mVid[2]), parts[0], parts[1]);
+      if (!fp) { res.writeHead(404, { 'Content-Type': 'video/mp4' }); return res.end(); }
       return sendFile(req, res, fp, mVid[1] === 'download');
     }
     // POST /api/delete/:session/:clipDir — hapus folder klip (trash bila ada, fallback rm)
@@ -730,6 +769,7 @@ except Exception as e:
         code: job ? job.code : null,
         elapsed_s: job ? Math.round((Date.now() - job.startedAt) / 1000) : null,
         log,
+        progress: parseOverall(log),
       });
     }
     // POST /api/create — phase 1: subtitle + AI highlights (seperti bot)
@@ -768,6 +808,7 @@ except Exception as e:
         elapsed_s: j ? Math.round((Date.now() - j.startedAt) / 1000) : null,
         url: j ? j.url : null,
         log: j && j.logPath ? tailFile(j.logPath) : '',
+        progress: j && j.logPath ? parseOverall(tailFile(j.logPath)) : null,
         result,
       });
     }
@@ -846,6 +887,7 @@ except Exception as e:
         code: job ? job.code : null,
         elapsed_s: job ? Math.round((Date.now() - job.startedAt) / 1000) : null,
         log: tailFile(path.join(SESSIONS, sid, 'refind.log'), 6000),
+        progress: parseOverall(tailFile(path.join(SESSIONS, sid, 'refind.log'), 6000)),
         result,
       });
     }
@@ -887,6 +929,7 @@ except Exception as e:
       }
       for (const j of jobs) {
         try { j.last_line = lastLogLine(j.logPath); } catch { j.last_line = ''; }
+        try { j.progress = parseOverall(tailFile(j.logPath)); } catch { j.progress = null; }
         delete j.logPath;
       }
       return json(res, 200, jobs);
@@ -964,6 +1007,7 @@ except Exception as e:
         code: job ? job.code : null,
         elapsed_s: job ? Math.round((Date.now() - job.startedAt) / 1000) : null,
         log: tailFile(path.join(SESSIONS, sid, 'process.log')),
+        progress: parseOverall(tailFile(path.join(SESSIONS, sid, 'process.log'))),
       });
     }
     // POST /api/process/cancel/:session — hentikan render sesi berjalan

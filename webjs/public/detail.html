@@ -8,6 +8,13 @@
 <meta name="theme-color" content="#facc15">
 <script src="/pwa.js"></script>
 <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+<style>
+  /* pastikan kontrol Plyr tidak ter-potong di player sempit */
+  .plyr { width: 100%; max-width: 100%; }
+  .plyr__controls { flex-wrap: wrap; row-gap: 4px; }
+  .plyr--full-ui .plyr__controls { justify-content: center; }
+  #player { background: #000; }
+</style>
 <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
@@ -62,8 +69,10 @@ body { background: #09090b; color: #f4f4f5; font-family: ui-sans-serif, system-u
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         <!-- PLAYER -->
-        <div class="lg:col-span-6 bg-black rounded-xl overflow-hidden border border-zinc-800 flex flex-col items-center justify-center shadow-lg relative min-h-[300px]">
-          <video id="player" class="w-full max-h-[70vh] rounded-lg" controls playsinline></video>
+        <div class="lg:col-span-6 bg-black rounded-xl border border-zinc-800 flex flex-col items-center justify-center shadow-lg relative min-h-[300px]">
+          <video id="player" class="w-full max-h-[80vh] object-contain rounded-lg" controls playsinline preload="metadata">
+        <source id="playerSource" src="" type="video/mp4" />
+      </video>
         </div>
 
         <!-- METADATA CARD -->
@@ -149,10 +158,13 @@ async function loadDetail() {
     document.getElementById('m_analysis').textContent = c.analysis || '-';
 
     const player = document.getElementById('player');
-    player.src = `/video/${encodeURIComponent(s.id)}/${encodeURIComponent(c.dir)}/${encodeURIComponent(c.file)}`;
+    const srcEl = document.getElementById('playerSource');
+    srcEl.src = `/video/${encodeURIComponent(s.id)}/${encodeURIComponent(c.dir)}/${encodeURIComponent(c.file)}`;
+    srcEl.type = 'video/mp4';
     player.poster = `/thumb/${encodeURIComponent(s.id)}/${encodeURIComponent(c.dir)}`;
+    player.load();
     if (window.Plyr) {
-      if (window._plyrInstance) window._plyrInstance.destroy();
+      if (window._plyrInstance) { try { window._plyrInstance.destroy(); } catch (e) {} }
       window._plyrInstance = new Plyr(player, {
         controls: ['play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'captions', 'settings', 'pip', 'fullscreen'],
         keyboard: { focused: true, global: true }

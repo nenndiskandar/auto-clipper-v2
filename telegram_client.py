@@ -1,5 +1,5 @@
 """
-Telegram CLIENT (userbot) interface for YT-Short-Clipper.
+Telegram CLIENT (userbot) interface for Auto Clipper.
 
 Mode ini TIDAK memakai Telegram Bot API / bot token (@BotFather).
 Bot login sebagai akun Telegram pribadi (nomor HP) lewat MTProto (Telethon),
@@ -508,7 +508,7 @@ async def _send_startup_notify(cfg: dict):
     try:
         await client.send_message(
             int(notify),
-            "🤖 **YT-Short-Clipper Client aktif!** (userbot, tanpa Bot API)\n"
+            "🤖 **Auto Clipper Client aktif!** (userbot, tanpa Bot API)\n"
             "Siap menerima link video. Ketik /start untuk menu.",
             parse_mode="md",
         )
@@ -535,7 +535,7 @@ async def _run(session_path: str, api_id: str, api_hash: str, phone: str):
 
     me = await client.get_me()
     logger.info(f"✅ Login sukses sebagai {getattr(me, 'first_name', '')} (@{getattr(me, 'username', '')})")
-    logger.info("🤖 YT-Short-Clipper Telegram Client berjalan (userbot, tanpa Bot API)...")
+    logger.info("🤖 Auto Clipper Telegram Client berjalan (userbot, tanpa Bot API)...")
     print("🤖 Client aktif! Kirim link video ke chat Telegrammu (Saved Messages / chat pribadi).")
 
     client.add_event_handler(_on_new_message, events.NewMessage(incoming=True))

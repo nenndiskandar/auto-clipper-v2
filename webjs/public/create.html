@@ -257,6 +257,8 @@ function toggleAll(val){
   document.querySelectorAll('.hl-check').forEach(b=>b.checked=val);
 }
 
+function ensureProgressBar(logBox){if(!logBox||!logBox.parentNode)return null;let bar=logBox.parentNode.querySelector(':scope > .live-progress');if(!bar){bar=document.createElement('div');bar.className='live-progress mt-2';bar.innerHTML='<div class="h-1.5 bg-zinc-800 rounded-full overflow-hidden"><div class="h-full bg-accent transition-all duration-500" style="width:0%"></div></div><div class="text-[10px] text-zinc-400 mt-1 tabular-nums">0%</div>';logBox.parentNode.insertBefore(bar,logBox);}return bar;}
+function updateProgressBar(logBox,p){const bar=ensureProgressBar(logBox);if(!bar)return;if(p==null){bar.style.display='none';return;}bar.style.display='';bar.firstElementChild.firstElementChild.style.width=Math.round(p)+'%';bar.lastElementChild.textContent=Math.round(p)+'%';}
 async function startProcess(){
   const sel=[...document.querySelectorAll('.hl-check:checked')].map(b=>parseInt(b.value));
   if(!sel.length){alert('Pilih minimal 1 highlight');return;}
@@ -275,9 +277,10 @@ async function startProcess(){
       const j=await(await fetch('/api/process/status/'+encodeURIComponent(PICK_SESSION))).json();
       const stick=logBox.scrollTop+logBox.clientHeight>=logBox.scrollHeight-60;
       logBox.textContent=j.log||'';if(stick)logBox.scrollTop=logBox.scrollHeight;
+      updateProgressBar(logBox,j.progress);
       const el=document.getElementById('pElapsed');if(el)el.textContent='('+Math.round((Date.now()-t0)/1000)+'s)';
       if(!j.running){
-        clearInterval(poll);
+        clearInterval(poll);updateProgressBar(logBox,null);
         if(j.code===0){proc.innerHTML='<div class="bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2 text-xs text-emerald-300">✅ Render selesai! <a href="/" class="underline">Lihat hasil →</a></div>';
         }else if(window._ph2Cancel){window._ph2Cancel=false;proc.insertAdjacentHTML('beforeend','<div class="bg-zinc-500/10 border border-zinc-500/20 rounded-lg px-3 py-2 text-xs text-zinc-400">⏹ Dibatalkan.</div>');$('#procBtn').disabled=false;
         }else{proc.innerHTML='<div class="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 text-xs text-red-300">❌ Gagal (exit '+((j.code!=null)?j.code:'?')+') — lihat log.</div>';$('#procBtn').disabled=false;}
@@ -288,7 +291,29 @@ async function startProcess(){
 
 async function cancelCreate(){window._ph1Cancel=true;const b=document.getElementById('wCancelBtn');if(b){b.disabled=true;b.textContent='⏳ stopping…';}try{await fetch('/api/create/cancel',{method:'POST'});}catch{}}
 async function cancelProcess(){window._ph2Cancel=true;const b=document.getElementById('pCancelBtn');if(b){b.disabled=true;b.textContent='⏳ stopping…';}try{await fetch('/api/process/cancel/'+encodeURIComponent(PICK_SESSION),{method:'POST'});}catch{}}
-async function pasteUrl(){try{const t=await navigator.clipboard.readText();$('#wUrl').value=t.trim();}catch{alert('Gagal baca clipboard — izinkan akses clipboard di browser.');}}
+async function pasteUrl(){
+  try{
+    if(navigator.clipboard && window.isSecureContext){
+      const t=await navigator.clipboard.readText();
+      $('#wUrl').value=t.trim();
+      return;
+    }
+  }catch(e){console.log('clipboard API gagal, coba fallback', e);}
+  if(legacyPaste()) return;
+  alert('Gagal baca clipboard — izinkan akses clipboard di browser, atau gunakan Ctrl+V pada kolom URL.');
+}
+function legacyPaste(){
+  try{
+    const ta=document.createElement('textarea');
+    ta.style.position='fixed';ta.style.top='-9999px';ta.style.opacity='0';
+    document.body.appendChild(ta);ta.focus();ta.select();
+    const ok=document.execCommand('paste');
+    const v=ta.value.trim();
+    document.body.removeChild(ta);
+    if(ok && v){$('#wUrl').value=v;return true;}
+  }catch(e){console.log('legacy paste gagal', e);}
+  return false;
+}
 
 async function doRegenerate(sid){
   if(!confirm('Re-generate highlight untuk '+sid+' ?')) return;

@@ -13,6 +13,15 @@ RESULT_FILE = sys.argv[3]
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from clip_common import APP_DIR, build_core, write_json
+from utils.logger import debug_log
+
+
+def _progress_cb(message, fraction):
+    try:
+        pct = max(0.0, min(1.0, float(fraction))) * 100.0
+        debug_log(f"[progress] {message} (overall: {pct:.1f}%)", flush=True)
+    except Exception:
+        pass
 
 
 def main():
@@ -25,8 +34,8 @@ def main():
     if not url:
         raise RuntimeError("Session tidak punya URL sumber.")
 
-    print(f"[refind] URL={url} num_clips={num}", flush=True)
-    sd = core.find_highlights_only(url, num)
+    debug_log(f"[refind] URL={url} num_clips={num}", flush=True)
+    sd = core.find_highlights_only(url, num, progress_callback=_progress_cb)
     highlights = sd.get("highlights") or []
     if not highlights:
         raise RuntimeError("AI tidak menemukan highlight dari video ini.")
@@ -38,7 +47,7 @@ def main():
     data["status"] = "highlights_ready"
     data["video_info"] = sd.get("video_info") or data.get("video_info") or data.get("video_info")
     sdf.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(f"[refind] {len(highlights)} highlight tersimpan.", flush=True)
+    debug_log(f"[refind] {len(highlights)} highlight tersimpan.", flush=True)
     write_json(RESULT_FILE, {"ok": True, "count": len(highlights)})
 
 

@@ -31,5 +31,21 @@ class TestCoreBasic(unittest.TestCase):
         repaired = self.core._repair_json_text(raw)
         self.assertTrue(repaired.startswith("[") and repaired.endswith("]"))
 
+    def test_parse_srt(self):
+        srt = (
+            "1\n00:00:01,000 --> 00:00:03,500\nHello world\n\n"
+            "2\n00:00:04,000 --> 00:00:06,000\nSecond line\n"
+        )
+        import tempfile, os
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".srt", delete=False, encoding="utf-8") as tf:
+            tf.write(srt)
+            path = tf.name
+        try:
+            result = self.core.parse_srt(path)
+            self.assertIn("[00:00:01,000 - 00:00:03,500] Hello world", result)
+            self.assertIn("[00:00:04,000 - 00:00:06,000] Second line", result)
+        finally:
+            os.unlink(path)
+
 if __name__ == "__main__":
     unittest.main()

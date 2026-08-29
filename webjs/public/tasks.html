@@ -144,7 +144,10 @@ async function refresh() {
       <td class="py-2.5 px-4 font-semibold text-white text-[12px]">${esc(j.type)}</td>
       <td class="py-2.5 px-4" onclick="event.stopPropagation()">${sessLink(j.session)}</td>
       <td class="py-2.5 px-4 text-zinc-400 text-[11px] truncate max-w-[200px] hidden md:table-cell" title="${esc(j.detail)}">${esc(j.detail)}</td>
-      <td class="py-2.5 px-4">${statusBadge(j)}</td>
+      <td class="py-2.5 px-4">
+        ${statusBadge(j)}
+        ${j.progress != null ? `<div class="mt-1.5 w-28"><div class="h-1.5 bg-zinc-800 rounded-full overflow-hidden"><div class="h-full bg-accent transition-all duration-500" style="width:${Math.round(j.progress)}%"></div></div><div class="text-[9px] text-zinc-400 mt-0.5 tabular-nums">${j.progress.toFixed(0)}%</div></div>` : ''}
+      </td>
       <td class="py-2.5 px-4 text-zinc-400 font-mono text-[11px] hidden md:table-cell">${dur(j.elapsed_s)}</td>
       <td class="py-2.5 px-4 text-zinc-500 font-mono text-[10px] truncate max-w-[300px] hidden lg:table-cell" title="${esc(j.last_line || '')}">${esc(j.last_line || '—')}</td>
       <td class="py-2.5 px-4 text-right" onclick="event.stopPropagation()">
