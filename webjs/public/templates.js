@@ -1,8 +1,8 @@
 // Shared presets across all pages (Create, Session, Settings)
 window.UNIFIED_TEMPLATES = {
   tiktok_viral: {
-    label: '🔥 TikTok Viral Hook',
-    desc: '9:16 portrait, subtitle pop bounce, hook TikTok glitch, dynamic camera follow',
+    label: '🔥 TikTok Viral Thumbnail',
+    desc: '9:16 portrait, subtitle pop bounce, thumbnail TikTok glitch, dynamic camera follow',
     cfg: {
       aspect_ratio: '9:16',
       portrait_mode: 'crop',
@@ -95,7 +95,7 @@ window.UNIFIED_TEMPLATES = {
   },
   education_clean: {
     label: '📚 Edukasi / Tutorial',
-    desc: 'Tampilan bersih, subtitle pop jelas, hook merah tegas, kamera ultra-stabil',
+    desc: 'Tampilan bersih, subtitle pop jelas, thumbnail merah tegas, kamera ultra-stabil',
     cfg: {
       aspect_ratio: '9:16',
       portrait_mode: 'crop',

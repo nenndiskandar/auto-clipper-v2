@@ -65,7 +65,7 @@ pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:75vh;overflow-y
               <th class="py-2.5 px-4 font-semibold hidden md:table-cell">Detail</th>
               <th class="py-2.5 px-4 font-semibold">Status</th>
               <th class="py-2.5 px-4 font-semibold hidden md:table-cell">Durasi</th>
-              <th class="py-2.5 px-4 font-semibold hidden lg:table-cell">Debug Terakhir</th>
+              <th class="py-2.5 px-4 font-semibold hidden lg:table-cell">Log</th>
               <th class="py-2.5 px-4 font-semibold text-right">Aksi</th>
             </tr>
           </thead>
@@ -105,7 +105,7 @@ fetch('/api/me').then(r=>r.json()).then(d=>{if(d.name)document.getElementById('w
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const dur = s => s == null ? '-' : (s >= 60 ? Math.floor(s / 60) + 'm ' + (s % 60) + 's' : s + 's');
-const sessLink = sid => sid === '-' ? '<span class="text-zinc-600 font-mono">-</span>' : `<a href="/#${esc(sid)}" class="text-accent hover:underline font-mono text-[11px]">${esc(sid)}</a>`;
+const sessLink = sid => sid === '-' ? '<span class="text-zinc-600 font-mono">-</span>' : `<a href="/session.html?id=${encodeURIComponent(sid)}" class="text-accent hover:underline font-mono text-[11px]">${esc(sid)}</a>`;
 
 const statusBadge = j => j.running
   ? '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded animate-pulse">⏳ berjalan</span>'
@@ -149,7 +149,7 @@ async function refresh() {
         ${j.progress != null ? `<div class="mt-1.5 w-28"><div class="h-1.5 bg-zinc-800 rounded-full overflow-hidden"><div class="h-full bg-accent transition-all duration-500" style="width:${Math.round(j.progress)}%"></div></div><div class="text-[9px] text-zinc-400 mt-0.5 tabular-nums">${j.progress.toFixed(0)}%</div></div>` : ''}
       </td>
       <td class="py-2.5 px-4 text-zinc-400 font-mono text-[11px] hidden md:table-cell">${dur(j.elapsed_s)}</td>
-      <td class="py-2.5 px-4 text-zinc-500 font-mono text-[10px] truncate max-w-[300px] hidden lg:table-cell" title="${esc(j.last_line || '')}">${esc(j.last_line || '—')}</td>
+      <td class="py-2.5 px-4 text-zinc-500 font-mono text-[10px] hidden lg:table-cell" title="Klik baris untuk melihat log penuh"><button class="px-2 py-0.5 border border-zinc-700 rounded text-zinc-400 hover:text-white bg-zinc-800/50 hover:bg-zinc-800 transition">Lihat Log</button></td>
       <td class="py-2.5 px-4 text-right" onclick="event.stopPropagation()">
         ${j.running ? `<button class="px-2 py-0.5 text-[10px] font-medium bg-red-950/20 text-red-400 border border-red-900/30 hover:bg-red-900/20 rounded transition" onclick="stopTask(event,${i})" title="Stop job">■ Stop</button>` : ''}
       </td>

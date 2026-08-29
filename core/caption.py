@@ -186,42 +186,23 @@ class CaptionMixin:
         def add_hook_with_progress(self, input_path: str, hook_text: str, output_path: str, progress_callback) -> float:
             """Add hook scene at the beginning with progress tracking"""
         
-            # Report TTS character usage
-            self.report_tokens(0, 0, 0, len(hook_text))
+            # Report TTS character usage (skip, no TTS)
+            # self.report_tokens(0, 0, 0, len(hook_text))
         
-            # Generate TTS audio (10% progress)
+            # Generate silent audio (10% progress)
             progress_callback(0.1)
-            try:
-                tts_response = self.tts_client.audio.speech.create(
-                    model=self.tts_model,
-                    voice="nova",
-                    input=hook_text,
-                    speed=1.0
-                )
-            except APIConnectionError as e:
-                self.log(f"  ❌ TTS API Connection Error: Could not connect to {self.tts_client.base_url}")
-                raise Exception(f"TTS API connection failed!\n\nCould not connect to: {self.tts_client.base_url}\nError: {e}")
-            except RateLimitError as e:
-                self.log(f"  ❌ TTS API Rate Limit: {e}")
-                raise Exception(f"TTS API rate limit exceeded!\n\nPlease wait a moment and try again.\nDetails: {e}")
-            except APIStatusError as e:
-                self.log(f"  ❌ TTS API Error (HTTP {e.status_code}): {e.message}")
-                self.log(f"     Model: {self.tts_model}, Base URL: {self.tts_client.base_url}")
-                raise Exception(
-                    f"TTS (Hook) API Error!\n\n"
-                    f"Status: {e.status_code}\n"
-                    f"Message: {e.message}\n"
-                    f"Model: {self.tts_model}\n"
-                    f"Base URL: {self.tts_client.base_url}\n\n"
-                    f"Check your Hook Maker API settings."
-                )
-            except Exception as e:
-                self.log(f"  ❌ TTS API Unexpected Error: {type(e).__name__}: {e}")
-                raise Exception(f"TTS (Hook) generation failed!\n\nError: {type(e).__name__}: {e}\nModel: {self.tts_model}")
-        
+            
             tts_file = str(Path(output_path).parent / "hook_tts.mp3")
-            with open(tts_file, 'wb') as f:
-                f.write(tts_response.content)
+            # Generate silent mp3 using ffmpeg
+            silent_cmd = [
+                self.ffmpeg_path, "-y",
+                "-f", "lavfi",
+                "-i", "anullsrc=r=44100:cl=stereo",
+                "-t", "3.0",
+                "-c:a", "libmp3lame",
+                tts_file
+            ]
+            subprocess.run(silent_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=SUBPROCESS_FLAGS)
         
             progress_callback(0.2)
         
@@ -237,7 +218,7 @@ class CaptionMixin:
                 h, m, s = duration_match.groups()
                 hook_duration = int(h) * 3600 + int(m) * 60 + float(s) + 0.5
             else:
-                hook_duration = 3.0
+                hook_duration = float(style.get("duration", 3.0))
         
             # Format hook text
             hook_upper = hook_text.upper()
@@ -367,6 +348,9 @@ class CaptionMixin:
 
             font_color_rgb = _hex_to_rgb(font_color_hex)
             bg_color_rgb = _hex_to_rgb(bg_color_hex)
+            bg_opacity = max(0, min(100, int(style.get("bg_opacity", 100))))
+            bg_alpha = int(bg_opacity * 255 / 100)
+            box_mode = style.get("box_mode", "fit_text") # fit_text, full_width, half_screen
             glitch_on = bool(style.get("glitch"))
             GLITCH_CYAN = (37, 244, 238)   # TikTok cyan
             GLITCH_RED = (254, 44, 85)     # TikTok red
@@ -417,34 +401,51 @@ class CaptionMixin:
             overlay_img = Image.new("RGBA", (width, height), (0, 0, 0, 0))
             draw = ImageDraw.Draw(overlay_img)
 
+            if box_mode == "half_screen":
+                # Render satu kotak background besar setengah layar (atau blok penuh)
+                half_h = max(total_h + padding * 4, int(height * 0.45))
+                box_y1 = max(0, min(center_y - half_h // 2, height - half_h))
+                box_y2 = box_y1 + half_h
+                box_x1 = 0
+                box_x2 = width
+                if corner_radius > 0 and hasattr(draw, "rounded_rectangle"):
+                    draw.rounded_rectangle([box_x1, box_y1, box_x2, box_y2], radius=corner_radius, fill=(*bg_color_rgb, bg_alpha))
+                else:
+                    draw.rectangle([box_x1, box_y1, box_x2, box_y2], fill=(*bg_color_rgb, bg_alpha))
+
             cur_y = block_top
             for m in line_metrics:
-                box_w = m["box_w"]
+                box_w = width if box_mode == "full_width" else m["box_w"]
                 box_h = m["box_h"]
-                # Clamp horizontal: kotak tidak boleh keluar margin kiri/kanan
-                box_x1 = max(margin_x, min(center_x - box_w // 2, width - margin_x - box_w))
+                
+                if box_mode == "full_width":
+                    box_x1 = 0
+                    box_x2 = width
+                else:
+                    box_x1 = max(margin_x, min(center_x - box_w // 2, width - margin_x - box_w))
+                    box_x2 = box_x1 + box_w
+                
                 box_y1 = cur_y
-                box_x2 = box_x1 + box_w
                 box_y2 = box_y1 + box_h
 
-                if corner_radius > 0 and hasattr(draw, "rounded_rectangle"):
-                    # Clamp radius so it never exceeds half the smaller dimension
-                    r = min(corner_radius, box_w // 2, box_h // 2)
-                    draw.rounded_rectangle(
-                        [box_x1, box_y1, box_x2, box_y2],
-                        radius=r,
-                        fill=(*bg_color_rgb, 255),
-                    )
-                else:
-                    draw.rectangle(
-                        [box_x1, box_y1, box_x2, box_y2],
-                        fill=(*bg_color_rgb, 255),
-                    )
+                if box_mode != "half_screen":
+                    if corner_radius > 0 and hasattr(draw, "rounded_rectangle") and box_mode != "full_width":
+                        r = min(corner_radius, box_w // 2, box_h // 2)
+                        draw.rounded_rectangle(
+                            [box_x1, box_y1, box_x2, box_y2],
+                            radius=r,
+                            fill=(*bg_color_rgb, bg_alpha),
+                        )
+                    else:
+                        draw.rectangle(
+                            [box_x1, box_y1, box_x2, box_y2],
+                            fill=(*bg_color_rgb, bg_alpha),
+                        )
 
-                # PIL draws text at the top-left of the glyph bounding box;
-                # subtract bbox[0]/[1] so the glyphs sit cleanly inside the padding.
-                text_x = box_x1 + padding - m["bbox"][0]
-                text_y = box_y1 + padding - m["bbox"][1]
+                # Center text inside line box
+                text_actual_w = m["bbox"][2] - m["bbox"][0]
+                text_x = box_x1 + (box_w - text_actual_w) // 2 - m["bbox"][0]
+                text_y = box_y1 + (box_h - (m["bbox"][3] - m["bbox"][1])) // 2 - m["bbox"][1]
                 if glitch_on:
                     # Efek glitch ala TikTok: salinan cyan & merah digeser diagonal
                     off = max(2, font_px // 28)
@@ -460,11 +461,15 @@ class CaptionMixin:
                         font=pil_font,
                         fill=(*GLITCH_RED, 255),
                     )
+                # Stroke outline hitam tebal untuk keterbacaan maksimal
+                stroke_w = max(2, int(font_px * 0.08))
                 draw.text(
                     (text_x, text_y),
                     m["text"],
                     font=pil_font,
                     fill=(*font_color_rgb, 255),
+                    stroke_width=stroke_w,
+                    stroke_fill=(0, 0, 0, 255),
                 )
 
                 cur_y = box_y2 + line_spacing

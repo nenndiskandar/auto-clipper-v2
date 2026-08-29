@@ -175,7 +175,7 @@ function renderClips(clips) {
     const dl = `/download/${encodeURIComponent(sid)}/${encodeURIComponent(c.dir)}/${encodeURIComponent(c.file)}`;
     const detailUrl = `/detail.html?session=${encodeURIComponent(sid)}&clip=${encodeURIComponent(c.dir)}`;
     const tags = [
-      c.hook ? '<span class="text-[9px] px-1 bg-red-500/10 text-red-400 border border-red-500/20 rounded">hook</span>' : '',
+      c.hook ? '<span class="text-[9px] px-1 bg-red-500/10 text-amber-400 border border-amber-500/20 rounded">thumbnail</span>' : '',
       c.captions ? '<span class="text-[9px] px-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded">caption</span>' : '',
       c.watermark ? '<span class="text-[9px] px-1 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 rounded">watermark</span>' : '',
       c.credit ? '<span class="text-[9px] px-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded">credit</span>' : '',
@@ -236,14 +236,15 @@ function renderHighlights() {
   const b=document.getElementById('hlCountInfo'); if(b) b.textContent = `(${HIGHLIGHTS.length} momen siap)`;
   container.innerHTML = HIGHLIGHTS.map(h => `
     <label class="flex items-start gap-3 p-3 hover:bg-zinc-800/40 transition cursor-pointer">
-      <input class="rg-check mt-1 flex-shrink-0 w-4 h-4 accent-[#facc15]" type="checkbox" value="${h.i}" checked onchange="updateCount()">
+      <input class="rg-check mt-1 flex-shrink-0 w-4 h-4 accent-[#facc15]" type="checkbox" value="${h.i}" onchange="updateCount()">
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-2">
           <span class="font-semibold text-xs text-white truncate">${esc(h.title)}</span>
-          ${h.score != null ? `<span class="px-1.5 py-0.5 text-[9px] font-bold bg-amber-400 text-black rounded">⭐ ${h.score}</span>` : ''}
+          ${h.score != null ? `<span class="px-1.5 py-0.5 text-[9px] font-bold ${h.score >= 80 ? 'bg-amber-400 text-black' : 'bg-zinc-800 text-zinc-300 border border-zinc-700'} rounded">🔥 ${h.score}/100</span>` : ''}
         </div>
         <span class="text-[11px] text-zinc-400 mt-0.5 block">${esc(h.start)} → ${esc(h.end)} · ${h.duration}s</span>
-        ${h.hook_text ? `<p class="text-[10px] text-zinc-500 italic mt-0.5">🎯 ${esc(h.hook_text)}</p>` : ''}
+        ${h.hook_text ? `<p class="text-[10px] text-zinc-300 font-medium mt-0.5">🎯 ${esc(h.hook_text)}</p>` : ''}
+        ${h.reason ? `<p class="text-[10px] text-zinc-500 italic mt-0.5">💡 ${esc(h.reason)}</p>` : ''}
       </div>
     </label>
   `).join('');

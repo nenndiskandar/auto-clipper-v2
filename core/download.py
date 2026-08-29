@@ -187,15 +187,15 @@ class DownloadMixin:
             cookies_path = None
             for loc in cookies_locations:
                 self.log(f"  Checking cookies at: {loc} - exists: {loc.exists()}")
-                if loc.exists():
+                if loc.exists() and loc.stat().st_size > 0:
                     cookies_path = loc
                     break
         
-            if not cookies_path:
-                raise Exception("cookies.txt not found!\n\nPlease upload cookies.txt file from home page.")
-        
-            ydl_opts['cookiefile'] = str(cookies_path)
-            self.log(f"  Using cookies from: {cookies_path}")
+            if cookies_path and cookies_path.exists() and cookies_path.stat().st_size > 0:
+                ydl_opts['cookiefile'] = str(cookies_path)
+                self.log(f"  Using cookies from: {cookies_path}")
+            else:
+                self.log("  No cookies provided, downloading publicly...")
         
             # Single download attempt (no browser cookies fallback)
             last_error = None
@@ -625,40 +625,8 @@ class DownloadMixin:
                         "automatic_captions": []
                     }
             
-                # Validate cookies file has YouTube auth cookies
-                # Check both plain cookies (SID, HSID, etc.) and __Secure- prefixed variants
-                # Modern browsers/extensions often export only __Secure- versions
-                required_cookies = ['SID', 'HSID', 'SSID', 'APISID', 'SAPISID', 'LOGIN_INFO']
-                secure_prefixes = ['__Secure-1P', '__Secure-3P']
-                found_cookies = []
-                try:
-                    with open(cookies_path, 'r', encoding='utf-8') as f:
-                        content = f.read()
-                        for cookie in required_cookies:
-                            # Check plain cookie name (tab-separated format)
-                            if f"\t{cookie}\t" in content or content.endswith(f"\t{cookie}"):
-                                found_cookies.append(cookie)
-                            else:
-                                # Check __Secure- prefixed variants (e.g. __Secure-3PSID)
-                                for prefix in secure_prefixes:
-                                    secure_name = f"{prefix}{cookie}"
-                                    if f"\t{secure_name}\t" in content or content.endswith(f"\t{secure_name}"):
-                                        found_cookies.append(secure_name)
-                                        break
-                
-                    if not found_cookies:
-                        debug_log(f"Cookies file missing required auth cookies. Found: {found_cookies}")
-                        return {
-                            "error": "Invalid cookies.txt - missing YouTube authentication cookies.\n\n"
-                                     "Please export fresh cookies from your browser while logged into YouTube.\n\n"
-                                     "Required cookies: SID, HSID, SSID, APISID, SAPISID, LOGIN_INFO\n\n"
-                                     "Use a browser extension like 'Get cookies.txt LOCALLY' to export.",
-                            "subtitles": [],
-                            "automatic_captions": []
-                        }
-                    debug_log(f"Found auth cookies: {found_cookies}")
-                except Exception as e:
-                    debug_log(f"Error reading cookies file: {e}")
+                # Bypass validation
+                found_cookies = ['bypass']
             
                 debug_log(f"Using yt-dlp module v{yt_dlp.version.__version__}")
                 debug_log(f"Cookies path: {cookies_path} (exists: {Path(cookies_path).exists()})")
@@ -1001,14 +969,14 @@ class DownloadMixin:
             app_dir = get_app_dir()
             cookies_path = None
             for loc in [Path("cookies.txt"), app_dir / "cookies.txt"]:
-                if loc.exists():
+                if loc.exists() and loc.stat().st_size > 0:
                     cookies_path = loc
                     break
         
-            if not cookies_path:
-                raise Exception("cookies.txt not found!\n\nPlease upload cookies.txt file from home page.")
-        
-            ydl_opts['cookiefile'] = str(cookies_path)
+            if cookies_path and cookies_path.exists() and cookies_path.stat().st_size > 0:
+                ydl_opts['cookiefile'] = str(cookies_path)
+            else:
+                self.log("  No cookies provided, downloading subtitle publicly...")
         
             try:
                 self.log(f"  Downloading {self.subtitle_language} subtitle...")
@@ -1079,7 +1047,7 @@ class DownloadMixin:
             app_dir = get_app_dir()
             cookies_path = None
             for loc in [Path("cookies.txt"), app_dir / "cookies.txt"]:
-                if loc.exists():
+                if loc.exists() and loc.stat().st_size > 0:
                     cookies_path = str(loc)
                     break
         
@@ -1206,7 +1174,7 @@ class DownloadMixin:
             # Add cookies
             app_dir = get_app_dir()
             for loc in [Path("cookies.txt"), app_dir / "cookies.txt"]:
-                if loc.exists():
+                if loc.exists() and loc.stat().st_size > 0:
                     opts['cookiefile'] = str(loc)
                     break
 
@@ -1248,7 +1216,7 @@ class DownloadMixin:
             # Add cookies
             app_dir = get_app_dir()
             for loc in [Path("cookies.txt"), app_dir / "cookies.txt"]:
-                if loc.exists():
+                if loc.exists() and loc.stat().st_size > 0:
                     opts['cookiefile'] = str(loc)
                     break
         
@@ -1434,7 +1402,7 @@ class DownloadMixin:
             app_dir = get_app_dir()
             cookies_path = None
             for loc in [Path("cookies.txt"), app_dir / "cookies.txt"]:
-                if loc.exists():
+                if loc.exists() and loc.stat().st_size > 0:
                     cookies_path = loc
                     break
         
@@ -1542,7 +1510,7 @@ class DownloadMixin:
             app_dir = get_app_dir()
             cookies_path = None
             for loc in [Path("cookies.txt"), app_dir / "cookies.txt"]:
-                if loc.exists():
+                if loc.exists() and loc.stat().st_size > 0:
                     cookies_path = str(loc)
                     break
 
@@ -1700,7 +1668,7 @@ class DownloadMixin:
             app_dir = get_app_dir()
             cookies_path = None
             for loc in [Path("cookies.txt"), app_dir / "cookies.txt"]:
-                if loc.exists():
+                if loc.exists() and loc.stat().st_size > 0:
                     cookies_path = str(loc)
                     break
 
@@ -1837,7 +1805,7 @@ class DownloadMixin:
             app_dir = get_app_dir()
             cookies_path = None
             for loc in [Path("cookies.txt"), app_dir / "cookies.txt"]:
-                if loc.exists():
+                if loc.exists() and loc.stat().st_size > 0:
                     cookies_path = str(loc)
                     break
 

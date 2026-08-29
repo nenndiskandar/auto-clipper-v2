@@ -180,6 +180,9 @@ class PortraitMixin:
             if self._source_is_portrait(input_path):
                 self._passthrough_portrait(input_path, output_path, None)
                 return
+            if self.portrait_mode in ("split", "split_game", "split_podcast"):
+                self.log(f"  Using Split Screen mode: {self.portrait_mode}")
+                return self.convert_to_portrait_split(input_path, output_path)
             if self.portrait_mode == "blur":
                 self.log("  Using Blurred Background (no crop)")
                 return self.convert_to_portrait_blur(input_path, output_path)
@@ -811,6 +814,61 @@ class PortraitMixin:
                 return base ** 4
             return 1.0
 
+        def convert_to_portrait_split(self, input_path: str, output_path: str):
+            """Convert landscape to 9:16 portrait using Split Screen:
+            Top: speaker/main crop. Bottom: blurred background or secondary fit."""
+            return self.convert_to_portrait_split_with_progress(input_path, output_path, None)
+
+        def convert_to_portrait_split_with_progress(self, input_path: str, output_path: str, progress_callback):
+            """Split-screen conversion (Stacked top & bottom) with progress.
+            If mode is split_podcast, stacks Left speaker (top) and Right speaker (bottom).
+            """
+            out_w, out_h = self._get_ratio_dimensions()
+            half_h = out_h // 2
+            fd, script_path = tempfile.mkstemp(suffix=".txt", prefix="portrait_split_", text=True)
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as f:
+                    if getattr(self, "portrait_mode", "") in ("split_podcast", "split_game"):
+                        # Podcast mode: Left half of frame (Top), Right half of frame (Bottom)
+                        f.write(
+                            f"[0:v]split=2[top_in][bot_in];"
+                            f"[top_in]crop=iw/2:ih:0:0,scale={out_w}:{half_h}:force_original_aspect_ratio=increase,crop={out_w}:{half_h}[top];"
+                            f"[bot_in]crop=iw/2:ih:iw/2:0,scale={out_w}:{half_h}:force_original_aspect_ratio=increase,crop={out_w}:{half_h}[bot];"
+                            f"[top][bot]vstack=inputs=2,format=yuv420p[v]"
+                        )
+                    else:
+                        f.write(
+                            f"[0:v]split=2[top_in][bot_in];"
+                            f"[top_in]scale={out_w}:{half_h}:force_original_aspect_ratio=increase,crop={out_w}:{half_h}[top];"
+                            f"[bot_in]scale={out_w}:{half_h}:force_original_aspect_ratio=increase,crop={out_w}:{half_h},gblur=sigma=12[bot];"
+                            f"[top][bot]vstack=inputs=2,format=yuv420p[v]"
+                        )
+                encoder_args = self.get_video_encoder_args()
+                cmd = [
+                    self.ffmpeg_path, "-y",
+                    "-i", input_path,
+                    "-filter_complex_script", script_path,
+                    "-map", "[v]", "-map", "0:a?",
+                    *encoder_args,
+                    "-c:a", "aac", "-b:a", "192k",
+                    "-shortest",
+                    output_path,
+                ]
+                self.log_ffmpeg_command(cmd, "Portrait Split Screen", step="portrait")
+                if progress_callback is not None:
+                    self.run_ffmpeg_with_progress(cmd, 0, progress_callback)
+                else:
+                    result = self._run_ffmpeg_subprocess(cmd)
+                    if result.returncode != 0:
+                        stderr = (result.stderr or "")[-2000:]
+                        raise Exception(f"Portrait split encode failed:\n{stderr}")
+            finally:
+                try:
+                    os.unlink(script_path)
+                except OSError:
+                    pass
+            self.log("  Split screen conversion complete")
+
         def convert_to_portrait_blur(self, input_path: str, output_path: str):
             """Convert landscape to 9:16 portrait WITHOUT cropping: the whole video is
             kept visible (fit to height, centered), and a blurred zoomed copy fills
@@ -861,6 +919,9 @@ class PortraitMixin:
             if self._source_is_portrait(input_path):
                 self._passthrough_portrait(input_path, output_path, progress_callback)
                 return
+            if self.portrait_mode in ("split", "split_game", "split_podcast"):
+                self.log(f"  Using Split Screen mode: {self.portrait_mode}")
+                return self.convert_to_portrait_split_with_progress(input_path, output_path, progress_callback)
             if self.portrait_mode == "blur":
                 self.log("  Using Blurred Background (no crop)")
                 return self.convert_to_portrait_blur_with_progress(input_path, output_path, progress_callback)

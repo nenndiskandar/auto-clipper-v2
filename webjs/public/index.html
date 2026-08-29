@@ -54,7 +54,7 @@ pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y
   <!-- TOP SUB-NAV -->
   <header class="flex items-center justify-between px-6 py-3 border-b border-zinc-800 bg-zinc-950/20">
     <div class="flex items-center flex-1 max-w-xs">
-      <input id="search" class="w-full bg-surface-2 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-accent" placeholder="Cari judul / hook...">
+      <input id="search" class="w-full bg-surface-2 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-accent" placeholder="Cari judul / thumbnail...">
     </div>
   </header>
 
@@ -197,7 +197,7 @@ function clipCard(s, c) {
   const gi = DATA.indexOf(s);
   const ci = s.clips.indexOf(c);
   const tags = [
-    c.hook ? '<span class="text-[9px] px-1 bg-red-500/10 text-red-400 border border-red-500/20 rounded">hook</span>' : '',
+    c.hook ? '<span class="text-[9px] px-1 bg-red-500/10 text-amber-400 border border-amber-500/20 rounded">thumbnail</span>' : '',
     c.captions ? '<span class="text-[9px] px-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded">caption</span>' : '',
     c.watermark ? '<span class="text-[9px] px-1 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 rounded">watermark</span>' : '',
     c.credit ? '<span class="text-[9px] px-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded">credit</span>' : '',
@@ -250,7 +250,7 @@ function showDetail(gi, ci) {
           <h4 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">📋 Metadata Klip</h4>
           <table class="w-full text-xs text-zinc-300 border-collapse">
             <tr class="border-b border-zinc-800"><td class="py-1.5 font-medium text-zinc-500 w-1/3">Waktu</td><td class="py-1.5 text-white">${fmt(c.start_time)} → ${fmt(c.end_time)} (${fmt(c.duration)}s)</td></tr>
-            <tr class="border-b border-zinc-800"><td class="py-1.5 font-medium text-zinc-500">Hook</td><td class="py-1.5 text-white">${fmt(c.hook_text)}</td></tr>
+            <tr class="border-b border-zinc-800"><td class="py-1.5 font-medium text-zinc-500">Thumbnail</td><td class="py-1.5 text-white">${fmt(c.hook_text)}</td></tr>
             <tr class="border-b border-zinc-800"><td class="py-1.5 font-medium text-zinc-500">Deskripsi</td><td class="py-1.5 text-zinc-300">${fmt(c.desc)}</td></tr>
             <tr class="border-b border-zinc-800"><td class="py-1.5 font-medium text-zinc-500">Hashtag</td><td class="py-1.5 text-zinc-400 break-words">${fmt(c.hashtags)}</td></tr>
             <tr class="border-b border-zinc-800"><td class="py-1.5 font-medium text-zinc-500">Analisis AI</td><td class="py-1.5 text-zinc-400 italic">${fmt(c.analysis)}</td></tr>
@@ -347,7 +347,7 @@ function openRender(gi, ci) {
   $('#rTitle').textContent = 'Render: ' + c.title;
   $('#rBody').innerHTML = `
     <div class="grid grid-cols-2 gap-2">
-      ${cfgSwitch('hook', '🪝 Hook (TTS)')}
+      ${cfgSwitch('hook', '🖼️ Thumbnail')}
       ${cfgSwitch('captions', '💬 Subtitle')}
       ${cfgSwitch('watermark', '🖼️ Watermark')}
       ${cfgSwitch('credit', '🏷️ Credit')}
@@ -446,7 +446,7 @@ async function openRegen(sid) {
 async function showRegenPicker(sid, hls) {
   const rows = hls.map(h => `
     <label class="flex items-start gap-3 p-2 border-b border-zinc-800 hover:bg-zinc-800/40 transition cursor-pointer">
-      <input class="form-check-input mt-1 rg-check flex-shrink-0 w-3.5 h-3.5 accent-[#facc15]" type="checkbox" value="${h.i}" checked>
+      <input class="form-check-input mt-1 rg-check flex-shrink-0 w-3.5 h-3.5 accent-[#facc15]" type="checkbox" value="${h.i}">
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-2">
           <span class="font-semibold text-xs text-white truncate">${esc(h.title)}</span>
