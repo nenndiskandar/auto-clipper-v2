@@ -451,6 +451,75 @@ class PortraitMixin:
             self.log(f"  BlazeFace tracked {len(analyzed_positions)} samples → {len(crop_positions)} frames")
             self._encode_portrait_single_pass(input_path, output_path, crop_positions, crop_w, crop_h, out_w, out_h, duration=frames_read/fps if fps else 0, progress_callback=lambda p: progress_callback(0.5 + p*0.5) if progress_callback else None)
 
+        def convert_to_portrait_yolo(self, input_path: str, output_path: str):
+            return self.convert_to_portrait_yolo_with_progress(input_path, output_path, None)
+
+        def convert_to_portrait_yolo_with_progress(self, input_path: str, output_path: str, progress_callback):
+            """YOLO face detector — wajah terbesar dikunci di tengah, tanpa lip (setara detector)."""
+            det = self._init_yolo_detector()
+            if det is None:
+                self.log("  ⚠ YOLO tidak tersedia, fallback ke BlazeFace (detector).")
+                return self.convert_to_portrait_detector_with_progress(input_path, output_path, progress_callback)
+            cap = cv2.VideoCapture(input_path)
+            if not cap.isOpened():
+                raise Exception(f"Failed to open video: {input_path}")
+            orig_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            orig_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or 0
+            crop_w, crop_h = self._get_crop_window(orig_w, orig_h)
+            out_w, out_h = self._get_ratio_dimensions()
+            if total_frames == 0 or fps == 0:
+                cap.release()
+                raise Exception(f"Invalid video: {total_frames} frames, {fps} fps")
+            self.log("  YOLO: analyzing every 5th frame...")
+            analyzed_indices, analyzed_positions = [], []
+            frames_read = 0
+            current_target = orig_w / 2
+            ANALYSIS_STEP = 5
+            scale = min(1.0, 640 / orig_w)
+            while True:
+                if self.is_cancelled():
+                    cap.release()
+                    raise Exception("Cancelled by user")
+                if frames_read % ANALYSIS_STEP != 0:
+                    ret = cap.grab()
+                    if not ret:
+                        break
+                    frames_read += 1
+                    continue
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                small = cv2.resize(frame, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA) if scale < 1 else frame
+                try:
+                    boxes = det.detect(small)
+                except Exception as e:
+                    debug_log(f"YOLO detect gagal: {e}")
+                    boxes = []
+                if boxes:
+                    # walrus: pick largest box
+                    best = max(boxes, key=lambda b: (b[2] - b[0]) * (b[3] - b[1]))
+                    bx = (best[0] + best[2]) / 2
+                    current_target = float(bx) * (orig_w / small.shape[1])
+                crop_x = int(current_target - crop_w / 2)
+                crop_x = max(0, min(crop_x, orig_w - crop_w))
+                analyzed_indices.append(frames_read)
+                analyzed_positions.append(crop_x)
+                frames_read += 1
+                if progress_callback and frames_read % 150 == 0 and total_frames:
+                    try:
+                        progress_callback(min(0.45, (frames_read / total_frames) * 0.45))
+                    except Exception:
+                        pass
+            cap.release()
+            if not analyzed_positions:
+                raise Exception("No faces detected by YOLO")
+            crop_positions = self._interpolate_sampled(analyzed_positions, analyzed_indices, frames_read)
+            crop_positions = self._smooth_follow_positions(crop_positions, 1.6)
+            self.log(f"  YOLO tracked {len(analyzed_positions)} samples → {len(crop_positions)} frames")
+            self._encode_portrait_single_pass(input_path, output_path, crop_positions, crop_w, crop_h, out_w, out_h, duration=frames_read / fps if fps else 0, progress_callback=lambda p: progress_callback(0.5 + p * 0.5) if progress_callback else None)
+
         def convert_to_portrait_mediapipe(self, input_path: str, output_path: str):
             """Convert landscape to 9:16 portrait with active speaker detection (MediaPipe)"""
         
@@ -1377,6 +1446,8 @@ class PortraitMixin:
             saved = self.mediapipe_settings
             self.mediapipe_settings = neat
             try:
+                if getattr(self, "face_detector_model", "mediapipe") == "yolo":
+                    return self.convert_to_portrait_yolo_with_progress(input_path, output_path, progress_callback)
                 if self.face_tracking_mode == "mediapipe":
                     return self.convert_to_portrait_mediapipe_with_progress(input_path, output_path, progress_callback)
                 elif self.face_tracking_mode == "detector":
@@ -1441,12 +1512,18 @@ class PortraitMixin:
             if self.portrait_mode == "split_podcast_dynamic":
                 self.log(f"  Using Split Screen Dynamic (OpusClip-like, active-speaker)")
                 return self.convert_to_portrait_split_dynamic_with_progress(input_path, output_path, progress_callback)
+            if self.portrait_mode == "camera_switch":
+                self.log(f"  Using Camera-Switch Mode (active-speaker switching)")
+                return self.convert_to_portrait_camera_switch_with_progress(input_path, output_path, progress_callback)
             if self.portrait_mode in ("split", "split_game", "split_podcast"):
                 self.log(f"  Using Split Screen mode: {self.portrait_mode}")
                 return self.convert_to_portrait_split_with_progress(input_path, output_path, progress_callback)
             if self.portrait_mode == "center":
                 self.log(f"  Using Center Face Follow (wajah di tengah rapih)")
                 return self.convert_to_portrait_center_with_progress(input_path, output_path, progress_callback)
+            if getattr(self, "face_detector_model", "mediapipe") == "yolo":
+                self.log("  Using YOLO Face Detector (wajah terbesar di tengah)")
+                return self.convert_to_portrait_yolo_with_progress(input_path, output_path, progress_callback)
             if self.face_tracking_mode == "detector":
                 self.log(f"  Using BlazeFace Detector (face center, tanpa lip)")
                 return self.convert_to_portrait_detector_with_progress(input_path, output_path, progress_callback)

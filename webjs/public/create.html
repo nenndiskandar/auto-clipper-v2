@@ -48,6 +48,8 @@ pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y
     <a href="/" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🏠 Library</a>
     <a href="/create.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition bg-zinc-900 text-white font-medium">＋ Create Clip</a>
     <a href="/tasks.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">📋 Tasks</a>
+    <a href="/story.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🎬 Story</a>
+    <a href="/facebook.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">📘 FB</a>
     <a href="/settings.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">⚙️ Settings</a>
   </div>
   <div class="mt-auto p-4 border-t border-zinc-800 hidden md:flex items-center justify-between text-[11px]">
@@ -147,8 +149,8 @@ pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y
           </div>
         </details>
 
-        <!-- Dynamic Camera & Pro Tuning — hidden (rapih) -->
-        <details class="cfg-group hidden">
+        <!-- Dynamic Camera & Pro Tuning -->
+        <details class="cfg-group">
           <summary class="px-2 py-1.5 text-xs font-semibold text-zinc-300 hover:text-white">🎛️ Dynamic Cam & Pro Tuning</summary>
           <div class="px-2 pb-2 space-y-2 text-xs">
             <div class="grid grid-cols-2 gap-2">
@@ -173,6 +175,31 @@ pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y
               <input type="hidden" id="f_switch_threshold" value="0.18">
               <input type="hidden" id="f_min_shot_duration" value="1.5">
             </div>
+            <div>
+                <label class="text-[10px] text-zinc-500 block mb-0.5">Face Detector (YOLO)</label>
+                <select id="f_face_detector_model" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white">
+                  <option value="mediapipe">MediaPipe (default)</option>
+                  <option value="yolo">YOLO (akurasi tinggi)</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-[10px] text-zinc-500 block mb-0.5">YOLO Model Size</label>
+                <select id="f_yolo_size" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white">
+                  <option value="tiny">tiny (cepat)</option>
+                  <option value="full">full (akurat)</option>
+                </select>
+              </div>
+              <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="f_auto_bgm" class="w-3.5 h-3.5 accent-[#facc15]"> 🎵 Auto BGM</label>
+              <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="f_auto_broll" class="w-3.5 h-3.5 accent-[#facc15]"> 🖼 Auto B-roll</label>
+              <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="f_auto_camera_switch" class="w-3.5 h-3.5 accent-[#facc15]"> 🎥 Camera Switch</label>
+              <div>
+                <label class="text-[10px] text-zinc-500 block mb-0.5">Transition Library</label>
+                <select id="f_transition_library" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white">
+                  <option value="none">none</option>
+                  <option value="random">random</option>
+                </select>
+              </div>
+              <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="f_thumbnail" class="w-3.5 h-3.5 accent-[#facc15]"> 🖼 Generate Thumbnail</label>
             <div class="grid grid-cols-2 gap-2">
               <div>
                 <label class="text-[10px] text-zinc-500 block mb-0.5">Motion Blur</label>
@@ -228,6 +255,10 @@ async function applyTemplate(key){
   setVal('f_sync_offset',c.sync_offset);setVal('f_pan_speed_limit',c.pan_speed_limit);
   setVal('f_center_weight',c.center_weight);setVal('f_switch_threshold',c.switch_threshold);
   setVal('f_min_shot_duration',c.min_shot_duration);setVal('f_lip_activity',c.lip_activity);
+  setVal('f_face_detector_model',c.face_detector_model||p2.face_detector_model);setVal('f_yolo_size',c.yolo_size||p2.yolo_size);
+  setCh('f_auto_bgm',!!(c.auto_bgm?.enabled ?? c.auto_bgm));setCh('f_auto_broll',!!(c.auto_broll?.enabled ?? c.auto_broll));setCh('f_auto_camera_switch',!!(c.auto_camera_switch?.enabled ?? c.auto_camera_switch));
+  const tlv=(x)=>(x&&typeof x==='object')?(x.enabled?(x.style||'random'):'none'):(x||'none');
+  setVal('f_transition_library',tlv(c.transition_library)||tlv(p2.transition_library)||'none');setCh('f_thumbnail',!!(c.thumbnail?.enabled ?? c.thumbnail));
   const m=$('#tplMsg');m.textContent='⏳ Menyimpan "'+t.label+'"...';m.classList.remove('hidden');
   try{
     const r=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(collectConfig())});
@@ -257,9 +288,13 @@ async function loadConfig(){
     setVal('f_num_clips',c.num_clips);setVal('f_resolution',c.resolution);setVal('f_aspect_ratio',c.aspect_ratio);setVal('f_subtitle_style',c.subtitle_style);
     setVal('f_sync_offset',c.sync_offset);setVal('f_portrait_mode',c.portrait_mode);setVal('f_face_tracking_mode',c.face_tracking_mode);
     setVal('f_pan_speed_limit',c.pan_speed_limit);setVal('f_center_weight',c.center_weight);setVal('f_switch_threshold',c.switch_threshold);
-    setVal('f_min_shot_duration',c.min_shot_duration);setVal('f_lip_activity',c.lip_activity);
+  setVal('f_min_shot_duration',c.min_shot_duration);setVal('f_lip_activity',c.lip_activity);
+  setVal('f_face_detector_model',c.face_detector_model);setVal('f_yolo_size',c.yolo_size);
+  setCh('f_auto_bgm',!!(c.auto_bgm?.enabled ?? c.auto_bgm));setCh('f_auto_broll',!!(c.auto_broll?.enabled ?? c.auto_broll));setCh('f_auto_camera_switch',!!(c.auto_camera_switch?.enabled ?? c.auto_camera_switch));
+  const tlv2=(x)=>(x&&typeof x==='object')?(x.enabled?(x.style||'random'):'none'):(x||'none');
+  setVal('f_transition_library',tlv2(c.transition_library)||'none');setCh('f_thumbnail',!!(c.thumbnail?.enabled ?? c.thumbnail));
     updateSubStyleVisibility();
-  }catch{$('#saveMsg').innerHTML='<span class="text-red-400">Gagal memuat konfigurasi.</span>';}
+  }catch(e){$('#saveMsg').innerHTML='<span class="text-red-400">Gagal memuat konfigurasi: '+esc(e.message)+'</span>'; console.error(e);}
 }
 
 function collectConfig(){
@@ -274,7 +309,10 @@ function collectConfig(){
     stabilize:c('f_stabilize'),color_grade:v('f_color_grade')||undefined,
     motion_blur:n('f_motion_blur')||0,vignette:n('f_vignette')||0,
     speed_ramp_start:n('f_speed_ramp_start')||0,speed_ramp_end:n('f_speed_ramp_end')||0,
-    speed_factor:n('f_speed_factor')||0.5,ducking_level_db:n('f_ducking_level_db')||-15};
+    speed_factor:n('f_speed_factor')||0.5,ducking_level_db:n('f_ducking_level_db')||-15,
+    face_detector_model:v('f_face_detector_model')||undefined,yolo_size:v('f_yolo_size')||undefined,
+    auto_bgm:c('f_auto_bgm')||undefined,auto_broll:c('f_auto_broll')||undefined,auto_camera_switch:c('f_auto_camera_switch')||undefined,
+    transition_library:v('f_transition_library')||undefined,thumbnail:c('f_thumbnail')||undefined};
 }
 
 async function saveConfig(){

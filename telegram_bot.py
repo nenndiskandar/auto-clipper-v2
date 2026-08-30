@@ -529,6 +529,13 @@ def get_core_instance(config_mgr: ConfigManager, log_cb=None, progress_cb=None) 
         aspect_ratio=cfg.get("aspect_ratio", "9:16"),
         mediapipe_settings=cfg.get("mediapipe_settings"),
         ai_providers=cfg.get("ai_providers"),
+        pro_settings=cfg.get("pro_settings"),
+        auto_bgm_settings=cfg.get("auto_bgm"),
+        auto_camera_switch_settings=cfg.get("auto_camera_switch"),
+        thumbnail_settings=cfg.get("thumbnail"),
+        metadata_settings=cfg.get("metadata_settings"),
+        auto_broll_settings=cfg.get("auto_broll"),
+        transition_library_settings=cfg.get("transition_library"),
         subtitle_language=cfg.get("subtitle_language", "id"),
         subtitle_sync_offset=cfg.get("subtitle_sync_offset", -0.3),
         log_callback=log_cb,
@@ -539,6 +546,10 @@ def get_core_instance(config_mgr: ConfigManager, log_cb=None, progress_cb=None) 
         core.enable_gpu_acceleration(True)
     else:
         core.enable_gpu_acceleration(False)
+    if cfg.get("face_detector_model"):
+        core.face_detector_model = cfg.get("face_detector_model")
+    if cfg.get("yolo_size"):
+        core.yolo_size = cfg.get("yolo_size")
     return core
 
 
@@ -1284,6 +1295,107 @@ async def config_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Menu konfigurasi — fungsi ganti /status"""
     return await status_command(update, context)
 
+
+async def story_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Jalankan Story Clip pipeline (butuh sources.json & story_recipe.json).
+    Usage: /story  |  /story <ratio>  (contoh /story 3:4)"""
+    app_dir = Path(__file__).parent.resolve()
+    args = context.args or []
+    ratio = args[0] if args and args[0] in ("9:16", "3:4", "1:1", "4:5", "16:9") else "9:16"
+    out_dir = app_dir / "output"
+    story_dir = out_dir / "story"
+    sources_json = story_dir / "sources.json"
+    recipe_json = story_dir / "story_recipe.json"
+    if not sources_json.exists() or not recipe_json.exists():
+        await update.message.reply_text(
+            "❌ Butuh file input dulu.\n"
+            f"• `{sources_json}`\n• `{recipe_json}`\n\n"
+            "Buat lewat web `/story.html` atau isi manual JSON lalu taruh di "
+            "`output/story/`."
+        )
+        return
+    cfg = _load_config()
+    msg = await update.message.reply_text(
+        "🎬 *Story Clip* dimulai…\n"
+        f"rasio: `{ratio}` · whisper: `{(cfg.get('story_clip') or {}).get('whisper_model', 'medium')}`\n"
+        "Ini bisa lama (download + transkripsi lokal).",
+        parse_mode="Markdown",
+    )
+    loop = asyncio.get_running_loop()
+    try:
+        from core.story import run_story_pipeline
+        from utils.helpers import get_ffmpeg_path
+        manifest = await loop.run_in_executor(
+            None,
+            run_story_pipeline,
+            str(sources_json),
+            str(recipe_json),
+            str(out_dir),
+            (cfg.get("story_clip") or {}).get("whisper_model", "medium"),
+            False,
+            "max",
+            ratio,
+            get_ffmpeg_path(),
+        )
+        if manifest:
+            lines = [f"✅ *Selesai* {len(manifest)} clip:"]
+            for m in manifest:
+                lines.append(
+                    f"• clip_{m.get('clip_id') or m.get('id')} — hook: `{m.get('hook_file') or m.get('hook') or '-'}` · highlight: `{m.get('highlight_file') or m.get('highlight') or '-'}`"
+                )
+            await context.bot.edit_message_text("\n".join(lines), chat_id=msg.chat_id, message_id=msg.message_id, parse_mode="Markdown")
+        else:
+            await context.bot.edit_message_text("⚠️ Selesai tapi manifest kosong / tidak ada output.", chat_id=msg.chat_id, message_id=msg.message_id)
+    except Exception as e:
+        await context.bot.edit_message_text(f"❌ Story gagal: `{e}`", chat_id=msg.chat_id, message_id=msg.message_id, parse_mode="Markdown")
+
+
+async def fb_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Upload clip ke Facebook Page dari render_manifest.json.
+    Usage: /fb            → upload
+           /fb test       → validasi token saja"""
+    app_dir = Path(__file__).parent.resolve()
+    args = context.args or []
+    test_mode = any(a.lower() in ("test", "check") for a in args)
+    out_dir = app_dir / "output"
+    manifest_file = out_dir / "render_manifest.json"
+    if not manifest_file.exists():
+        await update.message.reply_text("❌ `output/render_manifest.json` tidak ditemukan.", parse_mode="Markdown")
+        return
+    msg = await update.message.reply_text("📘 *Facebook upload* dimulai…\n*test mode*: " + ("YA" if test_mode else "tidak"), parse_mode="Markdown")
+    loop = asyncio.get_running_loop()
+    try:
+        import facebook_uploader
+        fb_config = facebook_uploader.load_fb_config()
+        if test_mode:
+            info = await loop.run_in_executor(None, facebook_uploader.validate_page_token, fb_config)
+            await context.bot.edit_message_text(
+                f"✅ *Token valid* — Page: `{info.get('name')}` (ID `{info.get('id')}`)\n"
+                f"Kuartal: `{info.get('category') or '-'}`",
+                chat_id=msg.chat_id, message_id=msg.message_id, parse_mode="Markdown",
+            )
+            return
+        result_file = out_dir / "fb_upload_results.json"
+        updated = out_dir / "render_manifest_fb_uploaded.json"
+        results = await loop.run_in_executor(
+            None,
+            facebook_uploader.upload_manifest_to_facebook,
+            str(manifest_file), str(result_file), str(updated), fb_config,
+        )
+        if results:
+            statuses = "\n".join(
+                f"• Rank {r.get('rank')} — `{r.get('fb_video_id') or r.get('status') or 'ok'}`"
+                for r in results
+            )
+            await context.bot.edit_message_text(f"✅ *Upload sukses* {len(results)} clip:\n{statuses}", chat_id=msg.chat_id, message_id=msg.message_id, parse_mode="Markdown")
+        else:
+            await context.bot.edit_message_text("⚠️ Tidak ada clip yang diupload (coba cek log / rate limit / status).", chat_id=msg.chat_id, message_id=msg.message_id)
+    except SystemExit:
+        raise
+    except Exception as e:
+        await context.bot.edit_message_text(f"❌ FB gagal: `{e}`", chat_id=msg.chat_id, message_id=msg.message_id, parse_mode="Markdown")
+
+
 def _apply_apikey(raw_key: str):
     """Simpan API key baru ke semua provider AI."""
     key = raw_key.strip()
@@ -1921,7 +2033,7 @@ async def status_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         cur = str(cfg.get("resolution", "1080p"))
         cfg["resolution"] = opts[(opts.index(cur) + 1) % len(opts)] if cur in opts else "1080p"
     elif data == "ratio":
-        opts = ["9:16", "1:1", "4:5", "16:9"]
+        opts = ["9:16", "3:4", "1:1", "4:5", "16:9"]
         cur = str(cfg.get("aspect_ratio", "9:16"))
         cfg["aspect_ratio"] = opts[(opts.index(cur) + 1) % len(opts)] if cur in opts else "9:16"
     elif data == "style":
@@ -1934,7 +2046,7 @@ async def status_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         idx = opts.index(cur) if cur in opts else 0
         cfg["subtitle_sync_offset"] = opts[(idx + 1) % len(opts)]
     elif data == "portrait":
-        opts = ["crop", "center", "blur", "split_podcast_dynamic"]
+        opts = ["crop", "center", "blur", "split_podcast_dynamic", "camera_switch"]
         cur = str(cfg.get("portrait_mode", "crop"))
         cfg["portrait_mode"] = opts[(opts.index(cur) + 1) % len(opts)] if cur in opts else "crop"
     elif data == "face":
@@ -3133,6 +3245,8 @@ def main():
         application.add_handler(CommandHandler("watermark", _auth_required(watermark_command)))
         application.add_handler(CommandHandler("admin", admin_command))
         application.add_handler(CommandHandler("result", _auth_required(result_command)))
+        application.add_handler(CommandHandler("story", _auth_required(story_command)))
+        application.add_handler(CommandHandler("fb", _auth_required(fb_command)))
         application.add_handler(CommandHandler("cancel_session", _auth_required(cancel_session_command)))
         application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, _auth_required(process_youtube_url)))
         application.add_handler(MessageHandler(filters.Document.ALL, _auth_required(receive_cookies_document)))
