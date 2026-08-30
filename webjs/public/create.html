@@ -192,8 +192,21 @@ pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y
                 </select>
               </div>
               <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="f_auto_bgm" class="w-3.5 h-3.5 accent-[#facc15]"> 🎵 Auto BGM</label>
-              <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="f_auto_broll" class="w-3.5 h-3.5 accent-[#facc15]"> 🖼 Auto B-roll</label>
-              <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="f_auto_camera_switch" class="w-3.5 h-3.5 accent-[#facc15]"> 🎥 Camera Switch</label>
+                            <div>
+                              <label class="text-[10px] text-zinc-500 block mb-0.5">BGM Mood</label>
+                              <select id="f_bgm_mood" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white">
+                                <option value="">— default —</option>
+                                <option value="chill">chill</option><option value="epic">epic</option>
+                                <option value="sad">sad</option><option value="upbeat">upbeat</option>
+                                <option value="suspense">suspense</option>
+                              </select>
+                            </div>
+                            <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="f_auto_broll" class="w-3.5 h-3.5 accent-[#facc15]"> 🖼 Auto B-roll</label>
+                            <div>
+                              <label class="text-[10px] text-zinc-500 block mb-0.5">B-roll Query</label>
+                              <input type="text" id="f_broll_query" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white" placeholder="mis. cinematic city">
+                            </div>
+                            <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="f_auto_camera_switch" class="w-3.5 h-3.5 accent-[#facc15]"> 🎥 Camera Switch</label>
               <div>
                 <label class="text-[10px] text-zinc-500 block mb-0.5">Transition Library</label>
                 <select id="f_transition_library" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white">
@@ -259,6 +272,7 @@ async function applyTemplate(key){
   setVal('f_min_shot_duration',c.min_shot_duration);setVal('f_lip_activity',c.lip_activity);
   setVal('f_face_detector_model',c.face_detector_model||p2.face_detector_model);setVal('f_yolo_size',c.yolo_size||p2.yolo_size);
   setCh('f_auto_bgm',!!(c.auto_bgm?.enabled ?? c.auto_bgm));setCh('f_auto_broll',!!(c.auto_broll?.enabled ?? c.auto_broll));setCh('f_auto_camera_switch',!!(c.auto_camera_switch?.enabled ?? c.auto_camera_switch));
+  setVal('f_bgm_mood',(c.auto_bgm?.mood)||'');setVal('f_broll_query',(c.auto_broll?.query)||'');
   const tlv=(x)=>(x&&typeof x==='object')?(x.enabled?(x.style||'random'):'none'):(x||'none');
   setVal('f_transition_library',tlv(c.transition_library)||tlv(p2.transition_library)||'none');setCh('f_thumbnail',!!(c.thumbnail?.enabled ?? c.thumbnail));
   const m=$('#tplMsg');m.textContent='⏳ Menyimpan "'+t.label+'"...';m.classList.remove('hidden');
@@ -293,6 +307,7 @@ async function loadConfig(){
   setVal('f_min_shot_duration',c.min_shot_duration);setVal('f_lip_activity',c.lip_activity);
   setVal('f_face_detector_model',c.face_detector_model);setVal('f_yolo_size',c.yolo_size);
   setCh('f_auto_bgm',!!(c.auto_bgm?.enabled ?? c.auto_bgm));setCh('f_auto_broll',!!(c.auto_broll?.enabled ?? c.auto_broll));setCh('f_auto_camera_switch',!!(c.auto_camera_switch?.enabled ?? c.auto_camera_switch));
+  setVal('f_bgm_mood',(c.auto_bgm?.mood)||'');setVal('f_broll_query',(c.auto_broll?.query)||'');
   const tlv2=(x)=>(x&&typeof x==='object')?(x.enabled?(x.style||'random'):'none'):(x||'none');
   setVal('f_transition_library',tlv2(c.transition_library)||'none');setCh('f_thumbnail',!!(c.thumbnail?.enabled ?? c.thumbnail));
     updateSubStyleVisibility();
@@ -313,8 +328,10 @@ function collectConfig(){
     speed_ramp_start:n('f_speed_ramp_start')||0,speed_ramp_end:n('f_speed_ramp_end')||0,
     speed_factor:n('f_speed_factor')||0.5,ducking_level_db:n('f_ducking_level_db')||-15,
     face_detector_model:v('f_face_detector_model')||undefined,yolo_size:v('f_yolo_size')||undefined,
-    auto_bgm:c('f_auto_bgm')||undefined,auto_broll:c('f_auto_broll')||undefined,auto_camera_switch:c('f_auto_camera_switch')||undefined,
-    transition_library:v('f_transition_library')||undefined,thumbnail:c('f_thumbnail')||undefined};
+        auto_bgm:(c('f_auto_bgm')?(v('f_bgm_mood')?{enabled:true,mood:v('f_bgm_mood')}:true):undefined),
+        auto_broll:(c('f_auto_broll')?(v('f_broll_query')?{enabled:true,query:v('f_broll_query')}:true):undefined),
+        auto_camera_switch:c('f_auto_camera_switch')||undefined,
+        transition_library:v('f_transition_library')||undefined,thumbnail:c('f_thumbnail')||undefined};
 }
 
 async function saveConfig(){
