@@ -61,7 +61,40 @@ pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y
   </header>
 
   <!-- CONTAINER -->
-  <main class="max-w-[1600px] w-full mx-auto p-6 space-y-6" id="sessions"></main>
+    <main class="max-w-[1600px] w-full mx-auto p-6 space-y-6">
+      <!-- DASHBOARD (agregat) -->
+      <section id="dash" class="hidden space-y-6">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4">
+            <div class="text-[10px] uppercase tracking-wider text-zinc-500">Total Sesi</div>
+            <div class="text-2xl font-bold mt-1 tabular-nums" id="d_total">–</div>
+          </div>
+          <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4">
+            <div class="text-[10px] uppercase tracking-wider text-zinc-500">Total Klip</div>
+            <div class="text-2xl font-bold mt-1 tabular-nums" id="d_clips">–</div>
+          </div>
+          <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4">
+            <div class="text-[10px] uppercase tracking-wider text-zinc-500">Story Clip</div>
+            <div class="text-2xl font-bold mt-1 tabular-nums" id="d_story">–</div>
+          </div>
+          <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4">
+            <div class="text-[10px] uppercase tracking-wider text-zinc-500">FB Upload</div>
+            <div class="text-2xl font-bold mt-1 tabular-nums" id="d_fb">–</div>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 lg:col-span-2">
+            <div class="text-xs font-semibold text-zinc-300 mb-3">🔥 Viral Score Tertinggi</div>
+            <div id="d_viral" class="space-y-2"></div>
+          </div>
+          <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4">
+            <div class="text-xs font-semibold text-zinc-300 mb-3">🎬 Story Output Terbaru</div>
+            <div id="d_storylist" class="space-y-2"></div>
+          </div>
+        </div>
+      </section>
+      <div id="sessions"></div>
+    </main>
 </div>
 
 <!-- MODAL: DETAIL -->
@@ -140,7 +173,36 @@ async function load() {
   const r = await fetch('/api/sessions');
   DATA = (await r.json()).sort((a, b) => new Date(b.created) - new Date(a.created));
   render();
+  loadDash();
 }
+
+async function loadDash() {
+  try {
+    const d = await (await fetch('/api/dashboard')).json();
+    $('#d_total').textContent = d.total_sessions ?? '–';
+    $('#d_clips').textContent = d.total_clips ?? '–';
+    $('#d_story').textContent = (d.story || []).length;
+    $('#d_fb').textContent = d.fb?.count ?? '–';
+    $('#d_viral').innerHTML = (d.top_viral || []).map(c => `
+      <a href="/session.html?id=${encodeURIComponent(c.session)}" class="flex items-center gap-3 p-2 rounded-lg hover:bg-zinc-900/60 transition group">
+        <span class="text-sm font-bold text-accent w-8 tabular-nums">${Math.round(c.score ?? 0)}</span>
+        <div class="flex-1 min-w-0">
+          <div class="text-xs text-zinc-200 truncate group-hover:text-white">${esc(c.title || c.dir)}</div>
+          <div class="text-[10px] text-zinc-500 truncate">${esc(c.session || '')}</div>
+        </div>
+      </a>`).join('') || '<div class="text-xs text-zinc-500">Belum ada klip dengan skor.</div>';
+    $('#d_storylist').innerHTML = (d.story || []).map(s => `
+      <a href="${esc(s.url)}" target="_blank" class="flex items-center gap-3 p-2 rounded-lg hover:bg-zinc-900/60 transition group">
+        <span class="text-base">🎬</span>
+        <div class="flex-1 min-w-0">
+          <div class="text-xs text-zinc-200 truncate group-hover:text-white">${esc(s.clip)} / ${esc(s.file)}</div>
+          <div class="text-[10px] text-zinc-500">${(s.size_bytes/1048576).toFixed(1)} MB</div>
+        </div>
+      </a>`).join('') || '<div class="text-xs text-zinc-500">Belum ada output story.</div>';
+    $('#dash').classList.remove('hidden');
+  } catch { /* dashboard opsional */ }
+}
+setInterval(loadDash, 15000);
 
 function esc(s) { return (s ?? '').toString().replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
@@ -358,12 +420,27 @@ function openRender(gi, ci) {
     </div>
     <hr class="border-zinc-800 my-2">
     <div class="grid grid-cols-2 gap-2">
-      ${cfgSelect('aspect_ratio', '📐 Rasio', ['9:16', '1:1', '4:5', '16:9'])}
-      ${cfgSelect('subtitle_style', '✏️ Gaya Subtitle', ['pop', 'karaoke', 'bounce', 'animated', 'pop_bounce'])}
-      ${cfgSelect('portrait_mode', '🖼️ Portrait Mode', ['crop', 'center', 'blur', 'split_podcast_dynamic'])}
-      ${cfgSelect('face_tracking_mode', '🎯 Face Tracking', ['opencv', 'mediapipe'])}
-      ${cfgNum('sync_offset', '⏱️ Sync Offset (detik)', '0.1')}
-    </div>
+      ${cfgSelect('aspect_ratio', '📐 Rasio', ['9:16', '3:4', '4:5', '1:1', '16:9'])}
+            ${cfgSelect('subtitle_style', '✏️ Gaya Subtitle', ['pop', 'karaoke', 'bounce', 'animated', 'pop_bounce'])}
+            ${cfgSelect('portrait_mode', '🖼️ Portrait Mode', ['crop', 'center', 'blur', 'split_podcast_dynamic'])}
+            ${cfgSelect('face_tracking_mode', '🎯 Face Tracking', ['opencv', 'mediapipe'])}
+            ${cfgNum('sync_offset', '⏱️ Sync Offset (detik)', '0.1')}
+          </div>
+          <div class="grid grid-cols-2 gap-2 mt-2">
+            <div>
+              <label class="text-[10px] text-zinc-500 block mb-0.5">🎵 Mood BGM</label>
+              <select onchange="CFG['bgm_mood']=this.value" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent">
+                <option value="">— default config —</option>
+                <option value="chill">chill</option><option value="epic">epic</option><option value="sad">sad</option>
+                <option value="upbeat">upbeat</option><option value="suspense">suspense</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-[10px] text-zinc-500 block mb-0.5">🎞️ Query B-roll</label>
+              <input type="text" placeholder="mis. cinematic city" oninput="CFG['broll_query']=this.value"
+                     class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent">
+            </div>
+          </div>
     <details class="border border-zinc-800 rounded bg-surface-2 mt-2">
       <summary class="px-2 py-1 text-xs font-semibold text-zinc-400 hover:text-white cursor-pointer select-none flex justify-between items-center">
         <span>🎯 Face Tracking Lanjutan</span>

@@ -7,7 +7,6 @@
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#facc15">
 <script src="/pwa.js"></script>
-<script src="/templates.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
 tailwind.config = {
@@ -23,14 +22,24 @@ tailwind.config = {
 body{background:#09090b;color:#fafafa;font-family:system-ui,-apple-system,sans-serif}
 details.cfg-group summary{cursor:pointer;user-select:none;list-style:none}
 details.cfg-group summary::-webkit-details-marker{display:none}
-details.cfg-group summary::before{content:'▸';display:inline-block;width:1em;margin-right:.5rem;transition:transform .15s}
-details.cfg-group[open] summary::before{transform:rotate(90deg)}
+::webkit-scrollbar{width:6px;height:6px}
 ::-webkit-scrollbar{width:6px;height:6px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:#3f3f46;border-radius:3px}
 pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y:auto;white-space:pre-wrap;border-radius:.5rem}
 label.fld{font-size:10px;color:#71717a;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.25rem}
-textarea.in{width:100%;background:#27272a;border:1px solid #3f3f46;border-radius:.5rem;padding:.5rem .75rem;font-size:.75rem;color:#fff;font-family:ui-monospace,monospace}
+input.in,select.in,textarea.in{width:100%;background:#27272a;border:1px solid #3f3f46;border-radius:.5rem;padding:.45rem .75rem;font-size:.75rem;color:#fff}
+textarea.in{font-family:ui-monospace,monospace}
+.src-card{border:1px solid #27272a;border-radius:.5rem;padding:.6rem .75rem;display:flex;flex-wrap:wrap;gap:.35rem;align-items:center}
+.scene-row{display:grid;grid-template-columns:1fr 1.5fr 0.9fr 0.9fr 0.9fr 2rem;gap:.4rem;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:.3rem;border-radius:.4rem;padding:.3rem .6rem;font-size:.7rem;transition:all .15s;cursor:pointer;border:1px solid #3f3f46;background:#27272a;color:#d4d4d8}
+.btn:hover{border-color:#facc15;color:#fff}
+.btn-accent{background:#facc15;color:#000;border-color:#facc15;font-weight:600}
+.btn-accent:hover{background:#fde047}
+.btn-danger{color:#f87171;border-color:rgba(248,113,113,.3);background:rgba(127,29,29,.15)}
+.btn-danger:hover{border-color:#f87171}
+.pill{font-size:.6rem;padding:.1rem .4rem;border-radius:999px;border:1px solid #3f3f46;color:#a1a1aa}
+.badge-ok{background:rgba(74,222,128,.1);color:#4ade80;border:1px solid rgba(74,222,128,.3)}
 </style>
 </head>
 <body class="min-h-screen flex flex-col md:flex-row bg-[#09090b]">
@@ -55,49 +64,74 @@ textarea.in{width:100%;background:#27272a;border:1px solid #3f3f46;border-radius
 </aside>
 
 <div class="flex-1 flex flex-col min-w-0 overflow-y-auto">
-  <main class="max-w-5xl w-full mx-auto p-4 md:p-6 space-y-4 flex-1 pb-6">
+  <main class="max-w-6xl w-full mx-auto p-4 md:p-6 space-y-4 flex-1 pb-6">
 
-    <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 space-y-3">
+    <div class="flex items-center justify-between flex-wrap gap-2">
       <div>
         <h2 class="text-sm font-semibold text-white">🎬 Story Clip Mode</h2>
-        <p class="text-[11px] text-zinc-500">Multi-source narrative → hook + highlight dalam rasio 9:16 (deteksi highlight AI + transkripsi faster-whisper lokal).</p>
+        <p class="text-[11px] text-zinc-500">Multi-source narrative → hook + highlight 9:16 (faster-whisper lokal).</p>
       </div>
-      <details class="cfg-group bg-zinc-950/50 border border-zinc-800 rounded-lg p-3">
-        <summary class="text-xs font-semibold text-zinc-300">📄 sources.json <span class="text-zinc-600 font-normal">(paste isi, lalu Simpan)</span></summary>
+      <div class="flex gap-2">
+        <button class="btn" onclick="toggleRaw()">📝 JSON Raw</button>
+        <button class="btn" onclick="saveAll()">💾 Simpan &amp; Validasi</button>
+      </div>
+    </div>
+
+    <!-- RAW JSON (collapsed by default) -->
+    <div id="rawBox" class="bg-surface-1 border border-zinc-800 rounded-xl p-4 space-y-3 hidden">
+      <details class="cfg-group bg-zinc-950/50 border border-zinc-800 rounded-lg p-3" open id="rawSourcesDl">
+        <summary class="text-xs font-semibold text-zinc-300">📄 sources.json</summary>
         <div class="pt-2 space-y-2">
-          <textarea id="srcText" rows="6" class="in" placeholder='{ "src1": { "platform": "youtube", "url": "https://...", "speaker": "A" } }'></textarea>
-          <button onclick="saveJson('sources')" class="px-3 py-1.5 bg-surface-2 border border-zinc-700 text-zinc-200 text-xs rounded hover:border-accent transition">💾 Simpan sources.json</button>
-          <span id="srcMsg" class="text-[11px] text-emerald-400"></span>
-          <p class="text-[10px] text-zinc-600">Format: { "id": { "platform": "youtube|local", "url"|"local_path": "...", "speaker": "A", "role": "host|guest" } }</p>
+          <textarea id="srcText" rows="6" class="in" placeholder='{ "sources": [ { "id": "src1", "name": "Part 1", "platform": "youtube", "url": "https://..." } ] }'></textarea>
+          <div class="flex gap-2"><button class="btn btn-accent" onclick="saveFile('sources', 1)">💾 Simpan sources.json</button><span id="srcMsgRaw" class="text-[11px] self-center"></span></div>
         </div>
       </details>
-      <details class="cfg-group bg-zinc-950/50 border border-zinc-800 rounded-lg p-3">
-        <summary class="text-xs font-semibold text-zinc-300">🎬 story_recipe.json <span class="text-zinc-600 font-normal">(paste isi, lalu Simpan)</span></summary>
+      <details class="cfg-group bg-zinc-950/50 border border-zinc-800 rounded-lg p-3" open>
+        <summary class="text-xs font-semibold text-zinc-300">🎬 story_recipe.json</summary>
         <div class="pt-2 space-y-2">
-          <textarea id="recText" rows="8" class="in" placeholder='{ "default_settings": { "ratio": "9:16" }, "clips": [ { "clip_id": 1, "hook": { "scene": { "src_id": "src1", "start": 0, "end": 10 } }, "highlight": { "scenes": [...] } } ] }'></textarea>
-          <button onclick="saveJson('recipe')" class="px-3 py-1.5 bg-surface-2 border border-zinc-700 text-zinc-200 text-xs rounded hover:border-accent transition">💾 Simpan story_recipe.json</button>
-          <span id="recMsg" class="text-[11px] text-emerald-400"></span>
-          <p class="text-[10px] text-zinc-600">Kunci scene: src_id, start, end, narasi (opsional), cut (opsional: cut|crossfade).</p>
+          <textarea id="recText" rows="8" class="in" placeholder='{ "default_settings": { "ratio": "9:16" }, "clips": [ { "clip_id": 1, "title": "...", "hook": { "scenes": [ { "source_id": "src1", "start": 0, "end": 10 } ] }, "highlight": { "scenes": [...] } } ] }'></textarea>
+          <div class="flex gap-2"><button class="btn btn-accent" onclick="saveFile('recipe', 1)">💾 Simpan story_recipe.json</button><span id="recMsgRaw" class="text-[11px] self-center"></span></div>
         </div>
       </details>
+    </div>
+
+    <!-- VISUAL EDITOR -->
+    <div id="visBox" class="space-y-4">
+
+      <!-- SOURCES -->
+      <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-zinc-400">📼 Sumber Video <span id="srcCount" class="ml-1 text-zinc-600 font-normal">(0)</span></h3>
+          <button class="btn btn-accent" onclick="addSource()">＋ Tambah Sumber</button>
+        </div>
+        <div id="srcList" class="space-y-2"></div>
+        <p class="text-[10px] text-zinc-600">Platform: youtube / tiktok / instagram / gdrive / local. Speaker opsional (A/B…).</p>
+      </div>
+
+      <!-- RECIPE CLIPS -->
+      <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-zinc-400">🎬 Story Clips <span id="clipCount" class="ml-1 text-zinc-600 font-normal">(0)</span></h3>
+          <button class="btn btn-accent" onclick="addClip()">＋ Tambah Clip</button>
+        </div>
+        <div id="clipList" class="space-y-4"></div>
+      </div>
+    </div>
+
+    <!-- RUN -->
+    <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 space-y-3">
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div>
           <label class="fld">Rasio</label>
-          <select id="sRatio" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1.5 text-xs text-white">
-            <option value="9:16">9:16</option><option value="3:4">3:4</option><option value="1:1">1:1</option><option value="4:5">4:5</option><option value="16:9">16:9</option>
-          </select>
+          <select id="sRatio" class="in"><option value="9:16">9:16</option><option value="3:4">3:4</option><option value="1:1">1:1</option><option value="4:5">4:5</option><option value="16:9">16:9</option></select>
         </div>
         <div>
           <label class="fld">Whisper Model</label>
-          <select id="sWhisper" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1.5 text-xs text-white">
-            <option value="tiny">tiny</option><option value="base">base</option><option value="small">small</option><option value="medium">medium</option><option value="large-v3">large-v3</option>
-          </select>
+          <select id="sWhisper" class="in"><option value="tiny">tiny</option><option value="base">base</option><option value="small">small</option><option value="medium" selected>medium</option><option value="large-v3">large-v3</option></select>
         </div>
         <div>
           <label class="fld">Resolusi Download</label>
-          <select id="sHeight" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1.5 text-xs text-white">
-            <option value="max">max</option><option value="1080">1080</option><option value="720">720</option><option value="480">480</option>
-          </select>
+          <select id="sHeight" class="in"><option value="max">max</option><option value="1080">1080</option><option value="720">720</option><option value="480">480</option></select>
         </div>
         <div class="flex items-end pb-1">
           <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
@@ -105,7 +139,7 @@ textarea.in{width:100%;background:#27272a;border:1px solid #3f3f46;border-radius
           </label>
         </div>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 flex-wrap">
         <button id="runBtn" onclick="runStory()" class="px-4 py-2 bg-accent text-black font-medium text-xs rounded-lg hover:bg-yellow-400 transition">▶️ RUN STORY</button>
         <button onclick="cancelStory()" class="px-3 py-2 bg-surface-2 border border-zinc-700 text-zinc-300 text-xs rounded hover:border-red-500 hover:text-red-400 transition">⏹ Cancel</button>
         <span id="runMsg" class="text-[11px] text-zinc-400"></span>
@@ -128,40 +162,180 @@ textarea.in{width:100%;background:#27272a;border:1px solid #3f3f46;border-radius
 const $ = id => document.getElementById(id);
 let POLL = null;
 
+// ---------- state ----------
+const state = { sources: [], clips: [] };
+
+function esc(s){ return (s ?? '').toString().replace(/[&<>\"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function feedLog(t){ t = t||''; const el=$('logArea'); el.classList.remove('hidden'); el.textContent += t + '\n'; el.scrollTop = el.scrollHeight; }
 function setMsg(t,c){ const el=$('runMsg'); el.textContent=t; if(c) el.style.color=c; }
 
-async function saveJson(file){
+// ---------- sources ----------
+function renderSources(){
+  const wrap = $('srcList');
+  $('srcCount').textContent = '(' + state.sources.length + ')';
+  if(!state.sources.length){ wrap.innerHTML = '<p class="text-[11px] text-zinc-600 py-2">Belum ada sumber. Klik ＋ Tambah Sumber.</p>'; return; }
+  wrap.innerHTML = state.sources.map((s, i) => `
+    <div class="src-card">
+      <span class="pill badge-ok">${esc(s.id || ('src' + (i+1)))}</span>
+      <input class="in !w-24" style="background:#18181b" value="${esc(s.id || '')}" onchange="upd(${i},'id',this.value)" placeholder="id">
+      <input class="in flex-1 min-w-[120px]" value="${esc(s.name || '')}" onchange="upd(${i},'name',this.value)" placeholder="Nama (Part 1)">
+      <select class="in !w-28" onchange="upd(${i},'platform',this.value)">
+        ${['youtube','tiktok','instagram','gdrive','local'].map(p => `<option ${s.platform===p?'selected':''}>${p}</option>`).join('')}
+      </select>
+      <input class="in flex-1 min-w-[140px]" value="${esc(s.url || s.local_path || '')}" onchange="upd(${i},'url',this.value)" placeholder="URL (atau local_path)">
+      <input class="in !w-16" value="${esc(s.speaker || '')}" onchange="upd(${i},'speaker',this.value)" placeholder="A">
+      <button class="btn btn-danger" onclick="delSource(${i})">🗑</button>
+    </div>`).join('');
+}
+function addSource(){ state.sources.push({ id:'', name:'', platform:'youtube', url:'', speaker:'' }); renderSources(); }
+function delSource(i){ state.sources.splice(i,1); renderSources(); }
+function upd(i,k,v){ state.sources[i][k] = v; if(k==='id') $('srcCount').textContent = '(' + state.sources.length + ')'; }
+
+function buildSourcesJson(){
+  const sources = state.sources.filter(s => (s.id || '').trim() && s.platform && ((s.platform==='local' ? s.local_path : s.url) || '').trim());
+  return { sources: sources.map(s => {
+    const o = { id: s.id.trim(), name: (s.name||s.id).trim(), platform: s.platform };
+    if(s.platform==='local') o.local_path = (s.local_path||s.url).trim();
+    else o.url = (s.url||'').trim();
+    if((s.speaker||'').trim()) o.speaker = s.speaker.trim();
+    return o;
+  }) };
+}
+
+// ---------- clips / recipe ----------
+function srcOptions(sel){
+  return ['', ...state.sources.map(s => s.id)].map(v => `<option value="${esc(v)}" ${v===sel?'selected':''}>${esc(v || '— pilih sumber —')}</option>`).join('');
+}
+function renderClips(){
+  const wrap = $('clipList');
+  $('clipCount').textContent = '(' + state.clips.length + ')';
+  if(!state.clips.length){ wrap.innerHTML = '<p class="text-[11px] text-zinc-600 py-2">Belum ada clip story. Klik ＋ Tambah Clip.</p>'; return; }
+  wrap.innerHTML = state.clips.map((c, ci) => `
+    <div class="border border-zinc-800 rounded-xl bg-zinc-950/50 p-3 space-y-3">
+      <div class="flex items-center gap-2 flex-wrap">
+        <input class="in !w-14" value="${esc(c.clip_id)}" onchange="updClip(${ci},'clip_id',this.value)" placeholder="1">
+        <input class="in flex-1 min-w-[140px]" value="${esc(c.title || '')}" onchange="updClip(${ci},'title',this.value)" placeholder="Judul clip">
+        <button class="btn btn-danger" onclick="delClip(${ci})">🗑 Hapus</button>
+      </div>
+      ${['hook','highlight'].map(kind => `
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold">${kind==='hook' ? '🎣 Hook' : '⭐ Highlight'}</span>
+            <div class="flex gap-1.5 items-center">
+              <select class="in !w-28" onchange="updClipTransition(${ci}, '${kind}', this.value)">
+                <option value="cut" ${(c[kind].transition||'cut')==='cut'?'selected':''}>cut</option>
+                <option value="crossfade" ${c[kind].transition==='crossfade'?'selected':''}>crossfade</option>
+                <option value="smooth" ${c[kind].transition==='smooth'?'selected':''}>smooth</option>
+              </select>
+              <button class="btn" onclick="addScene(${ci}, '${kind}')">＋ Scene</button>
+            </div>
+          </div>
+          <div class="space-y-1.5">
+          ${c[kind].scenes.map((sc, si) => `
+            <div class="scene-row">
+              <select class="in" onchange="updScene(${ci}, '${kind}', ${si}, 'source_id', this.value)">${srcOptions(sc.source_id)}</select>
+              <input class="in" value="${esc(sc.name || '')}" onchange="updScene(${ci}, '${kind}', ${si}, 'name', this.value)" placeholder="deskripsi scene (opsional)">
+              <input class="in" type="number" step="0.1" value="${sc.start ?? ''}" onchange="updScene(${ci}, '${kind}', ${si}, 'start', parseFloat(this.value))" placeholder="start">
+              <input class="in" type="number" step="0.1" value="${sc.end ?? ''}" onchange="updScene(${ci}, '${kind}', ${si}, 'end', parseFloat(this.value))" placeholder="end">
+              <input class="in" value="${esc(sc.narasi || '')}" onchange="updScene(${ci}, '${kind}', ${si}, 'narasi', this.value)" placeholder="narasi">
+              <button class="btn btn-danger" onclick="delScene(${ci}, '${kind}', ${si})">✕</button>
+            </div>`).join('')}
+          </div>
+        </div>`).join('')}
+    </div>`).join('');
+}
+function addClip(){
+  state.clips.push({ clip_id: state.clips.length+1, title:'', hook: { scenes: [{ source_id:'', name:'', start:0, end:10 }], transition:'cut' }, highlight: { scenes: [{ source_id:'', name:'', start:0, end:10 }], transition:'cut' } });
+  renderClips();
+}
+function delClip(i){ state.clips.splice(i,1); renderClips(); }
+function updClip(ci, k, v){ state.clips[ci][k] = v; }
+function updClipTransition(ci, kind, v){ state.clips[ci][kind].transition = v; }
+function addScene(ci, kind){ state.clips[ci][kind].scenes.push({ source_id:'', name:'', start:0, end:5 }); renderClips(); }
+function delScene(ci, kind, si){ state.clips[ci][kind].scenes.splice(si,1); renderClips(); }
+function updScene(ci, kind, si, k, v){ state.clips[ci][kind].scenes[si][k] = v; }
+
+function buildRecipeJson(){
+  return {
+    default_settings: { ratio: $('sRatio').value, whisper_model: $('sWhisper').value },
+    clips: state.clips.map(c => {
+      const clean = kind => ({
+        transition: c[kind].transition || 'cut',
+        scenes: (c[kind].scenes||[]).filter(sc => sc.source_id).map(sc => {
+          const o = { source_id: sc.source_id, start: Number(sc.start)||0, end: Number(sc.end)||0 };
+          if((sc.name||'').trim()) o.name = sc.name.trim();
+          if((sc.narasi||'').trim()) o.narasi = sc.narasi.trim();
+          return o;
+        }),
+      });
+      return { clip_id: c.clip_id || state.clips.indexOf(c)+1, title: c.title || ('Clip ' + (c.clip_id||state.clips.indexOf(c)+1)), hook: clean('hook'), highlight: clean('highlight') };
+    }),
+  };
+}
+
+// ---------- persistence ----------
+async function saveFile(file, quiet){
   const key = file==='sources' ? 'srcText' : 'recText';
   const r = await fetch('/api/story/save', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ file, content: $(key).value }) });
   const j = await r.json();
-  $(file==='sources'?'srcMsg':'recMsg').textContent = j.ok ? 'Tersimpan ✓' : ('❌ ' + (j.error||''));
-  fillFromConfig();
+  if(!quiet){
+    const m = $(file==='sources'?'srcMsgRaw':'recMsgRaw');
+    if(m){ m.textContent = j.ok ? 'Tersimpan ✓' : '❌ '+(j.error||''); m.style.color = j.ok ? '#4ade80' : '#f87171'; }
+  }
+  return j.ok;
+}
+async function saveAll(){
+  const ok1 = await saveFile('sources', 1), ok2 = await saveFile('recipe', 1);
+  const m = document.createElement('span');
+  setMsg((ok1 && ok2) ? '✅ sources + recipe tersimpan' : '❌ gagal simpan (cek JSON)', ok1&&ok2 ? '#4ade80' : '#f87171');
+  if(!(ok1&&ok2)) alert('Cek format JSON di tab Raw — sources: ' + (ok1?'ok':'err') + ', recipe: ' + (ok2?'ok':'err'));
 }
 
-async function fillFromConfig(){
+async function syncToRaw(){
+  $('srcText').value = JSON.stringify(buildSourcesJson(), null, 2);
+  $('recText').value = JSON.stringify(buildRecipeJson(), null, 2);
+}
+function toggleRaw(){
+  const box = $('rawBox');
+  box.classList.toggle('hidden');
+  if(!box.classList.contains('hidden')) syncToRaw();
+}
+
+// ---------- load ----------
+async function loadFromStorage(){
   try{
-    const c = await (await fetch('/api/config')).json();
+    const r1 = await fetch('/api/story/read?file=sources').then(r => r.json());
+    const r2 = await fetch('/api/story/read?file=recipe').then(r => r.json());
+    if(r1.ok && r1.content){
+      $('srcText').value = r1.content;
+      const j = JSON.parse(r1.content);
+      state.sources = (j.sources || j || []).map(s => ({ id: s.id||'', name: s.name||'', platform: s.platform||'youtube', url: s.url || s.local_path || '', local_path: s.local_path||'', speaker: s.speaker||'' }));
+    }
+    if(r2.ok && r2.content){
+      $('recText').value = r2.content;
+      const j = JSON.parse(r2.content);
+      state.clips = (j.clips || []).map(c => ({
+        clip_id: c.clip_id, title: c.title || '',
+        hook: { scenes: (c.hook?.scenes||[]).map(s => ({ source_id: s.source_id||'', name: s.name||'', start: s.start, end: s.end, narasi: s.narasi||'' })), transition: c.hook?.transition || 'cut' },
+        highlight: { scenes: (c.highlight?.scenes||[]).map(s => ({ source_id: s.source_id||'', name: s.name||'', start: s.start, end: s.end, narasi: s.narasi||'' })), transition: c.highlight?.transition || 'cut' },
+      }));
+    }
+  }catch(e){ console.error(e); }
+  renderSources(); renderClips();
+}
+function fillFromConfig(){
+  fetch('/api/config').then(r=>r.json()).then(c => {
     const sc = c.story_clip || {};
     if(sc.ratio) $('sRatio').value = sc.ratio;
     if(sc.whisper_model) $('sWhisper').value = sc.whisper_model;
     if(sc.download_source_height && sc.download_source_height!=='max') $('sHeight').value = sc.download_source_height;
-    fillStored();
-  }catch{}
+  }).catch(()=>{});
 }
 
-async function fillStored(){
-  try{
-    const src = await (await fetch('/output/story/sources.json', { method:'GET' })).text().catch(()=>null);
-    if(src && src.trim()){ try{ $('srcText').value = JSON.stringify(JSON.parse(src), null, 2); }catch{} }
-  }catch{}
-  try{
-    const rec = await (await fetch('/output/story/story_recipe.json', { method:'GET' })).text().catch(()=>null);
-    if(rec && rec.trim()){ try{ $('recText').value = JSON.stringify(JSON.parse(rec), null, 2); }catch{} }
-  }catch{}
-}
-
+// ---------- run ----------
 async function runStory(){
+  await saveAll();
+  if(!$('srcText').value.trim() || !$('recText').value.trim()){ setMsg('⚠️ Isi sources & recipe dulu','#fbbf24'); return; }
   setMsg('menjalankan…','#a1a1aa');
   $('bar').style.width='0%';
   $('logArea').textContent=''; $('logArea').classList.remove('hidden');
@@ -169,35 +343,28 @@ async function runStory(){
   const r = await fetch('/api/story/run', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
   const j = await r.json();
   if(!j.ok && !j.started){ setMsg('❌ '+ (j.error||'gagal'),'#f87171'); return; }
-  if(j.ok) setMsg('running…','#a1a1aa');
+  setMsg('running…','#a1a1aa');
   POLL = setInterval(poll, 2000);
 }
-
 async function poll(){
   try{
     const j = await (await fetch('/api/story/status')).json();
     if(j.progress!=null) $('bar').style.width = j.progress + '%';
-    if(j.log && localStorage.__storyLastLog !== j.log){ localStorage.__storyLastLog = j.log; }
     const lg = $('logArea');
     if(j.log && j.log.length > lg.textContent.length+200){ lg.textContent = j.log; lg.scrollTop = lg.scrollHeight; }
     if(!j.running){
       clearInterval(POLL); POLL=null;
-      if(j.code===0 && j.result && j.result.ok){
-        setMsg('✅ selesai — '+ (j.result.count||0) + ' clip','#4ade80');
-      } else {
-        setMsg('❌ gagal (code '+j.code+')','#f87171');
-      }
+      if(j.code===0 && j.result && j.result.ok) setMsg('✅ selesai — '+ (j.result.count||0) + ' clip','#4ade80');
+      else setMsg('❌ gagal (code '+j.code+')','#f87171');
       loadOutputs();
     }
   }catch{}
 }
-
 async function cancelStory(){
   clearInterval(POLL); POLL=null;
   await fetch('/api/story/cancel', { method:'POST' });
   setMsg('dibatalkan','#fbbf24');
 }
-
 async function loadOutputs(){
   try{
     const list = await (await fetch('/api/story/outputs')).json();
@@ -213,8 +380,7 @@ async function loadOutputs(){
   }catch{}
 }
 
-fillFromConfig();
-loadOutputs();
+fillFromConfig(); loadFromStorage(); loadOutputs();
 fetch('/api/me').then(r=>r.json()).then(u=>{ if(u && u.name){ $('whoami').textContent=u.name; } }).catch(()=>{});
 </script>
 </body>

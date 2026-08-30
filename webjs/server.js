@@ -1014,6 +1014,49 @@ except Exception as e:
         result,
       });
     }
+    // GET /api/dashboard — ringkasan agregat: total klip, viral tertinggi, story outputs, klip terbaru
+    if (p === '/api/dashboard') {
+      try {
+        const sessions = _listSessions();
+        const allClips = sessions.flatMap(s => (s.clips || []).map(c => ({ ...c, session: s.id, sessionTitle: s.title })));
+        const scored = allClips.filter(c => c.score != null).sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 5);
+        const recent = allClips.slice().sort((a, b) => (b.created || 0) - (a.created || 0)).slice(0, 5);
+        let storyOutputs = [];
+        try {
+          const base = path.join(ROOT, 'output', 'story_clips');
+          if (fs.existsSync(base)) {
+            storyOutputs = fs.readdirSync(base).filter(d => fs.statSync(path.join(base, d)).isDirectory()).sort().flatMap(d => {
+              try {
+                const dir = path.join(base, d);
+                return fs.readdirSync(dir).filter(f => f.toLowerCase().endsWith('.mp4')).map(f => ({
+                  clip: d, file: f,
+                  url: '/video/story/' + encodeURIComponent(d) + '/' + encodeURIComponent(f),
+                  size_bytes: fs.statSync(path.join(dir, f)).size,
+                  mtime: fs.statSync(path.join(dir, f)).mtimeMs,
+                }));
+              } catch { return []; }
+            }).sort((a, b) => (b.mtime || 0) - (a.mtime || 0)).slice(0, 5);
+          }
+        } catch {}
+        let fb = { count: 0, lastStatus: null };
+        try {
+          const fp = path.join(ROOT, 'output', 'fb_upload_results.json');
+          if (fs.existsSync(fp)) {
+            const rows = JSON.parse(fs.readFileSync(fp, 'utf8'));
+            fb.count = Array.isArray(rows) ? rows.length : 0;
+            fb.lastStatus = Array.isArray(rows) && rows.length ? rows[rows.length - 1] : null;
+          }
+        } catch {}
+        return json(res, 200, {
+          total_sessions: sessions.length,
+          total_clips: allClips.length,
+          top_viral: scored,
+          recent: recent,
+          story: storyOutputs,
+          fb,
+        });
+      } catch (e) { return json(res, 500, { error: String(e) }); }
+    }
     // POST /api/story/run — jalankan Story Clip pipeline (multi-source) async
     if (p === '/api/story/run' && req.method === 'POST') {
       const prev = STORY_JOBS.get('run');
@@ -1134,6 +1177,17 @@ except Exception as e:
       if (!j || j.code !== undefined) return json(res, 404, { error: 'Tidak ada upload berjalan' });
       try { process.kill(-j.proc.pid, 'SIGKILL'); } catch { try { j.proc.kill('SIGKILL'); } catch {} }
       return json(res, 200, { ok: true, cancelled: true });
+    }
+    // GET /api/story/sources | /api/story/recipe — baca JSON input (untuk editor UI)
+    if (p === '/api/story/read' && req.method === 'GET') {
+      const url = new URL(req.url, 'http://x');
+      const file = String(url.searchParams.get('file') || '').replace(/[^a-z_]/gi, '');
+      if (file !== 'sources' && file !== 'recipe') return json(res, 400, { error: 'file must be sources|recipe' });
+      const fp = path.join(ROOT, 'output', 'story', file === 'sources' ? 'sources.json' : 'story_recipe.json');
+      if (!fs.existsSync(fp)) return json(res, 200, { ok: true, content: null });
+      try {
+        return json(res, 200, { ok: true, content: fs.readFileSync(fp, 'utf8') });
+      } catch (e) { return json(res, 500, { error: String(e) }); }
     }
     // POST /api/story/save {file:'sources'|'recipe', content} — simpan JSON input ke output/story
     if (p === '/api/story/save' && req.method === 'POST') {
@@ -1269,10 +1323,12 @@ except Exception as e:
         const sel = Array.isArray(o.selected) ? o.selected.filter(x => Number.isInteger(x)) : [];
         if (!sel.length) return json(res, 400, { error: 'Tidak ada highlight dipilih' });
         const env = { ...process.env,
-          SELECTED: sel.join(','),
-          ADD_HOOK: o.hook ? '1' : '0',
-          ADD_CAPS: o.captions ? '1' : '0',
-        };
+                  SELECTED: sel.join(','),
+                  ADD_HOOK: o.hook ? '1' : '0',
+                  ADD_CAPS: o.captions ? '1' : '0',
+                  BGM_MOOD: String(o.bgm_mood || ''),
+                  BROLL_QUERY: String(o.broll_query || ''),
+                };
         const logPath = path.join(sessDir, 'process.log');
         fs.appendFileSync(logPath, `\n===== process start ${new Date().toISOString()} sel=${env.SELECTED} hook=${env.ADD_HOOK} caps=${env.ADD_CAPS} (overall: 5.0%) =====\n`);
         const out = fs.createWriteStream(logPath, { flags: 'a' });

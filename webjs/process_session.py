@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Phase 2 workflow (seperti bot): download section + render highlight terpilih.
 Usage: process_session.py <session_dir>
-Env: SELECTED="0,2,3" ADD_HOOK=0/1 ADD_CAPS=0/1
+Env: SELECTED="0,2,3" ADD_HOOK=0/1 ADD_CAPS=0/1 BGM_MOOD=... BROLL_QUERY=...
 """
 from pathlib import Path
 import sys, os, json, traceback
@@ -52,15 +52,22 @@ def main():
         mediapipe_settings=cfg.get("mediapipe_settings"),
         ai_providers=prov or None,
         pro_settings=cfg.get("pro_settings"),
-        auto_bgm_settings=cfg.get("auto_bgm"),
+        auto_bgm_settings=dict(cfg.get("auto_bgm") or {}),
         auto_camera_switch_settings=cfg.get("auto_camera_switch"),
         thumbnail_settings=cfg.get("thumbnail"),
         metadata_settings=cfg.get("metadata_settings"),
-        auto_broll_settings=cfg.get("auto_broll"),
+        auto_broll_settings=dict(cfg.get("auto_broll") or {}),
         transition_library_settings=cfg.get("transition_library"),
         subtitle_language=cfg.get("subtitle_language", "id"),
         subtitle_sync_offset=cfg.get("subtitle_sync_offset", -0.3),
     )
+    # Per-clip override: BGM mood + B-roll query (dari UI)
+    mod = os.environ.get("BGM_MOOD", "").strip()
+    bq = os.environ.get("BROLL_QUERY", "").strip()
+    if mod:
+        core.auto_bgm_settings["mood"] = mod
+    if bq:
+        core.auto_broll_settings["query"] = bq
     # GPU selalu aktif
     core.enable_gpu_acceleration(True)
     if cfg.get("face_detector_model"):
@@ -90,4 +97,3 @@ if __name__ == "__main__":
         main()
     except Exception:
         traceback.print_exc()
-        sys.exit(1)
