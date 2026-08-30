@@ -1,16 +1,12 @@
 #!/usr/bin/env python3
-"""Re-render satu klip dari section landscape yang sudah ada di clip_dir.
-Usage: render_clip.py <session_dir> <clip_dir>
-Env RENDER_OPTS (JSON): {hook,captions,watermark,credit,aspect_ratio,subtitle_style,
-sync_offset,portrait_mode,face_tracking_mode,smooth_follow,pan_speed_limit,
-center_weight,switch_threshold,min_shot_duration,lip_activity,gpu}
-Default mengikuti config.json (satu sumber dengan bot /config).
-"""
-from pathlib import Path
-import sys, os, json, traceback
+"""Re-render satu klip (dari landscape.mp4) dengan konfigurasi aktif.
 
-SESSION_DIR = sys.argv[1]
-CLIP_DIR = sys.argv[2]
+Env RENDER_OPTS (JSON): {hook,captions,watermark,credit,aspect_ratio,subtitle_style,
+portrait_mode,face_tracking_mode,sync_offset,gpu,face_detector_model,yolo_size,
+bgm_mood,bgm_path,broll_query,pexels_api_key}
+"""
+import sys, os, json, traceback
+from pathlib import Path
 
 APP_DIR = str(Path(__file__).resolve().parents[1])
 sys.path.insert(0, APP_DIR)
@@ -18,9 +14,16 @@ os.chdir(APP_DIR)
 
 from openai import OpenAI
 from config.config_manager import ConfigManager
+from utils.logger import debug_log
 from utils.helpers import get_ffmpeg_path, get_ytdlp_path
 from clipper_core import AutoClipperCore
-from utils.logger import debug_log
+
+SESSION_DIR = sys.argv[1]
+CLIP_DIR = sys.argv[2]
+
+
+def b(key, opts, default):
+    return bool(opts[key]) if key in opts else default
 
 
 def main():
@@ -40,13 +43,10 @@ def main():
     )
 
     # --- overlay opts ke config (default = config.json) ---
-    def b(key, default):
-        return bool(opts[key]) if key in opts else default
-
     wm = dict(cfg.get("watermark") or {})
-    wm["enabled"] = b("watermark", wm.get("enabled", False))
+    wm["enabled"] = b("watermark", opts, wm.get("enabled", False))
     cw = dict(cfg.get("credit_watermark") or {})
-    cw["enabled"] = b("credit", cw.get("enabled", False))
+    cw["enabled"] = b("credit", opts, cw.get("enabled", False))
 
     mp = dict(cfg.get("mediapipe_settings") or {
         "lip_activity_threshold": 0.08, "switch_threshold": 0.18,
@@ -79,15 +79,24 @@ def main():
         mediapipe_settings=mp,
         ai_providers=prov or None,
         pro_settings=cfg.get("pro_settings"),
-        auto_bgm_settings=cfg.get("auto_bgm"),
+        auto_bgm_settings=dict(cfg.get("auto_bgm") or {}),
         auto_camera_switch_settings=cfg.get("auto_camera_switch"),
         thumbnail_settings=cfg.get("thumbnail"),
         metadata_settings=cfg.get("metadata_settings"),
-        auto_broll_settings=cfg.get("auto_broll"),
+        auto_broll_settings=dict(cfg.get("auto_broll") or {}),
         transition_library_settings=cfg.get("transition_library"),
         subtitle_language=cfg.get("subtitle_language", "id"),
         subtitle_sync_offset=float(opts.get("sync_offset", cfg.get("subtitle_sync_offset", -0.3))),
     )
+    # Per-clip override: BGM mood + B-roll query (dari UI re-render)
+    if str(opts.get("bgm_mood") or "").strip():
+        core.auto_bgm_settings["mood"] = str(opts["bgm_mood"]).strip()
+    if "bgm_path" in opts and str(opts.get("bgm_path") or "").strip():
+        core.auto_bgm_settings["path"] = str(opts["bgm_path"]).strip()
+    if str(opts.get("broll_query") or "").strip():
+        core.auto_broll_settings["query"] = str(opts["broll_query"]).strip()
+    if "pexels_api_key" in opts and str(opts.get("pexels_api_key") or "").strip():
+        core.auto_broll_settings["pexels_api_key"] = str(opts["pexels_api_key"]).strip()
     if cfg.get("face_detector_model"):
         core.face_detector_model = cfg.get("face_detector_model")
     if cfg.get("yolo_size"):
@@ -118,8 +127,8 @@ def main():
     }
     core.process_clip(
         str(landscape), highlight, index=1, total_clips=1,
-        add_captions=b("captions", cfg.get("subtitle_enabled", True)),
-        add_hook=b("hook", cfg.get("hook_enabled", True)),
+        add_captions=b("captions", opts, cfg.get("subtitle_enabled", True)),
+        add_hook=b("hook", opts, cfg.get("hook_enabled", True)),
         pre_cut=True, clip_dir=str(Path(CLIP_DIR)),
     )
     debug_log("[progress] Render complete (overall: 100.0%)", flush=True)
