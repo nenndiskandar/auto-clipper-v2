@@ -105,10 +105,10 @@ pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y
             <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="f_watermark" class="w-3.5 h-3.5 accent-[#facc15]"> 🖼️ Watermark</label>
             <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="f_credit" class="w-3.5 h-3.5 accent-[#facc15]"> 🏷️ Credit</label>
             <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="f_hook" class="w-3.5 h-3.5 accent-[#facc15]"> 🖼️ Thumbnail</label>
-            <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="f_captions" class="w-3.5 h-3.5 accent-[#facc15]"> 💬 Subtitle</label>
+            <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="f_captions" onchange="updateSubStyleVisibility()" class="w-3.5 h-3.5 accent-[#facc15]"> 💬 Subtitle</label>
             <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="f_gpu" class="w-3.5 h-3.5 accent-[#facc15]"> ⚡ GPU</label>
-            <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="f_smooth_follow" class="w-3.5 h-3.5 accent-[#facc15]"> 🎯 Smooth</label>
-            <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="f_stabilize" class="w-3.5 h-3.5 accent-[#facc15]"> ⚖️ Stabilize</label>
+            <input type="checkbox" id="f_smooth_follow" class="hidden">
+            <input type="checkbox" id="f_stabilize" class="hidden">
           </div>
         </details>
 
@@ -135,21 +135,14 @@ pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y
                 </select>
               </div>
             </div>
-            <div class="grid grid-cols-2 gap-2">
-              <div>
-                <label class="text-[10px] text-zinc-500 block mb-0.5">Face Tracking</label>
-                <select id="f_face_tracking_mode" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white">
-                  <option value="mediapipe">MediaPipe</option>
-                </select>
-              </div>
-              <div>
-                <label class="text-[10px] text-zinc-500 block mb-0.5">Style Subtitle</label>
-                <select id="f_subtitle_style" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white">
-                  <option value="pop">Pop</option>
-                  <option value="karaoke">Karaoke</option>
-                  <option value="animated">Animasi</option>
-                </select>
-              </div>
+            <input type="hidden" id="f_face_tracking_mode" value="mediapipe">
+            <div id="f_subtitle_style_container" class="hidden">
+              <label class="text-[10px] text-zinc-500 block mb-0.5">Style Subtitle</label>
+              <select id="f_subtitle_style" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white">
+                <option value="pop">Pop</option>
+                <option value="karaoke">Karaoke</option>
+                <option value="animated">Animasi</option>
+              </select>
             </div>
           </div>
         </details>
@@ -211,6 +204,13 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function setCh(id,v){const el=$('#'+id);if(el)el.checked=!!v}
 function setVal(id,v){const el=$('#'+id);if(el)el.value=v??''}
+function updateSubStyleVisibility(){
+  const cap=$('#f_captions'),container=$('#f_subtitle_style_container');
+  if(cap&&container){
+    if(cap.checked) container.classList.remove('hidden');
+    else container.classList.add('hidden');
+  }
+}
 
 async function applyTemplate(key){
   const t=TEMPLATES[key];if(!t)return;
@@ -219,6 +219,7 @@ async function applyTemplate(key){
   const card=document.querySelector('[data-tpl="'+key+'"]');if(card)card.classList.add('active');
   _activeTpl=key;
   setCh('f_hook',c.hook);setCh('f_captions',c.captions);setCh('f_gpu',c.gpu);setCh('f_smooth_follow',c.smooth_follow);setCh('f_stabilize',p2.stabilize);
+  updateSubStyleVisibility();
   setVal('f_color_grade',p2.color_grade);setVal('f_motion_blur',p2.motion_blur);setVal('f_vignette',p2.vignette);
   setVal('f_speed_ramp_start',p2.speed_ramp_start);setVal('f_speed_ramp_end',p2.speed_ramp_end);
   setVal('f_speed_factor',p2.speed_factor);setVal('f_ducking_level_db',p2.ducking_level_db);
@@ -257,6 +258,7 @@ async function loadConfig(){
     setVal('f_sync_offset',c.sync_offset);setVal('f_portrait_mode',c.portrait_mode);setVal('f_face_tracking_mode',c.face_tracking_mode);
     setVal('f_pan_speed_limit',c.pan_speed_limit);setVal('f_center_weight',c.center_weight);setVal('f_switch_threshold',c.switch_threshold);
     setVal('f_min_shot_duration',c.min_shot_duration);setVal('f_lip_activity',c.lip_activity);
+    updateSubStyleVisibility();
   }catch{$('#saveMsg').innerHTML='<span class="text-red-400">Gagal memuat konfigurasi.</span>';}
 }
 

@@ -62,13 +62,13 @@ class ConfigManager:
                 if "aspect_ratio" not in config:
                     config["aspect_ratio"] = "9:16"  # "9:16", "1:1", "4:5", or "16:9"
                 # Add default MediaPipe settings if not exists — tuned for speaker-accurate (not center)
-                if "mediapipe_settings" not in config:
+                 if "mediapipe_settings" not in config:
                     config["mediapipe_settings"] = {
                         "lip_activity_threshold": 0.08,
                         "switch_threshold": 0.18,
                         "min_shot_duration": 45,
                         "center_weight": 0.15,
-                        "smooth_follow": True,
+                        "smooth_follow": False,
                         "pan_speed_limit": 1.8,
                     }
                 # Generate installation_id if not exists
@@ -125,7 +125,7 @@ class ConfigManager:
                 "switch_threshold": 0.18,
                 "min_shot_duration": 45,
                 "center_weight": 0.15,
-                "smooth_follow": True,
+                "smooth_follow": False,
                 "pan_speed_limit": 1.8
             },
             "repliz": {

@@ -192,7 +192,7 @@ class AutoClipperCore(SubtitleGeneratorMixin, EffectsMixin, DownloadMixin, Trans
             "switch_threshold": 0.18,
             "min_shot_duration": 45,
             "center_weight": 0.15,
-            "smooth_follow": True,
+            "smooth_follow": False,
             "pan_speed_limit": 1.8
         }
         

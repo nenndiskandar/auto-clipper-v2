@@ -51,7 +51,7 @@ def main():
     mp = dict(cfg.get("mediapipe_settings") or {
         "lip_activity_threshold": 0.08, "switch_threshold": 0.18,
         "min_shot_duration": 45, "center_weight": 0.15,
-        "smooth_follow": True, "pan_speed_limit": 1.8,
+        "smooth_follow": False, "pan_speed_limit": 1.8,
     })
     if "smooth_follow" in opts: mp["smooth_follow"] = bool(opts["smooth_follow"])
     if "pan_speed_limit" in opts: mp["pan_speed_limit"] = float(opts["pan_speed_limit"])
