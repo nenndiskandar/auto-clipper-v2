@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Auto Clipper</title>
+<title>Auto Clipper — Settings</title>
 <script src="/templates.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
@@ -31,6 +31,15 @@ body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-s
 @keyframes subBounce { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
 @keyframes subAnimated { 0% { opacity: 0.7; } 50% { opacity: 1; filter: hue-rotate(90deg); } 100% { opacity: 0.7; } }
 @keyframes subPop { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+/* Floating save bar */
+.save-float{position:fixed;bottom:20px;right:20px;z-index:50;display:flex;gap:8px;align-items:center;background:#18181bee;border:1px solid #27272a;border-radius:14px;padding:8px 14px;box-shadow:0 8px 30px rgba(0,0,0,.5);backdrop-filter:blur(8px);transition:transform .2s,opacity .2s}
+.save-float:hover{transform:translateY(-2px)}
+.save-float .save-msg{font-size:11px;font-weight:600;color:#4ade80;white-space:nowrap;opacity:0;transition:opacity .2s}
+.save-float .save-msg.show{opacity:1}
+@media(max-width:640px){.save-float{bottom:12px;right:12px;left:12px;justify:center;border-radius:12px}}
+/* Card section label */
+.section-label{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#71717a;padding:0 4px}
 </style>
 </head>
 <body class="min-h-screen flex flex-col md:flex-row bg-[#09090b]">
@@ -46,6 +55,8 @@ body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-s
     <a href="/" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🏠 Library</a>
     <a href="/create.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">＋ Create Clip</a>
     <a href="/tasks.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">📋 Tasks</a>
+    <a href="/story.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🎬 Story</a>
+    <a href="/facebook.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">📘 FB</a>
     <a href="/settings.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition bg-zinc-900 text-white font-medium">⚙️ Settings</a>
   </div>
   <div class="mt-auto p-4 border-t border-zinc-800 hidden md:flex items-center justify-between text-[11px]">
@@ -56,7 +67,7 @@ body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-s
 
 <!-- MAIN CONTENT WRAPPER -->
 <div class="flex-1 flex flex-col min-w-0 overflow-y-auto">
-  <main class="max-w-6xl w-full mx-auto p-4 md:p-6 space-y-5 flex-1 pb-6" id="main">
+  <main class="max-w-6xl w-full mx-auto p-4 md:p-6 space-y-6 flex-1 pb-28" id="main">
 
     <!-- TEMPLATES -->
     <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md p-4 space-y-3">
@@ -70,80 +81,89 @@ body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-s
       <div id="tplMsg" class="text-xs text-emerald-400 hidden"></div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
-    <!-- 1️⃣ SERVER AI -->
-    <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md">
-      <div class="card-head flex items-center gap-2 p-4" onclick="toggleCard(this)">
-        <span class="chev text-zinc-500" style="transform:rotate(-90deg)">▾</span>
-        <h3 class="text-xs font-semibold text-zinc-450 uppercase tracking-wider">🖥️ Server AI</h3>
-        <span id="hfStatus" class="ml-auto text-[10px] px-2 py-0.5 rounded-full border border-zinc-700 text-zinc-500">● checking…</span>
-      </div>
-      <div class="card-body p-4 pt-0 space-y-3 hidden">
-        <div class="grid grid-cols-1 gap-3">
-          <div>
-            <label class="text-[10px] text-zinc-500 block mb-0.5">Base URL</label>
-            <input id="s_server_url" placeholder="http://localhost:20128/v1" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent" oninput="debounceHfCheck()">
-          </div>
-          <div>
-            <label class="text-[10px] text-zinc-500 block mb-0.5">API Key</label>
-            <input type="password" id="s_hf_api_key" placeholder="(tidak diubah)" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent" oninput="debounceHfCheck()">
-          </div>
-          <div>
-            <label class="text-[10px] text-zinc-500 block mb-0.5">Model <button onclick="fetchModels()" class="ml-1 text-[9px] px-1 py-0.5 border border-zinc-700 rounded hover:border-accent">↻ Fetch</button></label>
-            <select id="s_hf_model" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"><option value="AUTO">AUTO</option></select>
-          </div>
-          <div class="flex items-center gap-2">
-            <button onclick="testConnection()" class="px-2.5 py-1 bg-surface-2 hover:bg-surface-3 border border-zinc-700 text-zinc-200 text-xs rounded transition">🔌 Tes Koneksi</button>
-            <span id="connMsg" class="text-[11px]"></span>
+    <!-- ── AI & ENGINE (3-col) ── -->
+    <div class="section-label">⚡ AI &amp; Engine</div>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+      <!-- 1️⃣ SERVER AI -->
+      <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md">
+        <div class="card-head flex items-center gap-2 p-4" onclick="toggleCard(this)">
+          <span class="chev text-zinc-500" style="transform:rotate(-90deg)">▾</span>
+          <h3 class="text-xs font-semibold text-zinc-450 uppercase tracking-wider">🖥️ Server AI</h3>
+          <span id="hfStatus" class="ml-auto text-[10px] px-2 py-0.5 rounded-full border border-zinc-700 text-zinc-500">● checking…</span>
+        </div>
+        <div class="card-body p-4 pt-0 space-y-3 hidden">
+          <div class="grid grid-cols-1 gap-3">
+            <div>
+              <label class="text-[10px] text-zinc-500 block mb-0.5">Base URL</label>
+              <input id="s_server_url" placeholder="http://localhost:20128/v1" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent" oninput="debounceHfCheck()">
+            </div>
+            <div>
+              <label class="text-[10px] text-zinc-500 block mb-0.5">API Key</label>
+              <input type="password" id="s_hf_api_key" placeholder="(tidak diubah)" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent" oninput="debounceHfCheck()">
+            </div>
+            <div>
+              <label class="text-[10px] text-zinc-500 block mb-0.5">Model <button onclick="fetchModels()" class="ml-1 text-[9px] px-1 py-0.5 border border-zinc-700 rounded hover:border-accent">↻ Fetch</button></label>
+              <select id="s_hf_model" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"><option value="AUTO">AUTO</option></select>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="testConnection()" class="px-2.5 py-1 bg-surface-2 hover:bg-surface-3 border border-zinc-700 text-zinc-200 text-xs rounded transition">🔌 Tes Koneksi</button>
+              <span id="connMsg" class="text-[11px]"></span>
+            </div>
           </div>
         </div>
       </div>
+
+      <!-- 2️⃣ PENCARI MOMEN -->
+      <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md">
+        <div class="card-head flex items-center gap-2 p-4" onclick="toggleCard(this)">
+          <span class="chev text-zinc-500" style="transform:rotate(-90deg)">▾</span>
+          <h3 class="text-xs font-semibold text-zinc-450 uppercase tracking-wider">🔍 Pencari Momen</h3>
+        </div>
+        <div class="card-body p-4 pt-0 space-y-3 hidden">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-[10px] text-zinc-500 block mb-0.5">Temperature</label>
+              <input type="number" step="0.05" min="0" max="2" id="s_temperature" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+            </div>
+            <div>
+              <label class="text-[10px] text-zinc-500 block mb-0.5">Bahasa Subtitle</label>
+              <input id="s_subtitle_language" placeholder="id" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+            </div>
+            <div class="md:col-span-2">
+              <label class="text-[10px] text-zinc-500 block mb-0.5">Prompt</label>
+              <textarea rows="3" id="s_hf_system_message" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3️⃣ SUBTITLE ENGINE (Faster-Whisper) -->
+      <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md">
+        <div class="card-head flex items-center gap-2 p-4" onclick="toggleCard(this)">
+          <span class="chev text-zinc-500" style="transform:rotate(-90deg)">▾</span>
+          <h3 class="text-xs font-semibold text-zinc-450 uppercase tracking-wider">💬 Subtitle Engine</h3>
+        </div>
+        <div class="card-body p-4 pt-0 space-y-3 hidden">
+          <div class="grid grid-cols-1 gap-3">
+            <div>
+              <label class="text-[10px] text-zinc-500 block mb-0.5">Bahasa Subtitle</label>
+              <input id="s_subtitle_language" placeholder="id" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+            </div>
+            <div>
+              <label class="text-[10px] text-zinc-500 block mb-0.5">🎙 Model Size <span id="fwBadge" class="text-[9px] px-1 py-0.5 rounded font-mono ml-1"></span></label>
+              <select id="s_fw_model" onchange="checkFwModels()" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"><option value="tiny">tiny</option><option value="base">base</option><option value="small">small</option><option value="medium">medium</option><option value="large-v3">large-v3</option></select>
+              <div id="fwCheck" class="mt-1 text-[10px]"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
 
-    <!-- 2️⃣ PENCARI MOMEN -->
-    <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md">
-      <div class="card-head flex items-center gap-2 p-4" onclick="toggleCard(this)">
-        <span class="chev text-zinc-500" style="transform:rotate(-90deg)">▾</span>
-        <h3 class="text-xs font-semibold text-zinc-450 uppercase tracking-wider">🔍 Pencari Momen</h3>
-      </div>
-      <div class="card-body p-4 pt-0 space-y-3 hidden">
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="text-[10px] text-zinc-500 block mb-0.5">Temperature</label>
-            <input type="number" step="0.05" min="0" max="2" id="s_temperature" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
-          </div>
-          <div>
-            <label class="text-[10px] text-zinc-500 block mb-0.5">Bahasa Subtitle</label>
-            <input id="s_subtitle_language" placeholder="id" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
-          </div>
-          <div class="md:col-span-2">
-            <label class="text-[10px] text-zinc-500 block mb-0.5">Prompt</label>
-            <textarea rows="3" id="s_hf_system_message" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"></textarea>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 2️⃣ SUBTITLE ENGINE (Faster-Whisper) -->
-    <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md">
-      <div class="card-head flex items-center gap-2 p-4" onclick="toggleCard(this)">
-        <span class="chev text-zinc-500" style="transform:rotate(-90deg)">▾</span>
-        <h3 class="text-xs font-semibold text-zinc-450 uppercase tracking-wider">💬 Subtitle Engine</h3>
-      </div>
-      <div class="card-body p-4 pt-0 space-y-3 hidden">
-        <div class="grid grid-cols-1 gap-3">
-          <div>
-            <label class="text-[10px] text-zinc-500 block mb-0.5">Bahasa Subtitle</label>
-            <input id="s_subtitle_language" placeholder="id" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
-          </div>
-          <div>
-            <label class="text-[10px] text-zinc-500 block mb-0.5">🎙 Model Size <span id="fwBadge" class="text-[9px] px-1 py-0.5 rounded font-mono ml-1"></span></label>
-            <select id="s_fw_model" onchange="checkFwModels()" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"><option value="tiny">tiny</option><option value="base">base</option><option value="small">small</option><option value="medium">medium</option><option value="large-v3">large-v3</option></select>
-            <div id="fwCheck" class="mt-1 text-[10px]"></div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- ── VIDEO & TRACKING (2-col) ── -->
+    <div class="mt-6 section-label">🎬 Video &amp; Tracking</div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
       <!-- 1. RENDER & VIDEO CONFIG -->
       <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md">
@@ -152,7 +172,7 @@ body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-s
             <span class="chev text-zinc-500">▾</span>
             <h3 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">🎬 Render Config</h3>
           </div>
-          <span class="text-[10px] text-zinc-500">Kualitas & Format Video</span>
+          <span class="text-[10px] text-zinc-500">Kualitas &amp; Format</span>
         </div>
         <div class="card-body p-4 pt-0 space-y-3 hidden">
           <div class="grid grid-cols-2 gap-3">
@@ -168,15 +188,16 @@ body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-s
               <label class="text-[10px] text-zinc-500 block mb-0.5">Portrait Mode</label>
               <select id="s_portrait_mode" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
                 <option value="crop">crop</option>
-                <option value="center">center — wajah di tengah rapih ⭐</option>
+                <option value="center">center — wajah di tengah ⭐</option>
                 <option value="blur">blur</option>
-                <option value="split_podcast_dynamic">split podcast dynamic (OpusClip-like)</option>
+                <option value="split_podcast_dynamic">split podcast dynamic</option>
               </select>
             </div>
             <input type="hidden" id="s_num_clips" value="auto">
+            <input type="checkbox" id="s_stabilize" class="hidden">
+            <input type="checkbox" id="s_smooth_follow" class="hidden">
             <div class="col-span-2 flex flex-wrap gap-4 pt-1">
-              <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="s_gpu" class="w-3.5 h-3.5 accent-[#facc15]"> ⚡ Akselerasi GPU</label>
-              <input type="checkbox" id="s_stabilize" class="hidden">
+              <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="s_gpu" class="w-3.5 h-3.5 accent-[#facc15]"> ⚡ GPU</label>
             </div>
           </div>
         </div>
@@ -187,46 +208,84 @@ body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-s
         <div class="card-head flex items-center justify-between p-4 cursor-pointer" onclick="toggleCard(this)">
           <div class="flex items-center gap-2">
             <span class="chev text-zinc-500">▾</span>
-            <h3 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">🎯 Tracking & Smart Follow</h3>
+            <h3 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">🎯 Tracking</h3>
           </div>
-          <span class="text-[10px] text-zinc-500">Auto Focus Speaker</span>
+          <span class="text-[10px] text-zinc-500">Face Follow</span>
         </div>
         <div class="card-body p-4 pt-0 space-y-3 hidden">
           <div class="grid grid-cols-2 gap-3">
-            <div class="col-span-2 hidden">
-              <input type="checkbox" id="s_smooth_follow" class="hidden">
-            </div>
             <div>
               <label class="text-[10px] text-zinc-500 block mb-0.5">Deteksi Wajah</label>
               <select id="s_face_tracking_mode" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent"><option>mediapipe</option></select>
             </div>
-            <div class="hidden">
-              <input type="hidden" id="s_pan_speed_limit" value="1.8">
+            <div>
+              <label class="text-[10px] text-zinc-500 block mb-0.5">Face Detector (YOLO)</label>
+              <select id="s_face_detector_model" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+                <option value="mediapipe">MediaPipe (default)</option>
+                <option value="yolo">YOLO (akurasi tinggi)</option>
+              </select>
             </div>
-            <div class="hidden">
-              <input type="hidden" id="s_center_weight" value="0.15">
+            <div>
+              <label class="text-[10px] text-zinc-500 block mb-0.5">YOLO Model Size</label>
+              <select id="s_yolo_size" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+                <option value="tiny">tiny (cepat)</option>
+                <option value="full">full (akurat)</option>
+              </select>
             </div>
-            <div class="hidden">
-              <input type="hidden" id="s_switch_threshold" value="0.18">
-            </div>
-            <div class="hidden">
-              <input type="hidden" id="s_min_shot_duration" value="45">
-            </div>
-            <div class="hidden">
-              <input type="hidden" id="s_lip_activity" value="0.08">
-            </div>
+            <div class="hidden"><input type="hidden" id="s_pan_speed_limit" value="1.8"></div>
+            <div class="hidden"><input type="hidden" id="s_center_weight" value="0.15"></div>
+            <div class="hidden"><input type="hidden" id="s_switch_threshold" value="0.18"></div>
+            <div class="hidden"><input type="hidden" id="s_min_shot_duration" value="45"></div>
+            <div class="hidden"><input type="hidden" id="s_lip_activity" value="0.08"></div>
           </div>
         </div>
       </div>
 
-      <!-- 3. SUBTITLE STYLE & PREVIEW -->
+      <!-- STUDIO FEATURES -->
       <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md">
         <div class="card-head flex items-center justify-between p-4 cursor-pointer" onclick="toggleCard(this)">
-          <div class="flex items-center gap-2">
-            <span class="chev text-zinc-500">▾</span>
-            <h3 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">💬 Subtitle Style</h3>
+          <span class="chev text-zinc-500">▾</span>
+          <h3 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">🎛️ Studio / Auto Enhance</h3>
+          <span class="text-[10px] text-zinc-500">BGM · B-roll · Camera · Font</span>
+        </div>
+        <div class="card-body p-4 pt-0 space-y-3 hidden">
+          <div class="grid grid-cols-2 gap-3">
+            <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="s_auto_bgm" class="w-3.5 h-3.5 accent-[#facc15]"> 🎵 Auto BGM</label>
+            <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="s_auto_broll" class="w-3.5 h-3.5 accent-[#facc15]"> 🖼 Auto B-roll</label>
+            <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="s_auto_camera_switch" class="w-3.5 h-3.5 accent-[#facc15]"> 🎥 Camera Switch</label>
+            <div>
+              <label class="text-[10px] text-zinc-500 block mb-0.5">Transition Library</label>
+              <select id="s_transition_library" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+                <option value="none">none</option>
+                <option value="random">random</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-[10px] text-zinc-500 block mb-0.5">Font Preset (Typography)</label>
+              <select id="s_font_preset" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
+                <option value="default">default</option>
+                <option value="bold">bold</option>
+                <option value="pop">pop</option>
+                <option value="minimal">minimal</option>
+              </select>
+            </div>
+            <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="s_thumbnail" class="w-3.5 h-3.5 accent-[#facc15]"> 🖼 Generate Thumb</label>
           </div>
-          <label class="flex items-center gap-1.5 text-xs text-zinc-300 cursor-pointer" onclick="event.stopPropagation()"><input type="checkbox" id="s_captions" class="w-3.5 h-3.5 accent-[#facc15]"> Bakar Subtitle</label>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── STYLE & PREVIEW (2-col) ── -->
+    <div class="mt-6 section-label">🎨 Style &amp; Preview</div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+      <!-- 3. SUBTITLE STYLE — FIXED -->
+      <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md">
+        <div class="card-head flex items-center justify-between p-4 cursor-pointer" onclick="toggleCard(this)">
+          <span class="chev text-zinc-500">▾</span>
+          <h3 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">💬 Subtitle Style</h3>
+          <label class="flex items-center gap-1.5 text-xs text-zinc-300 cursor-pointer" onclick="event.stopPropagation()"><input type="checkbox" id="s_captions" class="w-3.5 h-3.5 accent-[#facc15]"> Bakar Sub</label>
         </div>
         <div class="card-body p-4 pt-0 space-y-3 hidden">
           <div class="grid grid-cols-2 gap-3">
@@ -261,16 +320,16 @@ body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-s
             <span class="chev text-zinc-500">▾</span>
             <h3 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">🖼️ Thumbnail Style</h3>
           </div>
-          <label class="flex items-center gap-1.5 text-xs text-zinc-300 cursor-pointer" onclick="event.stopPropagation()"><input type="checkbox" id="s_hook" class="w-3.5 h-3.5 accent-[#facc15]"> Tampilkan Thumbnail Intro</label>
+          <label class="flex items-center gap-1.5 text-xs text-zinc-300 cursor-pointer" onclick="event.stopPropagation()"><input type="checkbox" id="s_hook" class="w-3.5 h-3.5 accent-[#facc15]"> Tampilkan Intro</label>
         </div>
         <div class="card-body p-4 pt-0 space-y-3 hidden">
           <div class="grid grid-cols-4 gap-2">
             <div>
               <label class="text-[9px] text-zinc-500 block mb-0.5">Box Mode</label>
               <select id="s_hs_box_mode" onchange="updateThumbnailPreview()" class="w-full bg-surface-2 border border-zinc-700 rounded px-1.5 py-1 text-xs text-white focus:outline-none focus:border-accent">
-                <option value="fit_text">Teks Fit (Default)</option>
-                <option value="full_width">Full Width Banner</option>
-                <option value="half_screen">Half Screen Block</option>
+                <option value="fit_text">Teks Fit</option>
+                <option value="full_width">Full Width</option>
+                <option value="half_screen">Half Screen</option>
               </select>
             </div>
             <div>
@@ -290,7 +349,7 @@ body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-s
               <input type="number" step="0.1" min="0.5" id="s_hs_duration" oninput="updateThumbnailPreview()" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent">
             </div>
             <div>
-              <label class="text-[9px] text-zinc-500 block mb-0.5">Glitch Effect</label>
+              <label class="text-[9px] text-zinc-500 block mb-0.5">Glitch</label>
               <label class="flex items-center h-7 cursor-pointer"><input type="checkbox" id="s_hs_glitch" onchange="updateThumbnailPreview()" class="w-3.5 h-3.5 accent-[#facc15]"></label>
             </div>
             <div>
@@ -302,20 +361,20 @@ body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-s
               <input type="color" id="s_hs_bc" oninput="updateThumbnailPreview()" class="w-full h-7 bg-surface-2 border border-zinc-700 rounded p-0.5 cursor-pointer">
             </div>
             <div class="col-span-4 pt-1">
-              <label class="text-[9px] text-zinc-500 block mb-1">Preview Thumbnail</label>
+              <label class="text-[9px] text-zinc-500 block mb-1 font-semibold uppercase">Template Viral</label>
+              <div class="flex flex-wrap gap-1.5" id="hsBar"></div>
+            </div>
+            <div class="col-span-4 pt-1">
+              <label class="text-[9px] text-zinc-500 block mb-1">Preview</label>
               <div id="thumbnailPreviewContainer" class="h-20 bg-zinc-950 border border-zinc-800 rounded-lg flex items-center justify-center overflow-hidden relative">
                 <div id="thumbnailPreview" class="px-3 py-1.5 text-xs font-black tracking-wide uppercase transition-all shadow-md text-center">🔥 INI THUMBNAIL VIRAL!</div>
               </div>
-            </div>
-            <div class="col-span-4 pt-1">
-              <label class="text-[9px] text-zinc-500 block mb-1 font-semibold uppercase">Template Thumbnail Viral</label>
-              <div class="flex flex-wrap gap-1.5" id="hsBar"></div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 5. WATERMARK STYLE & PREVIEW (posisi fix kanan atas) -->
+      <!-- 5. WATERMARK -->
       <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md">
         <div class="card-head flex items-center justify-between p-4 cursor-pointer" onclick="toggleCard(this)">
           <div class="flex items-center gap-2">
@@ -331,18 +390,17 @@ body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-s
             <button onclick="uploadWm()" class="px-2.5 py-1 bg-accent text-black text-xs font-medium rounded hover:bg-yellow-400 transition">Upload</button>
           </div>
           <div id="wmMsg" class="text-[10px] text-zinc-500 font-mono italic"></div>
-
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="text-[9px] text-zinc-500 block mb-0.5">Scale (0.01-1)</label>
+              <label class="text-[9px] text-zinc-500 block mb-0.5">Scale (0.01–1)</label>
               <input type="number" step="0.01" min="0.01" max="1" id="s_wm_scale" oninput="updateWmPreview()" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent">
             </div>
             <div>
-              <label class="text-[9px] text-zinc-500 block mb-0.5">Opacity (0-1)</label>
+              <label class="text-[9px] text-zinc-500 block mb-0.5">Opacity (0–1)</label>
               <input type="number" step="0.05" min="0" max="1" id="s_wm_op" oninput="updateWmPreview()" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent">
             </div>
             <div class="col-span-2 pt-1">
-              <label class="text-[9px] text-zinc-500 block mb-1">Preview (fix kanan atas 0.85/0.05)</label>
+              <label class="text-[9px] text-zinc-500 block mb-1">Preview (kanan atas 0.85/0.05)</label>
               <div id="wmPreviewBox" class="relative w-24 h-36 bg-zinc-950 border border-zinc-700 rounded overflow-hidden mx-auto shadow-inner flex items-center justify-center">
                 <div class="text-[9px] text-zinc-700 select-none">9:16 Video</div>
                 <div id="wmDot" class="absolute w-5 h-4 bg-accent border border-white/70 rounded-xs shadow" style="left:68%;top:6%"></div>
@@ -354,13 +412,14 @@ body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-s
 
     </div>
 
-<!-- SAVE BAR (paling bawah, di dalam MAIN) -->
-<div class="mt-8 flex items-center gap-3">
-  <button onclick="loadConfig()" class="px-3 py-1.5 bg-surface-2 hover:bg-surface-3 text-zinc-300 text-xs font-medium rounded border border-zinc-700 transition">↺ Reset</button>
-  <button onclick="saveAll()" class="px-5 py-1.5 bg-accent hover:bg-yellow-400 text-black text-xs font-bold rounded shadow transition">💾 Simpan Semua Config</button>
-  <span id="saveMsg" class="text-xs font-semibold text-emerald-400 hidden ml-2"></span>
-</div>
   </main>
+</div>
+
+<!-- FLOATING SAVE BAR -->
+<div class="save-float" id="saveFloatBar">
+  <button onclick="loadConfig()" class="px-3 py-1.5 bg-surface-2 hover:bg-surface-3 text-zinc-300 text-xs font-medium rounded border border-zinc-700 transition">↺ Reset</button>
+  <button onclick="saveAll()" class="px-4 py-1.5 bg-accent hover:bg-yellow-400 text-black text-xs font-bold rounded shadow transition">💾 Simpan</button>
+  <span id="saveMsg" class="save-msg"></span>
 </div>
 
 <script>
@@ -387,12 +446,11 @@ function updateThumbnailPreview() {
   const glitch = $('#s_hs_glitch').checked;
   const mode = $('#s_hs_box_mode')?.value || 'fit_text';
   const opacity = Math.min(100, Math.max(0, parseInt($('#s_hs_opacity')?.value ?? 100))) / 100;
-  
+
   const el = $('#thumbnailPreview');
   const container = $('#thumbnailPreviewContainer');
   if (!el || !container) return;
 
-  // Convert hex to rgba
   let r = 0, g = 0, b = 0;
   if (bc.length === 7) {
     r = parseInt(bc.slice(1, 3), 16);
@@ -434,12 +492,10 @@ function updateSubPreview() {
   const style = $('#s_subtitle_style').value;
   const hi = $('#subHighlight');
   const box = $('#subPreviewBox');
-  
-  // Reset animations
+
   hi.style.animation = 'none';
-  hi.offsetHeight; // trigger reflow
-  
-  // Style and apply animations
+  hi.offsetHeight;
+
   if (style === 'karaoke') {
     hi.className = 'text-yellow-400 underline font-black transition-all duration-300';
     hi.style.animation = 'subKaraoke 1s infinite alternate';
@@ -449,7 +505,7 @@ function updateSubPreview() {
   } else if (style === 'animated') {
     hi.className = 'text-cyan-400 font-bold';
     hi.style.animation = 'subAnimated 1.5s infinite linear';
-  } else { // pop
+  } else {
     hi.className = 'text-yellow-400 font-bold';
     hi.style.animation = 'subPop 0.8s infinite ease-out';
   }
@@ -457,7 +513,6 @@ function updateSubPreview() {
 
 function updateWmPreview() {
   const on = $('#s_wm_on').checked;
-  // posisi fix kanan atas 0.85,0.05
   const op = Math.min(1, Math.max(0, parseFloat($('#s_wm_op').value) || 0.8));
   const dot = $('#wmDot');
   dot.style.display = on ? 'block' : 'none';
@@ -504,7 +559,7 @@ function applyTemplate(k) {
   const t = TEMPLATES[k];
   if (!t) return;
   populateForm({ ...collectFormData(), ...t.cfg });
-  
+
   const m = $('#tplMsg');
   m.classList.remove('hidden');
   m.textContent = `✅ Template "${t.label}" diterapkan! (${t.desc})`;
@@ -538,6 +593,8 @@ function collectFormData() {
     stabilize: $('#s_stabilize').checked,
     smooth_follow: $('#s_smooth_follow').checked,
     face_tracking_mode: $('#s_face_tracking_mode').value,
+    face_detector_model: $('#s_face_detector_model')?.value || 'mediapipe',
+    yolo_size: $('#s_yolo_size')?.value || 'tiny',
     pan_speed_limit: parseFloat($('#s_pan_speed_limit').value) || 1.8,
     center_weight: parseFloat($('#s_center_weight').value) || 0.15,
     switch_threshold: parseFloat($('#s_switch_threshold').value) || 0.18,
@@ -574,6 +631,12 @@ function collectFormData() {
     speed_ramp_end: parseFloat($('#s_speed_ramp_end')?.value) || 0,
     speed_factor: parseFloat($('#s_speed_factor')?.value) || 1.0,
     ducking_level_db: parseFloat($('#s_ducking_level_db')?.value) || -12,
+    auto_bgm: $('#s_auto_bgm')?.checked,
+    auto_broll: $('#s_auto_broll')?.checked,
+    auto_camera_switch: $('#s_auto_camera_switch')?.checked,
+    transition_library: $('#s_transition_library')?.value || 'none',
+    font_preset: $('#s_font_preset')?.value || 'default',
+    thumbnail: $('#s_thumbnail')?.checked,
   };
 }
 
@@ -596,6 +659,8 @@ function populateForm(d) {
   chk('s_stabilize', d.stabilize);
   chk('s_smooth_follow', d.smooth_follow !== false);
   set('s_face_tracking_mode', d.face_tracking_mode || 'opencv');
+  set('s_face_detector_model', d.face_detector_model || 'mediapipe');
+  set('s_yolo_size', d.yolo_size || 'tiny');
   set('s_pan_speed_limit', d.pan_speed_limit ?? 1.8);
   set('s_center_weight', d.center_weight ?? 0.15);
   set('s_switch_threshold', d.switch_threshold ?? 0.18);
@@ -605,7 +670,7 @@ function populateForm(d) {
   set('s_subtitle_style', d.subtitle_style || 'pop');
   set('s_sync_offset', d.sync_offset ?? 0);
   chk('s_hook', !!d.hook);
-  
+
   if (d.hook_style) {
     set('s_hs_box_mode', d.hook_style.box_mode || 'fit_text');
     set('s_hs_size', d.hook_style.font_size ?? 0.075);
@@ -616,7 +681,7 @@ function populateForm(d) {
     const b=document.getElementById('s_hs_bc'); if(b) b.value=d.hook_style.bg_color || '#000000';
     chk('s_hs_glitch', !!d.hook_style.glitch);
   }
-  
+
   chk('s_wm_on', !!d.watermark_enabled);
   set('s_wm_scale', d.watermark_scale ?? 0.15);
   set('s_wm_op', d.watermark_opacity ?? 0.8);
@@ -628,6 +693,14 @@ function populateForm(d) {
   set('s_speed_ramp_end', d.speed_ramp_end ?? 0);
   set('s_speed_factor', d.speed_factor ?? 1.0);
   set('s_ducking_level_db', d.ducking_level_db ?? -12);
+
+  chk('s_auto_bgm', !!(d.auto_bgm?.enabled ?? d.auto_bgm));
+  chk('s_auto_broll', !!(d.auto_broll?.enabled ?? d.auto_broll));
+  chk('s_auto_camera_switch', !!(d.auto_camera_switch?.enabled ?? d.auto_camera_switch));
+  const tl = (d.transition_library && typeof d.transition_library === 'object') ? (d.transition_library.enabled ? (d.transition_library.style || 'random') : 'none') : (d.transition_library || 'none');
+  set('s_transition_library', tl);
+  set('s_font_preset', (typeof d.font_preset === 'string' && d.font_preset) ? d.font_preset.toLowerCase() : 'default');
+  chk('s_thumbnail', !!(d.thumbnail?.enabled ?? d.thumbnail));
 
   try{ updateThumbnailPreview(); }catch(e){}
   try{ updateSubPreview(); }catch(e){}
@@ -656,9 +729,9 @@ async function saveAll() {
     });
     if (!res.ok) throw new Error(await res.text());
     const m = $('#saveMsg');
-    m.classList.remove('hidden');
-    m.textContent = '✅ Semua konfigurasi berhasil disimpan!';
-    setTimeout(() => m.classList.add('hidden'), 4000);
+    m.classList.add('show');
+    m.textContent = '✅ Config tersimpan!';
+    setTimeout(() => m.classList.remove('show'), 3000);
     const toast=document.getElementById('toast');
     if(toast){ toast.textContent='✅ Config tersimpan!'; toast.classList.remove('hidden'); setTimeout(()=>toast.classList.add('hidden'),3000); }
   } catch (e) {
@@ -720,7 +793,6 @@ async function checkFwModels(){
     const r=await fetch('/api/whisper/models'); const list=await r.json();
     const cur=list.find(x=>x.size===sel);
     if(badge){ badge.textContent=cur&&cur.installed?'✓ installed '+cur.mb:'✗ belum download'; badge.className='text-[9px] px-1 py-0.5 rounded font-mono ml-1 '+(cur&&cur.installed?'bg-emerald-900 text-emerald-300':'bg-red-900 text-red-300'); }
-    // list all
     box.innerHTML=list.map(x=>`<span class="inline-block mr-2 ${x.installed?'text-emerald-400':'text-zinc-500'}">${x.installed?'✓':'○'} ${x.size}${x.mb?' '+x.mb:''}</span>`).join('') + (cur&&!cur.installed?` <button onclick="downloadFwModel('${sel}')" class="ml-2 px-2 py-0.5 bg-accent text-black rounded text-[10px] font-bold">⬇ Download ${sel}</button>`:'');
   }catch(e){ box.textContent='Gagal cek: '+e.message; }
 }
