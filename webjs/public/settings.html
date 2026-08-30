@@ -176,7 +176,7 @@ body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-s
             <input type="hidden" id="s_num_clips" value="auto">
             <div class="col-span-2 flex flex-wrap gap-4 pt-1">
               <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="s_gpu" class="w-3.5 h-3.5 accent-[#facc15]"> ⚡ Akselerasi GPU</label>
-              <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="s_stabilize" class="w-3.5 h-3.5 accent-[#facc15]"> 🛡️ Stabilize Video</label>
+              <input type="checkbox" id="s_stabilize" class="hidden">
             </div>
           </div>
         </div>
@@ -193,8 +193,8 @@ body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-s
         </div>
         <div class="card-body p-4 pt-0 space-y-3 hidden">
           <div class="grid grid-cols-2 gap-3">
-            <div class="col-span-2">
-              <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer pb-1"><input type="checkbox" id="s_smooth_follow" class="w-3.5 h-3.5 accent-[#facc15]"> Aktifkan Smooth Follow Kamera</label>
+            <div class="col-span-2 hidden">
+              <input type="checkbox" id="s_smooth_follow" class="hidden">
             </div>
             <div>
               <label class="text-[10px] text-zinc-500 block mb-0.5">Deteksi Wajah</label>

@@ -453,7 +453,7 @@ const server = http.createServer((req, res) => {
           sync_offset: cfg.subtitle_sync_offset ?? -0.3,
           portrait_mode: cfg.portrait_mode || 'crop',
           face_tracking_mode: cfg.face_tracking_mode || 'opencv',
-          smooth_follow: mp.smooth_follow !== false,
+          smooth_follow: !!mp.smooth_follow,
           pan_speed_limit: mp.pan_speed_limit ?? 1.8,
           center_weight: mp.center_weight ?? 0.15,
           switch_threshold: mp.switch_threshold ?? 0.18,

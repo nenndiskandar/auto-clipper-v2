@@ -11,7 +11,7 @@ window.UNIFIED_TEMPLATES = {
       hook: true,
       gpu: true,
       hook_style: { font_color: '#ffffff', bg_color: '#000000', corner_radius: 12, font_size: 0.08, glitch: true },
-      smooth_follow: true,
+      smooth_follow: false,
       face_tracking_mode: 'mediapipe',
       pan_speed_limit: 1.5,
       center_weight: 0.6,
@@ -19,7 +19,7 @@ window.UNIFIED_TEMPLATES = {
       min_shot_duration: 30,
       lip_activity: 0.05,
       color_grade: 'cinematic',
-      stabilize: true,
+      stabilize: false,
       sync_offset: 0
     }
   },
@@ -57,7 +57,7 @@ window.UNIFIED_TEMPLATES = {
       hook: true,
       gpu: true,
       hook_style: { font_color: '#ffffff', bg_color: '#000000', corner_radius: 12, font_size: 0.075, glitch: false },
-      smooth_follow: true,
+      smooth_follow: false,
       face_tracking_mode: 'mediapipe',
       pan_speed_limit: 1.6,
       center_weight: 0.10,
@@ -80,7 +80,7 @@ window.UNIFIED_TEMPLATES = {
       hook: true,
       gpu: true,
       hook_style: { font_color: '#25f4ee', bg_color: '#111118', corner_radius: 10, font_size: 0.08, glitch: true },
-      smooth_follow: true,
+      smooth_follow: false,
       face_tracking_mode: 'opencv',
       pan_speed_limit: 3.0,
       center_weight: 0.15,
@@ -104,7 +104,7 @@ window.UNIFIED_TEMPLATES = {
       hook: true,
       gpu: true,
       hook_style: { font_color: '#ffffff', bg_color: '#fe2c55', corner_radius: 8, font_size: 0.075, glitch: false },
-      smooth_follow: true,
+      smooth_follow: false,
       face_tracking_mode: 'mediapipe',
       pan_speed_limit: 1.0,
       center_weight: 0.20,
@@ -112,7 +112,7 @@ window.UNIFIED_TEMPLATES = {
       min_shot_duration: 60,
       lip_activity: 0.08,
       color_grade: 'none',
-      stabilize: true,
+      stabilize: false,
       sync_offset: -0.3
     }
   },
@@ -134,7 +134,7 @@ window.UNIFIED_TEMPLATES = {
       min_shot_duration: 60,
       lip_activity: 0.08,
       color_grade: 'none',
-      stabilize: true,
+      stabilize: false,
       sync_offset: -0.3
     }
   },
@@ -149,7 +149,7 @@ window.UNIFIED_TEMPLATES = {
       hook: true,
       gpu: true,
       hook_style: { font_color: '#ffffff', bg_color: '#000000', corner_radius: 12, font_size: 0.075, glitch: false },
-      smooth_follow: true,
+      smooth_follow: false,
       face_tracking_mode: 'mediapipe',
       pan_speed_limit: 1.8,
       center_weight: 0.4,

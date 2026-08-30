@@ -1824,7 +1824,6 @@ def build_status(cfg: dict):
         f"⏱️ Sync Offset: `{sync}`s\n"
         f"🖼️ Portrait Mode: `{portrait}`\n"
         f"🎯 Face Tracking: `{face}`\n"
-        f"🎯 Smooth Follow: `{'On' if smooth else 'Off'}`\n"
         f"🎯 Pan Speed Limit: `{pan}`\n"
         f"🎯 Center Weight: `{center}`\n"
         f"🎯 Switch Threshold: `{switch}`\n"
@@ -1862,7 +1861,6 @@ def build_status(cfg: dict):
             InlineKeyboardButton(f"⚡ GPU {'On' if gpu else 'Off'}", callback_data="st_gpu"),
         ],
         [
-            InlineKeyboardButton(f"Smooth {'On' if smooth else 'Off'}", callback_data="st_smooth"),
             InlineKeyboardButton(f"Pan {pan}", callback_data="st_pan"),
         ],
         [
