@@ -1,0 +1,188 @@
+{
+  "telegram_bot_token": "<redacted>",
+  "telegram_api_id": "<redacted>",
+  "telegram_api_hash": "<redacted>",
+  "telegram_phone": "+6285847406352",
+  "telegram_session": "ytclipper_client",
+  "api_key": "<redacted>",
+  "base_url": "http://localhost:20128/v1",
+  "model": "AUTO",
+  "tts_model": "edge-tts/id-ID-GadisNeural",
+  "temperature": 0.7,
+  "output_dir": "<redacted>",
+  "system_prompt": "<redacted>",
+  "installation_id": "<redacted>",
+  "ai_providers": {
+    "_provider_type": "custom",
+    "highlight_finder": {
+      "base_url": "http://localhost:20128/v1",
+      "api_key": "<redacted>",
+      "model": "Loading…",
+      "system_message": "<redacted>"
+    },
+    "caption_maker": {
+      "base_url": "https://api.openai.com/v1",
+      "api_key": "",
+      "model": "whisper-1",
+      "faster_whisper": {
+        "model_size": "medium"
+      }
+    },
+    "hook_maker": {
+      "base_url": "http://localhost:20128/v1/",
+      "api_key": "<redacted>",
+      "model": "edge-tts/id-ID-GadisNeural"
+    },
+    "youtube_title_maker": {
+      "base_url": "http://localhost:20128/v1",
+      "api_key": "",
+      "model": "GEMINI"
+    }
+  },
+  "watermark": {
+    "enabled": false,
+    "image_path": "<redacted>",
+    "position_x": 0.85,
+    "position_y": 0.05,
+    "position": "",
+    "padding": 0.02,
+    "text": "",
+    "opacity": 0.8,
+    "scale": 0.15
+  },
+  "face_tracking_mode": "mediapipe",
+  "mediapipe_settings": {
+    "lip_activity_threshold": 0,
+    "switch_threshold": 0.18,
+    "min_shot_duration": 45,
+    "center_weight": 0.12,
+    "smooth_follow": true,
+    "pan_speed_limit": 1.5
+  },
+  "repliz": {
+    "access_key": "",
+    "secret_key": ""
+  },
+  "gpu_acceleration": {
+    "enabled": true
+  },
+  "tos_accepted": true,
+  "autoklip_promo_shown": true,
+  "hook_style": {
+    "font_name": "Corbel Bold",
+    "font_path": "C:\\\\Windows\\\\Fonts\\\\corbelb.ttf",
+    "font_size": 0.085,
+    "font_color": "#000000",
+    "bg_color": "#ccff00",
+    "corner_radius": 8,
+    "position_x": 0.5,
+    "position_y": 0.33,
+    "glitch": true,
+    "box_mode": "fit_text",
+    "bg_opacity": 100,
+    "duration": 1
+  },
+  "credit_watermark": {
+    "enabled": false,
+    "position_x": 0.5166666666666667,
+    "position_y": 0.9052083333333333,
+    "size": 0.020000000000000004,
+    "opacity": 0.3999999999999999
+  },
+  "appearance_mode": "dark",
+  "provider_type": "custom",
+  "portrait_mode": "center",
+  "subtitle_style": "pop",
+  "aspect_ratio": "9:16",
+  "subtitle_sync_offset": -0.25,
+  "resolution": "1080p",
+  "hook_enabled": false,
+  "startup_notify_chat_id": 233439175,
+  "subtitle_enabled": true,
+  "num_clips": 5,
+  "telegram_bot_commands": [
+    "start",
+    "help",
+    "status",
+    "result",
+    "<redacted>",
+    "config"
+  ],
+  "owner_id": 233439175,
+  "allowed_user_ids": [
+    233439175
+  ],
+  "pro_settings": {
+    "stabilize": false,
+    "color_grade": "cinematic",
+    "motion_blur": 0,
+    "vignette": 0,
+    "speed_ramp_start": 0,
+    "speed_ramp_end": 0,
+    "speed_factor": 0.5,
+    "ducking_level_db": -15
+  },
+  "subtitle_language": "id",
+  "font_preset": "DEFAULT",
+  "face_detector_model": "mediapipe",
+  "yolo_size": "8n",
+  "auto_bgm": {
+    "enabled": false,
+    "mood": "",
+    "mode": "ducking",
+    "base_volume": 0.25,
+    "bgm_dir": "",
+    "path": ""
+  },
+  "auto_broll": {
+    "enabled": false,
+    "pexels_api_key": "",
+    "per_clip": 1,
+    "duration": 3,
+    "mix_volume": 0.35
+  },
+  "transition_library": {
+    "enabled": false,
+    "type": "slide_up",
+    "duration": 0.5
+  },
+  "auto_camera_switch": {
+    "enabled": false,
+    "hold_duration": 2,
+    "blend_duration": 0,
+    "deadzone": 0.15,
+    "smooth": 0.3,
+    "max_zoom": 3
+  },
+  "thumbnail": {
+    "enabled": false,
+    "text": "",
+    "render_front": true,
+    "position": "bottom",
+    "font_size": 0.05
+  },
+  "metadata_settings": {
+    "classification": "auto",
+    "target_platforms": [
+      "youtube",
+      "tiktok",
+      "facebook"
+    ],
+    "save_preview": true
+  },
+  "story_clip": {
+    "enabled": false,
+    "ratio": "9:16",
+    "whisper_model": "medium",
+    "download_source_height": "max"
+  },
+  "facebook_uploader": {
+    "enabled": false,
+    "page_id": "",
+    "access_token": "",
+    "graph_version": "v25.0",
+    "tz_name": "Asia/Makassar",
+    "interval_hours": 5,
+    "test_mode": false
+  }
+}
