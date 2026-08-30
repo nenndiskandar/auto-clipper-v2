@@ -11,9 +11,34 @@ const ROOT = path.resolve(__dirname, '..');
 const SESSIONS = path.join(ROOT, 'output', 'sessions');
 const PUBLIC = path.join(__dirname, 'public');
 const PORT = process.env.PORT || 3000;
-const PY = process.platform === 'win32'
-  ? (process.env.CLIPPER_PY || 'C:/Users/ISKAN-PC/AppData/Local/Python/pythoncore-3.11-64/python.exe')
-  : '/usr/bin/python3';
+const isWin = process.platform === 'win32';
+// Resolve Python at startup: env override first, else probe candidates for a
+// working Python 3 with cv2 (the pipeline's hard dependency). This keeps the
+// server runnable on Windows, macOS, and Linux without per-machine edits.
+const { execFileSync } = require('child_process');
+function resolvePy() {
+  if (process.env.CLIPPER_PY) return process.env.CLIPPER_PY;
+  const cands = isWin ? ['py', 'python', 'python3'] : ['/usr/bin/python3', 'python3', 'python'];
+  for (const c of cands) {
+    try {
+      execFileSync(c, ['-c', 'import cv2, sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)'], { stdio: 'ignore' });
+      return c;
+    } catch {}
+  }
+  return cands[0]; // fallback: let the script surface the real error
+}
+const PY = resolvePy();
+
+// Resolve bundled/system ffmpeg: <ROOT>/ffmpeg/ffmpeg[.exe] first, then PATH, else 'ffmpeg'.
+const FFMPEG = (() => {
+  const bundled = path.join(ROOT, 'ffmpeg', isWin ? 'ffmpeg.exe' : 'ffmpeg');
+  if (fs.existsSync(bundled)) return bundled;
+  for (const dir of (process.env.PATH || '').split(path.delimiter)) {
+    const full = path.join(dir, isWin ? 'ffmpeg.exe' : 'ffmpeg');
+    if (fs.existsSync(full)) return full;
+  }
+  return 'ffmpeg';
+})();
 
 // Force Python child stdout/stderr to be line-buffered instead of block-buffered.
 // Without this, helper scripts (process_session, render_clip, phase1_create,
@@ -436,11 +461,14 @@ const server = http.createServer((req, res) => {
       const dir = path.join(SESSIONS, safe(mDel[1]), 'clips', safe(mDel[2]));
       if (!dir.startsWith(SESSIONS) || !fs.existsSync(dir)) return json(res, 404, { error: 'not found' });
       invalidateSessions();
-      execFile('trash', [dir], err => {
-        if (err) fs.rmSync(dir, { recursive: true, force: true });
-        json(res, 200, { ok: true, method: err ? 'rm' : 'trash' });
-      });
-      return;
+            // Cross-platform delete: shell-trash (Win/mac/Linux) bila ada, fallback rm
+            try {
+              require('shell-trash').trash(dir).then(
+                () => json(res, 200, { ok: true, method: 'trash' }),
+                () => { fs.rmSync(dir, { recursive: true, force: true }); json(res, 200, { ok: true, method: 'rm' }); }
+              );
+            } catch { fs.rmSync(dir, { recursive: true, force: true }); json(res, 200, { ok: true, method: 'rm' }); }
+            return;
     }
     // POST /api/delete-session/:session — hapus seluruh folder sesi (trash bila ada, fallback rm)
     const mDelS = p.match(/^\/api\/delete-session\/([^/]+)$/);
@@ -448,11 +476,14 @@ const server = http.createServer((req, res) => {
       const dir = path.join(SESSIONS, safe(mDelS[1]));
       if (!dir.startsWith(SESSIONS) || !fs.existsSync(dir)) return json(res, 404, { error: 'not found' });
       invalidateSessions();
-      execFile('trash', [dir], err => {
-        if (err) fs.rmSync(dir, { recursive: true, force: true });
-        json(res, 200, { ok: true, method: err ? 'rm' : 'trash' });
-      });
-      return;
+            // Cross-platform delete: shell-trash (Win/mac/Linux) bila ada, fallback rm
+            try {
+              require('shell-trash').trash(dir).then(
+                () => json(res, 200, { ok: true, method: 'trash' }),
+                () => { fs.rmSync(dir, { recursive: true, force: true }); json(res, 200, { ok: true, method: 'rm' }); }
+              );
+            } catch { fs.rmSync(dir, { recursive: true, force: true }); json(res, 200, { ok: true, method: 'rm' }); }
+            return;
     }
     // GET /api/config — konfigurasi aktif (satu sumber dengan bot /config)
     if (p === '/api/config' && req.method === 'GET') {
@@ -831,10 +862,22 @@ except Exception as e:
     }
     // GET /api/binaries — status dependensi
     if (p === '/api/binaries') {
-      const bin = [
-        { name: 'ffmpeg', ok: fs.existsSync(path.join(ROOT, 'ffmpeg')), detail: path.join(ROOT, 'ffmpeg') + ' (bundled)' },
-        { name: 'deno', ok: fs.existsSync(path.join(ROOT, 'bin', 'deno')), detail: path.join(ROOT, 'bin', 'deno') + ' (bundled)' },
-      ];
+          // Cross-platform binary probe: bundled first (with .exe on Windows), then PATH.
+          const findBin = (name, rel) => {
+            const probe = isWin ? [rel + '.exe', rel] : [rel];
+            for (const p of probe) if (fs.existsSync(p)) return { ok: true, detail: p + ' (bundled)' };
+            for (const dir of (process.env.PATH || '').split(path.delimiter)) {
+              for (const p of probe) {
+                const full = path.join(dir, path.basename(p));
+                if (fs.existsSync(full)) return { ok: true, detail: full + ' (PATH)' };
+              }
+            }
+            return { ok: false, detail: 'tidak terdeteksi' };
+          };
+          const bin = [
+            { name: 'ffmpeg', ...findBin('ffmpeg', path.join(ROOT, 'ffmpeg', 'ffmpeg')) },
+            { name: 'deno', ...findBin('deno', path.join(ROOT, 'bin', 'deno')) },
+          ];
       // ponytail: versi yt-dlp dicek tiap request (~300ms); cache kalau jadi bottleneck
       execFile(PY, ['-c', 'import yt_dlp;print(yt_dlp.version.__version__)'], (err, stdout) => {
         bin.push({ name: 'yt-dlp', ok: !err, detail: err ? 'tidak terdeteksi' : 'v' + stdout.trim() + ' (module)' });
@@ -1245,8 +1288,12 @@ except Exception as e:
         if (job.code !== undefined) return json(res, 409, { error: 'job sudah selesai' });
         try {
           const pid = job.proc.pid;
-          // bunuh subtree (python bisa spawn ffmpeg)
-          execFile('pkill', ['-TERM', '-P', String(pid)], () => {});
+                    // bunuh subtree (python bisa spawn ffmpeg) — pkill di Unix, taskkill /T di Windows
+                    if (isWin) {
+                      try { execFileSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore' }); } catch {}
+                    } else {
+                      execFile('pkill', ['-TERM', '-P', String(pid)], () => {});
+                    }
           try { process.kill(-pid, 'SIGTERM'); } catch { try { job.proc.kill('SIGTERM'); } catch {} }
           setTimeout(() => { try { process.kill(-pid, 'SIGKILL'); } catch { try { job.proc.kill('SIGKILL'); } catch {} } }, 4000);
         } catch {}
@@ -1391,7 +1438,7 @@ except Exception as e:
       if (!src) src = VARIANTS.find(v => fs.existsSync(path.join(dir, v))) || fs.readdirSync(dir).find(f => f.toLowerCase().endsWith('.mp4'));
       if (!src) return json(res, 404, { error: 'no video' });
       const tmp = path.join(dir, 'thumb.tmp.jpg');
-      return execFile('ffmpeg', ['-y', '-ss', '3', '-i', path.join(dir, src), '-frames:v', '1', '-vf', 'scale=360:-2', '-q:v', '5', tmp], err => {
+      return execFile(FFMPEG, ['-y', '-ss', '3', '-i', path.join(dir, src), '-frames:v', '1', '-vf', 'scale=360:-2', '-q:v', '5', tmp], err => {
         try { if (!err && fs.existsSync(tmp)) fs.renameSync(tmp, out); else fs.existsSync(tmp) && fs.unlinkSync(tmp); } catch {}
         if (err || !fs.existsSync(out)) return json(res, 500, { error: 'ffmpeg failed' });
         serve();
