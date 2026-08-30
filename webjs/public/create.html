@@ -71,7 +71,7 @@ pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y
         <div class="flex gap-2 mb-3">
           <input id="wUrl" class="flex-1 bg-surface-2 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-accent" placeholder="https://...">
           <button onclick="pasteUrl()" title="Paste" class="px-3 py-2 bg-surface-2 border border-zinc-700 rounded-lg text-sm text-zinc-300 hover:text-white hover:border-zinc-500 transition">📋</button>
-          <select id="wNumClips" class="px-2 py-2 bg-surface-2 border border-zinc-700 rounded-lg text-xs text-white focus:outline-none focus:border-accent"><option value="5">5 clip</option><option value="10" selected>10 clip</option><option value="15">15 clip</option><option value="20">20 clip</option><option value="25">25 clip</option></select>
+          <input type="hidden" id="wNumClips" value="auto">
           <button onclick="startCreate()" id="startBtn" class="px-4 py-2 bg-accent text-black font-medium text-sm rounded-lg hover:bg-yellow-400 transition whitespace-nowrap">GET</button>
         </div>
         <div id="wStatus"></div>
@@ -131,11 +131,7 @@ pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y
                   <option value="crop">Crop & Dynamic Pan</option>
                   <option value="center">Center — Wajah di Tengah Rapih ⭐</option>
                   <option value="blur">Blur Background (Fit)</option>
-                  <option value="split">Split Screen</option>
-                  <option value="split_game">Split Screen Game</option>
-                  <option value="split_podcast">Split Screen Podcast (2 Orang)</option>
                   <option value="split_podcast_dynamic">Split Podcast Dynamic (OpusClip-like)</option>
-                  <option value="fit">Black Bars (Fit)</option>
                 </select>
               </div>
             </div>
@@ -295,7 +291,7 @@ let PICK_SESSION=null;
 async function startCreate(){
   const url=$('#wUrl').value.trim();
   if(!/^https?:\/\//.test(url)){alert('Isi URL video dulu');return;}
-  const num_clips=parseInt(document.getElementById('wNumClips')?.value)||10;
+  const num_clips=document.getElementById('wNumClips')?.value || 'auto';
   const st=$('#wStatus'),logBox=$('#wLog');$('#startBtn').disabled=true;
   logBox.classList.remove('hidden');
   st.innerHTML='<div class="flex items-center justify-between bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2 text-xs text-blue-300"><span>⏳ Analisis AI… <span id="wElapsed"></span></span><button onclick="cancelCreate()" id="wCancelBtn" class="ml-2 px-2 py-0.5 bg-red-500/20 border border-red-500/30 rounded text-red-300 text-[10px] hover:bg-red-500/30 transition">⏹ Stop</button></div>';
@@ -341,11 +337,11 @@ async function showPicker(sessionDir){
   let hls=[];
   try{hls=await(await fetch('/api/highlights/'+encodeURIComponent(PICK_SESSION))).json();}catch{}
   if(!Array.isArray(hls)||!hls.length){
-    $('#wfArea').innerHTML='<div class="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 text-xs text-amber-300 mb-3">Highlight tidak ada untuk sesi ini.</div><div class="flex gap-2 items-center"><div class="flex-1 flex gap-1.5 items-center"><select id="regenCount" class="px-2 py-2.5 bg-surface-2 border border-zinc-700 rounded-lg text-xs text-white focus:outline-none focus:border-accent"><option value="5">5 clip</option><option value="10" selected>10 clip</option><option value="15">15 clip</option><option value="20">20 clip</option><option value="25">25 clip</option></select><button onclick="doRegenerate(PICK_SESSION)" class="flex-1 py-2.5 bg-zinc-800 border border-zinc-700 text-white font-medium text-sm rounded-lg hover:bg-zinc-700 hover:border-accent transition">🔄 Re-generate</button></div></div><div id="pStatus" class="mt-3"></div><pre class="log hidden mt-3" id="pLog" style="display:none !important"></pre>';
+    $('#wfArea').innerHTML='<div class="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 text-xs text-amber-300 mb-3">Highlight tidak ada untuk sesi ini.</div><div class="flex gap-2 items-center"><div class="flex-1 flex gap-1.5 items-center"><input type="hidden" id="regenCount" value="auto"><button onclick="doRegenerate(PICK_SESSION)" class="flex-1 py-2.5 bg-zinc-800 border border-zinc-700 text-white font-medium text-sm rounded-lg hover:bg-zinc-700 hover:border-accent transition">🔄 Re-generate</button></div></div><div id="pStatus" class="mt-3"></div><pre class="log hidden mt-3" id="pLog" style="display:none !important"></pre>';
     return;
   }
    const rows=hls.map(h=>'<label class="list-group-item bg-transparent hl-item flex items-start gap-2 py-1.5 px-2 rounded"><input type="checkbox" value="'+h.i+'" class="hl-check w-3.5 h-3.5 mt-0.5 accent-[#facc15] flex-shrink-0"><span class="flex-grow-1"><span class="text-xs font-medium text-zinc-200">'+esc(h.title)+'</span>'+(h.score!=null?'<span class="ml-1 px-1 py-0.5 bg-amber-500/20 text-amber-400 text-[10px] rounded">⭐'+h.score+'</span>':'')+'<br><span class="text-[10px] text-zinc-500">'+esc(h.start)+' → '+esc(h.end)+' · '+h.duration+'s</span></span></label>').join('');
-  $('#wfArea').innerHTML='<div class="flex items-center justify-between mb-2"><span class="text-xs text-zinc-500">Sesi: <code class="text-zinc-400">'+esc(PICK_SESSION)+'</code> · '+hls.length+' highlight</span></div><div class="space-y-1 border border-zinc-800 rounded-lg p-2 mb-3">'+rows+'</div><div class="flex justify-start gap-3 mb-2"><button type="button" class="text-xs text-zinc-400 hover:text-white transition flex items-center gap-1" onclick="toggleAll(true)">☑️ Pilih Semua</button><button type="button" class="text-xs text-zinc-400 hover:text-white transition flex items-center gap-1" onclick="toggleAll(false)">⏹️ Kosongkan</button></div><div class="flex gap-2 items-center"><div class="flex-1 flex gap-1.5 items-center"><select id="regenCount" class="px-2 py-2.5 bg-surface-2 border border-zinc-700 rounded-lg text-xs text-white focus:outline-none focus:border-accent"><option value="5">5 clip</option><option value="10" selected>10 clip</option><option value="15">15 clip</option><option value="20">20 clip</option><option value="25">25 clip</option></select><button onclick="doRegenerate(PICK_SESSION)" class="flex-1 py-2.5 bg-zinc-800 border border-zinc-700 text-white font-medium text-sm rounded-lg hover:bg-zinc-700 hover:border-accent transition">🔄 Re-generate</button></div><button onclick="startProcess()" id="procBtn" class="flex-1 py-2.5 bg-accent text-black font-medium text-sm rounded-lg hover:bg-yellow-400 transition">🎬 Render Klip Terpilih</button></div><div id="pStatus" class="mt-3"></div><pre class="log hidden mt-3" id="pLog" style="display:none !important"></pre>';
+  $('#wfArea').innerHTML='<div class="flex items-center justify-between mb-2"><span class="text-xs text-zinc-500">Sesi: <code class="text-zinc-400">'+esc(PICK_SESSION)+'</code> · '+hls.length+' highlight</span></div><div class="space-y-1 border border-zinc-800 rounded-lg p-2 mb-3">'+rows+'</div><div class="flex justify-start gap-3 mb-2"><button type="button" class="text-xs text-zinc-400 hover:text-white transition flex items-center gap-1" onclick="toggleAll(true)">☑️ Pilih Semua</button><button type="button" class="text-xs text-zinc-400 hover:text-white transition flex items-center gap-1" onclick="toggleAll(false)">⏹️ Kosongkan</button></div><div class="flex gap-2 items-center"><div class="flex-1 flex gap-1.5 items-center"><input type="hidden" id="regenCount" value="auto"><button onclick="doRegenerate(PICK_SESSION)" class="flex-1 py-2.5 bg-zinc-800 border border-zinc-700 text-white font-medium text-sm rounded-lg hover:bg-zinc-700 hover:border-accent transition">🔄 Re-generate</button></div><button onclick="startProcess()" id="procBtn" class="flex-1 py-2.5 bg-accent text-black font-medium text-sm rounded-lg hover:bg-yellow-400 transition">🎬 Render Klip Terpilih</button></div><div id="pStatus" class="mt-3"></div><pre class="log hidden mt-3" id="pLog" style="display:none !important"></pre>';
 }
 
 function toggleAll(val){
@@ -425,7 +421,7 @@ async function doRegenerate(sid){
   if(logBox) logBox.textContent = '⏳ Memulai re-generate AI...';
   st.innerHTML='<div class="bg-blue-500/10 border border-blue-500/20 rounded px-3 py-2 text-xs text-blue-300">⏳ Re-generate AI sedang berjalan…</div>';
   try{
-    const sel=document.getElementById('regenCount') || document.getElementById('regenCount2'); const n=sel ? parseInt(sel.value)||10 : 10;
+    const sel=document.getElementById('regenCount') || document.getElementById('regenCount2'); const n=sel ? sel.value : 'auto';
     const r=await fetch('/api/refind/'+encodeURIComponent(sid),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({num_clips:n})});
     const j=await r.json(); if(!r.ok||!j.ok) throw new Error(j.error);
     // poll
@@ -473,7 +469,7 @@ if(qsSid){
         // sembunyikan URL input + Analisis saat highlight kosong
         const wf=document.getElementById('wfArea');
         if(wf){ const inp=wf.querySelector('#wUrl'); if(inp){ const row=inp.closest('.flex.gap-2'); if(row) row.style.display='none'; const lab=wf.querySelector('label'); if(lab) lab.style.display='none'; const btn=document.getElementById('startBtn'); if(btn) btn.style.display='none'; } }
-        st.innerHTML='<div class="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 text-xs text-amber-300 mb-3">Highlight tidak ada untuk sesi ini.</div><div class="flex gap-2 items-center"><div class="flex-1 flex gap-1.5 items-center"><select id="regenCount" class="px-2 py-2.5 bg-surface-2 border border-zinc-700 rounded-lg text-xs text-white focus:outline-none focus:border-accent"><option value="5">5 clip</option><option value="10" selected>10 clip</option><option value="15">15 clip</option><option value="20">20 clip</option><option value="25">25 clip</option></select><button onclick="doRegenerate(\''+qsSid+'\')" class="flex-1 py-2.5 bg-zinc-800 border border-zinc-700 text-white font-medium text-sm rounded-lg hover:bg-zinc-700 hover:border-accent transition">🔄 Re-generate</button></div></div><div id="pStatus" class="mt-3"></div><pre class="log hidden mt-3" id="pLog" style="display:none !important"></pre>';
+        st.innerHTML='<div class="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 text-xs text-amber-300 mb-3">Highlight tidak ada untuk sesi ini.</div><div class="flex gap-2 items-center"><div class="flex-1 flex gap-1.5 items-center"><input type="hidden" id="regenCount" value="auto"><button onclick="doRegenerate(\''+qsSid+'\')" class="flex-1 py-2.5 bg-zinc-800 border border-zinc-700 text-white font-medium text-sm rounded-lg hover:bg-zinc-700 hover:border-accent transition">🔄 Re-generate</button></div></div><div id="pStatus" class="mt-3"></div><pre class="log hidden mt-3" id="pLog" style="display:none !important"></pre>';
       }
     }catch(e){ st.innerHTML='<div class="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 text-xs text-red-300">❌ '+esc(String(e))+'</div>'; }
   })();

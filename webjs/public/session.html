@@ -304,7 +304,7 @@ function updateCount() {
 
 async function doRefind() {
   const countEl = document.getElementById('refindCount');
-  const num_clips = countEl ? parseInt(countEl.value) || 10 : 10;
+  const num_clips = countEl ? (countEl.value || 'auto') : 'auto';
   const st = document.getElementById('actionStatus');
   const logBox = document.getElementById('actionLog');
   logBox.classList.remove('hidden');

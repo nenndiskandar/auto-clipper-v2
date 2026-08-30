@@ -62,12 +62,13 @@ class HighlightMixin:
         @staticmethod
         def get_default_prompt():
             """Get default system prompt for highlight detection"""
-            return """Kamu adalah asisten AI untuk menemukan highlight video. Tugasmu adalah memilih momen terbaik dari transcript dan mereturn tepat {num_clips} klip.
+            return """Kamu adalah asisten AI untuk menemukan highlight video. Tugasmu adalah memilih SEMUA momen terbaik dari transcript yang layak dijadikan klip viral — jumlahnya OTOMATIS, tentukan sendiri berdasarkan kualitas dan panjang video. Banyak momen bagus = tampilkan lebih banyak; sedikit momen bagus = tampilkan lebih sedikit. Jangan memaksa jumlah tertentu.
 
     SYARAT:
     1. Durasi tiap klip antara 60 hingga 120 detik (hitung dari timestamp).
     2. Pilih momen yang menarik, lucu, atau memiliki statement penting.
-    3. Format waktu: HH:MM:SS,mmm.
+    3. Tiap klip harus punya momen inti yang berbeda (hindari klip yang hampir sama/berulang).
+    4. Format waktu: HH:MM:SS,mmm.
 
     OUTPUT HARUS BERUPA JSON ARRAY TANPA TEKS LAIN:
     [
@@ -354,12 +355,44 @@ class HighlightMixin:
                 i += 1
             return "".join(out)
 
-        def find_highlights(self, transcript: str, video_info: dict, num_clips: int) -> list:
+        def find_highlights(self, transcript: str, video_info: dict, num_clips) -> list:
             """Find highlights using AI (OpenAI-compatible API)"""
             self.log(f"[2/4] Finding highlights (using {self.model})...")
         
-            request_clips = num_clips + 3
-        
+            # Parse num_clips. "auto" → AI decides the count itself (no cap).
+            auto_mode = False
+            val = None
+            try:
+                if num_clips is not None and str(num_clips).lower() != "auto":
+                    val = int(num_clips)
+                    if val <= 0:
+                        val = None
+            except (ValueError, TypeError):
+                val = None
+
+            if val is None:
+                auto_mode = True
+                duration = video_info.get("duration", 0) if video_info else 0
+                # Request budget: generous so AI has room to return several good clips.
+                if duration > 0:
+                    if duration < 300:
+                        request_clips = 8
+                    elif duration < 600:
+                        request_clips = 10
+                    elif duration < 1200:
+                        request_clips = 12
+                    elif duration < 2400:
+                        request_clips = 15
+                    else:
+                        request_clips = 18
+                else:
+                    request_clips = 10
+                num_clips = request_clips
+                self.log(f"  🤖 Auto mode: AI bebas menentukan jumlah highlight (durasi video {duration}s, request budget {request_clips})")
+            else:
+                num_clips = val
+                request_clips = num_clips
+
             video_context = ""
             if video_info:
                 video_context = f"""INFO VIDEO:
@@ -607,15 +640,19 @@ class HighlightMixin:
                 elif duration < 58:
                     self.log(f"  ✗ {h['title']} ({duration:.0f}s) - Too short, skipped")
             
-                if len(valid) >= num_clips:
+                if not auto_mode and len(valid) >= num_clips:
                     break
         
-            # If we don't have enough valid clips, warn user
-            if len(valid) < num_clips:
+            # If we don't have enough valid clips, warn user (manual mode only)
+            if not auto_mode and len(valid) < num_clips:
                 self.log(f"\n⚠️ WARNING: Only found {len(valid)} valid clips out of {num_clips} requested!")
                 self.log(f"   AI returned many segments that were too short (< 58s).")
                 self.log(f"   Consider using a better AI model or adjusting the prompt.")
         
+            if auto_mode:
+                # Auto mode: AI decides the count — return every valid highlight found.
+                self.log(f"  🤖 Auto selesai: {len(valid)} highlight valid ditemukan (AI menentukan jumlah).")
+                return valid
             return valid[:num_clips]
 
         def _get_non_youtube_info(self, url: str, video_id: str) -> dict:
@@ -650,7 +687,7 @@ class HighlightMixin:
                 return max(fulls, key=lambda p: p.stat().st_size)
             return max(cands, key=lambda p: p.stat().st_size)
 
-        def find_highlights_only(self, url: str, num_clips: int = 5, title: str = None,
+        def find_highlights_only(self, url: str, num_clips = "auto", title: str = None,
                                  session_dir: Path = None, progress_callback=None) -> dict:
             """Phase 1: Download subtitle only and find highlights (no video download)
         

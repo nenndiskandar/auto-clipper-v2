@@ -47,5 +47,28 @@ class TestCoreBasic(unittest.TestCase):
         finally:
             os.unlink(path)
 
+    def test_stabilize_positions_with_activity(self):
+        # Setup positions and activity
+        positions = [100] * 20 + [500] * 30  # Speaker changes position at index 20
+        activities = [0.1] * 20 + [0.8] * 30
+        
+        # Call stabilize with a small min_shot_duration and 0.18 switch_threshold
+        # original width = 1000
+        stabilized = self.core._stabilize_positions_with_activity(
+            positions, activities, min_shot_duration=5, switch_threshold=0.18, orig_w=1000
+        )
+        
+        # Verify it has the same length
+        self.assertEqual(len(stabilized), len(positions))
+        # Verify it switched to 500 at/around index 20 due to activity and exceeding the 180px threshold
+        self.assertEqual(stabilized[-1], 500)
+
+    def test_smooth_follow_positions(self):
+        # Setup static positions
+        positions = [100] * 50
+        smoothed = self.core._smooth_follow_positions(positions, pan_speed_limit=1.8)
+        self.assertEqual(len(smoothed), len(positions))
+        self.assertEqual(smoothed[-1], 100.0)
+
 if __name__ == "__main__":
     unittest.main()

@@ -1847,7 +1847,6 @@ def build_status(cfg: dict):
             InlineKeyboardButton(f"Subtitle: {'On' if subtitle else 'Off'}", callback_data="st_subtitle"),
         ],
         [
-            InlineKeyboardButton(f"Jumlah Clips {num_clips}", callback_data="st_numclips"),
             InlineKeyboardButton(f"Resolusi {resolution}", callback_data="st_resolution"),
         ],
         [
@@ -1937,7 +1936,7 @@ async def status_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         idx = opts.index(cur) if cur in opts else 0
         cfg["subtitle_sync_offset"] = opts[(idx + 1) % len(opts)]
     elif data == "portrait":
-        opts = ["crop", "blur"]
+        opts = ["crop", "center", "blur", "split_podcast_dynamic"]
         cur = str(cfg.get("portrait_mode", "crop"))
         cfg["portrait_mode"] = opts[(opts.index(cur) + 1) % len(opts)] if cur in opts else "crop"
     elif data == "face":
@@ -2600,7 +2599,7 @@ async def run_phase1(chat_id: int, url: str, context: ContextTypes.DEFAULT_TYPE,
 
     try:
         # Phase 1: find_highlights_only (subtitle only + AI highlight detection)
-        num_clips = _status_val(cfg_mgr.config, "num_clips", 5)
+        num_clips = "auto"
         session_data = await loop.run_in_executor(None, core.find_highlights_only, url, num_clips)
 
         if not session_data or not session_data.get("highlights"):
