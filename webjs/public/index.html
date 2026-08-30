@@ -202,7 +202,7 @@ async function loadDash() {
     $('#dash').classList.remove('hidden');
   } catch { /* dashboard opsional */ }
 }
-setInterval(loadDash, 15000);
+setInterval(loadDash, 30000); // dashboard data jarang berubah; 15s terlalu agresif
 
 function esc(s) { return (s ?? '').toString().replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
