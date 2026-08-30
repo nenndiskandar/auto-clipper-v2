@@ -11,7 +11,9 @@ const ROOT = path.resolve(__dirname, '..');
 const SESSIONS = path.join(ROOT, 'output', 'sessions');
 const PUBLIC = path.join(__dirname, 'public');
 const PORT = process.env.PORT || 3000;
-const PY = process.platform === 'win32' ? 'python' : '/usr/bin/python3';
+const PY = process.platform === 'win32'
+  ? (process.env.CLIPPER_PY || 'C:/Users/ISKAN-PC/AppData/Local/Python/pythoncore-3.11-64/python.exe')
+  : '/usr/bin/python3';
 
 // Force Python child stdout/stderr to be line-buffered instead of block-buffered.
 // Without this, helper scripts (process_session, render_clip, phase1_create,
@@ -834,7 +836,7 @@ except Exception as e:
         { name: 'deno', ok: fs.existsSync(path.join(ROOT, 'bin', 'deno')), detail: path.join(ROOT, 'bin', 'deno') + ' (bundled)' },
       ];
       // ponytail: versi yt-dlp dicek tiap request (~300ms); cache kalau jadi bottleneck
-      execFile('python3', ['-c', 'import yt_dlp;print(yt_dlp.version.__version__)'], (err, stdout) => {
+      execFile(PY, ['-c', 'import yt_dlp;print(yt_dlp.version.__version__)'], (err, stdout) => {
         bin.push({ name: 'yt-dlp', ok: !err, detail: err ? 'tidak terdeteksi' : 'v' + stdout.trim() + ' (module)' });
         json(res, 200, bin);
       });
