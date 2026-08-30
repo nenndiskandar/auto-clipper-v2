@@ -51,11 +51,22 @@ def main():
         aspect_ratio=cfg.get("aspect_ratio", "9:16"),
         mediapipe_settings=cfg.get("mediapipe_settings"),
         ai_providers=prov or None,
+        pro_settings=cfg.get("pro_settings"),
+        auto_bgm_settings=cfg.get("auto_bgm"),
+        auto_camera_switch_settings=cfg.get("auto_camera_switch"),
+        thumbnail_settings=cfg.get("thumbnail"),
+        metadata_settings=cfg.get("metadata_settings"),
+        auto_broll_settings=cfg.get("auto_broll"),
+        transition_library_settings=cfg.get("transition_library"),
         subtitle_language=cfg.get("subtitle_language", "id"),
         subtitle_sync_offset=cfg.get("subtitle_sync_offset", -0.3),
     )
     # GPU selalu aktif
     core.enable_gpu_acceleration(True)
+    if cfg.get("face_detector_model"):
+        core.face_detector_model = cfg.get("face_detector_model")
+    if cfg.get("yolo_size"):
+        core.yolo_size = cfg.get("yolo_size")
 
     debug_log(f"[progress] Process start {len(sel_idx)} clips (overall: 10%)", flush=True)
     sd_path = Path(SESSION_DIR) / "session_data.json"
