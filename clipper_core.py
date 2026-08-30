@@ -90,9 +90,10 @@ from core.transcribe import TranscribeMixin
 from core.highlight import HighlightMixin
 from core.portrait import PortraitMixin
 from core.caption import CaptionMixin
+from core.camera_switch import CameraSwitchMixin
 
 
-class AutoClipperCore(SubtitleGeneratorMixin, EffectsMixin, DownloadMixin, TranscribeMixin, HighlightMixin, PortraitMixin, CaptionMixin):
+class AutoClipperCore(SubtitleGeneratorMixin, EffectsMixin, DownloadMixin, TranscribeMixin, HighlightMixin, PortraitMixin, CaptionMixin, CameraSwitchMixin):
     """Core processing logic for Auto Clipper"""
     
     def __init__(
@@ -114,6 +115,13 @@ class AutoClipperCore(SubtitleGeneratorMixin, EffectsMixin, DownloadMixin, Trans
         aspect_ratio: str = "9:16",
         mediapipe_settings: dict = None,
         ai_providers: dict = None,
+        pro_settings: dict = None,
+        auto_bgm_settings: dict = None,
+        auto_camera_switch_settings: dict = None,
+        thumbnail_settings: dict = None,
+        metadata_settings: dict = None,
+        auto_broll_settings: dict = None,
+        transition_library_settings: dict = None,
         subtitle_language: str = "id",
         subtitle_sync_offset: float = -0.3,
         log_callback=None,
@@ -208,6 +216,23 @@ class AutoClipperCore(SubtitleGeneratorMixin, EffectsMixin, DownloadMixin, Trans
             "ducking_level_db": -15,
             "music_path": ""
         }
+        if pro_settings and isinstance(pro_settings, dict):
+            self.pro_settings.update({k: v for k, v in pro_settings.items() if v is not None})
+        self.auto_bgm_settings = auto_bgm_settings or {}
+        self.thumbnail_settings = thumbnail_settings or {}
+        self.metadata_settings = metadata_settings or {}
+        self.auto_broll_settings = auto_broll_settings or {}
+        self.transition_library_settings = transition_library_settings or {}
+        # Camera-Switch settings (dimuat dari pro_settings bila tersedia)
+        ps = self.pro_settings
+        acs = auto_camera_switch_settings or {}
+        self.camera_switch_step = float(ps.get("camera_switch_step", 0.25))
+        self.camera_switch_deadzone = float(ps.get("camera_switch_deadzone", acs.get("deadzone", 0.15)))
+        self.camera_switch_smooth = float(ps.get("camera_switch_smooth", acs.get("smooth", 0.30)))
+        self.switch_hold_duration = float(ps.get("switch_hold_duration", acs.get("hold_duration", 2.0)))
+        self.switch_blend_duration = float(ps.get("switch_blend_duration", acs.get("blend_duration", 0.0)))
+        self.camera_switch_max_zoom = float(ps.get("camera_switch_max_zoom", acs.get("max_zoom", 3.0)))
+        self.face_detector_model = ps.get("face_detector_model", "mediapipe")
         self.subtitle_language = subtitle_language
         # Whisper word timestamps tend to run LATE by ~0.2-0.4s.
         # Negative = show subtitles earlier to compensate.
@@ -482,6 +507,7 @@ class AutoClipperCore(SubtitleGeneratorMixin, EffectsMixin, DownloadMixin, Trans
         "9:16": (1080, 1920),
         "1:1": (1080, 1080),
         "4:5": (1080, 1350),
+        "3:4": (1080, 1440),
         "16:9": (1920, 1080),
     }
     

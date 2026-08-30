@@ -54,6 +54,9 @@ const RENDER_JOBS = new Map();
 let CREATE_JOB = null;
 const PROCESS_JOBS = new Map();
 const REFIND_JOBS = new Map();
+// job story clip & facebook upload
+let STORY_JOBS = new Map(); // key "run" -> job (biar /api/tasks legible)
+const FB_JOBS = new Map();  // key "run" -> job
 
 function safe(seg) {
   if (!seg || seg.includes('..') || seg.includes('/') || seg.includes('\\')) throw new Error('bad path');
@@ -143,6 +146,15 @@ function listClips(sessionDir, highlights) {
           hook: !!meta.has_hook,
           watermark: !!meta.has_watermark,
           credit: !!meta.has_credit,
+          has_bgm: !!meta.has_bgm,
+          has_broll: !!meta.has_broll,
+          has_transition: !!meta.has_transition,
+          hook_v2: !!meta.hook_v2,
+          portrait_mode: meta.portrait_mode || '',
+          watermark_position: meta.watermark_position || '',
+          akun_tujuan: meta.akun_tujuan || '',
+          tipe_akun: meta.tipe_akun || '',
+          thumbnail: meta.thumbnail || '',
           file: primary,
           size_bytes: (() => { try { return fs.statSync(path.join(cdir, dir, primary)).size; } catch { return 0; } })(),
           created: created || null,
@@ -302,6 +314,15 @@ const server = http.createServer((req, res) => {
       const fp = resolveClipFile(safe(mVidPub[2]), parts[0], parts[1]);
       if (!fp) { res.writeHead(404, { 'Content-Type': 'video/mp4' }); return res.end(); }
       return sendFile(req, res, fp, mVidPub[1] === 'download');
+    }
+    // /video/story/:clip/:file — stream hasil Story Clip (output/story_clips)
+    const mVidStory = p.match(/^\/video\/story\/([^/]+)\/(.+)$/);
+    if (mVidStory) {
+      const clipDir = path.join(ROOT, 'output', 'story_clips', safe(mVidStory[1]));
+      const file = path.basename(mVidStory[2]);
+      const fp = path.join(clipDir, file);
+      if (!clipDir.startsWith(ROOT) || !fs.existsSync(fp) || !fs.statSync(fp).isFile()) { res.writeHead(404, { 'Content-Type': 'video/mp4' }); return res.end(); }
+      return sendFile(req, res, fp, false);
     }
 
     // --- Auth middleware ---
@@ -475,6 +496,26 @@ const server = http.createServer((req, res) => {
           hf_api_key_set: !!((ap.highlight_finder || {}).api_key),
           // Pro video editing features
           pro_settings: cfg.pro_settings || {},
+          // Fitur baru (feature 1-19)
+          face_detector_model: cfg.face_detector_model || 'mediapipe',
+          yolo_size: cfg.yolo_size || '8n',
+          font_preset: cfg.font_preset || 'DEFAULT',
+          auto_bgm: cfg.auto_bgm || {},
+          auto_broll: cfg.auto_broll || {},
+          auto_camera_switch: cfg.auto_camera_switch || {},
+          transition_library: cfg.transition_library || {},
+          thumbnail: cfg.thumbnail || {},
+          metadata_settings: cfg.metadata_settings || {},
+          story_clip: cfg.story_clip || {},
+          facebook_uploader: cfg.facebook_uploader || {},
+          cs: {
+            step: (cfg.pro_settings && cfg.pro_settings.camera_switch_step) ?? 0.25,
+            deadzone: (cfg.pro_settings && cfg.pro_settings.camera_switch_deadzone),
+            smooth: (cfg.pro_settings && cfg.pro_settings.camera_switch_smooth),
+            hold_duration: (cfg.pro_settings && cfg.pro_settings.switch_hold_duration),
+            blend_duration: (cfg.pro_settings && cfg.pro_settings.switch_blend_duration),
+            max_zoom: (cfg.pro_settings && cfg.pro_settings.camera_switch_max_zoom),
+          },
         });
       } catch { return json(res, 500, { error: 'config.json tidak terbaca' }); }
     }
@@ -516,6 +557,56 @@ const server = http.createServer((req, res) => {
         if (isNum(o.speed_ramp_end)) cfg.pro_settings.speed_ramp_end = Math.max(0, o.speed_ramp_end);
         if (isNum(o.speed_factor)) cfg.pro_settings.speed_factor = Math.max(0.1, Math.min(2, o.speed_factor));
         if (isNum(o.ducking_level_db)) cfg.pro_settings.ducking_level_db = Math.max(-30, Math.min(0, o.ducking_level_db));
+        // Fitur baru (feature 1-19)
+        cfg.auto_camera_switch = cfg.auto_camera_switch || {};
+        if ('acs_enabled' in o) cfg.auto_camera_switch.enabled = !!o.acs_enabled;
+        for (const [k, sk] of [['acs_deadzone','deadzone'],['acs_smooth','smooth'],['acs_hold','hold_duration'],['acs_blend','blend_duration'],['acs_max_zoom','max_zoom']]) {
+          if (isNum(o[k])) cfg.auto_camera_switch[sk] = o[k];
+        }
+        for (const [k, sk] of [['cs_step','camera_switch_step'],['cs_deadzone','camera_switch_deadzone'],['cs_smooth','camera_switch_smooth'],['cs_hold','switch_hold_duration'],['cs_blend','switch_blend_duration'],['cs_max_zoom','camera_switch_max_zoom']]) {
+          if (isNum(o[k])) cfg.pro_settings[sk] = o[k];
+        }
+        if (typeof o.face_detector_model === 'string' && o.face_detector_model.trim()) cfg.face_detector_model = o.face_detector_model.trim();
+        if (typeof o.yolo_size === 'string' && o.yolo_size.trim()) cfg.yolo_size = o.yolo_size.trim();
+        if (typeof o.font_preset === 'string' && o.font_preset.trim()) cfg.font_preset = o.font_preset.trim();
+        if (typeof o.wm === 'object' && o.wm) {
+          if (typeof o.wm.position === 'string') cfg.watermark.position = o.wm.position;
+          if (typeof o.wm.text === 'string') cfg.watermark.text = o.wm.text;
+          if (isNum(o.wm.padding)) cfg.watermark.padding = o.wm.padding;
+        }
+        if (o.auto_bgm && typeof o.auto_bgm === 'object') {
+          cfg.auto_bgm = Object.assign({}, cfg.auto_bgm, o.auto_bgm);
+          if ('enabled' in o.auto_bgm) cfg.auto_bgm.enabled = !!o.auto_bgm.enabled;
+        }
+        if (o.thumbnail && typeof o.thumbnail === 'object') {
+          cfg.thumbnail = Object.assign({}, cfg.thumbnail, o.thumbnail);
+          if ('enabled' in o.thumbnail) cfg.thumbnail.enabled = !!o.thumbnail.enabled;
+        }
+        // Normalisasi input UI (boolean/string sederhana) ke bentuk object dict yang dipakai engine
+        cfg.auto_bgm = cfg.auto_bgm || {};
+        if (typeof o.auto_bgm === 'boolean') cfg.auto_bgm.enabled = o.auto_bgm;
+        cfg.auto_broll = cfg.auto_broll || {};
+        if (typeof o.auto_broll === 'boolean') cfg.auto_broll.enabled = o.auto_broll;
+        if (typeof o.auto_broll === 'string') cfg.auto_broll.enabled = o.auto_broll !== 'none' && o.auto_broll !== 'false' && o.auto_broll !== '';
+        cfg.transition_library = cfg.transition_library || {};
+        if (typeof o.transition_library === 'string') {
+          cfg.transition_library.enabled = o.transition_library.trim() !== 'none' && o.transition_library.trim() !== '';
+          if (['random', 'cut', 'crossfade', 'static'].includes(o.transition_library.trim())) cfg.transition_library.style = o.transition_library.trim();
+        }
+        cfg.auto_camera_switch = cfg.auto_camera_switch || {};
+        if (typeof o.auto_camera_switch === 'boolean') cfg.auto_camera_switch.enabled = o.auto_camera_switch;
+        cfg.thumbnail = cfg.thumbnail || {};
+        if (typeof o.thumbnail === 'boolean') cfg.thumbnail.enabled = o.thumbnail;
+        cfg.font_preset = cfg.font_preset || 'default';
+        if (typeof o.font_preset === 'string' && o.font_preset.trim()) cfg.font_preset = o.font_preset.trim();
+        if (o.metadata_settings && typeof o.metadata_settings === 'object') {
+          cfg.metadata_settings = Object.assign({}, cfg.metadata_settings, o.metadata_settings);
+        }
+        if (o.facebook_uploader && typeof o.facebook_uploader === 'object') {
+          cfg.facebook_uploader = Object.assign({}, cfg.facebook_uploader, o.facebook_uploader);
+          // jangan simpan field kosong (biar loader pakai env fallback)
+          for (const k of ['page_id', 'access_token', 'graph_version']) if (cfg.facebook_uploader[k] === '') delete cfg.facebook_uploader[k];
+        }
         cfg.ai_providers = cfg.ai_providers || {};
         cfg.ai_providers.highlight_finder = cfg.ai_providers.highlight_finder || {};
         if (typeof o.hf_model === 'string' && o.hf_model.trim()) cfg.ai_providers.highlight_finder.model = o.hf_model.trim();
@@ -923,6 +1014,154 @@ except Exception as e:
         result,
       });
     }
+    // POST /api/story/run — jalankan Story Clip pipeline (multi-source) async
+    if (p === '/api/story/run' && req.method === 'POST') {
+      const prev = STORY_JOBS.get('run');
+      if (prev && prev.code === undefined) return json(res, 409, { error: 'Story pipeline masih berjalan' });
+      let body = '';
+      req.on('data', c => body += c);
+      req.on('end', () => {
+        let o = {};
+        try { o = JSON.parse(body || '{}'); } catch {}
+        const appDir = ROOT;
+        const outDir = path.join(appDir, 'output');
+        const storyDir = path.join(outDir, 'story');
+        const pick = (v, def) => { try { const r = v && String(v).trim() ? path.resolve(appDir, String(v).trim()) : ''; if (r && (r === ROOT || r.startsWith(ROOT + path.sep)) && fs.existsSync(r)) return r; } catch {} return def; };
+        const sourcesJson = pick(o.sources, path.join(storyDir, 'sources.json'));
+        const recipeJson = pick(o.recipe, path.join(storyDir, 'story_recipe.json'));
+        if (!fs.existsSync(sourcesJson) || !fs.existsSync(recipeJson)) {
+          return json(res, 400, { error: `sources.json / story_recipe.json dibutuhkan` });
+        }
+        let cfgSt = {};
+        try { cfgSt = JSON.parse(fs.readFileSync(path.join(ROOT, 'config.json'), 'utf8')); } catch {}
+        const resultFile = path.join(outDir, `.story_result_${Date.now()}.json`);
+        const logPath = path.join(outDir, `story_${Date.now()}.log`);
+        const opts = JSON.stringify({
+          sources_json: sourcesJson,
+          recipe_json: recipeJson,
+          outputs_dir: outDir,
+          whisper_model: o.whisper_model || (cfgSt.story_clip && cfgSt.story_clip.whisper_model) || 'medium',
+          skip_download: !!o.skip_download,
+          download_height: o.download_height || 'max',
+          ratio: o.ratio || '9:16',
+        });
+        const out = fs.createWriteStream(logPath, { flags: 'a' });
+        const child = spawn(PY, [path.join(__dirname, 'story_run.py'), resultFile], { env: { ...process.env, PYTHONIOENCODING: 'utf-8', STORY_OPTS: opts } });
+        child.stdout.pipe(out); child.stderr.pipe(out);
+        STORY_JOBS.set('run', { proc: child, code: undefined, startedAt: Date.now(), resultFile, logPath });
+        child.on('close', code => { const j = STORY_JOBS.get('run'); if (j) { j.code = code; j.finishedAt = Date.now(); } out.end(); });
+        json(res, 200, { ok: true, started: true, log: logPath });
+      });
+      return;
+    }
+    // GET /api/story/status
+    if (p === '/api/story/status') {
+      const j = STORY_JOBS.get('run');
+      let result = null;
+      try { if (j && j.code !== undefined && fs.existsSync(j.resultFile)) result = JSON.parse(fs.readFileSync(j.resultFile, 'utf8')); } catch {}
+      return json(res, 200, {
+        running: !!(j && j.code === undefined),
+        code: j ? j.code : null,
+        elapsed_s: j ? Math.round(((j.code !== undefined && j.finishedAt ? j.finishedAt : Date.now()) - j.startedAt) / 1000) : null,
+        log: j && j.logPath ? tailFile(j.logPath) : '',
+        progress: j && j.logPath ? parseOverall(tailFile(j.logPath)) : null,
+        result,
+      });
+    }
+    // POST /api/story/cancel
+    if (p === '/api/story/cancel' && req.method === 'POST') {
+      const j = STORY_JOBS.get('run');
+      if (!j || j.code !== undefined) return json(res, 404, { error: 'Tidak ada story pipeline berjalan' });
+      try { process.kill(-j.proc.pid, 'SIGKILL'); } catch { try { j.proc.kill('SIGKILL'); } catch {} }
+      return json(res, 200, { ok: true, cancelled: true });
+    }
+    // GET /api/story/outputs — daftar hasil dari output/story_clips
+    if (p === '/api/story/outputs') {
+      try {
+        const base = path.join(ROOT, 'output', 'story_clips');
+        if (!fs.existsSync(base)) return json(res, 200, []);
+        const list = fs.readdirSync(base).filter(d => fs.statSync(path.join(base, d)).isDirectory()).sort().flatMap(d => {
+          try {
+            const dir = path.join(base, d);
+            return fs.readdirSync(dir).filter(f => f.toLowerCase().endsWith('.mp4')).map(f => {
+              const fp = path.join(dir, f);
+              return { clip: d, file: f, url: '/video/story/' + encodeURIComponent(d) + '/' + encodeURIComponent(f), size_bytes: fs.statSync(fp).size, mtime: fs.statSync(fp).mtimeMs };
+            });
+          } catch { return []; }
+        });
+        return json(res, 200, list);
+      } catch (e) { return json(res, 500, { error: String(e) }); }
+    }
+    // POST /api/fb/upload — jalankan Facebook Reels uploader async
+    if (p === '/api/fb/upload' && req.method === 'POST') {
+      const prev = FB_JOBS.get('run');
+      if (prev && prev.code === undefined) return json(res, 409, { error: 'Facebook upload masih berjalan' });
+      let body = '';
+      req.on('data', c => body += c);
+      req.on('end', () => {
+        let o = {};
+        try { o = JSON.parse(body || '{}'); } catch {}
+        const outDir = path.join(ROOT, 'output');
+        let manifest = o.manifest && fs.existsSync(path.join(ROOT, String(o.manifest))) ? path.join(ROOT, String(o.manifest)) : path.join(outDir, 'render_manifest.json');
+        const resultFile = path.join(outDir, `.fb_result_${Date.now()}.json`);
+        const logPath = path.join(outDir, `fb_upload_${Date.now()}.log`);
+        const opts = JSON.stringify({ manifest, result: path.join(outDir, 'fb_upload_results.json'), updated: manifest + '_fb_uploaded.json', test_mode: !!o.test_mode });
+        const out = fs.createWriteStream(logPath, { flags: 'a' });
+        const child = spawn(PY, [path.join(__dirname, 'fb_upload.py'), resultFile], { env: { ...process.env, PYTHONIOENCODING: 'utf-8', FB_OPTS: opts } });
+        child.stdout.pipe(out); child.stderr.pipe(out);
+        FB_JOBS.set('run', { proc: child, code: undefined, startedAt: Date.now(), resultFile, logPath });
+        child.on('close', code => { const j = FB_JOBS.get('run'); if (j) { j.code = code; j.finishedAt = Date.now(); } out.end(); });
+        json(res, 200, { ok: true, started: true });
+      });
+      return;
+    }
+    // GET /api/fb/status
+    if (p === '/api/fb/status') {
+      const j = FB_JOBS.get('run');
+      let result = null;
+      try { if (j && j.code !== undefined && fs.existsSync(j.resultFile)) result = JSON.parse(fs.readFileSync(j.resultFile, 'utf8')); } catch {}
+      return json(res, 200, {
+        running: !!(j && j.code === undefined),
+        code: j ? j.code : null,
+        elapsed_s: j ? Math.round(((j.code !== undefined && j.finishedAt ? j.finishedAt : Date.now()) - j.startedAt) / 1000) : null,
+        log: j && j.logPath ? tailFile(j.logPath) : '',
+        result,
+      });
+    }
+    // POST /api/fb/cancel
+    if (p === '/api/fb/cancel' && req.method === 'POST') {
+      const j = FB_JOBS.get('run');
+      if (!j || j.code !== undefined) return json(res, 404, { error: 'Tidak ada upload berjalan' });
+      try { process.kill(-j.proc.pid, 'SIGKILL'); } catch { try { j.proc.kill('SIGKILL'); } catch {} }
+      return json(res, 200, { ok: true, cancelled: true });
+    }
+    // POST /api/story/save {file:'sources'|'recipe', content} — simpan JSON input ke output/story
+    if (p === '/api/story/save' && req.method === 'POST') {
+      let body = ''; req.on('data', c => body += c); req.on('end', () => {
+        let o = {}; try { o = JSON.parse(body || '{}'); } catch {}
+        const file = String(o.file || '').replace(/[^a-z_]/gi, '');
+        if (file !== 'sources' && file !== 'recipe') return json(res, 400, { error: 'file must be sources|recipe' });
+        if (typeof o.content !== 'string' || !o.content.trim()) return json(res, 400, { error: 'content required' });
+        if (file === 'sources') { try { const j = JSON.parse(o.content); if (typeof j !== 'object') throw 0; } catch { return json(res, 400, { error: 'sources.json bukan JSON valid' }); } }
+        if (file === 'recipe') { try { const j = JSON.parse(o.content); if (typeof j !== 'object') throw 0; } catch { return json(res, 400, { error: 'story_recipe.json bukan JSON valid' }); } }
+        try {
+          const dir = path.join(ROOT, 'output', 'story');
+          fs.mkdirSync(dir, { recursive: true });
+          const fp = path.join(dir, file === 'sources' ? 'sources.json' : 'story_recipe.json');
+          fs.writeFileSync(fp, o.content, 'utf8');
+          return json(res, 200, { ok: true, path: fp });
+        } catch (e) { return json(res, 500, { error: String(e) }); }
+      });
+      return;
+    }
+    // GET /api/fb/manifests — daftar render_manifest*.json di output/
+    if (p === '/api/fb/manifests') {
+      try {
+        const outDir = path.join(ROOT, 'output');
+        const files = fs.existsSync(outDir) ? fs.readdirSync(outDir).filter(f => /^render_manifest.*\.json$/.test(f)).sort() : [];
+        return json(res, 200, files.map(f => ({ name: f, rel: path.join('output', f), abs: path.join(outDir, f), size: (() => { try { return fs.statSync(path.join(outDir, f)).size; } catch { return 0; } })() })));
+      } catch (e) { return json(res, 500, { error: String(e) }); }
+    }
     // POST /api/tasks/stop — hentikan job berjalan (SIGTERM → SIGKILL tree)
     if (p === '/api/tasks/stop' && req.method === 'POST') {
       let body = '';
@@ -936,6 +1175,8 @@ except Exception as e:
         else if (kind === 'refind') { job = REFIND_JOBS.get(qs); label = `re-find ${qs}`; }
         else if (kind === 'process') { job = PROCESS_JOBS.get(qs); label = `process ${qs}`; }
         else if (kind === 'render') { job = RENDER_JOBS.get(`${qs}/${qc}`); label = `render ${qs}/${qc}`; }
+        else if (kind === 'story') { job = STORY_JOBS.get('run'); label = 'story clip'; }
+        else if (kind === 'fb') { job = FB_JOBS.get('run'); label = 'facebook upload'; }
         if (!job) return json(res, 404, { error: 'job tidak ditemukan' });
         if (job.code !== undefined) return json(res, 409, { error: 'job sudah selesai' });
         try {
@@ -967,6 +1208,10 @@ except Exception as e:
         const [sid, clip] = key.split('/');
         jobs.push({ kind: 'render', type: '⚙️ Render', session: sid, detail: clip, running: j.code === undefined, code: j.code, elapsed_s: Math.round(((j.code !== undefined && j.finishedAt ? j.finishedAt : Date.now()) - j.startedAt) / 1000), logPath: path.join(SESSIONS, sid, 'clips', clip, 'render.log') });
       }
+      const storyJ = STORY_JOBS.get('run');
+      if (storyJ) jobs.push({ kind: 'story', type: '🎬 Story Clip', session: '-', detail: '', running: storyJ.code === undefined, code: storyJ.code, elapsed_s: Math.round(((storyJ.code !== undefined && storyJ.finishedAt ? storyJ.finishedAt : Date.now()) - storyJ.startedAt) / 1000), logPath: storyJ.logPath });
+      const fbJ = FB_JOBS.get('run');
+      if (fbJ) jobs.push({ kind: 'fb', type: '📘 FB Upload', session: '-', detail: '', running: fbJ.code === undefined, code: fbJ.code, elapsed_s: Math.round(((fbJ.code !== undefined && fbJ.finishedAt ? fbJ.finishedAt : Date.now()) - fbJ.startedAt) / 1000), logPath: fbJ.logPath });
       for (const j of jobs) {
         try { j.last_line = lastLogLine(j.logPath); } catch { j.last_line = ''; }
         try { j.progress = parseOverall(tailFile(j.logPath)); } catch { j.progress = null; }
@@ -985,6 +1230,8 @@ except Exception as e:
         else if (kind === 'refind') { job = REFIND_JOBS.get(qs); logPath = qs ? path.join(SESSIONS, safe(qs), 'refind.log') : null; }
         else if (kind === 'process') { job = PROCESS_JOBS.get(qs); logPath = qs ? path.join(SESSIONS, safe(qs), 'process.log') : null; }
         else if (kind === 'render') { job = RENDER_JOBS.get(`${qs}/${qc}`); logPath = qs && qc ? path.join(SESSIONS, safe(qs), 'clips', safe(qc), 'render.log') : null; }
+        else if (kind === 'story') { job = STORY_JOBS.get('run'); logPath = job && job.logPath; }
+        else if (kind === 'fb') { job = FB_JOBS.get('run'); logPath = job && job.logPath; }
         else return json(res, 400, { error: 'bad kind' });
       } catch { return json(res, 400, { error: 'bad path' }); }
       if (!job) return json(res, 404, { error: 'job tidak ditemukan' });
@@ -1059,11 +1306,17 @@ except Exception as e:
       try { process.kill(-job.proc.pid, 'SIGKILL'); } catch { try { job.proc.kill('SIGKILL'); } catch {} }
       return json(res, 200, { ok: true, cancelled: true });
     }
-    // /thumb/:session/:clipDir — frame @3s, cached ke thumb.jpg
-    const mThumb = p.match(/^\/thumb\/([^/]+)\/([^/]+)$/);
+    // /thumb/:session/:clipDir — frame @3s, cached ke thumb.jpg (opsional :file = file gambar asli di folder clip)
+    const mThumb = p.match(/^\/thumb\/([^/]+)\/([^/]+)(?:\/([^/]+))?$/);
     if (mThumb) {
       const dir = path.join(SESSIONS, safe(mThumb[1]), 'clips', safe(mThumb[2]));
       if (!dir.startsWith(SESSIONS)) return json(res, 403, { error: 'forbidden' });
+      const fname = mThumb[3] ? path.basename(mThumb[3]) : null;
+      const directImg = fname ? path.join(dir, fname) : '';
+      if (fname && fs.existsSync(directImg) && fs.statSync(directImg).isFile() && /\.(png|jpe?g)$/i.test(fname)) {
+        res.writeHead(200, { 'Content-Type': /\.png$/i.test(fname) ? 'image/png' : 'image/jpeg', 'Cache-Control': 'max-age=86400' });
+        return fs.createReadStream(directImg).pipe(res);
+      }
       const out = path.join(dir, 'thumb.jpg');
       const serve = () => { res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'max-age=86400' }); fs.createReadStream(out).pipe(res); };
       if (fs.existsSync(out)) return serve();

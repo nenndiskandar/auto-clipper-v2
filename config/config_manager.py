@@ -62,7 +62,7 @@ class ConfigManager:
                 if "aspect_ratio" not in config:
                     config["aspect_ratio"] = "9:16"  # "9:16", "1:1", "4:5", or "16:9"
                 # Add default MediaPipe settings if not exists — tuned for speaker-accurate (not center)
-                 if "mediapipe_settings" not in config:
+                if "mediapipe_settings" not in config:
                     config["mediapipe_settings"] = {
                         "lip_activity_threshold": 0.08,
                         "switch_threshold": 0.18,
@@ -93,6 +93,8 @@ class ConfigManager:
                     config["gpu_acceleration"] = {
                         "enabled": False
                     }
+                
+                config = self._ensure_new_feature_defaults(config)
                 
                 return config
         
@@ -136,9 +138,95 @@ class ConfigManager:
                 "enabled": False
             }
         }
+        config = self._ensure_new_feature_defaults(config)
         self.save_config(config)
         return config
     
+    def _ensure_new_feature_defaults(self, config):
+        """Isi default untuk fitur baru (opensource-clipping adaptations) —
+        tanpa menimpa nilai yang sudah diatur user."""
+        wm = config.setdefault("watermark", {})
+        wm.setdefault("position", "")         # ""=pakai position_x/y, atau 0-8 / tl..br
+        wm.setdefault("padding", 0.02)
+        wm.setdefault("text", "")
+
+        config.setdefault("font_preset", "DEFAULT")  # typography (feature 8)
+
+        config.setdefault("auto_bgm", {
+            "enabled": False,
+            "mood": "",
+            "mode": "ducking",                # "ducking" | "background"
+            "base_volume": 0.25,
+            "bgm_dir": "",
+            "path": "",
+        })
+
+        config.setdefault("auto_broll", {
+            "enabled": False,
+            "pexels_api_key": "",
+            "per_clip": 1,
+            "duration": 3.0,
+            "mix_volume": 0.35,
+        })
+
+        config.setdefault("transition_library", {
+            "enabled": False,
+            "type": "slide_up",
+            "duration": 0.5,
+        })
+
+        config.setdefault("auto_camera_switch", {
+            "enabled": False,
+            "hold_duration": 2.0,
+            "blend_duration": 0.0,
+            "deadzone": 0.15,
+            "smooth": 0.30,
+            "max_zoom": 3.0,
+        })
+
+        config.setdefault("face_detector_model", "mediapipe")  # "mediapipe" | "yolo"
+        config.setdefault("yolo_size", "8n")
+
+        config.setdefault("thumbnail", {
+            "enabled": False,
+            "text": "",
+            "render_front": True,
+            "position": "bottom",
+            "font_size": 0.05,
+        })
+
+        config.setdefault("metadata_settings", {
+            "classification": "auto",
+            "target_platforms": ["youtube", "tiktok", "facebook"],
+            "save_preview": True,
+        })
+
+        config.setdefault("story_clip", {
+            "enabled": False,
+            "ratio": "9:16",
+            "whisper_model": "medium",
+            "download_source_height": "max",
+        })
+
+        config.setdefault("facebook_uploader", {
+            "enabled": False,
+            "page_id": "",
+            "access_token": "",
+            "graph_version": "v25.0",
+            "tz_name": "Asia/Makassar",
+            "interval_hours": 5,
+            "test_mode": False,
+        })
+
+        ps = config.setdefault("pro_settings", {})
+        ps.setdefault("camera_switch_step", 0.25)
+        ps.setdefault("camera_switch_deadzone", 0.15)
+        ps.setdefault("camera_switch_smooth", 0.30)
+        ps.setdefault("switch_hold_duration", 2.0)
+        ps.setdefault("switch_blend_duration", 0.0)
+        ps.setdefault("camera_switch_max_zoom", 3.0)
+        return config
+
     def _get_default_ai_providers(self):
         """Get default AI provider configuration"""
         return {

@@ -21,3 +21,6 @@ python-telegram-bot>=20.0
 
 # Telegram Client / Userbot (MTProto, tanpa bot token)
 telethon>=1.34.0
+
+# Optional: YOLO Face Detector (camera-switch / debug tools)
+ultralytics>=8.2.0

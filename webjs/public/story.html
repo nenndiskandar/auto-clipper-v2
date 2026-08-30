@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Story Clip — Auto Clipper</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#facc15">
+<script src="/pwa.js"></script>
+<script src="/templates.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: { extend: { colors: {
+    surface: { 0:'#09090b', 1:'#18181b', 2:'#27272a', 3:'#3f3f46' },
+    zinc: { 450: '#8b8b96', 650: '#43434c' },
+    accent: '#facc15',
+  }}}
+}
+</script>
+<style>
+body{background:#09090b;color:#fafafa;font-family:system-ui,-apple-system,sans-serif}
+details.cfg-group summary{cursor:pointer;user-select:none;list-style:none}
+details.cfg-group summary::-webkit-details-marker{display:none}
+details.cfg-group summary::before{content:'▸';display:inline-block;width:1em;margin-right:.5rem;transition:transform .15s}
+details.cfg-group[open] summary::before{transform:rotate(90deg)}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#3f3f46;border-radius:3px}
+pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y:auto;white-space:pre-wrap;border-radius:.5rem}
+label.fld{font-size:10px;color:#71717a;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.25rem}
+textarea.in{width:100%;background:#27272a;border:1px solid #3f3f46;border-radius:.5rem;padding:.5rem .75rem;font-size:.75rem;color:#fff;font-family:ui-monospace,monospace}
+</style>
+</head>
+<body class="min-h-screen flex flex-col md:flex-row bg-[#09090b]">
+
+<aside class="w-full md:w-60 border-b md:border-b-0 md:border-r border-zinc-800 bg-zinc-950 flex flex-col shrink-0">
+  <div class="p-4 border-b border-zinc-800 flex items-center justify-between">
+    <span class="font-bold text-sm tracking-wider text-accent">⚡ YT CLIPPER</span>
+    <a href="/logout" class="text-xs text-zinc-400 hover:text-white transition md:hidden">Logout</a>
+  </div>
+  <div class="p-3 flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-x-visible">
+    <a href="/" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🏠 Library</a>
+    <a href="/create.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">＋ Create Clip</a>
+    <a href="/story.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition bg-zinc-900 text-white font-medium">🎬 Story</a>
+    <a href="/facebook.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">📘 FB</a>
+    <a href="/tasks.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">📋 Tasks</a>
+    <a href="/settings.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">⚙️ Settings</a>
+  </div>
+  <div class="mt-auto p-4 border-t border-zinc-800 hidden md:flex items-center justify-between text-[11px]">
+    <span class="text-zinc-500 truncate max-w-[120px]" id="whoami"></span>
+    <a href="/logout" class="text-zinc-400 hover:text-white transition">Logout</a>
+  </div>
+</aside>
+
+<div class="flex-1 flex flex-col min-w-0 overflow-y-auto">
+  <main class="max-w-5xl w-full mx-auto p-4 md:p-6 space-y-4 flex-1 pb-6">
+
+    <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 space-y-3">
+      <div>
+        <h2 class="text-sm font-semibold text-white">🎬 Story Clip Mode</h2>
+        <p class="text-[11px] text-zinc-500">Multi-source narrative → hook + highlight dalam rasio 9:16 (deteksi highlight AI + transkripsi faster-whisper lokal).</p>
+      </div>
+      <details class="cfg-group bg-zinc-950/50 border border-zinc-800 rounded-lg p-3">
+        <summary class="text-xs font-semibold text-zinc-300">📄 sources.json <span class="text-zinc-600 font-normal">(paste isi, lalu Simpan)</span></summary>
+        <div class="pt-2 space-y-2">
+          <textarea id="srcText" rows="6" class="in" placeholder='{ "src1": { "platform": "youtube", "url": "https://...", "speaker": "A" } }'></textarea>
+          <button onclick="saveJson('sources')" class="px-3 py-1.5 bg-surface-2 border border-zinc-700 text-zinc-200 text-xs rounded hover:border-accent transition">💾 Simpan sources.json</button>
+          <span id="srcMsg" class="text-[11px] text-emerald-400"></span>
+          <p class="text-[10px] text-zinc-600">Format: { "id": { "platform": "youtube|local", "url"|"local_path": "...", "speaker": "A", "role": "host|guest" } }</p>
+        </div>
+      </details>
+      <details class="cfg-group bg-zinc-950/50 border border-zinc-800 rounded-lg p-3">
+        <summary class="text-xs font-semibold text-zinc-300">🎬 story_recipe.json <span class="text-zinc-600 font-normal">(paste isi, lalu Simpan)</span></summary>
+        <div class="pt-2 space-y-2">
+          <textarea id="recText" rows="8" class="in" placeholder='{ "default_settings": { "ratio": "9:16" }, "clips": [ { "clip_id": 1, "hook": { "scene": { "src_id": "src1", "start": 0, "end": 10 } }, "highlight": { "scenes": [...] } } ] }'></textarea>
+          <button onclick="saveJson('recipe')" class="px-3 py-1.5 bg-surface-2 border border-zinc-700 text-zinc-200 text-xs rounded hover:border-accent transition">💾 Simpan story_recipe.json</button>
+          <span id="recMsg" class="text-[11px] text-emerald-400"></span>
+          <p class="text-[10px] text-zinc-600">Kunci scene: src_id, start, end, narasi (opsional), cut (opsional: cut|crossfade).</p>
+        </div>
+      </details>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div>
+          <label class="fld">Rasio</label>
+          <select id="sRatio" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1.5 text-xs text-white">
+            <option value="9:16">9:16</option><option value="3:4">3:4</option><option value="1:1">1:1</option><option value="4:5">4:5</option><option value="16:9">16:9</option>
+          </select>
+        </div>
+        <div>
+          <label class="fld">Whisper Model</label>
+          <select id="sWhisper" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1.5 text-xs text-white">
+            <option value="tiny">tiny</option><option value="base">base</option><option value="small">small</option><option value="medium">medium</option><option value="large-v3">large-v3</option>
+          </select>
+        </div>
+        <div>
+          <label class="fld">Resolusi Download</label>
+          <select id="sHeight" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1.5 text-xs text-white">
+            <option value="max">max</option><option value="1080">1080</option><option value="720">720</option><option value="480">480</option>
+          </select>
+        </div>
+        <div class="flex items-end pb-1">
+          <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+            <input type="checkbox" id="sSkip" class="accent-yellow-400"> skip download
+          </label>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="runBtn" onclick="runStory()" class="px-4 py-2 bg-accent text-black font-medium text-xs rounded-lg hover:bg-yellow-400 transition">▶️ RUN STORY</button>
+        <button onclick="cancelStory()" class="px-3 py-2 bg-surface-2 border border-zinc-700 text-zinc-300 text-xs rounded hover:border-red-500 hover:text-red-400 transition">⏹ Cancel</button>
+        <span id="runMsg" class="text-[11px] text-zinc-400"></span>
+      </div>
+      <div class="h-1.5 bg-surface-2 rounded-full overflow-hidden">
+        <div id="bar" class="h-full bg-accent transition-all duration-300" style="width:0%"></div>
+      </div>
+      <pre id="logArea" class="log p-3 hidden"></pre>
+    </div>
+
+    <div id="resultBox" class="bg-surface-1 border border-zinc-800 rounded-xl p-4 space-y-3 hidden">
+      <h3 class="text-xs font-semibold uppercase tracking-wider text-zinc-400">📦 Hasil Story Clip</h3>
+      <div id="storyOuts" class="grid grid-cols-2 md:grid-cols-3 gap-3"></div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let POLL = null;
+
+function feedLog(t){ t = t||''; const el=$('logArea'); el.classList.remove('hidden'); el.textContent += t + '\n'; el.scrollTop = el.scrollHeight; }
+function setMsg(t,c){ const el=$('runMsg'); el.textContent=t; if(c) el.style.color=c; }
+
+async function saveJson(file){
+  const key = file==='sources' ? 'srcText' : 'recText';
+  const r = await fetch('/api/story/save', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ file, content: $(key).value }) });
+  const j = await r.json();
+  $(file==='sources'?'srcMsg':'recMsg').textContent = j.ok ? 'Tersimpan ✓' : ('❌ ' + (j.error||''));
+  fillFromConfig();
+}
+
+async function fillFromConfig(){
+  try{
+    const c = await (await fetch('/api/config')).json();
+    const sc = c.story_clip || {};
+    if(sc.ratio) $('sRatio').value = sc.ratio;
+    if(sc.whisper_model) $('sWhisper').value = sc.whisper_model;
+    if(sc.download_source_height && sc.download_source_height!=='max') $('sHeight').value = sc.download_source_height;
+    fillStored();
+  }catch{}
+}
+
+async function fillStored(){
+  try{
+    const src = await (await fetch('/output/story/sources.json', { method:'GET' })).text().catch(()=>null);
+    if(src && src.trim()){ try{ $('srcText').value = JSON.stringify(JSON.parse(src), null, 2); }catch{} }
+  }catch{}
+  try{
+    const rec = await (await fetch('/output/story/story_recipe.json', { method:'GET' })).text().catch(()=>null);
+    if(rec && rec.trim()){ try{ $('recText').value = JSON.stringify(JSON.parse(rec), null, 2); }catch{} }
+  }catch{}
+}
+
+async function runStory(){
+  setMsg('menjalankan…','#a1a1aa');
+  $('bar').style.width='0%';
+  $('logArea').textContent=''; $('logArea').classList.remove('hidden');
+  const body = { ratio: $('sRatio').value, whisper_model: $('sWhisper').value, download_height: $('sHeight').value, skip_download: $('sSkip').checked };
+  const r = await fetch('/api/story/run', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  const j = await r.json();
+  if(!j.ok && !j.started){ setMsg('❌ '+ (j.error||'gagal'),'#f87171'); return; }
+  if(j.ok) setMsg('running…','#a1a1aa');
+  POLL = setInterval(poll, 2000);
+}
+
+async function poll(){
+  try{
+    const j = await (await fetch('/api/story/status')).json();
+    if(j.progress!=null) $('bar').style.width = j.progress + '%';
+    if(j.log && localStorage.__storyLastLog !== j.log){ localStorage.__storyLastLog = j.log; }
+    const lg = $('logArea');
+    if(j.log && j.log.length > lg.textContent.length+200){ lg.textContent = j.log; lg.scrollTop = lg.scrollHeight; }
+    if(!j.running){
+      clearInterval(POLL); POLL=null;
+      if(j.code===0 && j.result && j.result.ok){
+        setMsg('✅ selesai — '+ (j.result.count||0) + ' clip','#4ade80');
+      } else {
+        setMsg('❌ gagal (code '+j.code+')','#f87171');
+      }
+      loadOutputs();
+    }
+  }catch{}
+}
+
+async function cancelStory(){
+  clearInterval(POLL); POLL=null;
+  await fetch('/api/story/cancel', { method:'POST' });
+  setMsg('dibatalkan','#fbbf24');
+}
+
+async function loadOutputs(){
+  try{
+    const list = await (await fetch('/api/story/outputs')).json();
+    const box = $('resultBox'); box.classList.remove('hidden');
+    const wrap = $('storyOuts');
+    wrap.innerHTML = list.length ? '' : '<p class="text-xs text-zinc-500 col-span-full">Belum ada output di output/story_clips.</p>';
+    list.forEach(o => {
+      const d = document.createElement('video'); d.controls=true; d.src=o.url; d.className='w-full aspect-video bg-black rounded-lg border border-zinc-800';
+      const lbl = document.createElement('div'); lbl.className='text-[10px] text-zinc-500 mt-1 font-mono'; lbl.textContent = o.clip + ' / ' + o.file + ' · ' + (o.size_bytes>0?(o.size_bytes/1048576).toFixed(1)+' MB':'');
+      const cell = document.createElement('div'); cell.className='space-y-1'; cell.append(d, lbl);
+      wrap.append(cell);
+    });
+  }catch{}
+}
+
+fillFromConfig();
+loadOutputs();
+fetch('/api/me').then(r=>r.json()).then(u=>{ if(u && u.name){ $('whoami').textContent=u.name; } }).catch(()=>{});
+</script>
+</body>
+</html>

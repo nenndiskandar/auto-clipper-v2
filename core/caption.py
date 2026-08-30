@@ -501,6 +501,23 @@ class CaptionMixin:
             if not os.path.exists(overlay_video) or os.path.getsize(overlay_video) < 1000:
                 raise Exception("Hook overlay video was not created properly")
 
+            # --- Hook V2: intro flash + glitch (efek khas short-form) ---
+            style = self.hook_style_settings or {}
+            if style.get("v2") and self._hook_v2_available():
+                try:
+                    intro = min(
+                        float(style.get("v2_intro_duration", 0.4)),
+                        max(0.1, hook_duration - 0.2),
+                    )
+                    self._apply_hook_v2_effect(
+                        overlay_video, fps, intro,
+                        flash=bool(style.get("v2_flash", True)),
+                        glitch=bool(style.get("v2_glitch", True)),
+                    )
+                    self.log(f"  Hook V2: intro flash+glitch ({intro:.2f}s)")
+                except Exception as e:
+                    self.log(f"  ⚠ Hook V2 intro effect skipped: {e}")
+
             progress_callback(0.55)
 
             # Both names point at the same file so the rest of the pipeline (audio mux,
@@ -611,6 +628,160 @@ class CaptionMixin:
                     pass
         
             return hook_duration
+
+        @staticmethod
+        def _hook_v2_available() -> bool:
+            try:
+                import cv2  # noqa: F401
+                return True
+            except Exception:
+                return False
+
+        def _apply_hook_v2_effect(self, video_path: str, fps: float, intro_seconds: float,
+                                  flash: bool = True, glitch: bool = True) -> None:
+            """Terapkan intro flash + RGB-split glitch pada hook (in-place re-encode).
+
+            Menyerupai fitur white-flash & glitch intro dari opensource-clipping
+            ``v2_helpers``:
+              - flash: beberapa frame putih flicker cepat di awal.
+              - glitch: geser channel R/B pada kumpulan frame pertama.
+            """
+            cap = cv2.VideoCapture(video_path)
+            if not cap.isOpened():
+                raise RuntimeError("Hook V2: gagal membuka video hook.")
+            out_path = video_path + ".v2.mp4"
+            writer = subprocess.Popen(
+                [self.ffmpeg_path, "-y",
+                 "-f", "rawvideo", "-pix_fmt", "bgr24",
+                 "-s", f"{int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))}x{int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))}",
+                 "-r", str(fps), "-i", "-",
+                 "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+                 "-pix_fmt", "yuv420p", out_path],
+                stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+            idx = 0
+            intro_frames = max(1, int(intro_seconds * fps))
+            h, w = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)), int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            shift = max(2, w // 320)
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                if idx < intro_frames:
+                    if flash and idx % 2 == 0:
+                        frame = np.full((h, w, 3), 255, dtype=np.uint8)
+                    if glitch and idx % 3 == 0:
+                        b, g, r = cv2.split(frame)
+                        shifted = np.zeros_like(frame)
+                        shifted[..., 0] = np.roll(b, -shift, axis=1)
+                        shifted[..., 1] = g
+                        shifted[..., 2] = np.roll(r, shift, axis=1)
+                        frame = shifted
+                try:
+                    writer.stdin.write(frame.tobytes())
+                except BrokenPipeError:
+                    break
+                idx += 1
+            cap.release()
+            try:
+                writer.stdin.close()
+            except Exception:
+                pass
+            writer.wait(timeout=120)
+            if os.path.exists(out_path) and os.path.getsize(out_path) > 10_000:
+                os.replace(out_path, video_path)
+            else:
+                if os.path.exists(out_path):
+                    os.unlink(out_path)
+                raise RuntimeError("Hook V2: output gagal dibuat.")
+
+        def apply_auto_bgm_with_progress(self, input_path, output_path, progress_callback=None,
+                                         bgm_path: str = None, mode: str = "ducking", base_volume: float = 0.25):
+            """Auto BGM: sisipkan lagu latar ke video (ducking / background)."""
+            if not bgm_path or not os.path.exists(bgm_path):
+                if progress_callback:
+                    progress_callback(1.0)
+                import shutil
+                shutil.copy(input_path, output_path)
+                return False
+            try:
+                from core.bgm import build_bgm_filter
+            except Exception as e:
+                debug_log(f"bgm module error: {e}")
+                if progress_callback:
+                    progress_callback(1.0)
+                import shutil
+                shutil.copy(input_path, output_path)
+                return False
+
+            probe_cmd = [self.ffmpeg_path, "-i", input_path, "-f", "null", "-"]
+            result = subprocess.run(probe_cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
+            video_duration = 60
+            m = re.search(r"Duration: (\d+):(\d+):(\d+\.\d+)", result.stderr)
+            if m:
+                hh, mm, ss = m.groups()
+                video_duration = int(hh) * 3600 + int(mm) * 60 + float(ss)
+            ffc, maps = build_bgm_filter(mode=mode, base_volume=base_volume, duck_level_db=self.pro_settings.get("ducking_level_db", -15))
+            cmd = [
+                self.ffmpeg_path, "-y",
+                "-i", input_path,
+                "-i", bgm_path,
+                "-filter_complex", ffc,
+                "-map", maps,
+                *self.get_video_encoder_args(),
+                "-c:a", "aac", "-b:a", "192k",
+                "-shortest", "-progress", "pipe:1",
+                output_path,
+            ]
+            self.log_ffmpeg_command(cmd, "Apply Auto BGM", step="bgm")
+            self.run_ffmpeg_with_progress(cmd, video_duration,
+                lambda p: (progress_callback(p) if progress_callback else None))
+            return os.path.exists(output_path) and os.path.getsize(output_path) > 10_000
+
+        def _cut_with_segments(self, video_path, start_base, scenes, output_path, progress_callback=None):
+            """Segment trimming: potong beberapa sub-segmen (keep_segments) lalu
+            concat jadi satu clip. scenes = list [(start_offset, end_offset)]."""
+            parts = []
+            seg_dir = str(self.temp_dir / f"segs_{int(time.time() * 1000)}")
+            os.makedirs(seg_dir, exist_ok=True)
+            encoder_args = self.get_video_encoder_args()
+            for i, (s, e) in enumerate(scenes):
+                part = os.path.join(seg_dir, f"seg_{i}.mp4")
+                cmd = [
+                    self.ffmpeg_path, "-y",
+                    "-i", video_path,
+                    "-ss", f"{start_base + s:.3f}", "-to", f"{start_base + e:.3f}",
+                    *encoder_args,
+                    "-c:a", "aac", "-b:a", "192k",
+                    part,
+                ]
+                self._run_ffmpeg_subprocess(cmd)
+                if os.path.exists(part) and os.path.getsize(part) > 10_000:
+                    parts.append(part)
+            if not parts:
+                return False
+            if len(parts) == 1:
+                os.replace(parts[0], output_path)
+            else:
+                list_file = os.path.join(seg_dir, "list.txt")
+                with open(list_file, "w", encoding="utf-8") as f:
+                    for p in parts:
+                        f.write(f"file '{os.path.abspath(p).replace(chr(92), '/')}'\n")
+                cmd = [self.ffmpeg_path, "-y", "-f", "concat", "-safe", "0", "-i", list_file,
+                       "-c", "copy", output_path]
+                try:
+                    self._run_ffmpeg_subprocess(cmd)
+                except Exception:
+                    # fallback re-encode concat bila -c copy bermasalah
+                    esc = output_path.replace('\\', '/').replace(':', '\\:')
+                    cmd = [self.ffmpeg_path, "-y", "-f", "concat", "-safe", "0", "-i", list_file,
+                           *encoder_args, "-c:a", "aac", "-b:a", "192k", esc]
+                    self._run_ffmpeg_subprocess(cmd)
+            import shutil
+            shutil.rmtree(seg_dir, ignore_errors=True)
+            if progress_callback:
+                progress_callback(1.0)
+            return os.path.exists(output_path) and os.path.getsize(output_path) > 10_000
 
         def add_captions_api_with_progress(self, input_path: str, output_path: str, audio_source: str = None, time_offset: float = 0, progress_callback=None):
             """Add CapCut-style captions using OpenAI Whisper API with progress"""
@@ -732,68 +903,114 @@ class CaptionMixin:
                 lambda p: progress_callback(0.6 + p * 0.4) if progress_callback else None)
 
         def add_watermark_with_progress(self, input_path: str, output_path: str, progress_callback):
-            """Add watermark overlay to video with progress tracking"""
-        
+            """Add watermark overlay to video with progress tracking.
+            Supports:
+              - image watermark (PNG/JPG/WebP)
+              - teks watermark (bila ``image_path`` kosong dan ``text`` diisi)
+              - 9 posisi ("position": 0-8 atau nama tl/tc/tr/ml/mc/mr/bl/bc/br)
+              - padding dinormalisasi (0-1) terhadap ukuran video
+            """
             watermark_path = self.watermark_settings.get("image_path", "")
-            if not watermark_path or not Path(watermark_path).exists():
-                self.log("  Warning: Watermark image not found, skipping")
+            watermark_text = self.watermark_settings.get("text", "")
+            if (not watermark_path or not Path(watermark_path).exists()) and not watermark_text:
+                self.log("  Warning: Watermark kosong (image/text), skipping")
                 import shutil
                 shutil.copy(input_path, output_path)
                 return
-        
+
             progress_callback(0.1)
-        
+
             # Get video dimensions
             probe_cmd = [self.ffmpeg_path, "-i", input_path]
             result = subprocess.run(probe_cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
-        
+
             res_match = re.search(r'(\d{3,4})x(\d{3,4})', result.stderr)
             if res_match:
                 video_width, video_height = int(res_match.group(1)), int(res_match.group(2))
             else:
                 video_width, video_height = 1080, 1920
-        
+
             progress_callback(0.2)
-        
-            # Calculate watermark size and position (fix kanan atas 0.85/0.05)
+
             scale = self.watermark_settings.get("scale", 0.15)
-            pos_x = 0.85
-            pos_y = 0.05
             opacity = self.watermark_settings.get("opacity", 0.8)
-        
-            # Calculate watermark width in pixels
+            padding = float(self.watermark_settings.get("padding", 0.02))
+
+            # --- 9-posisi layout ---
+            # (px, py) dalam koordinat kartesian: 0=atas/kiri, 1=bawah/kanan.
+            pos = self.watermark_settings.get("position", "")
+            pos_map = {
+                "tl": (0.0, 0.0), "nw": (0.0, 0.0),
+                "tc": (0.5, 0.0), "n": (0.5, 0.0),
+                "tr": (1.0, 0.0), "ne": (1.0, 0.0),
+                "ml": (0.0, 0.5), "w": (0.0, 0.5),
+                "mc": (0.5, 0.5), "c": (0.5, 0.5),
+                "mr": (1.0, 0.5), "e": (1.0, 0.5),
+                "bl": (0.0, 1.0), "sw": (0.0, 1.0),
+                "bc": (0.5, 1.0), "s": (0.5, 1.0),
+                "br": (1.0, 1.0), "se": (1.0, 1.0),
+            }
+            ids = {"0": "tl", "1": "tc", "2": "tr", "3": "ml", "4": "mc",
+                   "5": "mr", "6": "bl", "7": "bc", "8": "br"}
+            pos_key = str(pos).strip().lower()
+            if pos_key in ids:
+                pos_key = ids[pos_key]
+            if pos_key in pos_map:
+                px, py = pos_map[pos_key]
+            else:
+                px = float(self.watermark_settings.get("position_x", 0.85))
+                py = float(self.watermark_settings.get("position_y", 0.05))
+
+            pad_x = int(padding * video_width)
+            pad_y = int(padding * video_height)
+
+            # Build watermark asset (image or text)
+            watermark_asset = watermark_path
+            if (not watermark_path or not Path(watermark_path).exists()) and watermark_text:
+                watermark_asset = self._build_text_watermark_png(
+                    watermark_text, video_width, video_height, scale, opacity
+                )
+                if not watermark_asset:
+                    import shutil
+                    shutil.copy(input_path, output_path)
+                    return
+
             watermark_width = int(video_width * scale)
-        
-            # Calculate position in pixels
-            x_pixels = int(pos_x * video_width)
-            y_pixels = int(pos_y * video_height)
-        
-            # Escape watermark path for FFmpeg (Windows paths)
-            watermark_escaped = watermark_path.replace('\\', '/').replace(':', '\\:')
-        
-            # Build FFmpeg overlay filter with proper opacity control
-            # Scale watermark, apply opacity via colorchannelmixer, then overlay
+
+            # --- Compute position as overlay expressions (eval=frame) ---
+            # Kartesian: px/py 0=atas/kiri, 1=bawah/kanan. Overlay expressions
+            # memakai main_w/main_h/overlay_w/overlay_h (untungnya robust
+            # terhadap ukuran overlay yang dinamis hasil scale).
+            x_expr = {
+                "l": f"{pad_x}", "c": "(W-w)/2", "r": "W-w-{pad}".format(pad=pad_x),
+            }[("l" if px <= 0.0 else ("r" if px >= 1.0 else "c"))]
+            y_expr = {
+                "t": f"{pad_y}", "m": "(H-h)/2", "b": "H-h-{pad}".format(pad=pad_y),
+            }[("t" if py <= 0.0 else ("b" if py >= 1.0 else "m"))]
+
+            watermark_escaped = watermark_asset.replace('\\', '/').replace(':', '\\:')
+
             filter_complex = (
                 f"[1:v]scale={watermark_width}:-1,format=rgba,"
                 f"colorchannelmixer=aa={opacity}[wm];"
-                f"[0:v][wm]overlay={x_pixels}:{y_pixels}"
+                f"[0:v][wm]overlay='{x_expr}':'{y_expr}':eof_action=pass"
             )
-        
+
             progress_callback(0.3)
-        
+
             # Get video duration for progress
             duration_match = re.search(r"Duration: (\d+):(\d+):(\d+\.\d+)", result.stderr)
             video_duration = 60
             if duration_match:
                 h, m, s = duration_match.groups()
                 video_duration = int(h) * 3600 + int(m) * 60 + float(s)
-        
+
             # Apply watermark using GPU/CPU encoder
             encoder_args = self.get_video_encoder_args()
             cmd = [
                 self.ffmpeg_path, "-y",
                 "-i", input_path,
-                "-i", watermark_path,
+                "-i", watermark_asset if not watermark_text else watermark_asset,
                 "-filter_complex", filter_complex,
                 *encoder_args,
                 "-pix_fmt", "yuv420p",  # Ensure compatibility
@@ -802,15 +1019,52 @@ class CaptionMixin:
                 "-progress", "pipe:1",
                 output_path
             ]
-        
+
             self.log_ffmpeg_command(cmd, "Apply Watermark", step="watermark")
-        
+
             # Watermark application is 30-100%
             self.run_ffmpeg_with_progress(cmd, video_duration,
                 lambda p: progress_callback(0.3 + p * 0.7))
-        
+
             if not Path(output_path).exists():
                 raise Exception("Failed to apply watermark")
+
+        def _build_text_watermark_png(self, text: str, video_width: int, video_height: int,
+                                      scale: float, opacity: float) -> str | None:
+            """Render teks watermark menjadi PNG transparan (pakai PIL)."""
+            try:
+                from PIL import Image, ImageDraw, ImageFont
+            except ImportError:
+                return None
+            try:
+                from core.typography import resolve_preset_font
+            except Exception:
+                resolve_preset_font = None
+
+            height_px = max(24, int(video_height * scale))
+            fpath = None
+            if resolve_preset_font:
+                try:
+                    fpath = resolve_preset_font("DEFAULT")
+                except Exception:
+                    fpath = None
+            if not fpath:
+                fpath = self._find_system_font_bold()
+            try:
+                font = ImageFont.truetype(fpath, height_px) if fpath else ImageFont.load_default()
+            except Exception:
+                font = ImageFont.load_default()
+            bbox = font.getbbox(text)
+            tw = bbox[2] - bbox[0]
+            th = bbox[3] - bbox[1]
+            pad = int(height_px * 0.4)
+            img = Image.new("RGBA", (tw + pad * 2, th + pad * 2), (0, 0, 0, 0))
+            draw = ImageDraw.Draw(img)
+            draw.text((pad - bbox[0], pad - bbox[1]), text, font=font, fill=(255, 255, 255, int(opacity * 255)))
+            out = str(self.temp_dir / f"text_wm_{int(time.time() * 1000)}.png")
+            img.save(out, "PNG")
+            self.log(f"  Watermark teks: '{text}' ({tw}x{th}px)")
+            return out
 
         def add_credit_watermark_with_progress(self, input_path: str, output_path: str, progress_callback):
             """Add credit text watermark (channel name) to video with progress tracking"""
@@ -973,6 +1227,7 @@ class CaptionMixin:
             self.log(f"\n[Clip {index}] {highlight['title']}")
         
             # Calculate total steps based on options (include Social Kit so overall goes 0→100 sequentially)
+            bgm_cfg = getattr(self, "auto_bgm_settings", {}) or {}
             total_steps = 1  # Re-encode/Cut is always 1 step
             total_steps += 1  # Portrait conversion always
             if add_hook:
@@ -983,6 +1238,9 @@ class CaptionMixin:
                 total_steps += 1
             if self.credit_watermark_settings.get("enabled"):
                 total_steps += 1
+            bgm_cfg = getattr(self, "auto_bgm_settings", {}) or {}
+            if bgm_cfg.get("enabled"):
+                total_steps += 1  # Auto BGM
             has_social = bool(self.client)
             if has_social:
                 total_steps += 1  # Social Kit metadata
@@ -1043,24 +1301,45 @@ class CaptionMixin:
                 # Original flow: cut from full video
                 clip_progress("Cutting video...", current_step, 0)
             
-                encoder_args = self.get_video_encoder_args()
-            
-                cmd = [
-                    self.ffmpeg_path, "-y",
-                    "-i", video_path,
-                    "-ss", start, "-to", end,
-                    *encoder_args,
-                    "-c:a", "aac", "-b:a", "192k",
-                    "-progress", "pipe:1",
-                    str(landscape_file)
-                ]
-            
-                self.log_ffmpeg_command(cmd, "Cut Video", step="cut")
-            
-                self.run_ffmpeg_with_progress(cmd, duration, 
-                    lambda p: clip_progress("Cutting video...", current_step, p))
-            
-                self.log(self.colorize("  ✓ Cut video", "cut"))
+                # Segment trimming (Hook V2 / keep_segments): potong sub-segmen lalu concat.
+                keep_segments = highlight.get("keep_segments") or []
+                if keep_segments and isinstance(keep_segments, list):
+                    self.log(f"  Segment trimming: {len(keep_segments)} sub-segmen")
+                    start_base = self.parse_timestamp(start)
+                    end_base = self.parse_timestamp(end)
+                    scenes = []
+                    for seg in keep_segments:
+                        if isinstance(seg, dict):
+                            s = self.parse_timestamp(str(seg.get("start", 0)))
+                            e = self.parse_timestamp(str(seg.get("end", 0)))
+                        else:
+                            s, e = (float(seg[0]), float(seg[1]))
+                        e = min(e, end_base - start_base)
+                        if e > s:
+                            scenes.append((s, e))
+                    if scenes:
+                        ok = self._cut_with_segments(
+                            video_path, start_base, scenes, str(landscape_file))
+                        if ok:
+                            current_step += 1
+                            self.log(self.colorize("  ✓ Cut video (segments)", "cut"))
+                    duration = sum(e - s for s, e in scenes) if scenes else duration
+
+                if not landscape_file.exists() or os.path.getsize(str(landscape_file)) < 10_000:
+                    encoder_args = self.get_video_encoder_args()
+                    cmd = [
+                        self.ffmpeg_path, "-y",
+                        "-i", video_path,
+                        "-ss", start, "-to", end,
+                        *encoder_args,
+                        "-c:a", "aac", "-b:a", "192k",
+                        "-progress", "pipe:1",
+                        str(landscape_file)
+                    ]
+                    self.log_ffmpeg_command(cmd, "Cut Video", step="cut")
+                    self.run_ffmpeg_with_progress(cmd, duration,
+                        lambda p: clip_progress("Cutting video...", current_step, p))
+                    self.log(self.colorize("  ✓ Cut video", "cut"))
         
             current_step += 1
         
@@ -1069,7 +1348,14 @@ class CaptionMixin:
                 return
             clip_progress("Converting to portrait...", current_step, 0)
             portrait_file = clip_dir / "portrait.mp4"
-            self.convert_to_portrait_with_progress(str(landscape_file), str(portrait_file), 
+            # Info untuk camera-switch: bounds clip di source original (bila bukan pre-cut).
+            if not pre_cut:
+                self._clip_start = self.parse_timestamp(start)
+                self._clip_end = self.parse_timestamp(end)
+            else:
+                self._clip_start = 0
+                self._clip_end = 0
+            self.convert_to_portrait_with_progress(str(landscape_file), str(portrait_file),
                 lambda p: clip_progress("Converting to portrait...", current_step, p))
             self.log(self.colorize("  ✓ Portrait conversion", "portrait"))
             current_step += 1
@@ -1202,6 +1488,114 @@ class CaptionMixin:
                     current_output = duck_file
                     self.log(self.colorize(f"  ✓ Audio ducking ({duck_level}dB)", "duck"))
 
+            # --- Auto BGM (mood) ---
+            bgm_cfg = getattr(self, "auto_bgm_settings", {}) or {}
+            if bgm_cfg.get("enabled"):
+                if self.is_cancelled():
+                    return
+                mood = highlight.get("mood") or bgm_cfg.get("mood", "")
+                bgm_path = None
+                if mood:
+                    try:
+                        from core.bgm import get_local_bgm_file
+                        bgm_path = get_local_bgm_file(mood, bgm_cfg.get("bgm_dir", ""))
+                    except Exception as e:
+                        debug_log(f"BGM lookup gagal: {e}")
+                if not bgm_path and bgm_cfg.get("path"):
+                    bgm_path = bgm_cfg.get("path")
+                if bgm_path and not Path(bgm_path).exists():
+                    bgm_path = None
+                if bgm_path:
+                    bgm_file = clip_dir / "bgm.mp4"
+                    clip_progress("Auto BGM...", current_step, 0.5)
+                    ok = self.apply_auto_bgm_with_progress(
+                        str(current_output), str(bgm_file),
+                        lambda p: clip_progress("Auto BGM...", current_step, p),
+                        bgm_path=bgm_path,
+                        mode=bgm_cfg.get("mode", "ducking"),
+                        base_volume=float(bgm_cfg.get("base_volume", 0.25)),
+                    )
+                    if ok:
+                        current_output = bgm_file
+                        self.log(self.colorize(f"  ✓ Auto BGM ({mood or 'custom'})", "bgm"))
+                else:
+                    self.log("  ⊘ Auto BGM enabled tapi file BGM tidak ditemukan")
+
+            # --- Auto B-roll (Pexels) ---
+            broll_cfg = getattr(self, "auto_broll_settings", {}) or {}
+            if broll_cfg.get("enabled") and broll_cfg.get("pexels_api_key"):
+                if self.is_cancelled():
+                    return
+                try:
+                    from core.broll import download_pexels_broll, overlay_broll
+                    broll_dir = self.temp_dir / "broll" if hasattr(self, "temp_dir") else (clip_dir / "broll")
+                    broll_dir = Path(str(broll_dir))
+                    broll_dir.mkdir(parents=True, exist_ok=True)
+                    query = highlight.get("topic") or highlight.get("category") or broll_cfg.get("query") or "cinematic b-roll"
+                    n = int(broll_cfg.get("per_clip", 1) or 1)
+                    clip_progress("Auto B-roll...", current_step, 0.2)
+                    dur = float(broll_cfg.get("duration", 3.0) or 3.0)
+                    start_t = max(0.0, float(getattr(self, "_clip_start", 0) or 0)) + 0.3
+                    total_broll = float(highlight.get("duration_seconds") or 6.0)
+                    for i in range(max(0, n)):
+                        broll_file = broll_dir / f"broll_{i}.mp4"
+                        if not broll_file.exists():
+                            from utils.helpers import get_ffmpeg_path
+                            download_pexels_broll(
+                                str(query), self.aspect_ratio or "9:16", str(broll_file),
+                                str(broll_cfg.get("pexels_api_key", "")),
+                            )
+                        if not broll_file.exists() or broll_file.stat().st_size < 1000:
+                            continue
+                        from utils.helpers import get_ffmpeg_path as _gfp
+                        broll_out = clip_dir / f"broll_overlay_{i}.mp4"
+                        s = start_t + i * dur
+                        e = min(s + dur, max(s + 0.5, s + total_broll - start_t))
+                        ok = overlay_broll(
+                            str(current_output), str(broll_file), str(broll_out),
+                            start=s, end=e, ffmpeg_path=get_ffmpeg_path(),
+                            opacity=1.0, fade=0.2,
+                        )
+                        if ok and broll_out.exists():
+                            current_output = broll_out
+                            self.log(f"  ✓ Auto B-roll #{i + 1}")
+                    if str(current_output).endswith("_overlay_0.mp4"):
+                        current_step += 1
+                except Exception as e:
+                    debug_log(f"Auto B-roll gagal: {e}")
+
+            # --- Transition library (fade-through) ---
+            trans_cfg = getattr(self, "transition_library_settings", {}) or {}
+            if trans_cfg.get("enabled"):
+                if self.is_cancelled():
+                    return
+                try:
+                    from core.transition import get_random_transition, prepare_transition_clip
+                    from core.broll import apply_transition
+                    entry = get_random_transition(transition_type=trans_cfg.get("type"))
+                    clip_progress("Transition...", current_step, 0.2)
+                    trans_out = clip_dir / "transitioned.mp4"
+                    if entry and entry.get("raw_path"):
+                        import re as _re
+                        out_w, out_h = 1080, 1920
+                        try:
+                            pr = subprocess.run([self.ffmpeg_path, "-i", str(current_output), "-f", "null", "-"],
+                                                capture_output=True, text=True, timeout=60)
+                            m = _re.search(r"(\d{3,4})x(\d{3,4})", pr.stderr)
+                            if m:
+                                out_w, out_h = int(m.group(1)), int(m.group(2))
+                        except Exception:
+                            pass
+                        prepared = prepare_transition_clip(
+                            entry, out_w, out_h, clip_duration=float(trans_cfg.get("duration", 0.5) or 0.5),
+                            ffmpeg_path=self.ffmpeg_path,
+                        )
+                        if prepared and apply_transition(str(current_output), str(prepared), str(trans_out), ffmpeg_path=self.ffmpeg_path):
+                            current_output = trans_out
+                            self.log(f"  ✓ Transition: {entry.get('label')}")
+                            current_step += 1
+                except Exception as e:
+                    debug_log(f"Transition gagal: {e}")
             # Step 5: Add watermark (if enabled)
             watermark_file = clip_dir / "watermark.mp4"
             if self.watermark_settings.get("enabled"):
@@ -1276,6 +1670,12 @@ class CaptionMixin:
                 "vignette": self.pro_settings.get("vignette", 0),
                 "speed_ramp": bool(self.pro_settings.get("speed_ramp_start", 0) or self.pro_settings.get("speed_ramp_end", 0)),
                 "audio_ducking": bool(self.pro_settings.get("music_path", "")),
+                "has_bgm": bool((getattr(self, "auto_bgm_settings", {}) or {}).get("enabled")),
+                "has_broll": bool((getattr(self, "auto_broll_settings", {}) or {}).get("enabled")),
+                "has_transition": bool((getattr(self, "transition_library_settings", {}) or {}).get("enabled")),
+                "hook_v2": bool((self.hook_style_settings or {}).get("v2")),
+                "watermark_position": (self.watermark_settings or {}).get("position"),
+                "portrait_mode": getattr(self, "portrait_mode", None),
                 "channel_name": self.channel_name,
                 "aspect_ratio": self.aspect_ratio,
             }
@@ -1349,6 +1749,37 @@ class CaptionMixin:
                 self.set_progress(f"Clip {index}/{total_clips}: Social Kit done (overall: 100.0%)", 1.0)
             else:
                 clip_progress("Done", current_step, 1.0)
-        
+
+            # Feature 10 — Metadata enrichment + klasifikasi akun (best-effort)
+            if (self.metadata_settings or {}).get("save_preview", True):
+                try:
+                    from core.metadata import normalize_and_validate, klasifikasikan_akun
+                    normalized = normalize_and_validate(highlight)
+                    metadata["metadata_final"] = {
+                        k: v for k, v in normalized.items()
+                        if k not in ("title", "hook_text", "start_time", "end_time", "duration_seconds")
+                    }
+                    klas = klasifikasikan_akun(normalized)
+                    metadata["akun_tujuan"] = klas.get("akun_tujuan")
+                    metadata["tipe_akun"] = klas.get("tipe_akun")
+                except Exception as e:
+                    debug_log(f"[Metadata] normalize gagal: {e}")
+
+            # Feature 9 — Thumbnail generator (dari clip final, best-effort)
+            if (self.thumbnail_settings or {}).get("enabled") and final_file.exists():
+                try:
+                    from core.thumbnail import buat_thumbnail
+                    thumb_cfg = self.thumbnail_settings or {}
+                    thumb_path = clip_dir / "thumbnail.jpg"
+                    buat_thumbnail(
+                        str(final_file),
+                        str(thumb_path),
+                        teks=thumb_cfg.get("text") or clip_title,
+                    )
+                    metadata["thumbnail"] = thumb_path.name
+                    self.log(f"  ✓ Thumbnail: {thumb_path.name}")
+                except Exception as e:
+                    debug_log(f"[Thumbnail] gagal: {e}")
+
             with open(clip_dir / "data.json", "w", encoding="utf-8") as f:
                 json.dump(metadata, f, ensure_ascii=False, indent=2)

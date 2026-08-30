@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FB Uploader — Auto Clipper</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#facc15">
+<script src="/pwa.js"></script>
+<script src="/templates.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: { extend: { colors: {
+    surface: { 0:'#09090b', 1:'#18181b', 2:'#27272a', 3:'#3f3f46' },
+    zinc: { 450: '#8b8b96', 650: '#43434c' },
+    accent: '#facc15',
+  }}}
+}
+</script>
+<style>
+body{background:#09090b;color:#fafafa;font-family:system-ui,-apple-system,sans-serif}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#3f3f46;border-radius:3px}
+pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y:auto;white-space:pre-wrap;border-radius:.5rem}
+label.fld{font-size:10px;color:#71717a;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.25rem}
+input.in{width:100%;background:#27272a;border:1px solid #3f3f46;border-radius:.5rem;padding:.45rem .75rem;font-size:.75rem;color:#fff}
+</style>
+</head>
+<body class="min-h-screen flex flex-col md:flex-row bg-[#09090b]">
+
+<aside class="w-full md:w-60 border-b md:border-b-0 md:border-r border-zinc-800 bg-zinc-950 flex flex-col shrink-0">
+  <div class="p-4 border-b border-zinc-800 flex items-center justify-between">
+    <span class="font-bold text-sm tracking-wider text-accent">⚡ YT CLIPPER</span>
+    <a href="/logout" class="text-xs text-zinc-400 hover:text-white transition md:hidden">Logout</a>
+  </div>
+  <div class="p-3 flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-x-visible">
+    <a href="/" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🏠 Library</a>
+    <a href="/create.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">＋ Create Clip</a>
+    <a href="/story.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🎬 Story</a>
+    <a href="/facebook.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition bg-zinc-900 text-white font-medium">📘 FB</a>
+    <a href="/tasks.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">📋 Tasks</a>
+    <a href="/settings.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">⚙️ Settings</a>
+  </div>
+  <div class="mt-auto p-4 border-t border-zinc-800 hidden md:flex items-center justify-between text-[11px]">
+    <span class="text-zinc-500 truncate max-w-[120px]" id="whoami"></span>
+    <a href="/logout" class="text-zinc-400 hover:text-white transition">Logout</a>
+  </div>
+</aside>
+
+<div class="flex-1 flex flex-col min-w-0 overflow-y-auto">
+  <main class="max-w-3xl w-full mx-auto p-4 md:p-6 space-y-4 flex-1 pb-6">
+
+    <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 space-y-3">
+      <div>
+        <h2 class="text-sm font-semibold text-white">📘 Facebook Reels Uploader</h2>
+        <p class="text-[11px] text-zinc-500">Upload clip dari render_manifest.json ke Page Facebook (jadwal otomatis, rate limit 30/24 jam).</p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label class="fld">Page ID</label>
+          <input id="fPage" class="in" placeholder="1234567890">
+        </div>
+        <div>
+          <label class="fld">Access Token (Page)</label>
+          <input id="fToken" type="password" class="in" placeholder="EAA...">
+        </div>
+        <div>
+          <label class="fld">Graph Version</label>
+          <input id="fGraph" class="in" placeholder="v25.0">
+        </div>
+        <div>
+          <label class="fld">Interval (jam)</label>
+          <input id="fInterval" type="number" step="0.5" class="in" placeholder="5">
+        </div>
+      </div>
+      <div class="flex items-center justify-between flex-wrap gap-2">
+        <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+          <input type="checkbox" id="fTest" class="accent-yellow-400"> test mode (validasi token saja)
+        </label>
+        <button onclick="saveCfg()" class="px-3 py-1.5 bg-surface-2 border border-zinc-700 text-zinc-200 text-xs rounded hover:border-accent transition">💾 Simpan Config</button>
+        <span id="cfgMsg" class="text-[11px]"></span>
+      </div>
+    </div>
+
+    <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 space-y-3">
+      <h3 class="text-xs font-semibold uppercase tracking-wider text-zinc-400">📦 Manifest</h3>
+      <select id="fManifest" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1.5 text-xs text-white"></select>
+      <p id="manHint" class="text-[10px] text-zinc-600 hidden"></p>
+      <div class="flex items-center gap-2">
+        <button onclick="runFb()" class="px-4 py-2 bg-accent text-black font-medium text-xs rounded-lg hover:bg-yellow-400 transition">▶️ UPLOAD</button>
+        <button onclick="cancelFb()" class="px-3 py-2 bg-surface-2 border border-zinc-700 text-zinc-300 text-xs rounded hover:border-red-500 hover:text-red-400 transition">⏹ Cancel</button>
+        <span id="fbMsg" class="text-[11px] text-zinc-400"></span>
+      </div>
+      <div id="fbResult" class="hidden text-xs text-zinc-300 space-y-1"></div>
+      <pre id="fbLog" class="log p-3 hidden"></pre>
+    </div>
+
+  </main>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let POLL = null;
+let CFG = {};
+
+async function loadCfg(){
+  try{ CFG = await (await fetch('/api/config')).json(); }catch{ CFG = {}; }
+  const f = CFG.facebook_uploader || {};
+  $('fPage').value = f.page_id || '';
+  $('fToken').value = f.access_token || '';
+  $('fGraph').value = f.graph_version || 'v25.0';
+  $('fInterval').value = f.interval_hours ?? 5;
+  $('fTest').checked = !!f.test_mode;
+}
+
+async function saveCfg(){
+  const fb = {
+    page_id: $('fPage').value.trim(),
+    access_token: $('fToken').value.trim(),
+    graph_version: $('fGraph').value.trim() || 'v25.0',
+    interval_hours: parseFloat($('fInterval').value) || 5,
+    test_mode: $('fTest').checked,
+  };
+  const r = await fetch('/api/config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ facebook_uploader: fb }) });
+  const j = await r.json();
+  const m = $('cfgMsg'); m.textContent = j.ok ? 'Tersimpan ✓' : '❌ '+(j.error||''); m.style.color = j.ok ? '#4ade80' : '#f87171';
+}
+
+async function loadManifests(){
+  try{
+    const list = await (await fetch('/api/fb/manifests')).json();
+    const sel = $('fManifest');
+    sel.innerHTML = list.length ? '' : '<option value="">belum ada render_manifest.json</option>';
+    list.forEach(m => { const o = document.createElement('option'); o.value = m.rel; o.textContent = m.name + (m.size>0?' ('+(m.size/1048576).toFixed(1)+' MB)':''); sel.append(o); });
+    const hint = $('manHint');
+    if(list.length){ hint.textContent = 'Manifest dipakai: ' + sel.value; hint.classList.remove('hidden'); }
+  }catch{}
+}
+
+function feedLog(t){ const el=$('fbLog'); el.classList.remove('hidden'); el.textContent += (t||'')+'\n'; el.scrollTop=el.scrollHeight; }
+function setMsg(t,c){ const el=$('fbMsg'); el.textContent=t; if(c) el.style.color=c; }
+
+async function runFb(){
+  const manifest = $('fManifest').value;
+  if(!manifest){ setMsg('❌ pilih manifest dulu','#f87171'); return; }
+  setMsg('menjalankan…','#a1a1aa');
+  $('fbLog').textContent=''; $('fbLog').classList.remove('hidden');
+  $('fbResult').classList.add('hidden');
+  const body = { manifest, test_mode: $('fTest').checked };
+  const r = await fetch('/api/fb/upload', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  const j = await r.json();
+  if(!j.ok && !j.started){ setMsg('❌ '+(j.error||'gagal'),'#f87171'); return; }
+  if(j.ok) setMsg('uploading…','#a1a1aa');
+  POLL = setInterval(poll, 2500);
+}
+
+async function poll(){
+  try{
+    const j = await (await fetch('/api/fb/status')).json();
+    const el=$('fbLog');
+    if(j.log && j.log.split('\n').length > el.textContent.split('\n').length){ el.textContent = j.log; el.scrollTop = el.scrollHeight; }
+    if(!j.running){
+      clearInterval(POLL); POLL=null;
+      const box=$('fbResult');
+      if(j.code===0 && j.result && j.result.ok){
+        setMsg('✅ selesai','#4ade80');
+        if(j.result.test){ box.innerHTML = '<span class="text-emerald-400">✅ Token valid — Page: '+esc(j.result.page||'')+' (ID '+esc(j.result.page_id||'')+')</span>'; }
+        else { box.innerHTML = '<span class="text-emerald-400">✅ Uploaded: '+esc(String(j.result.uploaded||[]).length||j.result.uploaded||0)+' clip</span>'; }
+        box.classList.remove('hidden');
+      } else {
+        setMsg('❌ gagal (code '+j.code+')','#f87171');
+        box.innerHTML = '<span class="text-red-400">'+esc((j.result&&j.result.error)||'error')+'</span>';
+        box.classList.remove('hidden');
+      }
+      loadManifests();
+    }
+  }catch{}
+}
+
+async function cancelFb(){
+  clearInterval(POLL); POLL=null;
+  await fetch('/api/fb/cancel', { method:'POST' });
+  setMsg('dibatalkan','#fbbf24');
+}
+
+loadCfg(); loadManifests();
+fetch('/api/me').then(r=>r.json()).then(u=>{ if(u&&u.name){ $('whoami').textContent=u.name; } }).catch(()=>{});
+</script>
+</body>
+</html>
