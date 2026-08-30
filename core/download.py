@@ -212,6 +212,7 @@ class DownloadMixin:
                             "title": info.get("title", ""),
                             "description": (info.get("description", "") or "")[:2000],
                             "channel": info.get("channel", ""),
+                            "duration": float(info.get("duration") or 0),
                         }
                         self.log(f"  Title: {video_info['title'][:50]}...")
                 
@@ -372,6 +373,7 @@ class DownloadMixin:
                         "title": yt_data.get("title", ""),
                         "description": yt_data.get("description", "")[:2000],
                         "channel": yt_data.get("channel", ""),
+                        "duration": float(yt_data.get("duration") or 0),
                     }
                     self.log(f"  Title: {video_info['title'][:50]}...")
                 except json.JSONDecodeError:
@@ -990,6 +992,7 @@ class DownloadMixin:
                             "title": info.get("title", ""),
                             "description": (info.get("description", "") or "")[:2000],
                             "channel": info.get("channel", ""),
+                            "duration": float(info.get("duration") or 0),
                         }
                         self.log(f"  Title: {video_info['title'][:50]}...")
             
@@ -1067,6 +1070,7 @@ class DownloadMixin:
                         "title": yt_data.get("title", ""),
                         "description": yt_data.get("description", "")[:2000],
                         "channel": yt_data.get("channel", ""),
+                        "duration": float(yt_data.get("duration") or 0),
                     }
                     self.log(f"  Title: {video_info['title'][:50]}...")
                 except json.JSONDecodeError:
@@ -1193,6 +1197,7 @@ class DownloadMixin:
                 "title": info.get("title", ""),
                 "description": (info.get("description", "") or "")[:2000],
                 "channel": info.get("channel", ""),
+                "duration": float(info.get("duration") or 0),
             }
 
         def _server_available_heights(self, url: str) -> list:

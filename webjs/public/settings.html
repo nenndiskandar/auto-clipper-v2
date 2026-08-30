@@ -170,16 +170,10 @@ body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-s
                 <option value="crop">crop</option>
                 <option value="center">center — wajah di tengah rapih ⭐</option>
                 <option value="blur">blur</option>
-                <option value="split">split screen</option>
-                <option value="split_game">split screen game</option>
-                <option value="split_podcast">split screen podcast (2 orang)</option>
                 <option value="split_podcast_dynamic">split podcast dynamic (OpusClip-like)</option>
               </select>
             </div>
-            <div>
-              <label class="text-[10px] text-zinc-500 block mb-0.5">Default Klip Sesi</label>
-              <input type="number" min="1" id="s_num_clips" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
-            </div>
+            <input type="hidden" id="s_num_clips" value="auto">
             <div class="col-span-2 flex flex-wrap gap-4 pt-1">
               <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="s_gpu" class="w-3.5 h-3.5 accent-[#facc15]"> ⚡ Akselerasi GPU</label>
               <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="s_stabilize" class="w-3.5 h-3.5 accent-[#facc15]"> 🛡️ Stabilize Video</label>
@@ -210,13 +204,13 @@ body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-s
               <input type="hidden" id="s_pan_speed_limit" value="1.8">
             </div>
             <div class="hidden">
-              <input type="hidden" id="s_center_weight" value="0.12">
+              <input type="hidden" id="s_center_weight" value="0.15">
             </div>
             <div class="hidden">
               <input type="hidden" id="s_switch_threshold" value="0.18">
             </div>
             <div class="hidden">
-              <input type="hidden" id="s_min_shot_duration" value="1.5">
+              <input type="hidden" id="s_min_shot_duration" value="45">
             </div>
             <div class="hidden">
               <input type="hidden" id="s_lip_activity" value="0.08">
@@ -539,16 +533,16 @@ function collectFormData() {
     resolution: $('#s_resolution').value,
     aspect_ratio: $('#s_aspect_ratio').value,
     portrait_mode: $('#s_portrait_mode').value,
-    num_clips: parseInt($('#s_num_clips').value) || 5,
+    num_clips: $('#s_num_clips').value || 'auto',
     use_gpu: $('#s_gpu').checked,
     stabilize: $('#s_stabilize').checked,
     smooth_follow: $('#s_smooth_follow').checked,
     face_tracking_mode: $('#s_face_tracking_mode').value,
-    pan_speed_limit: parseFloat($('#s_pan_speed_limit').value) || 1.5,
-    center_weight: parseFloat($('#s_center_weight').value) || 0.6,
-    switch_threshold: parseFloat($('#s_switch_threshold').value) || 0.35,
-    min_shot_duration: parseFloat($('#s_min_shot_duration').value) || 2.0,
-    lip_activity: parseFloat($('#s_lip_activity').value) || 0.05,
+    pan_speed_limit: parseFloat($('#s_pan_speed_limit').value) || 1.8,
+    center_weight: parseFloat($('#s_center_weight').value) || 0.15,
+    switch_threshold: parseFloat($('#s_switch_threshold').value) || 0.18,
+    min_shot_duration: parseFloat($('#s_min_shot_duration').value) || 45,
+    lip_activity: parseFloat($('#s_lip_activity').value) || 0.08,
     captions: $('#s_captions').checked,
     subtitle_style: $('#s_subtitle_style').value,
     sync_offset: parseFloat($('#s_sync_offset').value) || 0,
@@ -597,16 +591,16 @@ function populateForm(d) {
   set('s_resolution', d.resolution || '1080p');
   set('s_aspect_ratio', d.aspect_ratio || '9:16');
   set('s_portrait_mode', d.portrait_mode || 'crop');
-  set('s_num_clips', d.num_clips || 5);
+  set('s_num_clips', d.num_clips || 'auto');
   chk('s_gpu', d.use_gpu);
   chk('s_stabilize', d.stabilize);
   chk('s_smooth_follow', d.smooth_follow !== false);
   set('s_face_tracking_mode', d.face_tracking_mode || 'opencv');
-  set('s_pan_speed_limit', d.pan_speed_limit ?? 1.5);
-  set('s_center_weight', d.center_weight ?? 0.6);
-  set('s_switch_threshold', d.switch_threshold ?? 0.35);
-  set('s_min_shot_duration', d.min_shot_duration ?? 2.0);
-  set('s_lip_activity', d.lip_activity ?? 0.05);
+  set('s_pan_speed_limit', d.pan_speed_limit ?? 1.8);
+  set('s_center_weight', d.center_weight ?? 0.15);
+  set('s_switch_threshold', d.switch_threshold ?? 0.18);
+  set('s_min_shot_duration', d.min_shot_duration ?? 45);
+  set('s_lip_activity', d.lip_activity ?? 0.08);
   chk('s_captions', d.captions !== false);
   set('s_subtitle_style', d.subtitle_style || 'pop');
   set('s_sync_offset', d.sync_offset ?? 0);

@@ -33,7 +33,7 @@ def _log_to_file(msg):
 
 def debug_log(msg):
     """Log message to both console and file"""
-    debug_log(f"[DEBUG] {msg}")
+    print(f"[DEBUG] {msg}")
     _log_to_file(msg)
 
 

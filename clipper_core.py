@@ -396,7 +396,7 @@ class AutoClipperCore(SubtitleGeneratorMixin, EffectsMixin, DownloadMixin, Trans
         return "font='Arial':"
     
     
-    def process(self, url: str, num_clips: int = 5, add_captions: bool = True, add_hook: bool = True):
+    def process(self, url: str, num_clips = "auto", add_captions: bool = True, add_hook: bool = True):
         """Main processing pipeline"""
         
         # Step 1: Download video

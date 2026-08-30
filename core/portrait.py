@@ -535,7 +535,9 @@ class PortraitMixin:
                 if results.face_landmarks:
                     faces_data = []
                 
-                    for face_id, face_landmarks in enumerate(results.face_landmarks):
+                    # Sort faces left-to-right by nose tip (landmark 1) x coordinate to ensure consistent face IDs
+                    sorted_faces = sorted(results.face_landmarks, key=lambda lm: lm[1].x)
+                    for face_id, face_landmarks in enumerate(sorted_faces):
                         # Calculate lip activity
                         activity = self._calculate_lip_activity(
                             face_landmarks, 
@@ -565,7 +567,7 @@ class PortraitMixin:
                 
                     # OpusClip-accurate: prioritize active speaker (activity > thresh), not center
                     if faces_data:
-                        active = [f for f in faces_data if f['activity'] > lip_thresh]
+                        active = [f for f in faces_data if f['activity'] > lip_threshold]
                         if active:
                             # most active speaker — ignore center bias when someone is talking
                             best_face = max(active, key=lambda f: f['activity'])
@@ -606,7 +608,8 @@ class PortraitMixin:
                     crop_positions, 
                     face_activities,
                     min_shot_duration,
-                    switch_threshold
+                    switch_threshold,
+                    orig_w
                 )
         
             # Second pass: single ffmpeg command (crop + scale + encode + audio)
@@ -653,55 +656,67 @@ class PortraitMixin:
         
             return activity_score
 
-        def _stabilize_positions_with_activity(self, positions, activities, min_shot_duration, switch_threshold):
-            """Stabilize crop positions based on activity scores"""
+        def _stabilize_positions_with_activity(self, positions, activities, min_shot_duration, switch_threshold, orig_w):
+            """Stabilize crop positions based on activity scores.
+            
+            - Uses a pixel-scaled switch threshold.
+            - Performs a clean cut (instant jump) on speaker change.
+            - Performs a smooth pan (spring/exponential dampening) for small-to-medium movements.
+            - Features a dead-zone to eliminate micro-jitter when speaker is relatively still.
+            """
             if not positions:
                 return positions
-        
-            # First pass: smooth positions with moving median
-            window_size = 30
+
+            # Convert switch_threshold to pixels
+            pixel_switch_threshold = switch_threshold * orig_w if switch_threshold < 1.0 else switch_threshold
+            
+            # Dead zone: 5% of screen width. Within this zone, the camera doesn't move.
+            dead_zone = 0.05 * orig_w
+            
+            # Smooth positions with a window to reduce frame-to-frame noise
+            window_size = 15
             smoothed = []
-        
             for i in range(len(positions)):
                 start = max(0, i - window_size // 2)
                 end = min(len(positions), i + window_size // 2)
-                window = positions[start:end]
-                smoothed.append(int(np.median(window)))
-        
-            # Second pass: lock positions per shot based on activity
+                smoothed.append(int(np.median(positions[start:end])))
+
             final = []
+            current_pos = smoothed[0]
             shot_start = 0
-            current_position = smoothed[0] if smoothed else 0
-        
-            for i in range(len(smoothed)):
-                frames_since_switch = i - shot_start
             
-                # Only allow switch if:
-                # 1. Minimum shot duration has passed
-                # 2. Position changed significantly
-                # 3. Activity is high enough (speaker is talking)
-                if frames_since_switch >= min_shot_duration:
-                    position_diff = abs(smoothed[i] - current_position)
-                    activity = activities[i] if i < len(activities) else 0
-                
-                    # Switch if position changed significantly AND there's activity
-                    if position_diff > switch_threshold and activity > 0:
-                        # Shot change detected - lock previous shot to median
-                        shot_positions = smoothed[shot_start:i]
-                        if shot_positions:
-                            shot_median = int(np.median(shot_positions))
-                            final.extend([shot_median] * len(shot_positions))
-                    
+            # For smooth panning within a shot
+            pan_speed = 0.1  # Smoothing factor for continuous follow
+
+            for i in range(len(smoothed)):
+                target_pos = smoothed[i]
+                activity = activities[i] if i < len(activities) else 0
+                frames_since_switch = i - shot_start
+
+                # Calculate difference between current camera position and target position
+                diff = abs(target_pos - current_pos)
+
+                if diff > pixel_switch_threshold and activity > 0.05:
+                    if frames_since_switch >= min_shot_duration:
+                        # SPEAKER SWITCH: Perform a clean cut to the new speaker
+                        current_pos = target_pos
                         shot_start = i
-                        current_position = smoothed[i]
-        
-            # Handle last shot
-            shot_positions = smoothed[shot_start:]
-            if shot_positions:
-                shot_median = int(np.median(shot_positions))
-                final.extend([shot_median] * len(shot_positions))
-        
-            return final if final else smoothed
+                    elif frames_since_switch < 8:
+                        # Snapping during the median filter transition window
+                        current_pos = target_pos
+                else:
+                    # SAME SPEAKER / SMALL REFRAMING:
+                    # Apply dead zone: if movement is small, hold camera still
+                    if diff < dead_zone:
+                        # Hold position to eliminate micro-jitter
+                        pass
+                    else:
+                        # Smooth pan towards target
+                        current_pos = current_pos + (target_pos - current_pos) * pan_speed
+
+                final.append(int(round(current_pos)))
+
+            return final
 
         def _smooth_follow_positions(self, positions: list, pan_speed_limit: float = 1.8):
             """Smooth continuous camera pan — professional-grade tracking.
@@ -1672,7 +1687,9 @@ class PortraitMixin:
                 if results.face_landmarks:
                     faces_data = []
                 
-                    for face_id, face_landmarks in enumerate(results.face_landmarks):
+                    # Sort faces left-to-right by nose tip (landmark 1) x coordinate to ensure consistent face IDs
+                    sorted_faces = sorted(results.face_landmarks, key=lambda lm: lm[1].x)
+                    for face_id, face_landmarks in enumerate(sorted_faces):
                         # Calculate lip activity
                         activity = self._calculate_lip_activity(
                             face_landmarks,
@@ -1700,8 +1717,15 @@ class PortraitMixin:
                         lip_distance = abs(upper_lip.y - lower_lip.y)
                         prev_lip_distances[face_id] = lip_distance
                 
+                    # OpusClip-accurate: prioritize active speaker (activity > thresh), not center
                     if faces_data:
-                        best_face = max(faces_data, key=lambda f: f['combined_score'])
+                        active = [f for f in faces_data if f['activity'] > lip_threshold]
+                        if active:
+                            # most active speaker — ignore center bias when someone is talking
+                            best_face = max(active, key=lambda f: f['activity'])
+                        else:
+                            # silence → stay on center face (fallback)
+                            best_face = min(faces_data, key=lambda f: abs(f['x'] - orig_w/2))
                         best_face_x = best_face['x']
                         max_activity = best_face['activity']
             
@@ -1743,7 +1767,8 @@ class PortraitMixin:
                     crop_positions,
                     face_activities,
                     min_shot_duration,
-                    switch_threshold
+                    switch_threshold,
+                    orig_w
                 )
             progress_callback(0.45)
         

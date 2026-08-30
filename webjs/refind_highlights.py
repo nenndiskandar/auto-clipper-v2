@@ -26,7 +26,7 @@ def _progress_cb(message, fraction):
 
 def main():
     core, cfg = build_core()
-    num = NUM_CLIPS if NUM_CLIPS > 0 else int(cfg.get("num_clips", 5))
+    num = "auto"
     sess_dir = Path(APP_DIR) / "output" / "sessions" / SID
     sdf = sess_dir / "session_data.json"
     data = json.loads(sdf.read_text(encoding="utf-8"))
