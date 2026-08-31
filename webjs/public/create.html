@@ -70,6 +70,22 @@ pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y
     </div>
   </div>
   
+  <!-- Mobile Engine Status -->
+  <div class="flex md:hidden items-center justify-around px-4 py-2 border-t border-b border-zinc-800/80 bg-zinc-950 text-[10px] text-zinc-400">
+    <div class="flex items-center gap-1.5">
+      <span id="st_ffmpeg_mob" class="w-2 h-2 rounded-full bg-zinc-650" title="Checking..."></span>
+      <span>FFmpeg</span>
+    </div>
+    <div class="flex items-center gap-1.5">
+      <span id="st_ytdlp_mob" class="w-2 h-2 rounded-full bg-zinc-650" title="Checking..."></span>
+      <span>yt-dlp</span>
+    </div>
+    <div class="flex items-center gap-1.5">
+      <span id="st_deno_mob" class="w-2 h-2 rounded-full bg-zinc-650" title="Checking..."></span>
+      <span>Deno</span>
+    </div>
+  </div>
+  
   <div class="mt-auto p-4 border-t border-zinc-800 hidden md:flex items-center justify-between text-[11px]">
     <span class="text-zinc-500 truncate max-w-[120px]" id="whoami"></span>
     <a href="/logout" class="text-zinc-400 hover:text-white transition">Logout</a>
@@ -607,14 +623,21 @@ async function checkEngineStatus() {
     const list = await r.json();
     list.forEach(b => {
       let elId = '';
-      if (b.name === 'ffmpeg') elId = 'st_ffmpeg';
-      else if (b.name === 'yt-dlp') elId = 'st_ytdlp';
-      else if (b.name === 'deno') elId = 'st_deno';
+      let elMobId = '';
+      if (b.name === 'ffmpeg') { elId = 'st_ffmpeg'; elMobId = 'st_ffmpeg_mob'; }
+      else if (b.name === 'yt-dlp') { elId = 'st_ytdlp'; elMobId = 'st_ytdlp_mob'; }
+      else if (b.name === 'deno') { elId = 'st_deno'; elMobId = 'st_deno_mob'; }
       
       const el = document.getElementById(elId);
       if (el) {
         el.className = `w-2.5 h-2.5 rounded-full ${b.ok ? 'bg-emerald-500' : 'bg-red-500'}`;
         el.title = b.ok ? `${b.name}: Ready (${b.detail || 'ok'})` : `${b.name}: Error (${b.detail || 'failed'})`;
+      }
+      
+      const elMob = document.getElementById(elMobId);
+      if (elMob) {
+        elMob.className = `w-2 h-2 rounded-full ${b.ok ? 'bg-emerald-500' : 'bg-red-500'}`;
+        elMob.title = b.ok ? `${b.name}: Ready (${b.detail || 'ok'})` : `${b.name}: Error (${b.detail || 'failed'})`;
       }
     });
   } catch (e) {
