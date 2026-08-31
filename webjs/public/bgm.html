@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Auto BGM — Auto Clipper</title>
+<link rel="manifest" href="/manifest.json">
+<script src="/pwa.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: { extend: { colors: {
+    surface: { 0:'#09090b', 1:'#18181b', 2:'#27272a', 3:'#3f3f46' },
+    zinc: { 450: '#8b8b96', 650: '#43434c' },
+    accent: '#facc15',
+  }}}
+}
+</script>
+<style>
+body{background:#09090b;color:#fafafa;font-family:system-ui,-apple-system,sans-serif}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#3f3f46;border-radius:3px}
+</style>
+</head>
+<body class="min-h-screen flex flex-col md:flex-row bg-[#09090b]">
+
+<!-- SIDEBAR -->
+<aside class="w-full md:w-60 border-b md:border-b-0 md:border-r border-zinc-800 bg-zinc-950 flex flex-col shrink-0">
+  <div class="p-4 border-b border-zinc-800 flex items-center justify-between">
+    <span class="font-bold text-sm tracking-wider text-accent">⚡ YT CLIPPER</span>
+    <a href="/logout" class="text-xs text-zinc-400 hover:text-white transition md:hidden">Logout</a>
+  </div>
+  <div class="p-3 flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-x-visible">
+    <a href="/" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🏠 Library</a>
+    <a href="/create.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">＋ Create Clip</a>
+    <a href="/tasks.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">📋 Tasks</a>
+    <a href="/story.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🎬 Story</a>
+    <a href="/facebook.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">📘 FB</a>
+    <a href="/cookies.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🍪 Cookies</a>
+    <a href="/bgm.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition bg-zinc-900 text-white font-medium">🎵 Auto BGM</a>
+    <a href="/broll.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🖼 Auto B-roll</a>
+    <a href="/settings.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">⚙️ Settings</a>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="flex-1 p-4 md:p-6 max-w-3xl mx-auto w-full">
+  <h1 class="text-lg font-bold text-white mb-1">🎵 Auto BGM</h1>
+  <p class="text-xs text-zinc-500 mb-6">Kelola Background Music. Mesin memilih acak satu file dari folder mood saat render klip.</p>
+
+  <div id="toast" class="hidden fixed top-4 right-4 z-50 text-xs rounded-xl px-4 py-3 shadow-lg"></div>
+
+  <div class="bg-surface-1 border border-zinc-800 rounded-2xl p-5 mb-6">
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="text-sm font-semibold text-white">Status Auto BGM</h2>
+        <p class="text-[11px] text-zinc-500 mt-0.5">Campur musik latar otomatis ke klip.</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <span id="bgmStatus" class="text-xs font-semibold text-zinc-300">…</span>
+        <button id="bgmToggle" class="relative w-11 h-6 rounded-full transition-colors"></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-surface-1 border border-zinc-800 rounded-2xl p-5">
+    <h2 class="text-sm font-semibold text-white mb-1">Library per Mood</h2>
+    <p class="text-[11px] text-zinc-500 mb-4">Mood yang didukung AI: chill, epic, sad, upbeat, suspense. Upload file ke tiap folder.</p>
+    <div id="moodList" class="space-y-4"></div>
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+let bgmData = { moods: [], bgm: {}, enabled: false };
+const MOOD_LABEL = { chill:'😌 Chill', epic:'🔥 Epic', sad:'😢 Sad', upbeat:'🎉 Upbeat', suspense:'😱 Suspense' };
+function b64u(b){ return btoa(String.fromCharCode.apply(null, new Uint8Array(b))); }
+function fmtSize(n){ if(n<1024) return n+' B'; if(n<1048576) return (n/1024).toFixed(1)+' KB'; return (n/1048576).toFixed(1)+' MB'; }
+function toast(msg, ok){ const t=$('toast'); t.textContent=msg; t.className='fixed top-4 right-4 z-50 text-xs rounded-xl px-4 py-3 shadow-lg '+(ok?'bg-emerald-600':'bg-red-600')+' text-white'; t.classList.remove('hidden'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.add('hidden'), 3500); }
+function api(p,o){ return fetch(p,o).then(r=>r.json()); }
+function toggleBtn(el,on){ el.className='relative w-11 h-6 rounded-full transition-colors '+(on?'bg-accent':'bg-zinc-700'); el.innerHTML='<span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform '+(on?'translate-x-5':'')+'"></span>'; }
+
+async function load(){
+  bgmData = await api('/api/bgm');
+  toggleBtn($('bgmToggle'), !!bgmData.enabled);
+  $('bgmStatus').textContent = bgmData.enabled ? 'Aktif' : 'Nonaktif';
+  renderMoods();
+}
+function renderMoods(){
+  const box=$('moodList'); box.innerHTML='';
+  for(const mood of (bgmData.moods||[])){
+    const files=bgmData.bgm[mood]||[];
+    const card=document.createElement('div');
+    card.className='border border-zinc-800 rounded-xl p-4';
+    let rows=files.map(f=>`
+      <li class="flex items-center justify-between gap-2 py-1.5 border-b border-zinc-800/50 last:border-0">
+        <span class="text-xs text-zinc-300 truncate">🎵 ${f.name}</span>
+        <span class="flex items-center gap-2">
+          <span class="text-[10px] text-zinc-500 shrink-0">${fmtSize(f.size)}</span>
+          <button data-del="${encodeURIComponent(mood)}/${encodeURIComponent(f.name)}" class="text-[11px] text-red-400 hover:text-red-300 px-2 py-0.5 rounded hover:bg-red-500/10">Hapus</button>
+        </span>
+      </li>`).join('')||'<li class="text-[11px] text-zinc-600 py-2">Belum ada file.</li>';
+    card.innerHTML=`
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-semibold text-white">${MOOD_LABEL[mood]||mood}</span>
+        <span class="text-[10px] text-zinc-500">${files.length} file</span>
+      </div>
+      <ul>${rows}</ul>
+      <label class="mt-2 flex cursor-pointer">
+        <input type="file" accept=".mp3,.m4a,.wav,.aac,.ogg,audio/*" data-mood="${mood}" class="hidden">
+        <div class="flex-1 text-center text-[11px] border border-dashed border-zinc-700 hover:border-accent rounded-lg py-2 text-zinc-400 hover:text-white transition">＋ Upload ke ${MOOD_LABEL[mood]||mood}</div>
+      </label>`;
+    box.appendChild(card);
+  }
+  box.querySelectorAll('input[type=file]').forEach(inp=>inp.addEventListener('change',async()=>{ if(inp.files[0]) await uploadBgm(inp.dataset.mood, inp.files[0]); }));
+  box.querySelectorAll('button[data-del]').forEach(btn=>btn.addEventListener('click',async()=>{
+    const [m,f]=btn.dataset.del.split('/').map(decodeURIComponent);
+    if(!confirm('Hapus '+f+'?')) return;
+    const r=await api('/api/bgm/'+m+'/'+encodeURIComponent(f),{method:'DELETE'});
+    if(r.ok){ toast('File terhapus',true); await load(); } else toast(r.error||'Gagal',false);
+  }));
+}
+async function uploadBgm(mood,file){
+  if(file.size>50*1024*1024) return toast('File > 50 MB',false);
+  const buf=await file.arrayBuffer();
+  const r=await api('/api/bgm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mood,name:file.name,data:b64u(buf)})});
+  if(r.ok){ toast('✓ '+file.name+' terupload',true); await load(); } else toast(r.error||'Gagal upload',false);
+}
+$('bgmToggle').addEventListener('click',async()=>{
+  const r=await api('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({auto_bgm:!bgmData.enabled})});
+  if(!r.error){ bgmData.enabled=!bgmData.enabled; toggleBtn($('bgmToggle'),bgmData.enabled); $('bgmStatus').textContent=bgmData.enabled?'Aktif':'Nonaktif'; toast(bgmData.enabled?'BGM diaktifkan':'BGM dinonaktifkan',true); }
+});
+load();
+</script>
+</body>
+</html>
