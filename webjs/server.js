@@ -308,7 +308,12 @@ function parseOverall(logText) {
 }
 
 const isLocalAddr = a => ['127.0.0.1','::1','::ffff:127.0.0.1','localhost'].includes(String(a).replace(/^::ffff:/, ''));
-const isLocalRequest = req => isLocalAddr(req.connection.remoteAddress);
+const isLocalRequest = req => {
+  // Check host header: if it's an IP address or localhost (e.g. 192.168.1.100, 127.0.0.1, localhost)
+  const host = (req.headers.host || '').split(':')[0];
+  const isIp = /^[0-9.]+$/.test(host) || host.includes(':') || host === 'localhost';
+  return isIp || isLocalAddr(req.connection.remoteAddress);
+};
 
 const server = http.createServer((req, res) => {
   const u = new URL(req.url, 'http://x');
