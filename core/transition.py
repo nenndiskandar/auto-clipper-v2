@@ -98,7 +98,7 @@ def _download_with_subprocess(url, outtmpl):
     """Fallback download via yt-dlp CLI."""
     import shutil
     exe = shutil.which("yt-dlp") or "yt-dlp"
-    cmd = [exe, "-f", "best[ext=mp4]", "-o", outtmpl, "--no-playlist", url]
+    cmd = [exe, "-o", outtmpl, "--no-playlist", url]
     subprocess.run(cmd, check=True, capture_output=True)
 
 
@@ -123,7 +123,6 @@ def download_transition_raw(entry: dict, base_dir: str = None) -> str | None:
         else:
             YoutubeDL(
                 {
-                    "format": "best[ext=mp4]",
                     "outtmpl": raw_path,
                     "quiet": True,
                     "no_warnings": True,
@@ -134,11 +133,17 @@ def download_transition_raw(entry: dict, base_dir: str = None) -> str | None:
         debug_log(f"[Transition] Download gagal ({entry['label']}): {e}")
         return None
 
-    if os.path.exists(raw_path) and os.path.getsize(raw_path) > 10_000:
-        debug_log(f"[Transition] Tersimpan: {raw_path}")
-        return raw_path
+    # yt-dlp tanpa -f bisa simpan ekstensi selain .mp4 (e.g. .webm/.mkv).
+    # Cari file apa pun dengan prefix raw file itu di cache.
+    base = os.path.basename(raw_path)
+    stem, _ = os.path.splitext(base)
+    matches = [os.path.join(cache_dir, f) for f in os.listdir(cache_dir) if f.startswith(stem + ".")]
+    found = next((f for f in matches if os.path.getsize(f) > 10_000), None)
+    if found:
+        debug_log(f"[Transition] Tersimpan: {found}")
+        return found
 
-    debug_log(f"[Transition] File terlalu kecil / gagal: {raw_path}")
+    debug_log(f"[Transition] File gagal: {raw_path}")
     return None
 
 

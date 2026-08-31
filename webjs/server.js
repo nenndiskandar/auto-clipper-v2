@@ -80,6 +80,7 @@ const RENDER_JOBS = new Map();
 let CREATE_JOB = null;
 const PROCESS_JOBS = new Map();
 const REFIND_JOBS = new Map();
+let TRANS_JOB = null;
 // job story clip & facebook upload
 let STORY_JOBS = new Map(); // key "run" -> job (biar /api/tasks legible)
 const FB_JOBS = new Map();  // key "run" -> job
@@ -1174,6 +1175,129 @@ except Exception as e:
         const fp = path.join(BGM_DIR, mood, name);
         if (!fp.startsWith(BGM_DIR) || !fs.existsSync(fp)) return json(res, 404, { error: 'File tidak ditemukan' });
         fs.rmSync(fp);
+        json(res, 200, { ok: true });
+      } catch (e) { json(res, 500, { error: String(e) }); }
+      return;
+    }
+    // --- Transition Library management: daftar pool, download, cache, config ---
+    const TRANS_CACHE = path.join(ROOT, 'transitions_cache');
+    const TRANS_POOL_INFO = [
+      { url: 'https://www.youtube.com/watch?v=yfKv03nLaBE', type: 'film_burn', orientation: 'landscape', label: 'GRUNGY Film Burn Transitions' },
+      { url: 'https://www.youtube.com/watch?v=uYBcUpLxtEM', type: 'film_burn', orientation: 'landscape', label: 'GRUNGE Film Overlay with Sound' },
+      { url: 'https://www.youtube.com/watch?v=YFzGx0JuUUQ', type: 'film_overlay', orientation: 'landscape', label: '35mm Film Overlay' },
+      { url: 'https://www.youtube.com/watch?v=iGvnBXS3pyM', type: 'film_leader', orientation: 'landscape', label: 'Dirty Grainy Film Leader' },
+      { url: 'https://www.youtube.com/watch?v=BsKj9iiimTE', type: 'film_leader', orientation: 'landscape', label: 'Classic Film Leader Overlays' },
+      { url: 'https://www.youtube.com/watch?v=OaK3jjBfOi0', type: 'film_grain', orientation: 'landscape', label: 'Film Grain Overlay with Sound Effect' },
+      { url: 'https://www.youtube.com/watch?v=k0BvSreLx5E', type: 'film_burn', orientation: 'vertical', label: 'Vertical Vibrant Film Burn Overlay' },
+      { url: 'https://www.youtube.com/watch?v=eiditSLUA3I', type: 'film_burn', orientation: 'vertical', label: 'Vertical Rich and Vibrant Colors' },
+    ];
+    const listTransCache = () => {
+      try { return fs.readdirSync(TRANS_CACHE).filter(f => /\.(mp4|webm|mkv)$/i.test(f)).map(f => { let s=0; try{s=fs.statSync(path.join(TRANS_CACHE,f)).size;}catch{}; return {name:f, size:s}; }); }
+      catch { return []; }
+    };
+    // GET /api/transitions — daftar pool + status cache + config
+    if (p === '/api/transitions' && req.method === 'GET') {
+      try {
+        const cache = listTransCache();
+        const cachedIds = new Set(cache.map(f => (f.name.match(/^tmp_raw_(.+?)\.mp4/)||[])[1]).filter(Boolean));
+        const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'config.json'), 'utf8'));
+        const pool = TRANS_POOL_INFO.map(e => ({ ...e, cached: cachedIds.has(e.url.split('v=')[1].split('&')[0]) }));
+        json(res, 200, { pool, cache, enabled: !!(cfg.transition_library && cfg.transition_library.enabled), style: (cfg.transition_library && cfg.transition_library.style) || 'random' });
+      } catch (e) { json(res, 500, { error: String(e) }); }
+      return;
+    }
+    // POST /api/transitions/download — download semua transisi ke cache (async)
+    if (p === '/api/transitions/download' && req.method === 'POST') {
+      fs.mkdirSync(TRANS_CACHE, { recursive: true });
+      const logPath = path.join(ROOT, 'output', 'transitions_download.log');
+      fs.mkdirSync(path.dirname(logPath), { recursive: true });
+      const out = fs.createWriteStream(logPath, { flags: 'a' });
+      fs.appendFileSync(logPath, `\n===== transition download start ${new Date().toISOString()} =====\n`);
+      const child = spawn(PY, ['-c', 'from core.transition import download_all_transitions; download_all_transitions()'], { cwd: ROOT });
+      child.stdout.pipe(out); child.stderr.pipe(out);
+      TRANS_JOB = { proc: child, startedAt: Date.now() };
+      child.on('close', code => { TRANS_JOB.code = code; TRANS_JOB.finishedAt = Date.now(); out.end(); });
+      json(res, 200, { ok: true, started: true });
+      return;
+    }
+    // GET /api/transitions/status — status download + log
+    if (p === '/api/transitions/status' && req.method === 'GET') {
+      return json(res, 200, {
+        running: !!(TRANS_JOB && TRANS_JOB.code === undefined),
+        code: TRANS_JOB ? TRANS_JOB.code : null,
+        log: tailFile(path.join(ROOT, 'output', 'transitions_download.log'), 6000),
+        cache: listTransCache(),
+      });
+    }
+    // DELETE /api/transitions/cache — bersihkan cache transisi
+    if (p === '/api/transitions/cache' && req.method === 'DELETE') {
+      try {
+        if (fs.existsSync(TRANS_CACHE)) { for (const f of fs.readdirSync(TRANS_CACHE)) fs.rmSync(path.join(TRANS_CACHE, f), { force: true }); }
+        json(res, 200, { ok: true });
+      } catch (e) { json(res, 500, { error: String(e) }); }
+      return;
+    }
+    // --- Thumbnail management: generate dari klip, daftar, hapus, toggle ---
+    const THUMB_DIR = path.join(ROOT, 'output', 'thumbnails');
+    const listThumbs = () => {
+      try {
+        return fs.readdirSync(THUMB_DIR).filter(f => /\.(png|jpe?g)$/i.test(f)).map(f => {
+          const fp = path.join(THUMB_DIR, f); let s=0; try{s=fs.statSync(fp).size;}catch{};
+          return { name: f, size: s, url: '/api/thumbnails/file/' + encodeURIComponent(f) };
+        });
+      } catch { return []; }
+    };
+    // GET /api/thumbnails — daftar + config
+    if (p === '/api/thumbnails' && req.method === 'GET') {
+      try {
+        const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'config.json'), 'utf8'));
+        fs.mkdirSync(THUMB_DIR, { recursive: true });
+        json(res, 200, { list: listThumbs(), enabled: !!(cfg.thumbnail && cfg.thumbnail.enabled) });
+      } catch (e) { json(res, 500, { error: String(e) }); }
+      return;
+    }
+    // POST /api/thumbnails/generate — { session, clipDir }
+    if (p === '/api/thumbnails/generate' && req.method === 'POST') {
+      let body = '';
+      req.on('data', c => body += c); req.on('end', () => {
+        let o = {}; try { o = JSON.parse(body || '{}'); } catch {}
+        const sess = String(o.session || ''), clipDir = String(o.clipDir || '');
+        if (!sess || !clipDir) return json(res, 400, { error: 'session & clipDir wajib' });
+        const clipPath = path.join(SESSIONS, sess, 'clips', clipDir);
+        if (!clipPath.startsWith(SESSIONS) || !fs.existsSync(clipPath)) return json(res, 404, { error: 'klip tidak ditemukan' });
+        fs.mkdirSync(THUMB_DIR, { recursive: true });
+        const outName = (sess + '_' + clipDir + '_' + Date.now() + '.jpg').replace(/[^A-Za-z0-9_.-]/g, '_');
+        const outPath = path.join(THUMB_DIR, outName);
+        const child = execFile(PY, [path.join(__dirname, 'gen_thumbnail.py'), sess, clipDir, outPath, String(o.frame_ms || 5000), String(o.alpha ?? 128)],
+          { cwd: ROOT, timeout: 60000, maxBuffer: 8*1024*1024 }, (err, stdout, stderr) => {
+            if (err || !fs.existsSync(outPath)) {
+              const msg = String(stderr || err.message || '');
+              return json(res, 500, { error: msg.split('\n').filter(Boolean).slice(-3).join(' ') || 'gagal generate' });
+            }
+            let info = {}; try { info = JSON.parse(stdout); } catch {}
+            return json(res, 200, { ok: true, name: outName, url: '/api/thumbnails/file/' + encodeURIComponent(outName), title: info.title });
+          });
+      });
+      return;
+    }
+    // GET /api/thumbnails/file/:name — sajikan file thumbnail
+    const mThumbFile = p.match(/^\/api\/thumbnails\/file\/([^/]+)$/);
+    if (mThumbFile) {
+      const name = path.basename(safe(mThumbFile[1]));
+      const fp = path.join(THUMB_DIR, name);
+      if (!fp.startsWith(THUMB_DIR) || !fs.existsSync(fp)) return json(res, 404, { error: 'not found' });
+      const ext = path.extname(name).toLowerCase();
+      res.writeHead(200, { 'Content-Type': ext === '.png' ? 'image/png' : 'image/jpeg', 'Content-Length': fs.statSync(fp).size, 'Cache-Control': 'no-store' });
+      fs.createReadStream(fp).pipe(res);
+      return;
+    }
+    // DELETE /api/thumbnails/file/:name — hapus thumbnail
+    const mThumbDel = p.match(/^\/api\/thumbnails\/file\/([^/]+)$/);
+    if (mThumbDel && req.method === 'DELETE') {
+      try {
+        const name = path.basename(safe(mThumbDel[1]));
+        const fp = path.join(THUMB_DIR, name);
+        if (fp.startsWith(THUMB_DIR) && fs.existsSync(fp)) fs.rmSync(fp);
         json(res, 200, { ok: true });
       } catch (e) { json(res, 500, { error: String(e) }); }
       return;
