@@ -116,12 +116,8 @@ class AutoClipperCore(SubtitleGeneratorMixin, EffectsMixin, DownloadMixin, Trans
         mediapipe_settings: dict = None,
         ai_providers: dict = None,
         pro_settings: dict = None,
-        auto_bgm_settings: dict = None,
         auto_camera_switch_settings: dict = None,
-        thumbnail_settings: dict = None,
         metadata_settings: dict = None,
-        auto_broll_settings: dict = None,
-        transition_library_settings: dict = None,
         subtitle_language: str = "id",
         subtitle_sync_offset: float = -0.3,
         log_callback=None,
@@ -218,11 +214,7 @@ class AutoClipperCore(SubtitleGeneratorMixin, EffectsMixin, DownloadMixin, Trans
         }
         if pro_settings and isinstance(pro_settings, dict):
             self.pro_settings.update({k: v for k, v in pro_settings.items() if v is not None})
-        self.auto_bgm_settings = auto_bgm_settings or {}
-        self.thumbnail_settings = thumbnail_settings or {}
         self.metadata_settings = metadata_settings or {}
-        self.auto_broll_settings = auto_broll_settings or {}
-        self.transition_library_settings = transition_library_settings or {}
         # Camera-Switch settings (dimuat dari pro_settings bila tersedia)
         ps = self.pro_settings
         acs = auto_camera_switch_settings or {}

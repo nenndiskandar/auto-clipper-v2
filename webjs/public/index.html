@@ -44,10 +44,6 @@ pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y
     <a href="/story.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🎬 Story</a>
     <a href="/facebook.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">📘 FB</a>
     <a href="/cookies.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🍪 Cookies</a>
-    <a href="/bgm.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🎵 Auto BGM</a>
-    <a href="/broll.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🖼 Auto B-roll</a>
-    <a href="/transition.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🌀 Transition</a>
-    <a href="/thumbnail.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🖼 Thumbnail</a>
     <a href="/settings.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">⚙️ Settings</a>
     
     <!-- Engine Status Indication -->
@@ -471,21 +467,6 @@ function openRender(gi, ci) {
             ${cfgSelect('portrait_mode', '🖼️ Portrait Mode', ['crop', 'center', 'blur', 'split_podcast_dynamic'])}
             ${cfgSelect('face_tracking_mode', '🎯 Face Tracking', ['opencv', 'mediapipe'])}
             ${cfgNum('sync_offset', '⏱️ Sync Offset (detik)', '0.1')}
-          </div>
-          <div class="grid grid-cols-2 gap-2 mt-2">
-            <div>
-              <label class="text-[10px] text-zinc-500 block mb-0.5">🎵 Mood BGM</label>
-              <select onchange="CFG['bgm_mood']=this.value" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent">
-                <option value="">— default config —</option>
-                <option value="chill">chill</option><option value="epic">epic</option><option value="sad">sad</option>
-                <option value="upbeat">upbeat</option><option value="suspense">suspense</option>
-              </select>
-            </div>
-            <div>
-              <label class="text-[10px] text-zinc-500 block mb-0.5">🎞️ Query B-roll</label>
-              <input type="text" placeholder="mis. cinematic city" oninput="CFG['broll_query']=this.value"
-                     class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent">
-            </div>
           </div>
     <details class="border border-zinc-800 rounded bg-surface-2 mt-2">
       <summary class="px-2 py-1 text-xs font-semibold text-zinc-400 hover:text-white cursor-pointer select-none flex justify-between items-center">
