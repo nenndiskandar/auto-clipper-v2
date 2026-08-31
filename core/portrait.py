@@ -1018,7 +1018,12 @@ class PortraitMixin:
 
         def _get_ratio_dimensions(self):
             """Get (out_w, out_h) for the configured aspect ratio."""
-            return self.RATIO_DIMENSIONS.get(self.aspect_ratio, (1080, 1920))
+            # User kebijakan: 720p lebih cepat & cukup untuk sosial (lihat MEMORY.md).
+            # Map eksplisit agar tak tergantung resolution config yang tak konsisten
+            # antar jalur download/portrait. 9:16 -> 720x1280, dst.
+            _dims = {"9:16": (720, 1280), "1:1": (720, 720), "4:5": (720, 900),
+                     "3:4": (720, 960), "16:9": (1280, 720)}
+            return _dims.get(getattr(self, "aspect_ratio", "9:16"), (720, 1280))
 
         def _get_crop_window(self, orig_w: int, orig_h: int):
             """Compute (crop_w, crop_h) for the configured aspect ratio, clamped to the
