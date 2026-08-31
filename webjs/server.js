@@ -543,6 +543,7 @@ const server = http.createServer((req, res) => {
           font_preset: cfg.font_preset || 'DEFAULT',
           auto_bgm: cfg.auto_bgm || {},
           auto_broll: cfg.auto_broll || {},
+          pexels_api_key: (cfg.pexels_api_key || ''),
           auto_camera_switch: cfg.auto_camera_switch || {},
           transition_library: cfg.transition_library || {},
           thumbnail: cfg.thumbnail || {},
@@ -629,6 +630,11 @@ const server = http.createServer((req, res) => {
         cfg.auto_broll = cfg.auto_broll || {};
         if (typeof o.auto_broll === 'boolean') cfg.auto_broll.enabled = o.auto_broll;
         if (typeof o.auto_broll === 'string') cfg.auto_broll.enabled = o.auto_broll !== 'none' && o.auto_broll !== 'false' && o.auto_broll !== '';
+        // Pexels API key untuk Auto B-roll (on-demand video search)
+        if (typeof o.pexels_api_key === 'string') {
+          const pk = o.pexels_api_key.trim();
+          if (pk) cfg.pexels_api_key = pk; else delete cfg.pexels_api_key;
+        }
         cfg.transition_library = cfg.transition_library || {};
         if (typeof o.transition_library === 'string') {
           cfg.transition_library.enabled = o.transition_library.trim() !== 'none' && o.transition_library.trim() !== '';
@@ -1099,6 +1105,77 @@ except Exception as e:
           });
         });
       });
+      return;
+    }
+    // --- Auto BGM management: daftar/upload/hapus file musik per mood ---
+    const BGM_MOODS = ['chill', 'epic', 'sad', 'upbeat', 'suspense'];
+    const BGM_DIR = path.join(ROOT, 'assets', 'bgm');
+    const BGM_EXT = ['.mp3', '.m4a', '.wav', '.aac', '.ogg'];
+    const listBgm = () => {
+      const out = {};
+      for (const mood of BGM_MOODS) {
+        const d = path.join(BGM_DIR, mood);
+        let files = [];
+        try {
+          files = fs.readdirSync(d)
+            .filter(f => BGM_EXT.includes(path.extname(f).toLowerCase()))
+            .map(f => {
+              const fp = path.join(d, f);
+              let size = 0; try { size = fs.statSync(fp).size; } catch {}
+              return { name: f, size };
+            })
+            .sort((a, b) => a.name.localeCompare(b.name));
+        } catch { files = []; }
+        out[mood] = files;
+      }
+      return out;
+    };
+    // GET /api/bgm — daftar file BGM per mood + toggle status config
+    if (p === '/api/bgm' && req.method === 'GET') {
+      try {
+        const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'config.json'), 'utf8'));
+        json(res, 200, { moods: BGM_MOODS, bgm: listBgm(), enabled: !!(cfg.auto_bgm && cfg.auto_bgm.enabled) });
+      } catch (e) { json(res, 500, { error: String(e) }); }
+      return;
+    }
+    // POST /api/bgm — upload file BGM { mood, name, data(base64) }
+    if (p === '/api/bgm' && req.method === 'POST') {
+      let body = '';
+      req.on('data', c => body += c); req.on('error', () => {});
+      req.on('end', () => {
+        try {
+          const o = JSON.parse(body || '{}');
+          const mood = String(o.mood || '').toLowerCase();
+          if (!BGM_MOODS.includes(mood)) return json(res, 400, { error: 'Mood tidak valid: ' + mood });
+          const b64 = String(o.data || '').replace(/^data:[^;]+;base64,/, '').trim();
+          if (!b64) return json(res, 400, { error: 'Tidak ada data audio' });
+          const buf = Buffer.from(b64, 'base64');
+          if (!buf.length) return json(res, 400, { error: 'File kosong' });
+          if (buf.length > 50 * 1024 * 1024) return json(res, 400, { error: 'File > 50 MB' });
+          let name = String(o.name || 'bgm.mp3').replace(/[^A-Za-z0-9._-]/g, '_');
+          const ext = path.extname(name).toLowerCase();
+          if (!BGM_EXT.includes(ext)) { name = name + '.mp3'; }
+          const dir = path.join(BGM_DIR, mood);
+          fs.mkdirSync(dir, { recursive: true });
+          const dest = path.join(dir, name);
+          fs.writeFileSync(dest, buf);
+          json(res, 200, { ok: true, mood, name, size: buf.length });
+        } catch (e) { json(res, 500, { error: String(e) }); }
+      });
+      return;
+    }
+    // DELETE /api/bgm/:mood/:file — hapus file BGM
+    const mBgmDel = p.match(/^\/api\/bgm\/([^/]+)\/([^/]+)$/);
+    if (mBgmDel && req.method === 'DELETE') {
+      try {
+        const mood = safe(mBgmDel[1]).toLowerCase();
+        if (!BGM_MOODS.includes(mood)) return json(res, 400, { error: 'Mood tidak valid' });
+        const name = path.basename(safe(mBgmDel[2]));
+        const fp = path.join(BGM_DIR, mood, name);
+        if (!fp.startsWith(BGM_DIR) || !fs.existsSync(fp)) return json(res, 404, { error: 'File tidak ditemukan' });
+        fs.rmSync(fp);
+        json(res, 200, { ok: true });
+      } catch (e) { json(res, 500, { error: String(e) }); }
       return;
     }
     // POST /api/refind/:session — regenerate highlights sesi ada (async + log)
