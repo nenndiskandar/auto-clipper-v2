@@ -344,3 +344,7 @@ config - Copy.json
 
 # Whisper models (runtime download)
 faster_whisper_models/
+
+# Python cache
+*.pyc
+__pycache__/
