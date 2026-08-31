@@ -2,8 +2,7 @@
 """Re-render satu klip (dari landscape.mp4) dengan konfigurasi aktif.
 
 Env RENDER_OPTS (JSON): {hook,captions,watermark,credit,aspect_ratio,subtitle_style,
-portrait_mode,face_tracking_mode,sync_offset,gpu,face_detector_model,yolo_size,
-bgm_mood,bgm_path,broll_query,pexels_api_key}
+portrait_mode,face_tracking_mode,sync_offset,gpu,face_detector_model,yolo_size}
 """
 import sys, os, json, traceback
 from pathlib import Path
@@ -79,24 +78,11 @@ def main():
         mediapipe_settings=mp,
         ai_providers=prov or None,
         pro_settings=cfg.get("pro_settings"),
-        auto_bgm_settings=dict(cfg.get("auto_bgm") or {}),
         auto_camera_switch_settings=cfg.get("auto_camera_switch"),
-        thumbnail_settings=cfg.get("thumbnail"),
         metadata_settings=cfg.get("metadata_settings"),
-        auto_broll_settings=dict(cfg.get("auto_broll") or {}),
-        transition_library_settings=cfg.get("transition_library"),
         subtitle_language=cfg.get("subtitle_language", "id"),
         subtitle_sync_offset=float(opts.get("sync_offset", cfg.get("subtitle_sync_offset", -0.3))),
     )
-    # Per-clip override: BGM mood + B-roll query (dari UI re-render)
-    if str(opts.get("bgm_mood") or "").strip():
-        core.auto_bgm_settings["mood"] = str(opts["bgm_mood"]).strip()
-    if "bgm_path" in opts and str(opts.get("bgm_path") or "").strip():
-        core.auto_bgm_settings["path"] = str(opts["bgm_path"]).strip()
-    if str(opts.get("broll_query") or "").strip():
-        core.auto_broll_settings["query"] = str(opts["broll_query"]).strip()
-    if "pexels_api_key" in opts and str(opts.get("pexels_api_key") or "").strip():
-        core.auto_broll_settings["pexels_api_key"] = str(opts["pexels_api_key"]).strip()
     if cfg.get("face_detector_model"):
         core.face_detector_model = cfg.get("face_detector_model")
     if cfg.get("yolo_size"):

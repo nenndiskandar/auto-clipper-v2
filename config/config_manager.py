@@ -152,29 +152,6 @@ class ConfigManager:
 
         config.setdefault("font_preset", "DEFAULT")  # typography (feature 8)
 
-        config.setdefault("auto_bgm", {
-            "enabled": False,
-            "mood": "",
-            "mode": "ducking",                # "ducking" | "background"
-            "base_volume": 0.25,
-            "bgm_dir": "",
-            "path": "",
-        })
-
-        config.setdefault("auto_broll", {
-            "enabled": False,
-            "pexels_api_key": "",
-            "per_clip": 1,
-            "duration": 3.0,
-            "mix_volume": 0.35,
-        })
-
-        config.setdefault("transition_library", {
-            "enabled": False,
-            "type": "slide_up",
-            "duration": 0.5,
-        })
-
         config.setdefault("auto_camera_switch", {
             "enabled": False,
             "hold_duration": 2.0,
@@ -186,14 +163,6 @@ class ConfigManager:
 
         config.setdefault("face_detector_model", "mediapipe")  # "mediapipe" | "yolo"
         config.setdefault("yolo_size", "8n")
-
-        config.setdefault("thumbnail", {
-            "enabled": False,
-            "text": "",
-            "render_front": True,
-            "position": "bottom",
-            "font_size": 0.05,
-        })
 
         config.setdefault("metadata_settings", {
             "classification": "auto",

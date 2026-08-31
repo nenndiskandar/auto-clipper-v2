@@ -695,49 +695,6 @@ class CaptionMixin:
                     os.unlink(out_path)
                 raise RuntimeError("Hook V2: output gagal dibuat.")
 
-        def apply_auto_bgm_with_progress(self, input_path, output_path, progress_callback=None,
-                                         bgm_path: str = None, mode: str = "ducking", base_volume: float = 0.25):
-            """Auto BGM: sisipkan lagu latar ke video (ducking / background)."""
-            if not bgm_path or not os.path.exists(bgm_path):
-                if progress_callback:
-                    progress_callback(1.0)
-                import shutil
-                shutil.copy(input_path, output_path)
-                return False
-            try:
-                from core.bgm import build_bgm_filter
-            except Exception as e:
-                debug_log(f"bgm module error: {e}")
-                if progress_callback:
-                    progress_callback(1.0)
-                import shutil
-                shutil.copy(input_path, output_path)
-                return False
-
-            probe_cmd = [self.ffmpeg_path, "-i", input_path, "-f", "null", "-"]
-            result = subprocess.run(probe_cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
-            video_duration = 60
-            m = re.search(r"Duration: (\d+):(\d+):(\d+\.\d+)", result.stderr)
-            if m:
-                hh, mm, ss = m.groups()
-                video_duration = int(hh) * 3600 + int(mm) * 60 + float(ss)
-            ffc, maps = build_bgm_filter(mode=mode, base_volume=base_volume, duck_level_db=self.pro_settings.get("ducking_level_db", -15))
-            cmd = [
-                self.ffmpeg_path, "-y",
-                "-i", input_path,
-                "-i", bgm_path,
-                "-filter_complex", ffc,
-                "-map", "0:v", "-map", maps,
-                *self.get_video_encoder_args(),
-                "-c:a", "aac", "-b:a", "192k",
-                "-shortest", "-progress", "pipe:1",
-                output_path,
-            ]
-            self.log_ffmpeg_command(cmd, "Apply Auto BGM", step="bgm")
-            self.run_ffmpeg_with_progress(cmd, video_duration,
-                lambda p: (progress_callback(p) if progress_callback else None))
-            return os.path.exists(output_path) and os.path.getsize(output_path) > 10_000
-
         def _cut_with_segments(self, video_path, start_base, scenes, output_path, progress_callback=None):
             """Segment trimming: potong beberapa sub-segmen (keep_segments) lalu
             concat jadi satu clip. scenes = list [(start_offset, end_offset)]."""
@@ -1225,9 +1182,8 @@ class CaptionMixin:
             end = highlight["end_time"].replace(",", ".")
         
             self.log(f"\n[Clip {index}] {highlight['title']}")
-        
+    
             # Calculate total steps based on options (include Social Kit so overall goes 0→100 sequentially)
-            bgm_cfg = getattr(self, "auto_bgm_settings", {}) or {}
             total_steps = 1  # Re-encode/Cut is always 1 step
             total_steps += 1  # Portrait conversion always
             if add_hook:
@@ -1238,9 +1194,6 @@ class CaptionMixin:
                 total_steps += 1
             if self.credit_watermark_settings.get("enabled"):
                 total_steps += 1
-            bgm_cfg = getattr(self, "auto_bgm_settings", {}) or {}
-            if bgm_cfg.get("enabled"):
-                total_steps += 1  # Auto BGM
             has_social = bool(self.client)
             if has_social:
                 total_steps += 1  # Social Kit metadata
@@ -1490,114 +1443,6 @@ class CaptionMixin:
                     current_output = duck_file
                     self.log(self.colorize(f"  ✓ Audio ducking ({duck_level}dB)", "duck"))
 
-            # --- Auto BGM (mood) ---
-            bgm_cfg = getattr(self, "auto_bgm_settings", {}) or {}
-            if bgm_cfg.get("enabled"):
-                if self.is_cancelled():
-                    return
-                mood = highlight.get("mood") or bgm_cfg.get("mood", "")
-                bgm_path = None
-                if mood:
-                    try:
-                        from core.bgm import get_local_bgm_file
-                        bgm_path = get_local_bgm_file(mood, bgm_cfg.get("bgm_dir", ""))
-                    except Exception as e:
-                        debug_log(f"BGM lookup gagal: {e}")
-                if not bgm_path and bgm_cfg.get("path"):
-                    bgm_path = bgm_cfg.get("path")
-                if bgm_path and not Path(bgm_path).exists():
-                    bgm_path = None
-                if bgm_path:
-                    bgm_file = clip_dir / "bgm.mp4"
-                    clip_progress("Auto BGM...", current_step, 0.5)
-                    ok = self.apply_auto_bgm_with_progress(
-                        str(current_output), str(bgm_file),
-                        lambda p: clip_progress("Auto BGM...", current_step, p),
-                        bgm_path=bgm_path,
-                        mode=bgm_cfg.get("mode", "ducking"),
-                        base_volume=float(bgm_cfg.get("base_volume", 0.25)),
-                    )
-                    if ok:
-                        current_output = bgm_file
-                        self.log(self.colorize(f"  ✓ Auto BGM ({mood or 'custom'})", "bgm"))
-                else:
-                    self.log("  ⊘ Auto BGM enabled tapi file BGM tidak ditemukan")
-
-            # --- Auto B-roll (Pexels) ---
-            broll_cfg = getattr(self, "auto_broll_settings", {}) or {}
-            if broll_cfg.get("enabled") and broll_cfg.get("pexels_api_key"):
-                if self.is_cancelled():
-                    return
-                try:
-                    from core.broll import download_pexels_broll, overlay_broll
-                    broll_dir = self.temp_dir / "broll" if hasattr(self, "temp_dir") else (clip_dir / "broll")
-                    broll_dir = Path(str(broll_dir))
-                    broll_dir.mkdir(parents=True, exist_ok=True)
-                    query = highlight.get("topic") or highlight.get("category") or broll_cfg.get("query") or "cinematic b-roll"
-                    n = int(broll_cfg.get("per_clip", 1) or 1)
-                    clip_progress("Auto B-roll...", current_step, 0.2)
-                    dur = float(broll_cfg.get("duration", 3.0) or 3.0)
-                    start_t = max(0.0, float(getattr(self, "_clip_start", 0) or 0)) + 0.3
-                    total_broll = float(highlight.get("duration_seconds") or 6.0)
-                    for i in range(max(0, n)):
-                        broll_file = broll_dir / f"broll_{i}.mp4"
-                        if not broll_file.exists():
-                            from utils.helpers import get_ffmpeg_path
-                            download_pexels_broll(
-                                str(query), self.aspect_ratio or "9:16", str(broll_file),
-                                str(broll_cfg.get("pexels_api_key", "")),
-                            )
-                        if not broll_file.exists() or broll_file.stat().st_size < 1000:
-                            continue
-                        from utils.helpers import get_ffmpeg_path as _gfp
-                        broll_out = clip_dir / f"broll_overlay_{i}.mp4"
-                        s = start_t + i * dur
-                        e = min(s + dur, max(s + 0.5, s + total_broll - start_t))
-                        ok = overlay_broll(
-                            str(current_output), str(broll_file), str(broll_out),
-                            start=s, end=e, ffmpeg_path=get_ffmpeg_path(),
-                            opacity=1.0, fade=0.2,
-                        )
-                        if ok and broll_out.exists():
-                            current_output = broll_out
-                            self.log(f"  ✓ Auto B-roll #{i + 1}")
-                    if str(current_output).endswith("_overlay_0.mp4"):
-                        current_step += 1
-                except Exception as e:
-                    debug_log(f"Auto B-roll gagal: {e}")
-
-            # --- Transition library (fade-through) ---
-            trans_cfg = getattr(self, "transition_library_settings", {}) or {}
-            if trans_cfg.get("enabled"):
-                if self.is_cancelled():
-                    return
-                try:
-                    from core.transition import get_random_transition, prepare_transition_clip
-                    from core.broll import apply_transition
-                    entry = get_random_transition(transition_type=trans_cfg.get("type"))
-                    clip_progress("Transition...", current_step, 0.2)
-                    trans_out = clip_dir / "transitioned.mp4"
-                    if entry and entry.get("raw_path"):
-                        import re as _re
-                        out_w, out_h = 1080, 1920
-                        try:
-                            pr = subprocess.run([self.ffmpeg_path, "-i", str(current_output), "-f", "null", "-"],
-                                                capture_output=True, text=True, timeout=60)
-                            m = _re.search(r"(\d{3,4})x(\d{3,4})", pr.stderr)
-                            if m:
-                                out_w, out_h = int(m.group(1)), int(m.group(2))
-                        except Exception:
-                            pass
-                        prepared = prepare_transition_clip(
-                            entry, out_w, out_h, clip_duration=float(trans_cfg.get("duration", 0.5) or 0.5),
-                            ffmpeg_path=self.ffmpeg_path,
-                        )
-                        if prepared and apply_transition(str(current_output), str(prepared), str(trans_out), ffmpeg_path=self.ffmpeg_path):
-                            current_output = trans_out
-                            self.log(f"  ✓ Transition: {entry.get('label')}")
-                            current_step += 1
-                except Exception as e:
-                    debug_log(f"Transition gagal: {e}")
             # Step 5: Add watermark (if enabled)
             watermark_file = clip_dir / "watermark.mp4"
             if self.watermark_settings.get("enabled"):
@@ -1672,9 +1517,6 @@ class CaptionMixin:
                 "vignette": self.pro_settings.get("vignette", 0),
                 "speed_ramp": bool(self.pro_settings.get("speed_ramp_start", 0) or self.pro_settings.get("speed_ramp_end", 0)),
                 "audio_ducking": bool(self.pro_settings.get("music_path", "")),
-                "has_bgm": bool((getattr(self, "auto_bgm_settings", {}) or {}).get("enabled")),
-                "has_broll": bool((getattr(self, "auto_broll_settings", {}) or {}).get("enabled")),
-                "has_transition": bool((getattr(self, "transition_library_settings", {}) or {}).get("enabled")),
                 "hook_v2": bool((self.hook_style_settings or {}).get("v2")),
                 "watermark_position": (self.watermark_settings or {}).get("position"),
                 "portrait_mode": getattr(self, "portrait_mode", None),
@@ -1766,22 +1608,6 @@ class CaptionMixin:
                     metadata["tipe_akun"] = klas.get("tipe_akun")
                 except Exception as e:
                     debug_log(f"[Metadata] normalize gagal: {e}")
-
-            # Feature 9 — Thumbnail generator (dari clip final, best-effort)
-            if (self.thumbnail_settings or {}).get("enabled") and final_file.exists():
-                try:
-                    from core.thumbnail import buat_thumbnail
-                    thumb_cfg = self.thumbnail_settings or {}
-                    thumb_path = clip_dir / "thumbnail.jpg"
-                    buat_thumbnail(
-                        str(final_file),
-                        str(thumb_path),
-                        teks=thumb_cfg.get("text") or clip_title,
-                    )
-                    metadata["thumbnail"] = thumb_path.name
-                    self.log(f"  ✓ Thumbnail: {thumb_path.name}")
-                except Exception as e:
-                    debug_log(f"[Thumbnail] gagal: {e}")
 
             with open(clip_dir / "data.json", "w", encoding="utf-8") as f:
                 json.dump(metadata, f, ensure_ascii=False, indent=2)

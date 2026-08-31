@@ -57,10 +57,6 @@ body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-s
     <a href="/tasks.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">📋 Tasks</a>
     <a href="/story.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🎬 Story</a>
     <a href="/facebook.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">📘 FB</a>
-    <a href="/bgm.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🎵 Auto BGM</a>
-    <a href="/broll.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🖼 Auto B-roll</a>
-    <a href="/transition.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🌀 Transition</a>
-    <a href="/thumbnail.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🖼 Thumbnail</a>
     <a href="/cookies.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🍪 Cookies</a>
     <a href="/settings.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition bg-zinc-900 text-white font-medium">⚙️ Settings</a>
   </div>
@@ -253,33 +249,11 @@ body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-s
         <div class="card-head flex items-center justify-between p-4 cursor-pointer" onclick="toggleCard(this)">
           <span class="chev text-zinc-500">▾</span>
           <h3 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">🎛️ Studio / Auto Enhance</h3>
-          <span class="text-[10px] text-zinc-500">BGM · B-roll · Camera · Font</span>
+          <span class="text-[10px] text-zinc-500">Camera · Font</span>
         </div>
         <div class="card-body p-4 pt-0 space-y-3 hidden">
           <div class="grid grid-cols-2 gap-3">
-            <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="s_auto_bgm" class="w-3.5 h-3.5 accent-[#facc15]"> 🎵 Auto BGM</label>
-            <div>
-              <label class="text-[10px] text-zinc-500 block mb-0.5">BGM Mood (default)</label>
-              <select id="s_auto_bgm_mood" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
-                <option value="">— default —</option>
-                <option value="chill">chill</option><option value="epic">epic</option>
-                <option value="sad">sad</option><option value="upbeat">upbeat</option>
-                <option value="suspense">suspense</option>
-              </select>
-            </div>
-            <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="s_auto_broll" class="w-3.5 h-3.5 accent-[#facc15]"> 🖼 Auto B-roll</label>
-            <div>
-              <label class="text-[10px] text-zinc-500 block mb-0.5">B-roll Query (default)</label>
-              <input type="text" id="s_auto_broll_query" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent" placeholder="mis. cinematic city">
-            </div>
             <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="s_auto_camera_switch" class="w-3.5 h-3.5 accent-[#facc15]"> 🎥 Camera Switch</label>
-            <div>
-              <label class="text-[10px] text-zinc-500 block mb-0.5">Transition Library</label>
-              <select id="s_transition_library" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
-                <option value="none">none</option>
-                <option value="random">random</option>
-              </select>
-            </div>
             <div>
               <label class="text-[10px] text-zinc-500 block mb-0.5">Font Preset (Typography)</label>
               <select id="s_font_preset" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-accent">
@@ -289,7 +263,6 @@ body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-s
                 <option value="minimal">minimal</option>
               </select>
             </div>
-            <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="s_thumbnail" class="w-3.5 h-3.5 accent-[#facc15]"> 🖼 Generate Thumb</label>
           </div>
         </div>
       </div>
@@ -579,27 +552,12 @@ function applyTemplate(k) {
   const t = TEMPLATES[k];
   if (!t) return;
   populateForm({ ...collectFormData(), ...t.cfg });
-  // Terapkan fitur object (BGM mood, B-roll query, camera-switch, transition, thumbnail)
+  // Terapkan fitur object (camera-switch, font)
   let chk;
-  const ab = t.cfg.auto_bgm;
-  if (ab) {
-    chk = $('#s_auto_bgm'); if (chk) chk.checked = !!(ab.enabled ?? ab);
-    // mood disimpan ke hidden state utk dikirim: s_auto_bgm_mood
-    const moodEl = $('#s_auto_bgm_mood'); if (moodEl) moodEl.value = ab.mood || '';
-  }
-  const abr = t.cfg.auto_broll;
-  if (abr) {
-    chk = $('#s_auto_broll'); if (chk) chk.checked = !!(abr.enabled ?? abr);
-    const qEl = $('#s_auto_broll_query'); if (qEl) qEl.value = abr.query || '';
-  }
   const acs = t.cfg.auto_camera_switch;
   if (acs) {
     chk = $('#s_auto_camera_switch'); if (chk) chk.checked = !!(acs.enabled ?? acs);
   }
-  const tl = t.cfg.transition_library;
-  if (tl) { const el = $('#s_transition_library'); if (el) el.value = (typeof tl === 'object' ? (tl.enabled ? (tl.style || 'random') : 'none') : tl); }
-  const th = t.cfg.thumbnail;
-  if (th) { chk = $('#s_thumbnail'); if (chk) chk.checked = !!(th.enabled ?? th); }
   const fp = t.cfg.font_preset;
   if (fp) { const el = $('#s_font_preset'); if (el) el.value = fp; }
 
@@ -673,12 +631,8 @@ function collectFormData() {
     speed_ramp_end: parseFloat($('#s_speed_ramp_end')?.value) || 0,
     speed_factor: parseFloat($('#s_speed_factor')?.value) || 1.0,
     ducking_level_db: parseFloat($('#s_ducking_level_db')?.value) || -12,
-    auto_bgm: $('#s_auto_bgm')?.checked ? ($('#s_auto_bgm_mood')?.value ? { enabled: true, mood: $('#s_auto_bgm_mood').value } : true) : undefined,
-    auto_broll: $('#s_auto_broll')?.checked ? ($('#s_auto_broll_query')?.value ? { enabled: true, query: $('#s_auto_broll_query').value } : true) : undefined,
     auto_camera_switch: $('#s_auto_camera_switch')?.checked,
-    transition_library: $('#s_transition_library')?.value || 'none',
     font_preset: $('#s_font_preset')?.value || 'default',
-    thumbnail: $('#s_thumbnail')?.checked,
   };
 }
 
@@ -735,15 +689,8 @@ function populateForm(d) {
   set('s_speed_factor', d.speed_factor ?? 1.0);
   set('s_ducking_level_db', d.ducking_level_db ?? -12);
 
-  chk('s_auto_bgm', !!(d.auto_bgm?.enabled ?? d.auto_bgm));
-  set('s_auto_bgm_mood', (d.auto_bgm?.mood) || '');
-  chk('s_auto_broll', !!(d.auto_broll?.enabled ?? d.auto_broll));
-  set('s_auto_broll_query', (d.auto_broll?.query) || '');
   chk('s_auto_camera_switch', !!(d.auto_camera_switch?.enabled ?? d.auto_camera_switch));
-  const tl = (d.transition_library && typeof d.transition_library === 'object') ? (d.transition_library.enabled ? (d.transition_library.style || 'random') : 'none') : (d.transition_library || 'none');
-  set('s_transition_library', tl);
   set('s_font_preset', (typeof d.font_preset === 'string' && d.font_preset) ? d.font_preset.toLowerCase() : 'default');
-  chk('s_thumbnail', !!(d.thumbnail?.enabled ?? d.thumbnail));
 
   try{ updateThumbnailPreview(); }catch(e){}
   try{ updateSubPreview(); }catch(e){}
