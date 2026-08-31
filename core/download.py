@@ -958,7 +958,7 @@ class DownloadMixin:
             # token). Use clients that don't require one.
             ydl_opts['extractor_args'] = {
                 'youtube': {
-                    'player_client': ['web', 'web_embedded', 'tv_embedded', 'android_vr', 'web_safari']
+                    'player_client': ['web', 'web_embedded', 'web_safari', 'mweb']
                 }
             }
         
@@ -1094,7 +1094,7 @@ class DownloadMixin:
             # token). Use clients that don't require one.
             cmd.extend([
                 "--extractor-args",
-                "youtube:player_client=web,web_embedded,tv_embedded,android_vr,web_safari"
+                                "youtube:player_client=web,web_embedded,web_safari,mweb"
             ])
         
             cmd.append(url)
@@ -1186,7 +1186,7 @@ class DownloadMixin:
             # token). Use clients that don't require one.
             opts['extractor_args'] = {
                 'youtube': {
-                    'player_client': ['web', 'web_embedded', 'tv_embedded', 'android_vr', 'web_safari']
+                    'player_client': ['web', 'web_embedded', 'web_safari', 'mweb']
                 }
             }
 
@@ -1229,7 +1229,7 @@ class DownloadMixin:
             # token). Use clients that don't require one.
             opts['extractor_args'] = {
                 'youtube': {
-                    'player_client': ['web', 'web_embedded', 'tv_embedded', 'android_vr', 'web_safari']
+                    'player_client': ['web', 'web_embedded', 'web_safari', 'mweb']
                 }
             }
         
@@ -1381,7 +1381,7 @@ class DownloadMixin:
                 # token). Use clients that don't require one.
                 'extractor_args': {
                     'youtube': {
-                        'player_client': ['web', 'web_embedded', 'tv_embedded', 'android_vr', 'web_safari']
+                        'player_client': ['web', 'web_embedded', 'web_safari', 'mweb']
                     }
                 },
             }
@@ -1549,7 +1549,7 @@ class DownloadMixin:
                 # token). Use clients that don't require one.
                 cmd.extend([
                     "--extractor-args",
-                    "youtube:player_client=web,web_embedded,tv_embedded,android_vr,web_safari"
+                                    "youtube:player_client=web,web_embedded,web_safari,mweb"
                 ])
                 cmd.append(url)
 
@@ -1689,7 +1689,7 @@ class DownloadMixin:
                 # (needs PO token). Use clients that don't require one.
                 'extractor_args': {
                     'youtube': {
-                        'player_client': ['web', 'web_embedded', 'tv_embedded', 'android_vr', 'web_safari']
+                        'player_client': ['web', 'web_embedded', 'web_safari', 'mweb']
                     }
                 },
             }
@@ -1829,7 +1829,7 @@ class DownloadMixin:
                 # need one. tv/android/ios/web_safari are safe choices.
                 'extractor_args': {
                     'youtube': {
-                        'player_client': ['web', 'web_embedded', 'tv_embedded', 'android_vr', 'web_safari']
+                        'player_client': ['web', 'web_embedded', 'web_safari', 'mweb']
                     }
                 },
             }
