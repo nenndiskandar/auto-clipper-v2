@@ -369,9 +369,20 @@ class PortraitMixin:
             if getattr(self, 'mp_face_detector', None) is None:
                 try:
                     # mediapipe.solutions dihapus di 1.0, pakai Haar yang sudah proven
-                    self.mp_face_detector = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-                    if self.mp_face_detector.empty():
+                    haar = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+                    if haar.empty():
                         raise Exception("Haar cascade empty")
+                    # Mimic MediaPipe FaceDetection API (.process -> .detections -> relative_bounding_box)
+                    # ponytail: Interface compat supaya loop lama (.process(rgb)) jalan tanpa rewrite besar.
+                    class _HaarMPAdapter:
+                        def process(self, rgb):
+                            gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
+                            faces = haar.detectMultiScale(gray, 1.1, 5, minSize=(24, 24))
+                            class _D:  # datum detection
+                                def __init__(self, x, y, w, h, iw, ih):
+                                    self.location_data = type('L', (), {'relative_bounding_box': type('B', (), {'xmin': x/iw, 'ymin': y/ih, 'width': w/iw, 'height': h/ih})()})()
+                            return type('R', (), {'detections': [_D(x, y, w, h, rgb.shape[1], rgb.shape[0]) for (x, y, w, h) in faces]})()
+                    self.mp_face_detector = _HaarMPAdapter()
                     self.log("  Face Detector (Haar) initialized для center/detector")
                 except Exception as e:
                     raise Exception(f"Face Detector init failed: {e}")
