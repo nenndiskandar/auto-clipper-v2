@@ -24,38 +24,43 @@ body{background:#09090b;color:#fafafa;font-family:system-ui,-apple-system,sans-s
     <h1 class="text-lg font-bold text-white tracking-wide">🎬 Iskan Clip</h1>
     <p class="text-[11px] text-zinc-500 uppercase tracking-wider mt-1">Panel admin — akses terbatas</p>
   </div>
-  
-  <div id="widget" class="flex justify-center py-2 bg-surface-2/30 border border-zinc-800/80 rounded-xl p-4">
-    <script async src="https://telegram.org/js/telegram-widget.js?22"
-      data-telegram-login="iskanclip_bot" data-size="large" data-radius="8"
-      data-onauth="onTelegramAuth(user)" data-request-access="write"></script>
-  </div>
-  
+
+  <form id="login" class="space-y-4">
+    <input id="pass" type="password" autocomplete="current-password" placeholder="Password"
+      class="w-full bg-surface-2/40 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-accent">
+    <button type="submit"
+      class="w-full bg-accent text-black font-semibold rounded-xl py-3 text-sm hover:opacity-90 transition">
+      Masuk
+    </button>
+  </form>
+
   <div class="space-y-1">
-    <p class="text-[11px] text-zinc-400">Login pakai akun Telegram pemilik.</p>
+    <p class="text-[11px] text-zinc-400">Masukkan password admin.</p>
     <p id="err" class="text-xs text-red-400 hidden mt-2"></p>
   </div>
 </div>
 
 <script>
-function onTelegramAuth(user) {
-  fetch('/api/auth/telegram', {
+document.getElementById('login').addEventListener('submit', e => {
+  e.preventDefault();
+  const pass = document.getElementById('pass').value;
+  fetch('/api/auth/login', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(user),
+    body: JSON.stringify({ password: pass }),
   }).then(r => r.json()).then(d => {
     if (d.ok) location.href = '/';
     else {
-      const e = document.getElementById('err');
-      e.textContent = d.error || 'Login gagal';
-      e.classList.remove('hidden');
+      const el = document.getElementById('err');
+      el.textContent = d.error || 'Login gagal';
+      el.classList.remove('hidden');
     }
   }).catch(() => {
-    const e = document.getElementById('err');
-    e.textContent = 'Gagal terhubung ke server';
-    e.classList.remove('hidden');
+    const el = document.getElementById('err');
+    el.textContent = 'Gagal terhubung ke server';
+    el.classList.remove('hidden');
   });
-}
+});
 </script>
 </body>
 </html>
