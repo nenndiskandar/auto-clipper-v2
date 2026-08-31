@@ -37,13 +37,30 @@ pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y
     <span class="font-bold text-sm tracking-wider text-accent">⚡ YT CLIPPER</span>
     <a href="/logout" class="text-xs text-zinc-400 hover:text-white transition md:hidden">Logout</a>
   </div>
-  <div class="p-3 flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-x-visible">
+  <div class="p-3 flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-x-visible" id="sidebarLinks">
     <a href="/" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition bg-zinc-900 text-white font-medium">🏠 Library</a>
     <a href="/create.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">＋ Create Clip</a>
     <a href="/tasks.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">📋 Tasks</a>
     <a href="/story.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🎬 Story</a>
     <a href="/facebook.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">📘 FB</a>
     <a href="/settings.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">⚙️ Settings</a>
+    
+    <!-- Engine Status Indication -->
+    <div class="mt-4 px-3 py-2 border-t border-zinc-800/80 hidden md:flex flex-col gap-2 text-[10px] text-zinc-500">
+      <span class="font-semibold text-[9px] uppercase tracking-wider text-zinc-400">⚡ Engine Status</span>
+      <div class="flex items-center justify-between">
+        <span>FFmpeg</span>
+        <span id="st_ffmpeg" class="w-2.5 h-2.5 rounded-full bg-zinc-650" title="Checking..."></span>
+      </div>
+      <div class="flex items-center justify-between">
+        <span>yt-dlp</span>
+        <span id="st_ytdlp" class="w-2.5 h-2.5 rounded-full bg-zinc-650" title="Checking..."></span>
+      </div>
+      <div class="flex items-center justify-between">
+        <span>Deno</span>
+        <span id="st_deno" class="w-2.5 h-2.5 rounded-full bg-zinc-650" title="Checking..."></span>
+      </div>
+    </div>
   </div>
   <div class="mt-auto p-4 border-t border-zinc-800 hidden md:flex items-center justify-between text-[11px]">
     <span class="text-zinc-500 truncate max-w-[120px]" id="whoami"></span>
@@ -718,6 +735,32 @@ async function deleteClip(gi, ci, btn) {
 }
 
 $('#search').addEventListener('input', render);
+
+// Check engine binaries status
+async function checkEngineStatus() {
+  try {
+    const r = await fetch('/api/binaries');
+    if (!r.ok) return;
+    const list = await r.json();
+    list.forEach(b => {
+      let elId = '';
+      if (b.name === 'ffmpeg') elId = 'st_ffmpeg';
+      else if (b.name === 'yt-dlp') elId = 'st_ytdlp';
+      else if (b.name === 'deno') elId = 'st_deno';
+      
+      const el = document.getElementById(elId);
+      if (el) {
+        el.className = `w-2.5 h-2.5 rounded-full ${b.ok ? 'bg-emerald-500' : 'bg-red-500'}`;
+        el.title = b.ok ? `${b.name}: Ready (${b.detail || 'ok'})` : `${b.name}: Error (${b.detail || 'failed'})`;
+      }
+    });
+  } catch (e) {
+    console.error('Failed to fetch engine status', e);
+  }
+}
+checkEngineStatus();
+setInterval(checkEngineStatus, 15000);
+
 load();
 </script>
 <script>
