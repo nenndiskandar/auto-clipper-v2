@@ -47,12 +47,13 @@ const FFMPEG = (() => {
 // transcription) appear "stuck" at a stale percentage until the process exits.
 process.env.PYTHONUNBUFFERED = '1';
 
-// --- Auth: Telegram Login Widget (cookie HMAC, total pengganti basic-auth) ---
+// --- Auth: password login (cookie HMAC) ---
 const OWNER_ID = '233439175';
 const BOT_USERNAME = 'iskanclip_bot';
 const COOKIE_NAME = 'clipper_auth';
 const BOT_TOKEN = (() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'config.json'), 'utf8')).telegram_bot_token || ''; } catch { return ''; } })();
-const AUTH_KEY = crypto.createHash('sha256').update('clipper-web:' + BOT_TOKEN).digest();
+const AUTH_KEY = crypto.createHash('sha256').update('clipper-web:' + BOT_TOKEN + ':' + process.env.CLIPPER_PASS || '').digest();
+const ADMIN_PASS = process.env.CLIPPER_PASS;
 
 const signVal = v => crypto.createHmac('sha256', AUTH_KEY).update(v).digest('base64url');
 const b64u = s => Buffer.from(String(s), 'utf8').toString('base64url');
@@ -91,8 +92,11 @@ function safe(seg) {
 }
 
 function json(res, code, obj) {
-  res.writeHead(code, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify(obj));
+  const body = JSON.stringify(obj);
+  if (!res.headersSent) {
+    res.writeHead(code, { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) });
+  }
+  res.end(body);
 }
 
 function hmsToSec(t) {
@@ -322,19 +326,19 @@ const server = http.createServer((req, res) => {
     // --- public routes (no auth) ---
     // login page & root are served as static files (handled below)
     // auth endpoint
-    if (p === '/api/auth/telegram' && req.method === 'POST') {
+    if (p === '/api/auth/login' && req.method === 'POST') {
       let body = '';
       req.on('data', c => body += c);
       req.on('end', () => {
         try {
-          const user = JSON.parse(body || '{}');
-          if (String(user.id) === OWNER_ID) {
-            const token = makeToken(user.id, user.first_name);
+          const { password } = JSON.parse(body || '{}');
+          if (String(password) === ADMIN_PASS) {
+            const token = makeToken(OWNER_ID, 'admin');
             res.writeHead(200, { 'Set-Cookie': `${COOKIE_NAME}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800` });
             return json(res, 200, { ok: true });
           }
-          json(res, 403, { error: 'ID tidak diizinkan' });
-        } catch { json(res, 400, { error: 'invalid request' }); }
+          return json(res, 401, { error: 'Password salah' });
+        } catch(e) { return json(res, 400, { error: 'invalid request' }); }
       });
       return;
     }
