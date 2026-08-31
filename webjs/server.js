@@ -621,6 +621,10 @@ const server = http.createServer((req, res) => {
           cfg.auto_bgm = Object.assign({}, cfg.auto_bgm, o.auto_bgm);
           if ('enabled' in o.auto_bgm) cfg.auto_bgm.enabled = !!o.auto_bgm.enabled;
         }
+        if (o.transition_library && typeof o.transition_library === 'object') {
+          cfg.transition_library = Object.assign({}, cfg.transition_library, o.transition_library);
+          if ('enabled' in o.transition_library) cfg.transition_library.enabled = !!o.transition_library.enabled;
+        }
         if (o.thumbnail && typeof o.thumbnail === 'object') {
           cfg.thumbnail = Object.assign({}, cfg.thumbnail, o.thumbnail);
           if ('enabled' in o.thumbnail) cfg.thumbnail.enabled = !!o.thumbnail.enabled;

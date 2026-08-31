@@ -60,6 +60,32 @@ if sys.platform == "win32":
 
 class PortraitMixin:
         @staticmethod
+        def _hold_sampled_values(sampled_values: list, sampled_indices: list, total_frames: int) -> list:
+            """Expand sparse samples to one value per frame via STEP-HOLD (no linear interp).
+
+            Step-hold avoids the "mid-face" smear that linear interpolation causes when
+            the tracked face switches (2-speaker footage): the camera cuts straight to the
+            new face instead of panning through the empty gap between the two faces.
+            """
+            if not sampled_values:
+                return []
+            if total_frames <= 0:
+                return list(sampled_values)
+            out = [sampled_values[0]] * total_frames
+            # hold each sample until the next sample index
+            for i in range(len(sampled_indices) - 1):
+                start = min(int(sampled_indices[i]), total_frames)
+                end = min(int(sampled_indices[i + 1]), total_frames)
+                val = sampled_values[i]
+                for j in range(start, end):
+                    out[j] = val
+            if sampled_indices:
+                last = min(int(sampled_indices[-1]), total_frames)
+                last_val = sampled_values[-1]
+                for j in range(last, total_frames):
+                    out[j] = last_val
+            return out
+
         def _interpolate_sampled(sampled_values: list, sampled_indices: list, total_frames: int) -> list:
             """Expand sparse per-frame samples to one value per frame (linear interpolation).
 
@@ -489,6 +515,15 @@ class PortraitMixin:
             current_target = orig_w / 2
             ANALYSIS_STEP = 5
             scale = min(1.0, 640 / orig_w)
+            # Promise: deteksi MULUT yg bergerak (lip motion) utk tahu siapa pembicara, lalu
+            # follow wajah pembicara itu (tetap di tengah / dikunci kamera).
+            # ponytail: tanpa audio, lip-motion via frame-diff dipakai sbg proksi bicara;
+            # idealnya adiaran speaker aktif utk akurasi penuh.
+            locked_cx = None
+            locked_lip = 0.0
+            lost_frames = 0
+            switch_cooldown = 0
+            prev_gray = None
             while True:
                 if self.is_cancelled():
                     cap.release()
@@ -503,16 +538,58 @@ class PortraitMixin:
                 if not ret:
                     break
                 small = cv2.resize(frame, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA) if scale < 1 else frame
+                gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
                 try:
                     boxes = det.detect(small)
                 except Exception as e:
                     debug_log(f"YOLO detect gagal: {e}")
                     boxes = []
                 if boxes:
-                    # walrus: pick largest box
-                    best = max(boxes, key=lambda b: (b[2] - b[0]) * (b[3] - b[1]))
-                    bx = (best[0] + best[2]) / 2
-                    current_target = float(bx) * (orig_w / small.shape[1])
+                    saw_lock = False
+                    best_face = None
+                    for b in boxes:
+                        cx = (b[0] + b[2]) / 2
+                        if locked_cx is not None and abs(cx - locked_cx) / small.shape[1] < 0.15:
+                            saw_lock = True
+                        # lip ROI: bagian bawah wajah (mulut); diff antar sample frame
+                        lip = 0.0
+                        if prev_gray is not None:
+                            y1, y2 = int(b[1] + 0.55 * (b[3] - b[1])), int(b[3])
+                            x1, x2 = int(b[0]), int(b[2])
+                            hh = small.shape[0]
+                            y1, y2 = max(0, min(y1, hh - 1)), max(0, min(y2, hh))
+                            x1, x2 = max(0, min(x1, small.shape[1] - 1)), max(0, min(x2, small.shape[1]))
+                            if y2 > y1 and x2 > x1:
+                                roi = gray[y1:y2, x1:x2]
+                                proi = prev_gray[y1:y2, x1:x2]
+                                if roi.size and proi.size:
+                                    lip = float(cv2.absdiff(roi, proi).mean())
+                        if best_face is None or lip > best_face[1]:
+                            best_face = (cx, lip)
+                    # pilih pembicara: lip tertinggi, dgn preferensi wajah yg sudah dikunci
+                    # (kecuali wajah lain bicara jauh lebih aktif → pindah pembicara)
+                    if best_face is not None:
+                        if locked_cx is None or lost_frames >= ANALYSIS_STEP * 5:
+                            locked_cx = best_face[0]
+                            locked_lip = best_face[1]
+                            lost_frames = 0
+                        else:
+                            if (saw_lock and best_face[1] < 2.0 * locked_lip + 3.0):
+                                pass  # tetap di wajah yg dikunci (bicara aktif)
+                            elif best_face[1] > 1.6 * (locked_lip + 1.0) and switch_cooldown <= 0:
+                                # wajah lain jauh lebih aktif bicara → pindah pembicara
+                                locked_cx = best_face[0]
+                                locked_lip = best_face[1]
+                                switch_cooldown = ANALYSIS_STEP * 12  # hold ~12 sample stlh pindah
+                        locked_lip = 0.9 * locked_lip + 0.1 * best_face[1]
+                    if switch_cooldown > 0:
+                        switch_cooldown -= ANALYSIS_STEP
+                    if locked_cx is None:
+                        locked_cx = orig_w / 2
+                    current_target = float(locked_cx) * (orig_w / small.shape[1])
+                else:
+                    lost_frames += ANALYSIS_STEP
+                prev_gray = gray
                 crop_x = int(current_target - crop_w / 2)
                 crop_x = max(0, min(crop_x, orig_w - crop_w))
                 analyzed_indices.append(frames_read)
@@ -526,7 +603,7 @@ class PortraitMixin:
             cap.release()
             if not analyzed_positions:
                 raise Exception("No faces detected by YOLO")
-            crop_positions = self._interpolate_sampled(analyzed_positions, analyzed_indices, frames_read)
+            crop_positions = self._hold_sampled_values(analyzed_positions, analyzed_indices, frames_read)
             crop_positions = self._smooth_follow_positions(crop_positions, 1.6)
             self.log(f"  YOLO tracked {len(analyzed_positions)} samples → {len(crop_positions)} frames")
             self._encode_portrait_single_pass(input_path, output_path, crop_positions, crop_w, crop_h, out_w, out_h, duration=frames_read / fps if fps else 0, progress_callback=lambda p: progress_callback(0.5 + p * 0.5) if progress_callback else None)
@@ -576,6 +653,7 @@ class PortraitMixin:
             analyzed_activities = []
             frame_idx = 0
             prev_lip_distances = {}  # Track previous lip distances per face
+            prev_best_face = None  # utk hold-on-silence
             # Fallback Haar for when MediaPipe misses (early frames, small face)
             try:
                 face_cascade_fb = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
@@ -652,8 +730,13 @@ class PortraitMixin:
                             # most active speaker — ignore center bias when someone is talking
                             best_face = max(active, key=lambda f: f['activity'])
                         else:
-                            # silence → stay on center face (fallback)
-                            best_face = min(faces_data, key=lambda f: abs(f['x'] - orig_w/2))
+                            # silence → HOLD posisi terakhir (jangan drift ke tengah kosong / area kosong).
+                            # ponytail: hold-on-silence mencegah kamera pindah ke area kosong saat diam;
+                            # kalau mau selalu balik tengah, ganti ke min(abs(f['x']-orig_w/2)).
+                            best_face = prev_best_face
+                            if best_face is None:
+                                best_face = min(faces_data, key=lambda f: abs(f['x'] - orig_w/2))
+                        prev_best_face = best_face
                         best_face_x = best_face['x']
                         max_activity = best_face['activity']
                     # 0 faces → jangan jadi (stay previous/center, tidak paksa Haar). Lip pasti ada kalau ada yang ngomong, kalau 0 ya memang tidak ada wajah → stay.
@@ -1741,6 +1824,7 @@ class PortraitMixin:
             analyzed_activities = []
             frames_read = 0
             prev_lip_distances = {}
+            prev_best_face = None  # utk hold-on-silence (jangan drift ke kosong saat diam)
         
             while True:
                 if self.is_cancelled():
@@ -1812,8 +1896,13 @@ class PortraitMixin:
                             # most active speaker — ignore center bias when someone is talking
                             best_face = max(active, key=lambda f: f['activity'])
                         else:
-                            # silence → stay on center face (fallback)
-                            best_face = min(faces_data, key=lambda f: abs(f['x'] - orig_w/2))
+                            # silence → HOLD posisi terakhir (jangan drift ke tengah kosong / area kosong).
+                            # ponytail: hold-on-silence mencegah kamera pindah ke area kosong saat diam;
+                            # kalau mau selalu balik tengah, ganti ke min(abs(f['x']-orig_w/2)).
+                            best_face = prev_best_face
+                            if best_face is None:
+                                best_face = min(faces_data, key=lambda f: abs(f['x'] - orig_w/2))
+                        prev_best_face = best_face
                         best_face_x = best_face['x']
                         max_activity = best_face['activity']
             
