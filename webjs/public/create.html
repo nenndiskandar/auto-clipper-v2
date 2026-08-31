@@ -52,6 +52,24 @@ pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y
     <a href="/facebook.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">📘 FB</a>
     <a href="/settings.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">⚙️ Settings</a>
   </div>
+  
+  <!-- Engine Status Indication -->
+  <div class="mt-4 px-3 py-2 border-t border-zinc-800/80 hidden md:flex flex-col gap-2 text-[10px] text-zinc-500">
+    <span class="font-semibold text-[9px] uppercase tracking-wider text-zinc-400">⚡ Engine Status</span>
+    <div class="flex items-center justify-between">
+      <span>FFmpeg</span>
+      <span id="st_ffmpeg" class="w-2.5 h-2.5 rounded-full bg-zinc-650" title="Checking..."></span>
+    </div>
+    <div class="flex items-center justify-between">
+      <span>yt-dlp</span>
+      <span id="st_ytdlp" class="w-2.5 h-2.5 rounded-full bg-zinc-650" title="Checking..."></span>
+    </div>
+    <div class="flex items-center justify-between">
+      <span>Deno</span>
+      <span id="st_deno" class="w-2.5 h-2.5 rounded-full bg-zinc-650" title="Checking..."></span>
+    </div>
+  </div>
+  
   <div class="mt-auto p-4 border-t border-zinc-800 hidden md:flex items-center justify-between text-[11px]">
     <span class="text-zinc-500 truncate max-w-[120px]" id="whoami"></span>
     <a href="/logout" class="text-zinc-400 hover:text-white transition">Logout</a>
@@ -77,7 +95,14 @@ pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y
           <button onclick="startCreate()" id="startBtn" class="px-4 py-2 bg-accent text-black font-medium text-sm rounded-lg hover:bg-yellow-400 transition whitespace-nowrap">GET</button>
         </div>
         <div id="wStatus"></div>
-        <pre class="log hidden mt-3 hidden" id="wLog" style="display:none !important"></pre>
+        
+        <!-- Toggle & process log area -->
+        <div class="mt-3">
+          <button onclick="toggleLog('wLog', this)" class="text-xs text-zinc-500 hover:text-white flex items-center gap-1 transition focus:outline-none">
+            <span>▶</span> Lihat Log Proses
+          </button>
+          <pre class="log hidden mt-2" id="wLog" style="max-height:250px; display:none"></pre>
+        </div>
       </div>
     </div>
   </main>
@@ -354,6 +379,16 @@ async function startCreate(){
   const st=$('#wStatus'),logBox=$('#wLog');$('#startBtn').disabled=true;
   logBox.classList.remove('hidden');
   st.innerHTML='<div class="flex items-center justify-between bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2 text-xs text-blue-300"><span>⏳ Analisis AI… <span id="wElapsed"></span></span><button onclick="cancelCreate()" id="wCancelBtn" class="ml-2 px-2 py-0.5 bg-red-500/20 border border-red-500/30 rounded text-red-300 text-[10px] hover:bg-red-500/30 transition">⏹ Stop</button></div>';
+  
+  // Auto expand log when process starts
+  const logBoxEl = document.getElementById('wLog');
+  if (logBoxEl) {
+    logBoxEl.style.display = 'block';
+    logBoxEl.classList.remove('hidden');
+    const logBtn = logBoxEl.previousElementSibling;
+    if (logBtn) logBtn.firstElementChild.textContent = '▼';
+  }
+
   try{
     const r=await fetch('/api/create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url, num_clips})});
     const j=await r.json().catch(()=>({}));
@@ -400,7 +435,7 @@ async function showPicker(sessionDir){
     return;
   }
    const rows=hls.map(h=>'<label class="list-group-item bg-transparent hl-item flex items-start gap-2 py-1.5 px-2 rounded"><input type="checkbox" value="'+h.i+'" class="hl-check w-3.5 h-3.5 mt-0.5 accent-[#facc15] flex-shrink-0"><span class="flex-grow-1"><span class="text-xs font-medium text-zinc-200">'+esc(h.title)+'</span>'+(h.score!=null?'<span class="ml-1 px-1 py-0.5 bg-amber-500/20 text-amber-400 text-[10px] rounded">⭐'+h.score+'</span>':'')+'<br><span class="text-[10px] text-zinc-500">'+esc(h.start)+' → '+esc(h.end)+' · '+h.duration+'s</span></span></label>').join('');
-  $('#wfArea').innerHTML='<div class="flex items-center justify-between mb-2"><span class="text-xs text-zinc-500">Sesi: <code class="text-zinc-400">'+esc(PICK_SESSION)+'</code> · '+hls.length+' highlight</span></div><div class="space-y-1 border border-zinc-800 rounded-lg p-2 mb-3">'+rows+'</div><div class="flex justify-start gap-3 mb-2"><button type="button" class="text-xs text-zinc-400 hover:text-white transition flex items-center gap-1" onclick="toggleAll(true)">☑️ Pilih Semua</button><button type="button" class="text-xs text-zinc-400 hover:text-white transition flex items-center gap-1" onclick="toggleAll(false)">⏹️ Kosongkan</button></div><div class="flex gap-2 items-center"><div class="flex-1 flex gap-1.5 items-center"><input type="hidden" id="regenCount" value="auto"><button onclick="doRegenerate(PICK_SESSION)" class="flex-1 py-2.5 bg-zinc-800 border border-zinc-700 text-white font-medium text-sm rounded-lg hover:bg-zinc-700 hover:border-accent transition">🔄 Re-generate</button></div><button onclick="startProcess()" id="procBtn" class="flex-1 py-2.5 bg-accent text-black font-medium text-sm rounded-lg hover:bg-yellow-400 transition">🎬 Render Klip Terpilih</button></div><div id="pStatus" class="mt-3"></div><pre class="log hidden mt-3" id="pLog" style="display:none !important"></pre>';
+  $('#wfArea').innerHTML='<div class="flex items-center justify-between mb-2"><span class="text-xs text-zinc-500">Sesi: <code class="text-zinc-400">'+esc(PICK_SESSION)+'</code> · '+hls.length+' highlight</span></div><div class="space-y-1 border border-zinc-800 rounded-lg p-2 mb-3">'+rows+'</div><div class="flex justify-start gap-3 mb-2"><button type="button" class="text-xs text-zinc-400 hover:text-white transition flex items-center gap-1" onclick="toggleAll(true)">☑️ Pilih Semua</button><button type="button" class="text-xs text-zinc-400 hover:text-white transition flex items-center gap-1" onclick="toggleAll(false)">⏹️ Kosongkan</button></div><div class="flex gap-2 items-center"><div class="flex-1 flex gap-1.5 items-center"><input type="hidden" id="regenCount" value="auto"><button onclick="doRegenerate(PICK_SESSION)" class="flex-1 py-2.5 bg-zinc-800 border border-zinc-700 text-white font-medium text-sm rounded-lg hover:bg-zinc-700 hover:border-accent transition">🔄 Re-generate</button></div><button onclick="startProcess()" id="procBtn" class="flex-1 py-2.5 bg-accent text-black font-medium text-sm rounded-lg hover:bg-yellow-400 transition">🎬 Render Klip Terpilih</button></div><div id="pStatus" class="mt-3"></div><div class="mt-3"><button onclick="toggleLog(\'pLog\', this)" class="text-xs text-zinc-500 hover:text-white flex items-center gap-1 transition focus:outline-none"><span>▶</span> Lihat Log Rendering</button><pre class="log hidden mt-2" id="pLog" style="max-height:250px; display:none"></pre></div>';
 }
 
 function toggleAll(val){
@@ -424,6 +459,16 @@ async function startProcess(){
     if(!r.ok||!j.ok)throw new Error(j.error||('HTTP '+r.status));
   }catch(e){proc.innerHTML='<div class="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 text-xs text-red-300">❌ '+esc(String(e))+'</div>';$('#procBtn').disabled=false;return;}
   proc.innerHTML='<div class="flex items-center justify-between bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2 text-xs text-blue-300"><span>⏳ Render… <span id="pElapsed"></span></span><button onclick="cancelProcess()" id="pCancelBtn" class="ml-2 px-2 py-0.5 bg-red-500/20 border border-red-500/30 rounded text-red-300 text-[10px] hover:bg-red-500/30 transition">⏹ Stop</button></div>';
+  
+  // Auto expand process log
+  const pLogBoxEl = document.getElementById('pLog');
+  if (pLogBoxEl) {
+    pLogBoxEl.style.display = 'block';
+    pLogBoxEl.classList.remove('hidden');
+    const logBtn = pLogBoxEl.previousElementSibling;
+    if (logBtn && logBtn.tagName === 'BUTTON') logBtn.firstElementChild.textContent = '▼';
+  }
+
   const t0=Date.now();
   const poll=setInterval(async()=>{
     try{
@@ -443,6 +488,48 @@ async function startProcess(){
 }
 
 async function cancelCreate(){window._ph1Cancel=true;const b=document.getElementById('wCancelBtn');if(b){b.disabled=true;b.textContent='⏳ stopping…';}try{await fetch('/api/create/cancel',{method:'POST'});}catch{}}
+
+// Toggle Log Visibility helper
+function toggleLog(id, btn) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const isHidden = el.style.display === 'none' || el.classList.contains('hidden');
+  if (isHidden) {
+    el.style.display = 'block';
+    el.classList.remove('hidden');
+    btn.firstElementChild.textContent = '▼';
+  } else {
+    el.style.display = 'none';
+    el.classList.add('hidden');
+    btn.firstElementChild.textContent = '▶';
+  }
+}
+
+// Check engine status
+async function checkEngineStatus() {
+  try {
+    const r = await fetch('/api/binaries');
+    if (!r.ok) return;
+    const list = await r.json();
+    list.forEach(b => {
+      let elId = '';
+      if (b.name === 'ffmpeg') elId = 'st_ffmpeg';
+      else if (b.name === 'yt-dlp') elId = 'st_ytdlp';
+      else if (b.name === 'deno') elId = 'st_deno';
+      
+      const el = document.getElementById(elId);
+      if (el) {
+        el.className = `w-2.5 h-2.5 rounded-full ${b.ok ? 'bg-emerald-500' : 'bg-red-500'}`;
+        el.title = b.ok ? `${b.name}: Ready (${b.detail || 'ok'})` : `${b.name}: Error (${b.detail || 'failed'})`;
+      }
+    });
+  } catch (e) {
+    console.error('Failed to fetch engine status', e);
+  }
+}
+checkEngineStatus();
+setInterval(checkEngineStatus, 15000);
+
 async function cancelProcess(){window._ph2Cancel=true;const b=document.getElementById('pCancelBtn');if(b){b.disabled=true;b.textContent='⏳ stopping…';}try{await fetch('/api/process/cancel/'+encodeURIComponent(PICK_SESSION),{method:'POST'});}catch{}}
 async function pasteUrl(){
   try{
@@ -511,6 +598,32 @@ async function doRegenerate(sid){
     },1000);
   }catch(e){ st.innerHTML='<div class="bg-red-500/10 border border-red-500/20 rounded px-3 py-2 text-xs text-red-300">❌ '+e.message+'</div>'; }
 }
+
+// Check engine binaries status
+async function checkEngineStatus() {
+  try {
+    const r = await fetch('/api/binaries');
+    if (!r.ok) return;
+    const list = await r.json();
+    list.forEach(b => {
+      let elId = '';
+      if (b.name === 'ffmpeg') elId = 'st_ffmpeg';
+      else if (b.name === 'yt-dlp') elId = 'st_ytdlp';
+      else if (b.name === 'deno') elId = 'st_deno';
+      
+      const el = document.getElementById(elId);
+      if (el) {
+        el.className = `w-2.5 h-2.5 rounded-full ${b.ok ? 'bg-emerald-500' : 'bg-red-500'}`;
+        el.title = b.ok ? `${b.name}: Ready (${b.detail || 'ok'})` : `${b.name}: Error (${b.detail || 'failed'})`;
+      }
+    });
+  } catch (e) {
+    console.error('Failed to fetch engine status', e);
+  }
+}
+checkEngineStatus();
+setInterval(checkEngineStatus, 15000);
+
 loadConfig();
 // jika dari session.html?session=ID -> langsung tampilkan Pilihan Momen
 const qsSid=new URLSearchParams(location.search).get('session');
