@@ -453,14 +453,14 @@ class GPUDetector:
             list of FFmpeg arguments for video encoding
         """
         if not use_gpu:
-            # CPU encoding (default)
-            return ['-c:v', 'libx264', '-preset', 'superfast', '-crf', '23', '-maxrate', '4M', '-bufsize', '8M']
-        
+            # CPU encoding (default) — ultrafast utk render maks. cepat (720p)
+            return ['-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '26', '-maxrate', '3M', '-bufsize', '6M']
+
         recommendation = self.get_recommended_encoder()
         
         if not recommendation['available']:
-            # Fallback to CPU
-            return ['-c:v', 'libx264', '-preset', 'superfast', '-crf', '23', '-maxrate', '4M', '-bufsize', '8M']
+            # Fallback to CPU — ultrafast utk render maks. cepat (720p)
+            return ['-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '26', '-maxrate', '3M', '-bufsize', '6M']
         
         encoder = recommendation['encoder']
         preset = recommendation['preset']

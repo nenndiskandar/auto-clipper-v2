@@ -1905,8 +1905,9 @@ class PortraitMixin:
             if self.gpu_enabled and self.gpu_encoder_args:
                 return self.gpu_encoder_args
             else:
-                # Default CPU encoding - CRF 23 provides good quality with optimal file size
-                return ['-c:v', 'libx264', '-preset', 'superfast', '-crf', '23', '-maxrate', '4M', '-bufsize', '8M']
+                # CPU encoding — ultrafast utk render maks. cepat (720p sosial).
+                # ponytail: kualitas cukup utk TikTok/Reels; naikkan preset/crf kalau mau HQ.
+                return ['-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '26', '-maxrate', '3M', '-bufsize', '6M', '-threads', '0']
 
         @classmethod
         def _is_gpu_encoder_error(cls, stderr: str) -> bool:

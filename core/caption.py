@@ -727,7 +727,7 @@ class CaptionMixin:
                 "-i", input_path,
                 "-i", bgm_path,
                 "-filter_complex", ffc,
-                "-map", maps,
+                "-map", "0:v", "-map", maps,
                 *self.get_video_encoder_args(),
                 "-c:a", "aac", "-b:a", "192k",
                 "-shortest", "-progress", "pipe:1",
