@@ -60,6 +60,10 @@ pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y
         <span>Deno</span>
         <span id="st_deno" class="w-2.5 h-2.5 rounded-full bg-zinc-650" title="Checking..."></span>
       </div>
+      <div class="flex items-center justify-between">
+        <span>AI Proxy</span>
+        <span id="st_ai" class="w-2.5 h-2.5 rounded-full bg-zinc-650" title="Checking..."></span>
+      </div>
     </div>
   </div>
   
@@ -76,6 +80,10 @@ pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y
     <div class="flex items-center gap-1.5">
       <span id="st_deno_mob" class="w-2 h-2 rounded-full bg-zinc-650" title="Checking..."></span>
       <span>Deno</span>
+    </div>
+    <div class="flex items-center gap-1.5">
+      <span id="st_ai_mob" class="w-2 h-2 rounded-full bg-zinc-650" title="Checking..."></span>
+      <span>AI Proxy</span>
     </div>
   </div>
   <div class="mt-auto p-4 border-t border-zinc-800 hidden md:flex items-center justify-between text-[11px]">
@@ -777,6 +785,43 @@ async function checkEngineStatus() {
         elMob.title = b.ok ? `${b.name}: Ready (${b.detail || 'ok'})` : `${b.name}: Error (${b.detail || 'failed'})`;
       }
     });
+
+    // Also check AI server connection
+    try {
+      const configRes = await fetch('/api/config');
+      if (configRes.ok) {
+        const config = await configRes.json();
+        const testRes = await fetch('/api/test-llm', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            server_url: config.server_url || '',
+            hf_api_key: config.hf_api_key || ''
+          })
+        });
+        const testData = await testRes.json();
+        const aiOk = !!testData.ok;
+        
+        ['st_ai', 'st_ai_mob'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.className = `w-2.5 h-2.5 rounded-full ${aiOk ? 'bg-emerald-500' : 'bg-red-500'}`;
+            if (id.endsWith('_mob')) el.className = `w-2 h-2 rounded-full ${aiOk ? 'bg-emerald-500' : 'bg-red-500'}`;
+            el.title = aiOk ? `AI Proxy: Connected` : `AI Proxy: Disconnected`;
+          }
+        });
+      }
+    } catch (e) {
+      ['st_ai', 'st_ai_mob'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.className = 'w-2.5 h-2.5 rounded-full bg-red-500';
+          if (id.endsWith('_mob')) el.className = 'w-2 h-2 rounded-full bg-red-500';
+          el.title = 'AI Proxy: Offline/Error';
+        }
+      });
+    }
+
   } catch (e) {
     console.error('Failed to fetch engine status', e);
   }
