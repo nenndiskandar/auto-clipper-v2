@@ -402,7 +402,8 @@ async function startCreate(){
     logBoxEl.style.display = 'block';
     logBoxEl.classList.remove('hidden');
     const logBtn = logBoxEl.previousElementSibling;
-    if (logBtn) logBtn.firstElementChild.textContent = '▼';
+    if (logBtn && logBtn.tagName === 'BUTTON') logBtn.firstElementChild.textContent = '▼';
+    else if (logBtn && logBtn.querySelector('span')) logBtn.querySelector('span').textContent = '▼';
   }
 
   try{
@@ -483,6 +484,7 @@ async function startProcess(){
     pLogBoxEl.classList.remove('hidden');
     const logBtn = pLogBoxEl.previousElementSibling;
     if (logBtn && logBtn.tagName === 'BUTTON') logBtn.firstElementChild.textContent = '▼';
+    else if (logBtn && logBtn.querySelector('span')) logBtn.querySelector('span').textContent = '▼';
   }
 
   const t0=Date.now();
