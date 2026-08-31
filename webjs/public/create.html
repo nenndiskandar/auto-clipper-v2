@@ -239,7 +239,7 @@ pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y
               </div>
               <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="f_auto_bgm" class="w-3.5 h-3.5 accent-[#facc15]"> 🎵 Auto BGM</label>
                             <div>
-                              <label class="text-[10px] text-zinc-500 block mb-0.5">BGM Mood</label>
+                            <label class="text-[10px] text-zinc-500 block mb-0.5">BGM Mood <span id="bgmAvail" class="text-[9px] text-zinc-600"></span></label>
                               <select id="f_bgm_mood" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white">
                                 <option value="">— default —</option>
                                 <option value="chill">chill</option><option value="epic">epic</option>
@@ -254,7 +254,7 @@ pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y
                             </div>
                             <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="f_auto_camera_switch" class="w-3.5 h-3.5 accent-[#facc15]"> 🎥 Camera Switch</label>
               <div>
-                <label class="text-[10px] text-zinc-500 block mb-0.5">Transition Library</label>
+                <label class="text-[10px] text-zinc-500 block mb-0.5">Transition Library <span id="transAvail" class="text-[9px] text-zinc-600"></span></label>
                 <select id="f_transition_library" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white">
                   <option value="none">none</option>
                   <option value="random">random</option>
@@ -358,6 +358,27 @@ async function loadConfig(){
   setVal('f_transition_library',tlv2(c.transition_library)||'none');setCh('f_thumbnail',!!(c.thumbnail?.enabled ?? c.thumbnail));
     updateSubStyleVisibility();
   }catch(e){$('#saveMsg').innerHTML='<span class="text-red-400">Gagal memuat konfigurasi: '+esc(e.message)+'</span>'; console.error(e);}
+  syncMediaAvail();
+}
+
+async function syncMediaAvail(){
+  // Sinkron ketersediaan BGM & transisi: tampilkan jumlah file, disable opsi kosong.
+  const MOODS=['chill','epic','sad','upbeat','suspense'];
+  try{
+    const bgm=await(await fetch('/api/bgm')).json();
+    const trans=await(await fetch('/api/transitions')).json();
+    const sel=document.getElementById('f_bgm_mood'); const cur=sel.value;
+    let filled=0, html='<option value="">— default —</option>';
+    for(const m of MOODS){ const n=(bgm.bgm&&bgm.bgm[m]&&bgm.bgm[m].length)||0; if(n>0)filled++; html+='<option value="'+m+(n?'">'+m+' ('+n+')':'">'+m)+'</option>'; }
+    sel.innerHTML=html; if(cur)sel.value=cur;
+    const ba=document.getElementById('bgmAvail'); if(ba)ba.textContent=filled+'/5 mood terisi';
+    const cached=(trans.cache||[]).length;
+    const ta=document.getElementById('transAvail'); if(ta)ta.textContent=cached+(cached?' transisi ter-cache':' (download dulu)');
+    const tsel=document.getElementById('f_transition_library'); const tc=tsel.value;
+    let th='<option value="none">none</option>';
+    if(cached>0) th+='<option value="random">random</option><option value="crossfade">crossfade</option>';
+    tsel.innerHTML=th; if(tc==='random'||tc==='crossfade') if(cached>0)tsel.value=tc;
+  }catch(e){ console.warn('syncMediaAvail:',e); }
 }
 
 function collectConfig(){
