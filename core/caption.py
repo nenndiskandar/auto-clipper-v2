@@ -1364,8 +1364,9 @@ class CaptionMixin:
             current_output = portrait_file
             hook_duration = 0
         
-            # Step 2.5: Pro features — stabilization (before hook)
-            if self.pro_settings.get("stabilize"):
+            # Step 2.5: Stabilization — DIMATIKAN permanen (render stabilizer dihapus).
+            # ponytail: blok dipertahankan utk referensi; aktifkan lagi seting if usernya mau.
+            if False and self.pro_settings.get("stabilize"):
                 if self.is_cancelled(): return
                 stab_file = clip_dir / "stabilized.mp4"
                 self.stabilize_video_with_progress(str(current_output), str(stab_file),
@@ -1460,9 +1461,10 @@ class CaptionMixin:
                     current_output = mb_file
                     self.log(self.colorize(f"  ✓ Motion blur ({mb_strength})", "motionblur"))
         
-            # --- Vignette ---
+            # --- Vignette — DIMATIKAN permanen (render vignette dihapus).
+            # ponytail: blok dipertahankan utk referensi; aktifkan lagi seting if usernya mau.
             vig_angle = self.pro_settings.get("vignette", 0)
-            if vig_angle > 0:
+            if False and vig_angle > 0:
                 if self.is_cancelled():
                     return
                 vig_file = clip_dir / "vignette.mp4"

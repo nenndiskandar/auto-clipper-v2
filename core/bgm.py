@@ -69,44 +69,42 @@ def get_local_bgm_file(mood: str, bgm_dir: str = None) -> str | None:
 
 
 def build_bgm_filter(
-    bgm_mode: str = DEFAULT_BGM_MODE,
-    bgm_base_volume: float = DEFAULT_BGM_BASE_VOLUME,
-    audio_input_voc: str = "[1:a]",
-    audio_input_bgm: str = "[2:a]",
-) -> str:
+    mode: str = "ducking",
+    base_volume: float = 0.25,
+    duck_level_db: float = -15,
+    audio_input_voc: str = "[0:a]",
+    audio_input_bgm: str = "[1:a]",
+) -> tuple:
     """
-    Build the FFmpeg filter_complex string for BGM mixing.
+    Build the FFmpeg filter_complex string + -map target for BGM mixing.
 
-    Args:
-        bgm_mode: 'ducking' for sidechain compress, 'background' for constant mix.
-        bgm_base_volume: Base volume level for BGM (e.g. 0.25).
-        audio_input_voc: FFmpeg stream label for vocal audio input (input #1).
-        audio_input_bgm: FFmpeg stream label for BGM audio input (input #2).
-
-    Returns:
-        The filter_complex string for FFmpeg.
+    Returns (filter_complex, map_label):
+      mode 'ducking'   -> sidechain compress (BGM duck under vocal)
+      mode 'background'-> constant mix at base_volume
     """
+    # duck_level_db (negative) -> sidechaincompress threshold (positive ratio)
+    sidechain_th = max(0.005, 10 ** (duck_level_db / 20))
     voc_format = (
         f"{audio_input_voc}aformat=sample_fmts=fltp:sample_rates=48000:"
         f"channel_layouts=stereo,volume=1.2[voc]"
     )
     bgm_format = (
         f"{audio_input_bgm}aformat=sample_fmts=fltp:sample_rates=48000:"
-        f"channel_layouts=stereo,volume={bgm_base_volume}[bgm]"
+        f"channel_layouts=stereo,volume={base_volume}[bgm]"
     )
 
-    if bgm_mode == "background":
-        # Simple constant-volume mix — no sidechain, BGM stays at base volume.
-        return (
+    if mode == "background":
+        ffc = (
             f"{voc_format}; {bgm_format}; "
             f"[voc][bgm]amix=inputs=2:duration=first[a_out]"
         )
     else:
         # Ducking mode (default) — sidechain compress makes BGM duck under vocals.
-        return (
+        ffc = (
             f"{voc_format}; {bgm_format}; "
             f"[voc]asplit=2[voc_sc][voc_mix]; "
-            f"[bgm][voc_sc]sidechaincompress=threshold=0.08:ratio=5.0:"
+            f"[bgm][voc_sc]sidechaincompress=threshold={sidechain_th}:ratio=5.0:"
             f"attack=100:release=1000[bgm_ducked]; "
             f"[voc_mix][bgm_ducked]amix=inputs=2:duration=first[a_out]"
         )
+    return ffc, "[a_out]"

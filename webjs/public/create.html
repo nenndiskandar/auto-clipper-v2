@@ -156,7 +156,6 @@ pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y
             <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="f_captions" onchange="updateSubStyleVisibility()" class="w-3.5 h-3.5 accent-[#facc15]"> 💬 Subtitle</label>
             <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="f_gpu" class="w-3.5 h-3.5 accent-[#facc15]"> ⚡ GPU</label>
             <input type="checkbox" id="f_smooth_follow" class="hidden">
-            <input type="checkbox" id="f_stabilize" class="hidden">
           </div>
         </details>
 
@@ -266,10 +265,6 @@ pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y
                 <label class="text-[10px] text-zinc-500 block mb-0.5">Motion Blur</label>
                 <input type="number" step="0.1" id="f_motion_blur" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white" placeholder="0">
               </div>
-              <div>
-                <label class="text-[10px] text-zinc-500 block mb-0.5">Vignette</label>
-                <input type="number" step="0.05" id="f_vignette" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white" placeholder="0">
-              </div>
             </div>
           </div>
         </details>
@@ -306,9 +301,9 @@ async function applyTemplate(key){
   document.querySelectorAll('.tpl-card').forEach(e=>e.classList.remove('active'));
   const card=document.querySelector('[data-tpl="'+key+'"]');if(card)card.classList.add('active');
   _activeTpl=key;
-  setCh('f_hook',c.hook);setCh('f_captions',c.captions);setCh('f_gpu',c.gpu);setCh('f_smooth_follow',c.smooth_follow);setCh('f_stabilize',p2.stabilize);
+  setCh('f_hook',c.hook);setCh('f_captions',c.captions);setCh('f_gpu',c.gpu);setCh('f_smooth_follow',c.smooth_follow);
   updateSubStyleVisibility();
-  setVal('f_color_grade',p2.color_grade);setVal('f_motion_blur',p2.motion_blur);setVal('f_vignette',p2.vignette);
+  setVal('f_color_grade',p2.color_grade);setVal('f_motion_blur',p2.motion_blur);
   setVal('f_speed_ramp_start',p2.speed_ramp_start);setVal('f_speed_ramp_end',p2.speed_ramp_end);
   setVal('f_speed_factor',p2.speed_factor);setVal('f_ducking_level_db',p2.ducking_level_db);
   setVal('f_face_tracking_mode',c.face_tracking_mode);setVal('f_portrait_mode',c.portrait_mode);
@@ -345,7 +340,7 @@ async function loadConfig(){
     const c=await(await fetch('/api/config')).json();
     setCh('f_watermark',c.watermark);setCh('f_credit',c.credit);setCh('f_hook',c.hook);setCh('f_captions',c.captions);setCh('f_smooth_follow',c.smooth_follow);setCh('f_gpu',c.gpu);
     const pr=c.pro_settings||c.pro||{};
-    setCh('f_stabilize',pr.stabilize);setVal('f_color_grade',pr.color_grade);setVal('f_motion_blur',pr.motion_blur);setVal('f_vignette',pr.vignette);
+    setCh('f_color_grade',pr.color_grade);setVal('f_motion_blur',pr.motion_blur);
     setVal('f_speed_ramp_start',pr.speed_ramp_start);setVal('f_speed_ramp_end',pr.speed_ramp_end);setVal('f_speed_factor',pr.speed_factor);setVal('f_ducking_level_db',pr.ducking_level_db);
     setVal('f_num_clips',c.num_clips);setVal('f_resolution',c.resolution);setVal('f_aspect_ratio',c.aspect_ratio);setVal('f_subtitle_style',c.subtitle_style);
     setVal('f_sync_offset',c.sync_offset);setVal('f_portrait_mode',c.portrait_mode);setVal('f_face_tracking_mode',c.face_tracking_mode);
@@ -390,8 +385,8 @@ function collectConfig(){
     sync_offset:n('f_sync_offset'),portrait_mode:v('f_portrait_mode')||undefined,face_tracking_mode:v('f_face_tracking_mode')||undefined,
     pan_speed_limit:n('f_pan_speed_limit'),center_weight:n('f_center_weight'),switch_threshold:n('f_switch_threshold'),
     min_shot_duration:n('f_min_shot_duration'),lip_activity:n('f_lip_activity'),
-    stabilize:c('f_stabilize'),color_grade:v('f_color_grade')||undefined,
-    motion_blur:n('f_motion_blur')||0,vignette:n('f_vignette')||0,
+    color_grade:v('f_color_grade')||undefined,
+    motion_blur:n('f_motion_blur')||0,
     speed_ramp_start:n('f_speed_ramp_start')||0,speed_ramp_end:n('f_speed_ramp_end')||0,
     speed_factor:n('f_speed_factor')||0.5,ducking_level_db:n('f_ducking_level_db')||-15,
     face_detector_model:v('f_face_detector_model')||undefined,yolo_size:v('f_yolo_size')||undefined,

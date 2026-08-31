@@ -199,7 +199,6 @@ body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-s
               </select>
             </div>
             <input type="hidden" id="s_num_clips" value="auto">
-            <input type="checkbox" id="s_stabilize" class="hidden">
             <input type="checkbox" id="s_smooth_follow" class="hidden">
             <div class="col-span-2 flex flex-wrap gap-4 pt-1">
               <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="s_gpu" class="w-3.5 h-3.5 accent-[#facc15]"> ⚡ GPU</label>
@@ -631,7 +630,6 @@ function collectFormData() {
     portrait_mode: $('#s_portrait_mode').value,
     num_clips: $('#s_num_clips').value || 'auto',
     use_gpu: $('#s_gpu').checked,
-    stabilize: $('#s_stabilize').checked,
     smooth_follow: $('#s_smooth_follow').checked,
     face_tracking_mode: $('#s_face_tracking_mode').value,
     face_detector_model: $('#s_face_detector_model')?.value || 'mediapipe',
@@ -697,7 +695,6 @@ function populateForm(d) {
   set('s_portrait_mode', d.portrait_mode || 'crop');
   set('s_num_clips', d.num_clips || 'auto');
   chk('s_gpu', d.use_gpu);
-  chk('s_stabilize', d.stabilize);
   chk('s_smooth_follow', d.smooth_follow !== false);
   set('s_face_tracking_mode', d.face_tracking_mode || 'opencv');
   set('s_face_detector_model', d.face_detector_model || 'mediapipe');
