@@ -540,7 +540,7 @@ const server = http.createServer((req, res) => {
           pro_settings: cfg.pro_settings || {},
           // Fitur baru (feature 1-19)
           face_detector_model: cfg.face_detector_model || 'mediapipe',
-          yolo_size: cfg.yolo_size || '8n',
+          yolo_size: ['8n','8n_v2','8s','8m','9c'].includes(cfg.yolo_size) ? cfg.yolo_size : '8n',
           font_preset: cfg.font_preset || 'DEFAULT',
           auto_bgm: cfg.auto_bgm || {},
           auto_broll: cfg.auto_broll || {},
@@ -610,7 +610,7 @@ const server = http.createServer((req, res) => {
           if (isNum(o[k])) cfg.pro_settings[sk] = o[k];
         }
         if (typeof o.face_detector_model === 'string' && o.face_detector_model.trim()) cfg.face_detector_model = o.face_detector_model.trim();
-        if (typeof o.yolo_size === 'string' && o.yolo_size.trim()) cfg.yolo_size = o.yolo_size.trim();
+        if (typeof o.yolo_size === 'string' && ['8n','8n_v2','8s','8m','9c'].includes(o.yolo_size.trim())) cfg.yolo_size = o.yolo_size.trim();
         if (typeof o.font_preset === 'string' && o.font_preset.trim()) cfg.font_preset = o.font_preset.trim();
         if (typeof o.wm === 'object' && o.wm) {
           if (typeof o.wm.position === 'string') cfg.watermark.position = o.wm.position;

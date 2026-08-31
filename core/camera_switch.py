@@ -46,7 +46,14 @@ class CameraSwitchMixin:
         if getattr(self, "_yolo_detector", None) is None:
             try:
                 from core.yolo_detector import YOLOFaceDetector
-                size = getattr(self, "yolo_size", "8n")
+                # Auto-size: podcast butuh akurasi wajah tinggi -> 9c; lainnya pakai size config
+                pm = getattr(self, "portrait_mode", "") or ""
+                if pm in ("split_podcast", "split_podcast_dynamic", "split_podcast_wide"):
+                    size = "9c"
+                else:
+                    size = getattr(self, "yolo_size", "8n") or "8n"
+                if size not in ("8n", "8n_v2", "8s", "8m", "9c"):
+                    size = "8n"
                 self._yolo_detector = YOLOFaceDetector(model_size=size, conf=0.3)
             except Exception as e:
                 self.log(f"  ⚠ YOLO tidak tersedia ({e}), fallback ke MediaPipe.")
