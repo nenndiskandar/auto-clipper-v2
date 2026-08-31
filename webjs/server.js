@@ -48,8 +48,6 @@ const FFMPEG = (() => {
 process.env.PYTHONUNBUFFERED = '1';
 
 // --- Auth: password login (cookie HMAC) ---
-const OWNER_ID = '233439175';
-const BOT_USERNAME = 'iskanclip_bot';
 const COOKIE_NAME = 'clipper_auth';
 const BOT_TOKEN = (() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'config.json'), 'utf8')).telegram_bot_token || ''; } catch { return ''; } })();
 const AUTH_KEY = crypto.createHash('sha256').update('clipper-web:' + BOT_TOKEN + ':' + process.env.CLIPPER_PASS || '').digest();
@@ -333,7 +331,7 @@ const server = http.createServer((req, res) => {
         try {
           const { password } = JSON.parse(body || '{}');
           if (String(password) === ADMIN_PASS) {
-            const token = makeToken(OWNER_ID, 'admin');
+            const token = makeToken('admin', 'admin');
             res.writeHead(200, { 'Set-Cookie': `${COOKIE_NAME}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800` });
             return json(res, 200, { ok: true });
           }
@@ -1468,4 +1466,4 @@ except Exception as e:
   }
 });
 
-server.listen(PORT, () => console.log(`http://localhost:${PORT}  (auth: telegram bot, owner ${OWNER_ID})`));
+server.listen(PORT, () => console.log(`http://localhost:${PORT}  (auth: password)`));
