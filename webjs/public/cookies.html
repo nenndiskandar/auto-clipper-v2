@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cookies — Auto Clipper</title>
+<link rel="manifest" href="/manifest.json">
+<script src="/pwa.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: { extend: { colors: {
+    surface: { 0:'#09090b', 1:'#18181b', 2:'#27272a', 3:'#3f3f46' },
+    zinc: { 450: '#8b8b96', 650: '#43434c' },
+    accent: '#facc15',
+  }}}
+}
+</script>
+<style>
+body{background:#09090b;color:#fafafa;font-family:system-ui,-apple-system,sans-serif}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#3f3f46;border-radius:3px}
+pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y:auto;white-space:pre-wrap;border-radius:.5rem}
+</style>
+</head>
+<body class="min-h-screen flex flex-col md:flex-row bg-[#09090b]">
+
+<!-- SIDEBAR -->
+<aside class="w-full md:w-60 border-b md:border-b-0 md:border-r border-zinc-800 bg-zinc-950 flex flex-col shrink-0">
+  <div class="p-4 border-b border-zinc-800 flex items-center justify-between">
+    <span class="font-bold text-sm tracking-wider text-accent">⚡ YT CLIPPER</span>
+    <a href="/logout" class="text-xs text-zinc-400 hover:text-white transition md:hidden">Logout</a>
+  </div>
+  <div class="p-3 flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-x-visible">
+    <a href="/" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🏠 Library</a>
+    <a href="/create.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">＋ Create Clip</a>
+    <a href="/tasks.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">📋 Tasks</a>
+    <a href="/story.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🎬 Story</a>
+    <a href="/facebook.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">📘 FB</a>
+    <a href="/cookies.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition bg-zinc-900 text-white font-medium">🍪 Cookies</a>
+    <a href="/settings.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">⚙️ Settings</a>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="flex-1 p-4 md:p-6 max-w-3xl mx-auto w-full">
+  <h1 class="text-lg font-bold text-white mb-1">🍪 Cookies yt-dlp</h1>
+  <p class="text-xs text-zinc-500 mb-6">Kelola file cookies.txt Netscape untuk autentikasi YouTube saat download. Export dari ekstensi browser (mis. "Get cookies.txt LOCALLY") lalu upload & test.</p>
+
+  <!-- Status -->
+  <div id="statusCard" class="bg-surface-1 border border-zinc-800 rounded-2xl p-5 mb-5 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <span id="statusDot" class="w-3 h-3 rounded-full bg-zinc-650"></span>
+      <div>
+        <div id="statusTitle" class="text-sm font-semibold text-white">Memuat…</div>
+        <div id="statusSub" class="text-[11px] text-zinc-500 mt-0.5"></div>
+      </div>
+    </div>
+    <button id="btnDelete" class="hidden text-xs px-3 py-1.5 rounded-lg border border-zinc-700 text-red-400 hover:bg-red-500/10 transition">Hapus</button>
+  </div>
+
+  <!-- Upload -->
+  <div class="bg-surface-1 border border-zinc-800 rounded-2xl p-5 mb-5">
+    <h2 class="text-sm font-semibold text-white mb-3">Upload cookies.txt</h2>
+    <div id="dropZone" class="border-2 border-dashed border-zinc-700 rounded-xl p-8 text-center cursor-pointer hover:border-accent transition">
+      <div class="text-3xl mb-2">📄</div>
+      <div class="text-sm text-zinc-300">Klik atau taruh file <code class="text-accent">cookies.txt</code> di sini</div>
+      <div class="text-[11px] text-zinc-500 mt-1">Format Netscape, export dari ekstensi browser</div>
+    </div>
+    <input type="file" id="fileInput" accept=".txt,text/plain" class="hidden">
+    <div id="uploadMsg" class="hidden mt-3 text-xs"></div>
+  </div>
+
+  <!-- Test -->
+  <div class="bg-surface-1 border border-zinc-800 rounded-2xl p-5">
+    <h2 class="text-sm font-semibold text-white mb-3">Test cookies</h2>
+    <div class="flex flex-col md:flex-row gap-2 mb-3">
+      <input id="testUrl" type="text" placeholder="URL video YouTube (opsional, contoh video jika kosong)"
+        class="flex-1 bg-surface-2/40 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-accent">
+      <button id="btnTest" class="bg-accent text-black font-semibold rounded-xl px-5 py-2.5 text-sm hover:opacity-90 transition">Test</button>
+    </div>
+    <div id="testResult" class="hidden text-sm rounded-xl p-4 border"></div>
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+let st = { exists: false };
+
+function b64u(s){ return btoa(unescape(encodeURIComponent(s))); }
+function api(path, opts){ return fetch(path, opts).then(r=>r.json()); }
+
+function renderStatus(){
+  const dot = $('statusDot'), t = $('statusTitle'), s = $('statusSub');
+  if (st.exists){
+    dot.className = 'w-3 h-3 rounded-full bg-emerald-400';
+    t.textContent = 'Cookies tersedia';
+    let parts = [];
+    if (st.lines) parts.push(st.lines + ' baris');
+    if (st.size) parts.push((st.size/1024).toFixed(1) + ' KB');
+    if (st.domains && st.domains.length) parts.push('domain: ' + st.domains.join(', '));
+    s.textContent = parts.join(' • ') || 'Terpasang';
+    $('btnDelete').classList.remove('hidden');
+  } else {
+    dot.className = 'w-3 h-3 rounded-full bg-zinc-650';
+    t.textContent = 'Belum ada cookies';
+    s.textContent = 'Upload cookies.txt untuk login YouTube';
+    $('btnDelete').classList.add('hidden');
+  }
+}
+
+async function load(){
+  st = await api('/api/cookies').catch(()=>({exists:false}));
+  renderStatus();
+}
+
+// Upload
+const dz = $('dropZone'), fi = $('fileInput');
+dz.addEventListener('click', ()=>fi.click());
+dz.addEventListener('dragover', e=>{ e.preventDefault(); dz.classList.add('border-accent'); });
+dz.addEventListener('dragleave', ()=>dz.classList.remove('border-accent'));
+dz.addEventListener('drop', e=>{ e.preventDefault(); dz.classList.remove('border-accent'); if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+fi.addEventListener('change', ()=>{ if(fi.files[0]) handleFile(fi.files[0]); });
+
+function msg(el, text, ok){
+  el.textContent = text;
+  el.className = 'mt-3 text-xs rounded-xl p-3 ' + (ok ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400');
+}
+
+async function handleFile(file){
+  const um = $('uploadMsg'); um.classList.remove('hidden');
+  if (file.size > 2*1024*1024) return msg(um, 'File terlalu besar (maks 2 MB)', false);
+  const txt = await file.text();
+  if (!/^# (HTTP )?Cookie/m.test(txt) && !txt.includes('\t')) 
+    return msg(um, 'Bukan format cookies.txt Netscape. File harus diawali "# Netscape HTTP Cookie File" dan berisi baris tab-separated.', false);
+  msg(um, 'Mengupload…', true);
+  const r = await api('/api/cookies', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ data: b64u(txt) }) });
+  if (r.ok){ st = r; renderStatus(); msg(um, '✓ Cookies ter-upload: ' + (r.lines||0) + ' baris, ' + (r.domains||[]).join(', '), true); fi.value=''; }
+  else msg(um, r.error || 'Gagal upload', false);
+}
+
+// Delete
+$('btnDelete').addEventListener('click', async ()=>{
+  if(!confirm('Hapus cookies?')) return;
+  await api('/api/cookies', { method:'DELETE' });
+  st = { exists:false }; renderStatus();
+});
+
+// Test
+$('btnTest').addEventListener('click', async ()=>{
+  const tr = $('testResult'); tr.classList.remove('hidden');
+  const url = $('testUrl').value.trim();
+  tr.className = 'text-sm rounded-xl p-4 border border-zinc-800 bg-surface-1';
+  tr.innerHTML = '<div class="text-xs text-zinc-400">Menguji cookies ke YouTube…</div>';
+  $('btnTest').disabled = true; $('btnTest').textContent = 'Test…';
+  const r = await api('/api/cookies/test', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url }) }).catch(e=>({ok:false, message:'Gagal terhubung: '+e}));
+  $('btnTest').disabled = false; $('btnTest').textContent = 'Test';
+  const ok = r.ok;
+  tr.className = 'text-sm rounded-xl p-4 border ' + (ok ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-red-500/40 bg-red-500/5');
+  let html = '<div class="font-semibold ' + (ok ? 'text-emerald-400' : 'text-red-400') + ' mb-1">' + (ok ? '✓ ' : '✗ ') + (r.message || 'Selesai') + '</div>';
+  if (r.title) html += '<div class="text-xs text-zinc-300 mt-1">🎬 ' + r.title + (r.channel ? ' — ' + r.channel : '') + '</div>';
+  if (r.detail && r.detail.length) html += '<pre class="log mt-3 p-2">' + r.detail.join('\n').replace(/</g,'&lt;') + '</pre>';
+  tr.innerHTML = html;
+});
+
+load();
+</script>
+</body>
+</html>
