@@ -44,6 +44,7 @@ pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y
     <a href="/story.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🎬 Story</a>
     <a href="/facebook.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">📘 FB</a>
     <a href="/cookies.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🍪 Cookies</a>
+    <a href="/deps.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🔧 Dependencies</a>
     <a href="/settings.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">⚙️ Settings</a>
     
     <!-- Engine Status Indication -->
@@ -464,7 +465,7 @@ function openRender(gi, ci) {
     <div class="grid grid-cols-2 gap-2">
       ${cfgSelect('aspect_ratio', '📐 Rasio', ['9:16', '3:4', '4:5', '1:1', '16:9'])}
             ${cfgSelect('subtitle_style', '✏️ Gaya Subtitle', ['pop', 'karaoke', 'bounce', 'animated', 'pop_bounce'])}
-            ${cfgSelect('portrait_mode', '🖼️ Portrait Mode', ['crop', 'center', 'blur', 'split_podcast_dynamic'])}
+            ${cfgSelect('portrait_mode', '🖼️ Portrait Mode', ['crop', 'center', 'blur', 'split_podcast_dynamic', 'clipforge'])}
             ${cfgSelect('face_tracking_mode', '🎯 Face Tracking', ['opencv', 'mediapipe'])}
             ${cfgNum('sync_offset', '⏱️ Sync Offset (detik)', '0.1')}
           </div>

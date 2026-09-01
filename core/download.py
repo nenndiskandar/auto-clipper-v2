@@ -777,9 +777,6 @@ class DownloadMixin:
                 # Add URL at the end
                 cmd.append(url)
             
-                # Log command for debugging
-                debug_log(f"Running command: {' '.join(cmd)}")
-            
                 result = subprocess.run(
                     cmd,
                     capture_output=True,
@@ -1553,8 +1550,7 @@ class DownloadMixin:
                 ])
                 cmd.append(url)
 
-                self.log(f"  Running (attempt {attempt}/{MAX_ATTEMPTS}):")
-                self.log("    " + " ".join(cmd))
+                self.log(f"  Downloading section (attempt {attempt}/{MAX_ATTEMPTS})...")
 
                 process = subprocess.Popen(
                     cmd,

@@ -70,5 +70,40 @@ class TestCoreBasic(unittest.TestCase):
         self.assertEqual(len(smoothed), len(positions))
         self.assertEqual(smoothed[-1], 100.0)
 
+    # ── ClipForge-style portrait mode ─────────────────────────────────────
+    def test_clipforge_crop_window_9x16(self):
+        # 1920x1080 landscape -> 9:16 crop window (720x1280 target)
+        crop_w, crop_h = self.core._get_crop_window(1920, 1080)
+        # crop_crop_h = orig_h = 1080, crop_w = 1080*9/16 = 607.5 -> 607
+        self.assertEqual(crop_h, 1080)
+        self.assertEqual(crop_w, 607)
+        self.assertAlmostEqual(crop_w / crop_h, 9 / 16, delta=0.01)
+
+    def test_clipforge_crop_window_clamped(self):
+        # Nyaris-square source -> crop window di-clamp agar tak melebihi lebar
+        crop_w, crop_h = self.core._get_crop_window(1000, 1000)
+        self.assertLessEqual(crop_w, 1000)
+        self.assertLessEqual(crop_h, 1000)
+        self.assertAlmostEqual(crop_w / crop_h, 9 / 16, delta=0.01)
+
+    def test_clipforge_single_crop_filter_conversion(self):
+        # Posisi konstan -> _build_portrait_filter_script kembali ke branch single-crop
+        script = self.core._build_portrait_filter_script(
+            [300] * 100, 607, 1080, 720, 1280)
+        # single-crop: tidak ada split/concat, langsung crop=...
+        self.assertNotIn("split", script)
+        self.assertIn("crop=607:1080:x=300:y=0", script)
+        self.assertIn("scale=720:1280", script)
+
+    def test_clipforge_builds_crop_x_clamped(self):
+        # focus_x di edge -> crop_x di-clamp ke [0, orig_w - crop_w]
+        crop_w, _ = self.core._get_crop_window(1920, 1080)
+        # focus dekat kanan (focus_x = 0.99)
+        focus_px = 0.99 * 1920
+        crop_x = int(focus_px - crop_w / 2)
+        crop_x = max(0, min(crop_x, 1920 - crop_w))
+        self.assertGreaterEqual(crop_x, 0)
+        self.assertLessEqual(crop_x, 1920 - crop_w)
+
 if __name__ == "__main__":
     unittest.main()

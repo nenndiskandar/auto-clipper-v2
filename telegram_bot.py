@@ -2042,7 +2042,7 @@ async def status_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         idx = opts.index(cur) if cur in opts else 0
         cfg["subtitle_sync_offset"] = opts[(idx + 1) % len(opts)]
     elif data == "portrait":
-        opts = ["crop", "center", "blur", "split_podcast_dynamic", "camera_switch"]
+        opts = ["crop", "center", "blur", "split_podcast_dynamic", "camera_switch", "clipforge"]
         cur = str(cfg.get("portrait_mode", "crop"))
         cfg["portrait_mode"] = opts[(opts.index(cur) + 1) % len(opts)] if cur in opts else "crop"
     elif data == "face":

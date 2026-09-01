@@ -4,15 +4,10 @@
   "description": "Auto Clipper v2 - Video clipping with AI",
   "main": "webjs/server.js",
   "scripts": {
-    "start": "node webjs/server.js",
-    "dev": "nodemon webjs/server.js"
+    "start": "node webjs/server.js"
   },
   "dependencies": {
-    "express": "^4.18.0",
-    "cors": "^2.8.5"
-  },
-  "devDependencies": {
-    "nodemon": "^3.0.0"
+    "shell-trash": "^4.0.0"
   },
   "author": "",
   "license": "MIT"
