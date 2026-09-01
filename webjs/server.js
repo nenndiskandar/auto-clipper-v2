@@ -838,6 +838,53 @@ except Exception as e:
       });
       return;
     }
+// GET /api/deps — status semua dependencies (bundled + models)
+    if (p === '/api/deps') {
+      const PYCHK = `from pathlib import Path;import sys;sys.path.insert(0,r'${ROOT.replace(/\\/g,'\\\\')}');from utils.dependency_manager import check_dependency;import json;app=Path(r'${ROOT.replace(/\\/g,'\\\\')}');print(json.dumps({\"ffmpeg\":check_dependency('ffmpeg',app),\"deno\":check_dependency('deno',app),\"mediapipe_model\":check_dependency('mediapipe_model',app),\"unisal_model\":check_dependency('unisal_model',app)}))`;
+      execFile(PY, ['-c', PYCHK], (err, stdout) => {
+        let map={}; try{ map=JSON.parse(stdout.trim().split('\n').pop()); }catch{}
+        // versi yt-dlp
+        const bin = [...[
+          { name: 'ffmpeg', ...(() => {
+            const exe = isWin ? 'ffmpeg.exe' : 'ffmpeg';
+            const bundled = path.join(ROOT,'ffmpeg',exe);
+            if (fs.existsSync(bundled)) return { ok: true, detail: 'bundled' };
+            return { ok: !!map.ffmpeg, detail: !!map.ffmpeg ? 'bundled' : 'tidak terdeteksi' };
+          })() },
+          { name: 'deno', ok: !!map.deno, detail: !!map.deno ? 'bundled' : 'download' },
+          { name: 'mediapipe_model', ok: !!map.mediapipe_model, detail: !!map.mediapipe_model ? 'ready' : 'download' },
+          { name: 'unisal.onnx', ok: !!map.unisal_model, detail: !!map.unisal_model ? 'ready (387 KB + 12.7 MB)' : 'download' },
+        ]];
+        json(res, 200, bin);
+      });
+      return;
+    }
+    // POST /api/deps/:name/download — async install setup_<name>
+    const mDep = p.match(/^\/api\/deps\/([^/]+)\/download$/);
+    if (mDep && req.method === 'POST') {
+      const depName = String(mDep[1]).trim();
+      const allowed = {'ffmpeg':'setup_ffmpeg','deno':'setup_deno','mediapipe_model':'setup_mediapipe_model','unisal_model':'setup_unisal_model'};
+      if (!Object.prototype.hasOwnProperty.call(allowed, depName)) return json(res,400,{error:'invalid dependency name'});
+      const fnName = allowed[depName];
+      const logPath = path.join(ROOT,'output',`dep_${depName}.log`);
+      const out = fs.createWriteStream(logPath,{flags:'a'});
+      fs.appendFileSync(logPath,`\n===== ${fnName} ${new Date().toISOString()} =====\n`);
+      const args = ['-c', `from pathlib import Path;from utils.dependency_manager import ${fnName};import sys;ok=${fnName}(Path(r'${ROOT.replace(/\\/g,'\\\\')}'));print('DONE:'+str(ok));sys.exit(0 if ok else 1)`];
+      const child=spawn(PY, args, {env:{...process.env, PYTHONIOENCODING:'utf-8'}});
+      child.stdout.pipe(out); child.stderr.pipe(out);
+      child.on('close',code=>{ out.end(); });
+      json(res,200,{ok:true, started:true, log:logPath, dep:depName});
+      return;
+    }
+    // GET /api/log?path=... — baca tail file log (hanya di dalam ROOT/output)
+    if (p === '/api/log' && req.method === 'GET') {
+      const q = new URL(req.url, 'http://x').searchParams.get('path') || '';
+      const fp = path.resolve(ROOT, q.replace(/^[\\/]+/, ''));
+      // safety: hanya izinkan path di dalam ROOT/output
+      const outDir = path.join(ROOT, 'output');
+      if (!fp.startsWith(outDir)) return json(res, 403, { error: 'forbidden' });
+      return json(res, 200, { log: tailFile(fp, 12000) });
+    }
     // GET /api/binaries — status dependensi
     if (p === '/api/binaries') {
           // Cross-platform binary probe: bundled first (with .exe on Windows), then PATH.

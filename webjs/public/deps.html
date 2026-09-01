@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="id" class="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Auto Clipper — Dependencies</title>
+<script src="/templates.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: { extend: { colors: {
+    surface: { 0:'#09090b', 1:'#121215', 2:'#18181b', 3:'#27272a' },
+    zinc: { 450: '#8b8b96', 650: '#43434c' },
+    accent: '#facc15',
+  }}}
+}
+</script>
+<style>
+body{background:#09090b;color:#f4f4f5;font-family:system-ui,-apple-system,sans-serif}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#3f3f46;border-radius:3px}
+.card-head{cursor:pointer;user-select:none}
+.chev{transition:transform .15s}
+.section-label{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#71717a;padding:0 4px}
+.dep-row{display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid #27272a}
+.dep-row:last-child{border-bottom:none}
+.dep-status-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.dep-log{background:#09090b;border:1px solid #27272a;border-radius:8px;padding:10px;font-family:ui-monospace,monospace;font-size:10px;line-height:1.5;white-space:pre-wrap;word-break:break-all;max-height:280px;overflow-y:auto}
+.btn-download{background:#27272a;border:1px solid #3f3f46;color:#e4e4e7;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
+.btn-download:hover{background:#3f3f46;border-color:#facc15}
+.btn-download:disabled{opacity:.5;cursor:not-allowed}
+.btn-download.done{background:#14532d;color:#bbf7d0;border-color:#166534}
+.badge{font-size:9px;padding:2px 8px;border-radius:999px;font-weight:700;letter-spacing:.03em}
+.badge-ok{background:#052e16;color:#4ade80;border:1px solid #166534}
+.badge-missing{background:#450a0a;color:#f87171;border:1px solid #7f1d1d}
+.badge-running{background:#1c1917;color:#fbbf24;border:1px solid #78350f}
+.badge-idle{background:#27272a;color:#a1a1aa;border:1px solid #3f3f46}
+.tpl-btn{border:1px solid #27272a;border-radius:.375rem;padding:.35rem .6rem;cursor:pointer;transition:all .15s;font-size:.75rem}
+.tpl-btn:hover{border-color:#facc15;background:#18181b}
+</style>
+</head>
+<body class="min-h-screen flex flex-col md:flex-row bg-[#09090b]">
+<div id="toast" class="fixed top-4 right-4 z-50 hidden px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded shadow-lg"></div>
+
+<!-- SIDEBAR -->
+<aside class="w-full md:w-60 border-b md:border-b-0 md:border-r border-zinc-800 bg-zinc-950 flex flex-col shrink-0">
+  <div class="p-4 border-b border-zinc-800 flex items-center justify-between">
+    <span class="font-bold text-sm tracking-wider text-accent">⚡ YT CLIPPER</span>
+    <a href="/logout" class="text-xs text-zinc-400 hover:text-white transition md:hidden">Logout</a>
+  </div>
+  <div class="p-3 flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-x-visible">
+    <a href="/" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🏠 Library</a>
+    <a href="/create.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">＋ Create Clip</a>
+    <a href="/tasks.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">📋 Tasks</a>
+    <a href="/story.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🎬 Story</a>
+    <a href="/facebook.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">📘 FB</a>
+    <a href="/cookies.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🍪 Cookies</a>
+    <a href="/deps.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition bg-zinc-900 text-white font-medium">🔧 Dependencies</a>
+    <a href="/settings.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">⚙️ Settings</a>
+  </div>
+  <div class="mt-auto p-4 border-t border-zinc-800 hidden md:flex items-center justify-between text-[11px]">
+    <span class="text-zinc-500 truncate max-w-[120px]" id="whoami"></span>
+    <a href="/logout" class="text-zinc-400 hover:text-white transition">Logout</a>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="flex-1 flex flex-col min-w-0 overflow-y-auto">
+  <main class="max-w-4xl w-full mx-auto p-4 md:p-6 space-y-6 flex-1 pb-28" id="main">
+
+    <!-- HEADER -->
+    <div class="flex items-center justify-between flex-wrap gap-2">
+      <div>
+        <h1 class="text-sm font-bold text-zinc-200 uppercase tracking-wider">🔧 Dependency Manager</h1>
+        <p class="text-[10px] text-zinc-500 mt-0.5">Status &amp; download komponen: FFmpeg, Deno, model MediaPipe, UNISAL, Faster-Whisper</p>
+      </div>
+      <button onclick="loadDeps()" class="px-3 py-1.5 bg-surface-2 hover:bg-surface-3 text-zinc-300 text-xs font-medium rounded border border-zinc-700 transition">↻ Refresh</button>
+    </div>
+
+    <!-- BINARIES / MODELS -->
+    <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md overflow-hidden">
+      <div class="card-head flex items-center gap-2 p-4" onclick="toggleCard(this)">
+        <span class="chev text-zinc-500" style="transform:rotate(-90deg)">▾</span>
+        <h3 class="text-xs font-semibold text-zinc-450 uppercase tracking-wider">🧰 Binaries &amp; Models</h3>
+        <span id="depsSummary" class="ml-auto text-[10px] px-2 py-0.5 rounded-full border border-zinc-700 text-zinc-500">● checking…</span>
+      </div>
+      <div id="depsBody" class="card-body p-2 hidden">
+        <div class="text-xs text-zinc-500 p-4 text-center">Muat status…</div>
+      </div>
+    </div>
+
+    <!-- WHISPER MODELS -->
+    <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md overflow-hidden">
+      <div class="card-head flex items-center gap-2 p-4" onclick="toggleCard(this)">
+        <span class="chev text-zinc-500" style="transform:rotate(-90deg)">▾</span>
+        <h3 class="text-xs font-semibold text-zinc-450 uppercase tracking-wider">🎙️ Faster-Whisper Models</h3>
+        <span id="fwSummary" class="ml-auto text-[10px] px-2 py-0.5 rounded-full border border-zinc-700 text-zinc-500"></span>
+      </div>
+      <div id="fwBody" class="card-body p-2 hidden">
+        <div class="text-xs text-zinc-500 p-4 text-center">Muat…</div>
+      </div>
+    </div>
+
+    <!-- LOG VIEWER -->
+    <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md overflow-hidden">
+      <div class="card-head flex items-center gap-2 p-4" onclick="toggleCard(this)">
+        <span class="chev text-zinc-500" style="transform:rotate(-90deg)">▾</span>
+        <h3 class="text-xs font-semibold text-zinc-450 uppercase tracking-wider">📜 Download Log</h3>
+        <button onclick="event.stopPropagation(); clearLog()" class="ml-auto px-2 py-0.5 border border-zinc-700 rounded text-[10px] text-zinc-400 hover:border-accent transition">✕ Clear</button>
+      </div>
+      <div class="card-body p-4 pt-0 hidden">
+        <div id="depLog" class="dep-log text-zinc-400">— belum ada aktivitas —</div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+// dep state: nama -> logPath/ running
+const DEPS = [
+  { name:'ffmpeg', label:'🎞️ FFmpeg', desc:'Encoder video + filter (crop, scale, subtitle burn)', size:'~80 MB', fn:'setup_ffmpeg' },
+  { name:'deno', label:'🦕 Deno', desc:'Runtime untuk komponen JS (thumbnail/hook generator)', size:'~35 MB', fn:'setup_deno' },
+  { name:'mediapipe_model', label:'👤 MediaPipe Face Landmarker', desc:'Deteksi wajah + lip tracking (mode mediapipe)', size:'~3 MB', fn:'setup_mediapipe_model' },
+  { name:'unisal_model', label:'🧠 UNISAL Saliency ONNX', desc:'Saliency visual attention (mode portrait saliency)', size:'~13 MB', fn:'setup_unisal_model' },
+];
+const state = {}; // name -> { running, log, done }
+
+function toggleCard(head){
+  const body = head.nextElementSibling;
+  const chev = head.querySelector('.chev');
+  if (body){
+    body.classList.toggle('hidden');
+    if (chev) chev.style.transform = body.classList.contains('hidden') ? 'rotate(-90deg)' : '';
+  }
+}
+
+function toast(msg){
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.remove('hidden');
+  clearTimeout(t._h);
+  t._h = setTimeout(()=>t.classList.add('hidden'), 2500);
+}
+
+fetch('/api/me').then(r=>r.json()).then(d=>{ if(d.name) $('#whoami').textContent = '👤 '+d.name; });
+
+async function loadDeps(){
+  // binaries + models
+  try{
+    const r = await fetch('/api/deps');
+    const list = await r.json();
+    const body = $('#depsBody');
+    if (!body) return;
+    body.innerHTML = list.map(d => {
+      const dep = DEPS.find(x=>x.name===d.name) || { label:d.name, desc:'', fn:'' };
+      const ok = !!d.ok;
+      const st = state[d.name] || {};
+      const running = st.running;
+      const dotColor = running ? '#fbbf24' : (ok ? '#4ade80' : '#f87171');
+      const badge = running ? '<span class="badge badge-running">DOWNLOADING…</span>' : (ok ? '<span class="badge badge-ok">✓ READY</span>' : '<span class="badge badge-missing">✗ MISSING</span>');
+      const btn = running
+        ? `<button class="btn-download" disabled>⏳ …</button>`
+        : (ok
+            ? `<button class="btn-download done" onclick="downloadDep('${d.name}')">↓ Re-download</button>`
+            : `<button class="btn-download" onclick="downloadDep('${d.name}')">⬇ Download</button>`);
+      return `<div class="dep-row">
+        <span class="dep-status-dot" style="background:${dotColor}"></span>
+        <div class="flex-1 min-w-0">
+          <div class="text-xs font-semibold text-zinc-200">${dep.label} <span class="text-zinc-500 font-normal">(${esc(d.detail||'')}, ${esc(dep.size||'')})</span></div>
+          <div class="text-[10px] text-zinc-500 mt-0.5">${esc(dep.desc||'')}</div>
+        </div>
+        ${badge}
+        ${btn}
+      </div>`;
+    }).join('');
+    const okCount = list.filter(d=>d.ok).length;
+    $('#depsSummary').textContent = `${okCount}/${list.length} OK`;
+    $('#depsSummary').className = 'ml-auto text-[10px] px-2 py-0.5 rounded-full border ' + (okCount===list.length ? 'border-emerald-700 text-emerald-400' : 'border-zinc-700 text-zinc-500');
+    // start polling if any running
+    if (list.some(d => (state[d.name]||{}).running)) setTimeout(loadDeps, 2500);
+  }catch(e){
+    $('#depsBody').innerHTML = `<div class="text-xs text-red-400 p-4 text-center">Gagal load: ${esc(String(e))}</div>`;
+  }
+}
+
+async function loadWhisper(){
+  try{
+    const r = await fetch('/api/whisper/models');
+    const list = await r.json();
+    const body = $('#fwBody');
+    body.innerHTML = list.map(m => {
+      const ok = !!m.installed;
+      const badge = ok ? '<span class="badge badge-ok">✓ INSTALLED</span>' : '<span class="badge badge-missing">✗ NOT INSTALLED</span>';
+      const running = (state['fw_'+m.size]||{}).running;
+      const btn = running
+        ? `<button class="btn-download" disabled>⏳ …</button>`
+        : (ok
+            ? `<button class="btn-download done" onclick="downloadWhisper('${m.size}')">↓ Re-download</button>`
+            : `<button class="btn-download" onclick="downloadWhisper('${m.size}')">⬇ Download</button>`);
+      return `<div class="dep-row">
+        <span class="dep-status-dot" style="background:${ok ? '#4ade80' : '#f87171'}"></span>
+        <div class="flex-1 min-w-0">
+          <div class="text-xs font-semibold text-zinc-200">faster-whisper-${esc(m.size)} <span class="text-zinc-500 font-normal">(${esc(m.mb || '?')})</span></div>
+          <div class="text-[10px] text-zinc-500 mt-0.5">Systran / faster-whisper-${esc(m.size)} — transcription lokal</div>
+        </div>
+        ${badge}
+        ${btn}
+      </div>`;
+    }).join('');
+    const okCount = list.filter(m=>m.installed).length;
+    $('#fwSummary').textContent = `${okCount}/${list.length} OK`;
+  }catch(e){
+    $('#fwBody').innerHTML = `<div class="text-xs text-red-400 p-4 text-center">Gagal load: ${esc(String(e))}</div>`;
+  }
+}
+
+async function downloadDep(name){
+  try{
+    const r = await fetch(`/api/deps/${name}/download`, { method:'POST', headers:{'Content-Type':'application/json'} });
+    const d = await r.json();
+    if (!d.ok) { toast('❌ Gagal mulai: ' + (d.error||'?')); return; }
+    state[name] = { running:true, log:'' };
+    toast(`⬇ Download ${name} dimulai…`);
+    addLog(`▶ ${name}: download dimulai`);
+    loadDeps();
+    pollLog(name, d.log);
+  }catch(e){ toast('❌ ' + String(e)); }
+}
+
+async function downloadWhisper(size){
+  try{
+    const r = await fetch('/api/whisper/download', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({size}) });
+    const d = await r.json();
+    if (!d.ok) { toast('❌ Gagal mulai: ' + (d.error||'?')); return; }
+    state['fw_'+size] = { running:true, log:'' };
+    toast(`⬇ Download faster-whisper-${size} dimulai…`);
+    addLog(`▶ faster-whisper-${size}: download dimulai`);
+    loadWhisper();
+    pollLog('fw_'+size, d.log);
+  }catch(e){ toast('❌ ' + String(e)); }
+}
+
+function pollLog(key, logPath){
+  const int = setInterval(async ()=>{
+    try{
+      const r = await fetch('/api/log?path='+encodeURIComponent(logPath));
+      const d = await r.json();
+      if (state[key]) state[key].log = d.log || '';
+      const txt = (d.log || '');
+      const last = txt.trim().split('\n').pop() || '';
+      addLog(last ? ` ${last}` : '');
+      if (txt.includes('DONE:') || /exit code|Traceback|Failed/.test(last)){
+        clearInterval(int);
+        const ok = /DONE:True/.test(txt) || /DONE:true/.test(txt);
+        if (state[key]){ state[key].running = false; }
+        addLog(ok ? `✔ ${key} selesai` : `✘ ${key} gagal`);
+        toast(ok ? `✔ ${key} selesai` : `✘ ${key} gagal`);
+        loadDeps(); loadWhisper();
+      }
+    }catch(e){ clearInterval(int); loadDeps(); loadWhisper(); }
+  }, 2000);
+}
+
+function addLog(line){
+  const el = $('#depLog');
+  el.textContent += (line || '') + '\n';
+  el.scrollTop = el.scrollHeight;
+  // keep last 400 lines
+  const lines = el.textContent.split('\n');
+  if (lines.length > 400) el.textContent = lines.slice(-400).join('\n');
+}
+
+function clearLog(){ $('#depLog').textContent = '— log dibersihkan —'; }
+
+// init
+loadDeps();
+loadWhisper();
+setInterval(()=>{ loadDeps(); loadWhisper(); }, 60000);
+</script>
+</body>
+</html>
