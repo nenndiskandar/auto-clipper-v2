@@ -556,7 +556,11 @@ def check_dependency(name: str, app_dir: Path) -> bool:
         path = get_faster_whisper_model_dir(app_dir, size)
         # Check if model.bin and config.json exist
         return path.exists() and (path / "model.bin").exists() and (path / "config.json").exists()
-    
+
+    elif name in ("unisal_model", "unisal", "saliency_model"):
+        path = get_unisal_model_dir(app_dir) / "unisal.onnx"
+        return path.exists()
+
     return False
 
 
