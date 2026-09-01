@@ -599,3 +599,28 @@ if __name__ == '__main__':
             debug_log("MediaPipe model setup failed.")
     else:
         debug_log("MediaPipe model is already installed.")
+
+def get_unisal_model_dir(app_dir: Path) -> Path:
+    """Return the directory where the UNISAL saliency ONNX model is stored."""
+    return app_dir / "bin"
+
+def setup_unisal_model(app_dir: Path, progress_callback=None) -> bool:
+    """Download UNISAL saliency ONNX model from the pyautoflip repo (GitHub raw)."""
+    try:
+        base = "https://raw.githubusercontent.com/AhmedHisham1/pyautoflip/main/pyautoflip/detection"
+        dest_dir = get_unisal_model_dir(app_dir)
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        for fname in ("unisal.onnx", "unisal.onnx.data"):
+            dest = dest_dir / fname
+            if dest.exists() and dest.stat().st_size > 0:
+                debug_log(f"UNISAL model {fname} already exists ({dest.stat().st_size} bytes)")
+                continue
+            debug_log(f"Downloading UNISAL model {fname}...")
+            if not download_file(f"{base}/{fname}", dest, progress_callback):
+                debug_log(f"Failed to download {fname}")
+                return False
+        debug_log("UNISAL model setup complete.")
+        return True
+    except Exception as e:
+        debug_log(f"UNISAL model setup error: {e}")
+        return False

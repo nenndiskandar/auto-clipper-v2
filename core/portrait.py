@@ -209,6 +209,9 @@ class PortraitMixin:
             if self.portrait_mode == "split_podcast_dynamic":
                 self.log(f"  Using Split Screen Dynamic (OpusClip-like, active-speaker)")
                 return self.convert_to_portrait_split_dynamic(input_path, output_path)
+            if self.portrait_mode == "clipforge":
+                self.log(f"  Using ClipForge Style (Haar+HOG+YuNet+profile, static focus)")
+                return self.convert_to_portrait_clipforge(input_path, output_path)
             if self.portrait_mode in ("split", "split_game", "split_podcast"):
                 self.log(f"  Using Split Screen mode: {self.portrait_mode}")
                 return self.convert_to_portrait_split(input_path, output_path)
@@ -1603,47 +1606,457 @@ class PortraitMixin:
                     pass
             self.log("  Blurred background conversion complete")
 
-        def convert_to_portrait_with_progress(self, input_path: str, output_path: str, progress_callback):
-            """Convert landscape to 9:16 portrait with speaker tracking and progress (router method)"""
-            if self._source_is_portrait(input_path):
-                self._passthrough_portrait(input_path, output_path, progress_callback)
-                return
-            if self.portrait_mode == "split_podcast_dynamic":
-                self.log(f"  Using Split Screen Dynamic (OpusClip-like, active-speaker)")
-                return self.convert_to_portrait_split_dynamic_with_progress(input_path, output_path, progress_callback)
-            if self.portrait_mode == "camera_switch":
-                self.log(f"  Using Camera-Switch Mode (active-speaker switching)")
-                return self.convert_to_portrait_camera_switch_with_progress(input_path, output_path, progress_callback)
-            if self.portrait_mode in ("split", "split_game", "split_podcast"):
-                self.log(f"  Using Split Screen mode: {self.portrait_mode}")
-                return self.convert_to_portrait_split_with_progress(input_path, output_path, progress_callback)
-            if self.portrait_mode == "center":
-                self.log(f"  Using Center Face Follow (wajah di tengah rapih)")
-                return self.convert_to_portrait_center_with_progress(input_path, output_path, progress_callback)
-            if getattr(self, "face_detector_model", "mediapipe") == "yolo":
-                self.log("  Using YOLO Face Detector (wajah terbesar di tengah)")
-                return self.convert_to_portrait_yolo_with_progress(input_path, output_path, progress_callback)
-            if self.face_tracking_mode == "detector":
-                self.log(f"  Using BlazeFace Detector (face center, tanpa lip)")
-                return self.convert_to_portrait_detector_with_progress(input_path, output_path, progress_callback)
-            if self.portrait_mode == "blur":
-                self.log("  Using Blurred Background (no crop)")
-                return self.convert_to_portrait_blur_with_progress(input_path, output_path, progress_callback)
+        # ── CLIPFORGE STYLE (Haar + HOG + YuNet + profile) ─────────────────
+        # Port of https://github.com/mallexibra-dev/clipforge clipper.py
+        # detect_person_focus_x(): gabungkan beberapa OpenCV detector untuk
+        # menentukan SATU fokus X statis per clip, lalu crop di titik itu.
+        # Bedanya dari mode 'crop' (per-frame tracking): mode ini memilih satu
+        # titik fokus yang stabil -> encode single-pass paling murah & tajam
+        # untuk footage statis / kamera tunggal.
+        def _clipforge_focus_x(self, input_path: str) -> tuple[float, tuple[int, int]] | None:
+            """Port dari ClipForge detect_person_focus_x: Haar (frontal+profile+flip),
+            HOG people, YuNet face -> bobotkan posisi X deteksi terbesar per frame
+            -> rata-rata tertimbang -> fokus X statis untuk seluruh clip."""
             try:
-                if self.face_tracking_mode == "mediapipe":
-                    self.log("  Using MediaPipe (Active Speaker Detection)")
-                    return self.convert_to_portrait_mediapipe_with_progress(input_path, output_path, progress_callback)
+                import cv2
+            except Exception as exc:
+                self.log(f"  ⚠ ClipForge detection unavailable: {exc}")
+                return None
+
+            yunet_path = Path(cv2.__file__).parent / "data" / "face_detection_yunet_2023mar.onnx"
+            if not yunet_path.exists():
+                # opencv-python kadang tidak membundel model; coba lokasi standar proyek
+                yunet_path = Path(__file__).resolve().parent.parent / "models" / "face_detection_yunet_2023mar.onnx"
+
+            cap = cv2.VideoCapture(input_path)
+            if not cap.isOpened():
+                return None
+            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            if width <= 0 or height <= 0:
+                cap.release()
+                return None
+
+            # sampling: 4-12 titik merata di seluruh clip (ClipForge pakai whole video path;
+            # di sini kita scan seluruh input karena portrait router menerima satu clip file)
+            duration = float(cap.get(cv2.CAP_PROP_FRAME_COUNT)) / max(0.1, float(cap.get(cv2.CAP_PROP_FPS)) or 30.0)
+            sample_count = min(12, max(4, int(duration // 8)))
+            if sample_count <= 1:
+                offsets = [duration / 2]
+            else:
+                step = duration / (sample_count + 1)
+                offsets = [step * (index + 1) for index in range(sample_count)]
+
+            hog = cv2.HOGDescriptor()
+            hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
+            face_cascade = cv2.CascadeClassifier(str(Path(cv2.data.haarcascades) / "haarcascade_frontalface_default.xml"))
+            profile_cascade = cv2.CascadeClassifier(str(Path(cv2.data.haarcascades) / "haarcascade_profileface.xml"))
+            yunet = None
+            if yunet_path.exists() and hasattr(cv2, "FaceDetectorYN_create"):
+                yunet = cv2.FaceDetectorYN_create(str(yunet_path), "", (320, 320), 0.35, 0.3, 5000)
+
+            face_weighted_sum = 0.0
+            face_total_weight = 0.0
+            person_weighted_sum = 0.0
+            person_total_weight = 0.0
+
+            for offset in offsets:
+                if self.is_cancelled():
+                    cap.release()
+                    raise Exception("Cancelled by user")
+                cap.set(cv2.CAP_PROP_POS_MSEC, offset * 1000)
+                ok, frame = cap.read()
+                if not ok:
+                    continue
+
+                resize_scale = min(1.0, 720 / max(frame.shape[:2]))
+                if resize_scale < 1:
+                    resized = cv2.resize(frame, None, fx=resize_scale, fy=resize_scale, interpolation=cv2.INTER_AREA)
                 else:
-                    self.log("  Using OpenCV (Fast Mode)")
-                    return self.convert_to_portrait_opencv_with_progress(input_path, output_path, progress_callback)
+                    resized = frame
+                gray = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
+
+                face_detections = []   # (center_x, size, weight)
+                person_detections = []
+
+                # YuNet face
+                if yunet is not None:
+                    rh, rw = resized.shape[:2]
+                    yunet.setInputSize((rw, rh))
+                    _, faces = yunet.detect(resized)
+                    if faces is not None:
+                        for face in faces:
+                            x, _, w, h = face[:4]
+                            confidence = float(face[-1])
+                            center_x = (x + w / 2) / resize_scale
+                            face_detections.append((center_x, max(w, h) / resize_scale, confidence * 3.0))
+
+                # Haar frontal face
+                faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(36, 36))
+                for x, y, w, h in faces:
+                    center_x = (x + w / 2) / resize_scale
+                    face_detections.append((center_x, max(w, h) / resize_scale, 2.0))
+
+                # Haar profile face (kiri)
+                profiles = profile_cascade.detectMultiScale(gray, scaleFactor=1.08, minNeighbors=4, minSize=(34, 34))
+                for x, y, w, h in profiles:
+                    center_x = (x + w / 2) / resize_scale
+                    face_detections.append((center_x, max(w, h) / resize_scale, 1.8))
+
+                # Haar profile face (kanan, via flip)
+                flipped_gray = cv2.flip(gray, 1)
+                flipped_profiles = profile_cascade.detectMultiScale(
+                    flipped_gray, scaleFactor=1.08, minNeighbors=4, minSize=(34, 34))
+                rw = resized.shape[1]
+                for x, y, w, h in flipped_profiles:
+                    original_x = rw - x - w
+                    center_x = (original_x + w / 2) / resize_scale
+                    face_detections.append((center_x, max(w, h) / resize_scale, 1.8))
+
+                # HOG people detector
+                people, weights = hog.detectMultiScale(
+                    resized, winStride=(8, 8), padding=(16, 16), scale=1.05)
+                for index, (x, _, w, _) in enumerate(people):
+                    confidence = float(weights[index]) if len(weights) > index else 1.0
+                    center_x = (x + w / 2) / resize_scale
+                    person_detections.append((center_x, w / resize_scale, max(0.25, confidence)))
+
+                if face_detections:
+                    center_x, box_width, confidence = max(face_detections, key=lambda item: item[1] * item[2])
+                    weight = box_width * confidence
+                    face_weighted_sum += (center_x / width) * weight
+                    face_total_weight += weight
+                elif person_detections:
+                    center_x, box_width, confidence = max(person_detections, key=lambda item: item[1] * item[2])
+                    weight = box_width * confidence
+                    person_weighted_sum += (center_x / width) * weight
+                    person_total_weight += weight
+
+            cap.release()
+            if face_total_weight > 0:
+                return face_weighted_sum / face_total_weight, (width, height)
+            if person_total_weight > 0:
+                return person_weighted_sum / person_total_weight, (width, height)
+            return None
+
+        def convert_to_portrait_clipforge(self, input_path: str, output_path: str):
+            """Convert landscape to portrait via ClipForge-style static focus (router method)."""
+            return self.convert_to_portrait_clipforge_with_progress(input_path, output_path, None)
+
+        def convert_to_portrait_clipforge_with_progress(self, input_path: str, output_path: str, progress_callback):
+            """ClipForge-style portrait crop: SATU fokus X statis (Haar+HOG+YuNet+profile),
+            lalu encode single-pass. Cocok untuk footage satu kamera / pembicara tetap."""
+            out_w, out_h = self._get_ratio_dimensions()
+            orig_w, orig_h = self._get_crop_window_orig(input_path, out_w, out_h)
+            crop_w, crop_h = self._get_crop_window(orig_w, orig_h)
+
+            focus = self._clipforge_focus_x(input_path)
+            if focus is None:
+                self.log("  ⚠ Tidak ada wajah/orang terdeteksi; fallback ke center crop.")
+                focus_x = 0.5
+            else:
+                focus_x, _ = focus
+                self.log(f"  ClipForge focus x={focus_x:.3f} (Haar+HOG+YuNet+profile)")
+
+            # Hitung crop_x statis dengan aturan ClipForge: fokus X di tengah window
+            focus_px = focus_x * orig_w
+            crop_x = int(focus_px - crop_w / 2)
+            crop_x = max(0, min(crop_x, orig_w - crop_w))
+
+            # Posisi konstan -> _encode_portrait_single_pass pakai branch single-crop
+            total_frames = self._probe_frame_count(input_path)
+            crop_positions = [crop_x] * max(1, total_frames)
+            self._encode_portrait_single_pass(
+                input_path, output_path, crop_positions, crop_w, crop_h, out_w, out_h,
+                progress_callback=progress_callback,
+                duration=self._probe_duration(input_path),
+            )
+            self.log("  ClipForge portrait conversion complete")
+
+
+        # ── SALIENCY (UNISAL deep-learning visual attention) ──────────────────────────
+        # Port dari https://github.com/AhmedHisham1/pyautoflip — saliency-aware cropping.
+        # UNISAL menghasilkan peta perhatian visual per frame; kita crop window yang
+        # mengikuti center-of-mass saliency (didoorong face-boost via Haar bila ada wajah).
+        # Cocok untuk konten non-wajah: gaming, reaction, demo produk, olahraga.
+        def convert_to_portrait_saliency(self, input_path: str, output_path: str):
+            return self.convert_to_portrait_saliency_with_progress(input_path, output_path, None)
+
+        def convert_to_portrait_saliency_with_progress(self, input_path: str, output_path: str, progress_callback):
+            """Saliency-aware portrait crop (UNISAL ONNX + Haar face booster).
+
+            1. Detect shot boundaries (histogram difference) → scene segments
+            2. Sample frames per scene, run UNISAL saliency → composite saliency map
+            3. Weighted center-of-mass (+face boost) per scene → crop center per frame
+            4. Smooth trajectory (spring) → single-pass ffmpeg encode with audio
+            """
+            try:
+                from core.saliency_detector import SaliencyDetector
             except Exception as e:
-                # Fallback to OpenCV if MediaPipe fails
-                if self.face_tracking_mode == "mediapipe":
-                    self.log(f"  ⚠ MediaPipe failed: {e}")
-                    self.log("  Falling back to OpenCV mode...")
-                    return self.convert_to_portrait_opencv_with_progress(input_path, output_path, progress_callback)
-                else:
-                    raise
+                self.log(f"  ⚠ Saliency unavailable: {e}; fallback OpenCV")
+                return self.convert_to_portrait_opencv_with_progress(input_path, output_path, progress_callback)
+
+            # Inti: pakai model ONNX jika ada; kalau tidak, beri tahu user
+            try:
+                detector = SaliencyDetector(model_type="images")
+            except Exception as e:
+                self.log(f"  ⚠ Saliency ONNX model tidak tersedia: {e}")
+                self.log("  Download unisal.onnx ke folder bin/ atau jalankan dependency setup.")
+                return self.convert_to_portrait_opencv_with_progress(input_path, output_path, progress_callback)
+
+            cap = cv2.VideoCapture(input_path)
+            if not cap.isOpened():
+                raise Exception(f"Failed to open video: {input_path}")
+            orig_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            orig_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or 0
+            if total_frames == 0 or fps == 0:
+                cap.release()
+                raise Exception(f"Invalid video: {total_frames} frames, {fps} fps")
+
+            crop_w, crop_h = self._get_crop_window(orig_w, orig_h)
+            out_w, out_h = self._get_ratio_dimensions()
+
+            # ── Pass 1: shot boundary detection (histogram diff) ────────────
+            # Ringan: sample tiap 5 frame, hitung diff histogram, tandai cut
+            # ketika diff > threshold dengan hold minimal (min_gap frame).
+            self.log("  Saliency: deteksi shot boundary (scene cut)...")
+            ANALYSIS_STEP = 5
+            CUT_THRESHOLD = 0.45
+            MIN_GAP = 15  # sample frames antara dua cut berturut
+            MIN_SCENE_SAMPLES = 3  # minimal sample per scene utk stabilitas
+
+            boundaries = [0]
+            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            prev_hist = None
+            frames_read = 0
+            sample_idx = 0
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                if frames_read % ANALYSIS_STEP == 0:
+                    try:
+                        small = cv2.resize(frame, (160, 90), interpolation=cv2.INTER_AREA)
+                        gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
+                        hist = cv2.calcHist([gray], [0], None, [64], [0, 256])
+                        hist = cv2.normalize(hist, hist).flatten()
+                        if prev_hist is not None:
+                            diff = cv2.compareHist(prev_hist, hist, cv2.HISTCMP_BHATTACHARYYA)
+                            if diff > CUT_THRESHOLD and (sample_idx - boundaries[-1]) >= MIN_GAP:
+                                boundaries.append(sample_idx)
+                        prev_hist = hist
+                    except Exception:
+                        pass
+                    sample_idx += 1
+                frames_read += 1
+            boundaries.append(sample_idx)
+            # dedupe & ensure min gap
+            scenes = []
+            for b in boundaries:
+                if not scenes or b - scenes[-1] >= MIN_SCENE_SAMPLES:
+                    scenes.append(b)
+            if scenes[-1] != sample_idx:
+                scenes.append(sample_idx)
+            self.log(f"  Saliency: {len(scenes)-1} shot boundary, {len(scenes)} scenes")
+
+            # ── Pass 2: saliency per scene (sample ≤ 5 frame/scene) ─────────
+            self.log("  Saliency: UNISAL inference pada sample frame...")
+            ANALYSIS_MAX_WIDTH = 640
+            scale = min(1.0, ANALYSIS_MAX_WIDTH / orig_w)
+            MAX_SAMPLES_PER_SCENE = 5
+            face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+
+            def scene_sample_indices(s_start: int, s_end: int) -> list:
+                """Return sorted sample indices within [s_start, s_end) for scene sampling."""
+                n = min(MAX_SAMPLES_PER_SCENE, max(2, s_end - s_start))
+                return sorted({int(i) for i in np.linspace(s_start, max(s_start, s_end - 1), n)})
+
+            # decode sekali, kumpulkan saliency centroid per sample
+            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            frames_read = 0
+            sample_cx_map = {}  # sample_idx -> crop_center_x (orig coords)
+            sample_idx = 0
+            prev_sal_cx = None
+
+            while True:
+                if self.is_cancelled():
+                    cap.release()
+                    raise Exception("Cancelled by user")
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                if frames_read % ANALYSIS_STEP == 0:
+                    # cari scene yang berisi sample ini
+                    scene_idx = 0
+                    for si in range(len(scenes) - 1):
+                        if scenes[si] <= sample_idx < scenes[si + 1]:
+                            scene_idx = si
+                            break
+                    else:
+                        if sample_idx >= scenes[-1]:
+                            scene_idx = len(scenes) - 1
+                    s_start = scenes[scene_idx]
+                    s_end = scenes[scene_idx + 1] if scene_idx + 1 < len(scenes) else sample_idx + 1
+                    allowed = scene_sample_indices(s_start, s_end)
+                    if sample_idx in allowed:
+                        try:
+                            small = cv2.resize(frame, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA) if scale < 1 else frame
+                            rgb = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
+                            res = detector.detect(rgb, return_map=True)
+                            smap = res["saliency_map"]
+                        except Exception as e:
+                            debug_log(f"Saliency detect error: {e}")
+                            smap = None
+                        cx = prev_sal_cx
+                        if smap is not None:
+                            gray_small = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
+                            faces = face_cascade.detectMultiScale(gray_small, 1.1, 5, minSize=(24, 24))
+                            if len(faces) > 0:
+                                # boost region around faces
+                                for (fx, fy, fw, fh) in faces:
+                                    fy2 = min(smap.shape[0], fy + fh)
+                                    fx2 = min(smap.shape[1], fx + fw)
+                                    smap[fy:fy2, fx:fx2] = np.maximum(smap[fy:fy2, fx:fx2], 2.0)
+                            # weighted center of mass
+                            ys, xs = np.where(smap > 0.5)
+                            if len(xs) > 0:
+                                weights = smap[ys, xs]
+                                cx = float(np.average(xs, weights=weights))
+                            else:
+                                cx = small.shape[1] / 2.0
+                        if cx is not None:
+                            # cx dalam small coords -> map ke orig
+                            sample_cx_map[sample_idx] = cx / scale if scale < 1 else cx
+                        prev_sal_cx = cx
+                    sample_idx += 1
+                frames_read += 1
+                if progress_callback and frames_read % 300 == 0 and total_frames:
+                    try:
+                        progress_callback(min(0.4, (frames_read / total_frames) * 0.4))
+                    except Exception:
+                        pass
+            cap.release()
+
+            if not sample_cx_map:
+                self.log("  ⚠ Saliency tidak menghasilkan centroid; fallback OpenCV")
+                return self.convert_to_portrait_opencv_with_progress(input_path, output_path, progress_callback)
+
+            # ── Pass 3: interpolate per-frame crop x ────────────────────────
+            total_decoded = frames_read
+            per_frame_cx = [orig_w / 2] * total_decoded
+            for si, cx in sample_cx_map.items():
+                start = si * ANALYSIS_STEP
+                end = min(total_decoded, (si + 1) * ANALYSIS_STEP)
+                for f in range(start, end):
+                    per_frame_cx[f] = cx
+            # step-hold lalu smooth spring (median kernel kecil)
+            from collections import deque
+            kernel = deque(maxlen=7)
+            smoothed_cx = []
+            for v in per_frame_cx:
+                kernel.append(v)
+                smoothed_cx.append(float(np.median(kernel)))
+            # crop x per frame
+            crop_positions = []
+            for cx in smoothed_cx:
+                crop_x = int(cx - crop_w / 2)
+                crop_x = max(0, min(crop_x, orig_w - crop_w))
+                crop_positions.append(crop_x)
+            crop_positions = self._smooth_follow_positions(crop_positions, 1.6)
+
+            # ── Pass 4: encode single-pass ──────────────────────────────────
+            self.log(f"  Saliency: encode {len(crop_positions)} frames (crop {crop_w}x{crop_h} -> {out_w}x{out_h})")
+            self._encode_portrait_single_pass(
+                input_path, output_path, crop_positions, crop_w, crop_h, out_w, out_h,
+                duration=total_decoded / fps if fps else 0,
+                progress_callback=lambda p: progress_callback(0.5 + p * 0.5) if progress_callback else None,
+            )
+            self.log("  Saliency portrait conversion complete")
+
+        def _get_crop_window_orig(self, input_path: str, out_w: int, out_h: int):
+            """Probe dimensi sumber via cv2 (fallback 1:1 jika gagal)."""
+            try:
+                import cv2
+                cap = cv2.VideoCapture(input_path)
+                ow = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                oh = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                cap.release()
+                if ow > 0 and oh > 0:
+                    return ow, oh
+            except Exception:
+                pass
+            return out_w, out_h
+
+        def _probe_frame_count(self, input_path: str) -> int:
+            try:
+                import cv2
+                cap = cv2.VideoCapture(input_path)
+                n = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                cap.release()
+                return max(1, n if n > 0 else 1)
+            except Exception:
+                return 1
+
+        def _probe_duration(self, input_path: str) -> float:
+            try:
+                import cv2
+                cap = cv2.VideoCapture(input_path)
+                fps = float(cap.get(cv2.CAP_PROP_FPS)) or 30.0
+                n = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                cap.release()
+                return (n / fps) if n > 0 and fps > 0 else 0.0
+            except Exception:
+                return 0.0
+
+        def convert_to_portrait_with_progress(self, input_path: str, output_path: str, progress_callback):
+                    """Convert landscape to 9:16 portrait with speaker tracking and progress (router method)"""
+                    if self._source_is_portrait(input_path):
+                        self._passthrough_portrait(input_path, output_path, progress_callback)
+                        return
+                    if self.portrait_mode == "split_podcast_dynamic":
+                        self.log(f"  Using Split Screen Dynamic (OpusClip-like, active-speaker)")
+                        return self.convert_to_portrait_split_dynamic_with_progress(input_path, output_path, progress_callback)
+                    if self.portrait_mode == "clipforge":
+                        self.log(f"  Using ClipForge Style (Haar+HOG+YuNet+profile, static focus)")
+                        return self.convert_to_portrait_clipforge_with_progress(input_path, output_path, progress_callback)
+                    if self.portrait_mode == "saliency":
+                        self.log("  Using Saliency (UNISAL deep-learning, visual attention)")
+                        return self.convert_to_portrait_saliency_with_progress(input_path, output_path, progress_callback)
+                    if self.portrait_mode == "camera_switch":
+                        self.log(f"  Using Camera-Switch Mode (active-speaker switching)")
+                        return self.convert_to_portrait_camera_switch_with_progress(input_path, output_path, progress_callback)
+                    if self.portrait_mode in ("split", "split_game", "split_podcast"):
+                        self.log(f"  Using Split Screen mode: {self.portrait_mode}")
+                        return self.convert_to_portrait_split_with_progress(input_path, output_path, progress_callback)
+                    if self.portrait_mode == "center":
+                        self.log(f"  Using Center Face Follow (wajah di tengah rapih)")
+                        return self.convert_to_portrait_center_with_progress(input_path, output_path, progress_callback)
+                    if getattr(self, "face_detector_model", "mediapipe") == "yolo":
+                        self.log("  Using YOLO Face Detector (wajah terbesar di tengah)")
+                        return self.convert_to_portrait_yolo_with_progress(input_path, output_path, progress_callback)
+                    if self.face_tracking_mode == "detector":
+                        self.log(f"  Using BlazeFace Detector (face center, tanpa lip)")
+                        return self.convert_to_portrait_detector_with_progress(input_path, output_path, progress_callback)
+                    if self.portrait_mode == "blur":
+                        self.log("  Using Blurred Background (no crop)")
+                        return self.convert_to_portrait_blur_with_progress(input_path, output_path, progress_callback)
+                    try:
+                        if self.face_tracking_mode == "mediapipe":
+                            self.log("  Using MediaPipe (Active Speaker Detection)")
+                            return self.convert_to_portrait_mediapipe_with_progress(input_path, output_path, progress_callback)
+                        else:
+                            self.log("  Using OpenCV (Fast Mode)")
+                            return self.convert_to_portrait_opencv_with_progress(input_path, output_path, progress_callback)
+                    except Exception as e:
+                        # Fallback to OpenCV if MediaPipe fails
+                        if self.face_tracking_mode == "mediapipe":
+                            self.log(f"  ⚠ MediaPipe failed: {e}")
+                            self.log("  Falling back to OpenCV mode...")
+                            return self.convert_to_portrait_opencv_with_progress(input_path, output_path, progress_callback)
+                        else:
+                            raise
 
         def convert_to_portrait_opencv_with_progress(self, input_path: str, output_path: str, progress_callback):
             """Convert landscape to 9:16 portrait with speaker tracking and progress (OpenCV)"""
