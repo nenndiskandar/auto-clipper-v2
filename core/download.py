@@ -59,10 +59,17 @@ if sys.platform == "win32":
 
 
 class DownloadMixin:
-        def download_video(self, url: str) -> tuple:
+        def download_video(self, url: str, clip_dir: Path = None) -> tuple:
             """Download video and subtitle with progress using yt-dlp module or executable"""
             self.log("[1/4] Downloading video & subtitle...")
         
+            # Opt: Cek apakah file sudah ada
+            if clip_dir:
+                landscape_file = clip_dir / "landscape.mp4"
+                if landscape_file.exists() and landscape_file.stat().st_size > 1000000:
+                    self.log("  ✓ File landscape.mp4 sudah ada, skip download/cut.")
+                    return str(landscape_file), None, {"title": "Cached Video", "channel": "Cached"}
+
             # Check if using yt-dlp module
             use_module = YTDLP_MODULE_AVAILABLE and self.ytdlp_path == "yt_dlp_module"
         

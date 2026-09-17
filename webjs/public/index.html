@@ -3,183 +3,253 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Auto Clipper</title>
+<title>Auto Clipper: AI Video Short Generator</title>
 <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#facc15">
-<script src="/pwa.js"></script>
+<meta name="theme-color" content="#0d9488">
 <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
 <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+<link rel="stylesheet" href="/app.css">
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
 tailwind.config = {
   darkMode: 'class',
   theme: { extend: { colors: {
-    surface: { 0:'#09090b', 1:'#18181b', 2:'#27272a', 3:'#3f3f46' },
-    accent: '#facc15',
+    surface: { 0:'var(--bg-page)', 1:'var(--bg-surface)', 2:'var(--bg-surface-2)', 3:'var(--border)' },
+    accent: 'var(--accent)',
   }}}
 }
 </script>
-<style>
-body{background:#09090b;color:#fafafa;font-family:system-ui,-apple-system,sans-serif}
-::-webkit-scrollbar{width:6px;height:6px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:#3f3f46;border-radius:3px}
-pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y:auto;white-space:pre-wrap;border-radius:.5rem}
-.tpl-btn{border:1px solid #27272a;border-radius:.25rem;padding:.25rem .5rem;cursor:pointer;transition:all .15s}
-.tpl-btn:hover{border-color:#facc15;background:#18181b}
-</style>
+
+<script>
+// FORCE CACHE CLEAR AND SW UNREGISTER
+(async function() {
+  if (localStorage.getItem('force_cleared_v11')) return;
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      for (let r of regs) await r.unregister();
+    }
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      for (let k of keys) await caches.delete(k);
+    }
+    localStorage.setItem('force_cleared_v11', '1');
+    window.location.reload(true);
+  } catch (e) {}
+})();
+</script>
+
 </head>
-<body class="min-h-screen flex flex-col md:flex-row bg-[#09090b]">
+<body class="min-h-screen flex flex-col md:flex-row antialiased">
 
 <!-- SIDEBAR -->
-<aside class="w-full md:w-60 border-b md:border-b-0 md:border-r border-zinc-800 bg-zinc-950 flex flex-col shrink-0">
+<aside class="w-full md:w-64 border-b md:border-b-0 md:border-r border-zinc-800  flex flex-col shrink-0">
   <div class="p-4 border-b border-zinc-800 flex items-center justify-between">
-    <span class="font-bold text-sm tracking-wider text-accent">⚡ YT CLIPPER</span>
-    <a href="/logout" class="text-xs text-zinc-400 hover:text-white transition md:hidden">Logout</a>
-  </div>
-  <div class="p-3 flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-x-visible" id="sidebarLinks">
-    <a href="/" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition bg-zinc-900 text-white font-medium">🏠 Library</a>
-    <a href="/create.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">＋ Create Clip</a>
-    <a href="/tasks.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">📋 Tasks</a>
-    <a href="/story.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🎬 Story</a>
-    <a href="/facebook.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">📘 FB</a>
-    <a href="/cookies.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🍪 Cookies</a>
-    <a href="/bgm.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🎵 Auto BGM</a>
-    <a href="/broll.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🖼 Auto B-roll</a>
-    <a href="/transition.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🌀 Transition</a>
-    <a href="/thumbnail.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🖼 Thumbnail</a>
-    <a href="/settings.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">⚙️ Settings</a>
-    
-    <!-- Engine Status Indication -->
-    <div class="mt-4 px-3 py-2 border-t border-zinc-800/80 hidden md:flex flex-col gap-2 text-[10px] text-zinc-500">
-      <span class="font-semibold text-[9px] uppercase tracking-wider text-zinc-400">⚡ Engine Status</span>
-      <div class="flex items-center justify-between">
-        <span>FFmpeg</span>
-        <span id="st_ffmpeg" class="w-2.5 h-2.5 rounded-full bg-zinc-650" title="Checking..."></span>
-      </div>
-      <div class="flex items-center justify-between">
-        <span>yt-dlp</span>
-        <span id="st_ytdlp" class="w-2.5 h-2.5 rounded-full bg-zinc-650" title="Checking..."></span>
-      </div>
-      <div class="flex items-center justify-between">
-        <span>Deno</span>
-        <span id="st_deno" class="w-2.5 h-2.5 rounded-full bg-zinc-650" title="Checking..."></span>
-      </div>
-      <div class="flex items-center justify-between">
-        <span>AI Proxy</span>
-        <span id="st_ai" class="w-2.5 h-2.5 rounded-full bg-zinc-650" title="Checking..."></span>
-      </div>
+    <div class="flex items-center gap-2">
+      <span class="w-7 h-7 rounded-lg logo-mark flex items-center justify-center font-black text-sm">⚡</span>
+      <span class="font-bold text-sm tracking-wide text-white font-heading">AUTO<span class="text-[var(--accent)]">CLIPPER</span></span>
     </div>
+    <div class="flex items-center gap-2"><button class="darkmode-btn darkmode-compact" aria-label="Toggle dark mode">🌙</button><a href="/logout" class="min-h-[32px] min-w-[44px] flex items-center justify-center text-xs text-zinc-400 hover:text-white transition md:hidden">Logout</a></div>
   </div>
-  
-  <!-- Mobile Engine Status -->
-  <div class="flex md:hidden items-center justify-around px-4 py-2 border-t border-b border-zinc-800/80 bg-zinc-950 text-[10px] text-zinc-400">
-    <div class="flex items-center gap-1.5">
-      <span id="st_ffmpeg_mob" class="w-2 h-2 rounded-full bg-zinc-650" title="Checking..."></span>
+
+  <nav aria-label="Menu Utama" class="p-2 md:p-3 flex flex-row md:flex-col gap-1.5 flex-wrap" id="sidebarLinks">
+    <a href="/" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition bg-[var(--accent)] text-[var(--accent-text)] font-bold shadow-sm"><span>🏠</span><span>Library Sesi</span></a>
+    <a href="/create.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>➕</span><span>Create Clip</span></a>
+    <a href="/tasks.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>📋</span><span>Antrean Tasks</span></a>
+    <a href="/story.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>🎬</span><span>AI Story</span></a>
+    <a href="/facebook.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>📘</span><span>FB Auto Upload</span></a>
+    <a href="/cookies.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>🍪</span><span>Cookies YouTube</span></a>
+                    <a href="/settings.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>⚙️</span><span>Settings & AI</span></a>
+  </nav>
+
+  <!-- Engine Status Indication -->
+  <div class="mt-auto px-4 py-3 border-t border-zinc-800/80 hidden md:flex flex-col gap-2 text-xs text-zinc-400 bg-zinc-950/40">
+    <span class="font-semibold text-[10px] uppercase tracking-wider text-zinc-400">⚡ Engine Status</span>
+    <div class="flex items-center justify-between">
       <span>FFmpeg</span>
+      <span id="st_ffmpeg" class="w-2.5 h-2.5 rounded-full bg-zinc-600" title="Checking..."></span>
     </div>
-    <div class="flex items-center gap-1.5">
-      <span id="st_ytdlp_mob" class="w-2 h-2 rounded-full bg-zinc-650" title="Checking..."></span>
+    <div class="flex items-center justify-between">
       <span>yt-dlp</span>
+      <span id="st_ytdlp" class="w-2.5 h-2.5 rounded-full bg-zinc-600" title="Checking..."></span>
     </div>
-    <div class="flex items-center gap-1.5">
-      <span id="st_deno_mob" class="w-2 h-2 rounded-full bg-zinc-650" title="Checking..."></span>
+    <div class="flex items-center justify-between">
       <span>Deno</span>
+      <span id="st_deno" class="w-2.5 h-2.5 rounded-full bg-zinc-600" title="Checking..."></span>
     </div>
-    <div class="flex items-center gap-1.5">
-      <span id="st_ai_mob" class="w-2 h-2 rounded-full bg-zinc-650" title="Checking..."></span>
+    <div class="flex items-center justify-between">
       <span>AI Proxy</span>
+      <span id="st_ai" class="w-2.5 h-2.5 rounded-full bg-zinc-600" title="Checking..."></span>
     </div>
   </div>
-  <div class="mt-auto p-4 border-t border-zinc-800 hidden md:flex items-center justify-between text-[11px]">
-    <span class="text-zinc-500 truncate max-w-[120px]" id="whoami"></span>
-    <a href="/logout" class="text-zinc-400 hover:text-white transition">Logout</a>
+
+  <div class="p-4 border-t border-zinc-800 hidden md:flex items-center justify-between text-xs">
+    <span class="text-zinc-400 truncate max-w-[130px]" id="whoami"></span>
+    <div class="flex items-center gap-2"><button class="darkmode-btn darkmode-compact" aria-label="Toggle dark mode">🌙</button><a href="/logout" class="text-zinc-400 hover:text-white transition">Logout</a></div>
   </div>
+
+  <!-- Engine Status Mobile -->
+  <div class="md:hidden flex items-center justify-around px-4 py-2.5 border-t border-b border-zinc-800/80 bg-zinc-950/60 text-[10px] text-zinc-300">
+    <div class="flex items-center gap-1.5"><span id="st_ffmpeg_mob" class="w-2 h-2 rounded-full bg-zinc-600" title="Checking..."></span><span>FFmpeg</span></div>
+    <div class="flex items-center gap-1.5"><span id="st_ytdlp_mob" class="w-2 h-2 rounded-full bg-zinc-600" title="Checking..."></span><span>yt-dlp</span></div>
+    <div class="flex items-center gap-1.5"><span id="st_deno_mob" class="w-2 h-2 rounded-full bg-zinc-600" title="Checking..."></span><span>Deno</span></div>
+    <div class="flex items-center gap-1.5"><span id="st_ai_mob" class="w-2 h-2 rounded-full bg-zinc-600" title="Checking..."></span><span>AI</span></div>
+  </div>
+
+  <!-- Disk Space Widget (desktop & mobile) -->
+  <div class="disk-widget border-t border-zinc-800/80">
+    <div class="disk-label">💾 memuat...</div>
+    <div class="disk-bar"><div class="disk-fill" style="width:0%"></div></div>
+  </div>
+
+  
+
 </aside>
 
 <!-- MAIN CONTENT AREA -->
 <div class="flex-1 flex flex-col min-w-0">
   <!-- TOP SUB-NAV -->
-  <header class="flex items-center justify-between px-6 py-3 border-b border-zinc-800 bg-zinc-950/20">
-    <div class="flex items-center flex-1 max-w-xs">
-      <input id="search" class="w-full bg-surface-2 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-accent" placeholder="Cari judul / thumbnail...">
+  <header class="flex items-center justify-between px-6 py-3.5 border-b border-zinc-800 bg-zinc-950/40 backdrop-blur-md">
+    <div class="flex items-center flex-1 max-w-sm">
+      <input id="search" class="w-full min-h-[36px] md:min-h-[44px] bg-zinc-900 border border-zinc-700 rounded-lg px-3.5 py-2 text-xs text-white placeholder-zinc-400 focus:border-[var(--accent)] transition" placeholder="Cari judul sesi atau klip...">
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="/create.html" class="min-h-[36px] md:min-h-[44px] px-3 md:px-4 py-1.5 md:py-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text)] text-xs font-bold rounded-lg transition flex items-center gap-1.5 shadow-sm">
+        <span>➕</span>
+        <span class="hidden sm:inline">Buat Klip Baru</span>
+      </a>
     </div>
   </header>
 
   <!-- CONTAINER -->
-    <main class="max-w-[1600px] w-full mx-auto p-6 space-y-6">
-      <!-- DASHBOARD (agregat) -->
-      <section id="dash" class="hidden space-y-6">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4">
-            <div class="text-[10px] uppercase tracking-wider text-zinc-500">Total Sesi</div>
-            <div class="text-2xl font-bold mt-1 tabular-nums" id="d_total">–</div>
-          </div>
-          <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4">
-            <div class="text-[10px] uppercase tracking-wider text-zinc-500">Total Klip</div>
-            <div class="text-2xl font-bold mt-1 tabular-nums" id="d_clips">–</div>
-          </div>
-          <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4">
-            <div class="text-[10px] uppercase tracking-wider text-zinc-500">Story Clip</div>
-            <div class="text-2xl font-bold mt-1 tabular-nums" id="d_story">–</div>
-          </div>
-          <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4">
-            <div class="text-[10px] uppercase tracking-wider text-zinc-500">FB Upload</div>
-            <div class="text-2xl font-bold mt-1 tabular-nums" id="d_fb">–</div>
-          </div>
+  <main class="max-w-[1600px] w-full mx-auto p-4 sm:p-6 space-y-6">
+    <!-- DASHBOARD (agregat) -->
+    <section id="dash" class="hidden space-y-4">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="card-panel p-4">
+          <div class="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Total Sesi Video</div>
+          <div class="text-2xl font-black mt-1 text-white tabular-nums" id="d_total">0</div>
         </div>
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 lg:col-span-2">
-            <div class="text-xs font-semibold text-zinc-300 mb-3">🔥 Viral Score Tertinggi</div>
-            <div id="d_viral" class="space-y-2"></div>
-          </div>
-          <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4">
-            <div class="text-xs font-semibold text-zinc-300 mb-3">🎬 Story Output Terbaru</div>
-            <div id="d_storylist" class="space-y-2"></div>
-          </div>
+        <div class="card-panel p-4">
+          <div class="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Total Klip Jadi</div>
+          <div class="text-2xl font-black mt-1 text-yellow-400 tabular-nums" id="d_clips">0</div>
         </div>
-      </section>
-      <div id="sessions"></div>
-    </main>
+        <div class="card-panel p-4">
+          <div class="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Story Clips</div>
+          <div class="text-2xl font-black mt-1 text-white tabular-nums" id="d_story">0</div>
+        </div>
+        <div class="card-panel p-4">
+          <div class="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Facebook Upload</div>
+          <div class="text-2xl font-black mt-1 text-white tabular-nums" id="d_fb">0</div>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="card-panel p-4 lg:col-span-2">
+          <div class="text-xs font-bold text-white mb-3 flex items-center gap-1.5">
+            <span>🔥</span>
+            <span>Skor Viral Tertinggi</span>
+          </div>
+          <div id="d_viral" class="space-y-2"></div>
+        </div>
+        <div class="card-panel p-4">
+          <div class="text-xs font-bold text-white mb-3 flex items-center gap-1.5">
+            <span>🎬</span>
+            <span>Story Output Terbaru</span>
+          </div>
+          <div id="d_storylist" class="space-y-2"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- LIST SESI -->
+    <div>
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+        <h2 class="text-sm font-bold text-white mb-0 font-heading flex items-center gap-2">
+          <span>📁</span>
+          <span>Daftar Sesi Video</span>
+        </h2>
+        <div class="flex flex-wrap items-center gap-2" id="taskStatus"></div>
+      </div>
+
+      <!-- Filter & Sort Toolbar -->
+      <div class="flex flex-wrap items-center gap-2 mb-3">
+        <select id="filterStatus" onchange="filterStatus=this.value; curPage=1; render()" class="min-h-[36px] md:min-h-[44px] bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-xs text-white focus:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-teal-500">
+          <option value="all">Semua status</option>
+          <option value="completed">Selesai</option>
+          <option value="processing">Processing</option>
+          <option value="downloading">Downloading</option>
+          <option value="error">Error</option>
+        </select>
+        <select id="sortBy" onchange="sortBy=this.value; render()" class="min-h-[36px] md:min-h-[44px] bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-xs text-white focus:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-teal-500">
+          <option value="newest">Terbaru</option>
+          <option value="oldest">Terlama</option>
+          <option value="most_clips">Klip terbanyak</option>
+          <option value="viral">Skor viral tertinggi</option>
+        </select>
+        <span id="processingIndicator" class="hidden items-center gap-2 text-xs text-amber-300 bg-amber-950/30 border border-amber-900/40 rounded-lg px-3 py-2">
+          <span class="w-3.5 h-3.5 rounded-full border-2 border-amber-400 border-t-transparent animate-spin"></span>
+          <span>Task berjalan...</span>
+        </span>
+      </div>
+
+      <div id="sessions" class="space-y-4"></div>
+
+      <!-- Pagination -->
+      <div class="flex items-center justify-between gap-3 mt-4">
+        <span id="pageInfo" class="text-xs text-zinc-400"></span>
+        <div class="flex items-center gap-2">
+          <button id="prevPage" onclick="goPage(-1)" class="min-h-[36px] md:min-h-[44px] min-w-[44px] px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg text-xs font-semibold border border-zinc-700 transition">‹ Prev</button>
+          <button id="nextPage" onclick="goPage(1)" class="min-h-[36px] md:min-h-[44px] min-w-[44px] px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg text-xs font-semibold border border-zinc-700 transition">Next ›</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bulk Delete Floating Bar -->
+    <div id="bulkBar" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 card-panel px-4 py-3 shadow-2xl">
+      <span id="bulkCount" class="text-xs text-zinc-200 font-semibold"></span>
+      <button onclick="bulkDelete()" class="min-h-[36px] md:min-h-[44px] px-3 md:px-4 py-1.5 md:py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-lg transition">🗑 Hapus Terpilih</button>
+      <button onclick="selectedSessions.clear(); render()" class="min-h-[36px] md:min-h-[44px] px-3 py-2 text-xs text-zinc-400 hover:text-white transition">Batal</button>
+    </div>
+  </main>
 </div>
 
 <!-- MODAL: DETAIL -->
-<div id="detailModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-  <div class="bg-surface-1 border border-zinc-800 rounded-xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
-    <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
-      <h3 class="text-sm font-semibold text-white truncate" id="dTitle"></h3>
-      <button onclick="Modal.hide('detailModal')" class="text-zinc-400 hover:text-white text-lg">✕</button>
+<div id="detailModal" role="dialog" aria-modal="true" aria-labelledby="dTitle" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+  <div class="card-panel max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+    <div class="flex items-center justify-between px-5 py-3.5 border-b border-zinc-800">
+      <h3 class="text-sm font-bold text-white truncate" id="dTitle">Detail Klip</h3>
+      <button onclick="Modal.hide('detailModal')" aria-label="Tutup" class="min-w-[44px] min-h-[36px] md:min-h-[44px] flex items-center justify-center text-zinc-400 hover:text-white text-xl rounded-lg">✕</button>
     </div>
-    <div class="p-4 overflow-y-auto flex-1 space-y-4" id="dBody"></div>
+    <div class="p-5 overflow-y-auto flex-1 space-y-4" id="dBody"></div>
   </div>
 </div>
 
 <!-- MODAL: RENDER -->
-<div id="renderModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-  <div class="bg-surface-1 border border-zinc-800 rounded-xl max-w-md w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
-    <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
-      <h3 class="text-sm font-semibold text-white truncate" id="rTitle">Render</h3>
-      <button onclick="Modal.hide('renderModal')" class="text-zinc-400 hover:text-white text-lg">✕</button>
+<div id="renderModal" role="dialog" aria-modal="true" aria-labelledby="rTitle" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+  <div class="card-panel max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+    <div class="flex items-center justify-between px-5 py-3.5 border-b border-zinc-800">
+      <h3 class="text-sm font-bold text-white truncate" id="rTitle">Render Ulang Klip</h3>
+      <button onclick="Modal.hide('renderModal')" aria-label="Tutup" class="min-w-[44px] min-h-[36px] md:min-h-[44px] flex items-center justify-center text-zinc-400 hover:text-white text-xl rounded-lg">✕</button>
     </div>
-    <div class="p-4 overflow-y-auto flex-1 space-y-4">
+    <div class="p-5 overflow-y-auto flex-1 space-y-4">
       <div id="rBody" class="space-y-3"></div>
       <div id="renderStatus"></div>
     </div>
-    <div class="flex justify-end gap-2 px-4 py-3 border-t border-zinc-800 bg-surface-0">
-      <button onclick="Modal.hide('renderModal')" class="px-3 py-1.5 text-xs text-zinc-400 hover:text-white rounded border border-zinc-700 transition">Batal</button>
-      <button id="renderGoBtn" class="px-4 py-1.5 text-xs bg-accent text-black font-semibold rounded hover:bg-yellow-400 transition">⚙ Mulai Render</button>
+    <div class="flex justify-end gap-2 px-5 py-3.5 border-t border-zinc-800 ">
+      <button onclick="Modal.hide('renderModal')" class="min-h-[36px] md:min-h-[44px] px-3 md:px-4 py-1.5 md:py-2 text-xs text-zinc-300 hover:text-white rounded-lg border border-zinc-700 transition">Batal</button>
+      <button id="renderGoBtn" class="min-h-[36px] md:min-h-[44px] px-5 py-2 text-xs bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text)] font-bold rounded-lg transition">⚙ Mulai Render</button>
     </div>
   </div>
 </div>
 
 <!-- MODAL: REGEN / MOMEN -->
-<div id="regenModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-  <div class="bg-surface-1 border border-zinc-800 rounded-xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
-    <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
-      <h3 class="text-sm font-semibold text-white">🔁 Momen Highlight</h3>
-      <button onclick="Modal.hide('regenModal')" class="text-zinc-400 hover:text-white text-lg">✕</button>
+<div id="regenModal" role="dialog" aria-modal="true" aria-labelledby="rgTitle" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+  <div class="card-panel max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+    <div class="flex items-center justify-between px-5 py-3.5 border-b border-zinc-800">
+      <h3 id="rgTitle" class="text-sm font-bold text-white">🔁 Momen Highlight AI</h3>
+      <button onclick="Modal.hide('regenModal')" aria-label="Tutup" class="min-w-[44px] min-h-[36px] md:min-h-[44px] flex items-center justify-center text-zinc-400 hover:text-white text-xl rounded-lg">✕</button>
     </div>
-    <div class="p-4 overflow-y-auto flex-1 space-y-4" id="rgBody"></div>
+    <div class="p-5 overflow-y-auto flex-1 space-y-4" id="rgBody"></div>
   </div>
 </div>
 
@@ -208,7 +278,7 @@ const Modal = {
   }
 };
 
-// Close modal on escape key
+// Close modal on escape key (R-32)
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     ['detailModal', 'renderModal', 'regenModal'].forEach(id => Modal.hide(id));
@@ -225,119 +295,178 @@ async function load() {
 async function loadDash() {
   try {
     const d = await (await fetch('/api/dashboard')).json();
-    $('#d_total').textContent = d.total_sessions ?? '–';
-    $('#d_clips').textContent = d.total_clips ?? '–';
+    $('#d_total').textContent = d.total_sessions ?? '0';
+    $('#d_clips').textContent = d.total_clips ?? '0';
     $('#d_story').textContent = (d.story || []).length;
-    $('#d_fb').textContent = d.fb?.count ?? '–';
+    $('#d_fb').textContent = d.fb?.count ?? '0';
     $('#d_viral').innerHTML = (d.top_viral || []).map(c => `
-      <a href="/session.html?id=${encodeURIComponent(c.session)}" class="flex items-center gap-3 p-2 rounded-lg hover:bg-zinc-900/60 transition group">
-        <span class="text-sm font-bold text-accent w-8 tabular-nums">${Math.round(c.score ?? 0)}</span>
+      <a href="/session.html?id=${encodeURIComponent(c.session)}" class="flex items-center gap-3 p-2.5 rounded-lg hover:bg-zinc-800/60 transition group">
+        <span class="text-sm font-bold text-yellow-400 w-8 tabular-nums">${Math.round(c.score ?? 0)}</span>
         <div class="flex-1 min-w-0">
-          <div class="text-xs text-zinc-200 truncate group-hover:text-white">${esc(c.title || c.dir)}</div>
-          <div class="text-[10px] text-zinc-500 truncate">${esc(c.session || '')}</div>
+          <div class="text-xs text-zinc-200 truncate group-hover:text-white font-medium">${esc(c.title || c.dir)}</div>
+          <div class="text-[11px] text-zinc-400 truncate">${esc(c.session || '')}</div>
         </div>
-      </a>`).join('') || '<div class="text-xs text-zinc-500">Belum ada klip dengan skor.</div>';
+      </a>`).join('') || '<div class="text-xs text-zinc-400 p-2">Belum ada klip dengan skor viral.</div>';
     $('#d_storylist').innerHTML = (d.story || []).map(s => `
-      <a href="${esc(s.url)}" target="_blank" class="flex items-center gap-3 p-2 rounded-lg hover:bg-zinc-900/60 transition group">
+      <a href="${esc(s.url)}" target="_blank" class="flex items-center gap-3 p-2.5 rounded-lg hover:bg-zinc-800/60 transition group">
         <span class="text-base">🎬</span>
         <div class="flex-1 min-w-0">
-          <div class="text-xs text-zinc-200 truncate group-hover:text-white">${esc(s.clip)} / ${esc(s.file)}</div>
-          <div class="text-[10px] text-zinc-500">${(s.size_bytes/1048576).toFixed(1)} MB</div>
+          <div class="text-xs text-zinc-200 truncate group-hover:text-white font-medium">${esc(s.clip)} / ${esc(s.file)}</div>
+          <div class="text-[11px] text-zinc-400">${(s.size_bytes/1048576).toFixed(1)} MB</div>
         </div>
-      </a>`).join('') || '<div class="text-xs text-zinc-500">Belum ada output story.</div>';
+      </a>`).join('') || '<div class="text-xs text-zinc-400 p-2">Belum ada output story.</div>';
     $('#dash').classList.remove('hidden');
   } catch { /* dashboard opsional */ }
 }
-setInterval(loadDash, 30000); // dashboard data jarang berubah; 15s terlalu agresif
+setInterval(loadDash, 30000);
 
 function esc(s) { return (s ?? '').toString().replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 const STATUS_BADGE = {
-  completed: '<span class="px-2 py-0.5 text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded">selesai</span>',
-  processing: '<span class="px-2 py-0.5 text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded animate-pulse">processing</span>',
-  downloading: '<span class="px-2 py-0.5 text-[10px] font-medium bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 rounded animate-pulse">downloading</span>',
+  completed: '<span class="px-2 py-0.5 text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full">selesai</span>',
+  processing: '<span class="px-2 py-0.5 text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full animate-pulse">processing</span>',
+  downloading: '<span class="px-2 py-0.5 text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 rounded-full animate-pulse">downloading</span>',
 };
+
+const PER_PAGE = 20;
+let curPage = 1;
+let filterStatus = 'all';
+let sortBy = 'newest';
+let selectedSessions = new Set();
+
+function applyFilters() {
+  let list = [...DATA];
+  if (filterStatus !== 'all') list = list.filter(s => s.status === filterStatus);
+  switch (sortBy) {
+    case 'oldest': list.sort((a, b) => new Date(a.created) - new Date(b.created)); break;
+    case 'most_clips': list.sort((a, b) => (b.total || 0) - (a.total || 0)); break;
+    case 'viral': list.sort((a, b) => (b.total_highlights || 0) - (a.total_highlights || 0)); break;
+    default: list.sort((a, b) => new Date(b.created) - new Date(a.created));
+  }
+  return list;
+}
 
 function render() {
   const q = $('#search').value.toLowerCase();
-  $('#sessions').innerHTML = DATA.map(s => {
-    const hits = s.clips.filter(c =>
-      !q || (c.title + ' ' + c.hook_text + ' ' + c.post_title + ' ' + c.hashtags).toLowerCase().includes(q));
-    if (!hits.length && q) return '';
+  const list = applyFilters().filter(s =>
+    !q || (s.title + ' ' + (s.channel || '') + ' ' + s.id).toLowerCase().includes(q));
+  const totalPages = Math.max(1, Math.ceil(list.length / PER_PAGE));
+  if (curPage > totalPages) curPage = totalPages;
+  const pageItems = list.slice((curPage - 1) * PER_PAGE, curPage * PER_PAGE);
+
+  $('#sessions').innerHTML = pageItems.map(s => {
+    const checked = selectedSessions.has(s.id) ? 'checked' : '';
     const detailUrl = `/session.html?id=${encodeURIComponent(s.id)}`;
     return `
-    <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 shadow-sm" data-id="${s.id}">
+    <div class="card-panel p-4 shadow-sm" data-id="${s.id}">
       <div class="flex flex-col md:flex-row gap-4">
-        <a class="relative w-full md:w-44 aspect-video bg-zinc-950 block overflow-hidden rounded-lg border border-zinc-800 hover:border-zinc-700 transition flex-shrink-0" href="${detailUrl}">
+        <label class="flex items-center gap-2 cursor-pointer select-none self-start">
+          <input type="checkbox" class="sel-check w-5 h-5 accent-[#facc15] rounded" data-id="${esc(s.id)}" ${checked} onchange="toggleSelect('${esc(s.id)}', this.checked)">
+          <span class="sr-only">Pilih sesi</span>
+        </label>
+        <a class="relative w-full md:w-48 aspect-video bg-zinc-950 block overflow-hidden rounded-lg border border-zinc-800 hover:border-zinc-700 transition flex-shrink-0" href="${detailUrl}">
           <img class="w-full h-full object-cover" loading="lazy" alt="${esc(s.title)}"
                src="${s.clips.length ? `/thumb/${encodeURIComponent(s.id)}/${encodeURIComponent(s.clips[0].dir)}` : ''}">
         </a>
-        <div class="flex-1 min-w-0 flex flex-col justify-between py-1">
-          <div class="flex flex-col gap-2">
+        <div class="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+          <div class="flex flex-col gap-1.5">
             <div class="flex items-start justify-between gap-3">
-              <a class="text-sm font-semibold text-white hover:text-accent transition line-clamp-2 md:line-clamp-none" href="${detailUrl}">
+              <a class="text-sm font-bold text-white hover:text-yellow-400 transition line-clamp-2 md:line-clamp-none" href="${detailUrl}">
                 🎬 ${esc(s.title)} ${STATUS_BADGE[s.status] || ''}
               </a>
-              <button class="px-2 py-0.5 text-xs text-red-400 hover:text-red-300 bg-red-950/20 border border-red-900/30 rounded hover:bg-red-900/20 transition flex-shrink-0" onclick="deleteSession('${esc(s.id)}', this)">🗑 Hapus</button>
+              <button class="min-h-[36px] md:min-h-[44px] px-3 py-1.5 text-xs text-rose-400 hover:text-rose-300 bg-rose-950/20 border border-rose-900/30 rounded-lg hover:bg-rose-900/20 transition flex-shrink-0" onclick="deleteSession('${esc(s.id)}', this)">🗑 Hapus</button>
             </div>
-            <div class="text-[10px] text-zinc-500 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <div class="text-xs text-zinc-400 flex flex-wrap items-center gap-x-2 gap-y-1">
               <span>${s.channel ? esc(s.channel) + ' · ' : ''}${new Date(s.created).toLocaleString('id-ID')}</span>
-              <span class="bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded font-mono">${esc(s.id)}</span>
+              <span class="bg-zinc-800 text-zinc-300 px-1.5 py-0.5 rounded font-mono text-[11px]">${esc(s.id)}</span>
             </div>
           </div>
-          <div class="mt-3 pt-3 border-t border-zinc-800/50 flex flex-wrap items-center gap-2 text-[10px]">
-            <span class="px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded border border-zinc-700 font-medium">📋 ${s.total} klip dirender</span>
-            <span class="px-2 py-0.5 bg-amber-950/20 text-amber-400 rounded border border-amber-900/30 font-medium">⭐ ${s.total_highlights || 0} highlight</span>
+          <div class="mt-3 pt-3 border-t border-zinc-800/60 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div class="flex items-center gap-2">
+              <span class="px-2.5 py-1 bg-zinc-900 text-zinc-300 rounded-lg border border-zinc-800 font-semibold">📋 ${s.total} klip dirender</span>
+              <span class="px-2.5 py-1 bg-amber-950/20 text-amber-300 rounded-lg border border-amber-900/40 font-semibold">⭐ ${s.total_highlights || 0} highlight</span>
+            </div>
+            <a href="${detailUrl}" class="min-h-[36px] md:min-h-[44px] px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1">
+              <span>Buka Sesi</span>
+              <span>→</span>
+            </a>
           </div>
         </div>
       </div>
     </div>`;
-  }).join('');
+  }).join('') || '<div class="text-xs text-zinc-400 p-4 card-panel">Tidak ada sesi.</div>';
+
+  // Pagination + info
+  const pi = $('#pageInfo');
+  if (pi) pi.textContent = `Halaman ${curPage} / ${totalPages} · ${list.length} sesi`;
+  const prevBtn = $('#prevPage'), nextBtn = $('#nextPage');
+  if (prevBtn) { prevBtn.disabled = curPage <= 1; prevBtn.classList.toggle('opacity-40', curPage <= 1); }
+  if (nextBtn) { nextBtn.disabled = curPage >= totalPages; nextBtn.classList.toggle('opacity-40', curPage >= totalPages); }
+  updateBulkBar();
+}
+
+function toggleSelect(id, checked) {
+  if (checked) selectedSessions.add(id); else selectedSessions.delete(id);
+  updateBulkBar();
+}
+
+function updateBulkBar() {
+  const bar = $('#bulkBar');
+  if (!bar) return;
+  const n = selectedSessions.size;
+  if (n > 0) {
+    bar.classList.remove('hidden');
+    $('#bulkCount').textContent = n + ' sesi dipilih';
+  } else {
+    bar.classList.add('hidden');
+  }
+}
+
+async function bulkDelete() {
+  const n = selectedSessions.size;
+  if (!n) return;
+  const ok = await showConfirm('Hapus Sesi Terpilih', `Hapus ${n} sesi beserta semua klip dan foldernya? Tindakan ini tidak bisa dibatalkan.`);
+  if (!ok) return;
+  let done = 0, fail = 0;
+  for (const id of [...selectedSessions]) {
+    try {
+      const r = await fetch(`/api/delete-session/${encodeURIComponent(id)}`, { method: 'POST' });
+      if (r.ok) done++; else fail++;
+    } catch { fail++; }
+  }
+  selectedSessions.clear();
+  showToast(`✅ ${done} sesi dihapus${fail ? ' (gagal ' + fail + ')' : ''}`, 'success');
+  await load();
+}
+
+function goPage(d) {
+  curPage = Math.max(1, curPage + d);
+  render();
+}
+
+async function deleteSession(id, btn) {
+  const el = btn || document.querySelector('[data-id="' + id + '"]');
+  const ok = await showConfirm('Hapus Sesi', 'Hapus sesi ini beserta semua klip dan foldernya? Tindakan ini tidak bisa dibatalkan.');
+  if (!ok) return;
+  try {
+    const r = await fetch(`/api/delete-session/${encodeURIComponent(id)}`, { method: 'POST' });
+    if (r.ok) {
+      showToast('✅ Sesi ' + id + ' dihapus', 'success');
+      if (selectedSessions.has(id)) selectedSessions.delete(id);
+      await load();
+    } else {
+      const j = await r.json().catch(() => ({}));
+      showToast('❌ Gagal: ' + (j.error || 'HTTP ' + r.status), 'error');
+    }
+  } catch (e) {
+    showToast('❌ Error: ' + String(e), 'error');
+  }
 }
 
 function fmtSize(b) {
   if (!b) return '-';
   if (b >= 1024 * 1024) return (b / 1048576).toFixed(1) + ' MB';
   return Math.round(b / 1024) + ' KB';
-}
-
-function clipCard(s, c) {
-  const dl = `/download/${encodeURIComponent(s.id)}/${encodeURIComponent(c.dir)}/${encodeURIComponent(c.file)}`;
-  const detailUrl = `/detail.html?session=${encodeURIComponent(s.id)}&clip=${encodeURIComponent(c.dir)}`;
-  const gi = DATA.indexOf(s);
-  const ci = s.clips.indexOf(c);
-  const tags = [
-    c.hook ? '<span class="text-[9px] px-1 bg-red-500/10 text-amber-400 border border-amber-500/20 rounded">thumbnail</span>' : '',
-    c.captions ? '<span class="text-[9px] px-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded">caption</span>' : '',
-    c.watermark ? '<span class="text-[9px] px-1 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 rounded">watermark</span>' : '',
-    c.credit ? '<span class="text-[9px] px-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded">credit</span>' : '',
-  ].join(' ');
-  return `
-  <div class="group bg-surface-2 border border-zinc-800 rounded-lg overflow-hidden flex flex-col hover:border-zinc-700 transition">
-    <a class="relative aspect-video bg-zinc-950 block overflow-hidden" href="${detailUrl}">
-      <img class="w-full h-full object-cover group-hover:scale-105 transition duration-300" loading="lazy" alt="${esc(c.title)}"
-           src="/thumb/${encodeURIComponent(s.id)}/${encodeURIComponent(c.dir)}">
-      ${c.score != null ? `<span class="absolute top-1.5 right-1.5 px-1 py-0.5 text-[9px] font-bold bg-amber-400 text-black rounded shadow">⭐ ${c.score}</span>` : ''}
-    </a>
-    <div class="p-2 flex flex-col flex-1">
-      <a href="${detailUrl}" class="text-[11px] font-bold text-white line-clamp-2 mb-1 hover:text-accent transition" title="${esc(c.title)}">${esc(c.title)}</a>
-      ${c.hook_text ? `<p class="text-[10px] text-zinc-300 line-clamp-1 mb-0.5">🎯 ${esc(c.hook_text)}</p>` : ''}
-      <p class="text-[10px] text-zinc-500 line-clamp-1 mb-1.5">${esc(c.desc)}</p>
-      
-      <div class="text-[9px] text-zinc-500 mb-2 flex items-center justify-between mt-auto">
-        <span>💾 ${fmtSize(c.size_bytes)}</span>
-        <span>${c.created ? new Date(c.created).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}</span>
-      </div>
-      
-      <div class="flex flex-wrap gap-1 mb-3">${tags}</div>
-      
-      <div class="grid grid-cols-3 gap-1">
-        <a class="flex items-center justify-center py-1 text-[10px] bg-zinc-800 text-zinc-300 hover:text-white rounded border border-zinc-700 hover:bg-zinc-700 transition" href="${dl}" download title="Download">⬇</a>
-        <button class="flex items-center justify-center py-1 text-[10px] bg-zinc-800 text-zinc-300 hover:text-white rounded border border-zinc-700 hover:bg-zinc-700 transition" onclick="openRender(${gi}, ${ci})" title="Re-render dgn config">⚙</button>
-        <button class="flex items-center justify-center py-1 text-[10px] bg-red-950/20 text-red-400 hover:text-red-300 rounded border border-red-900/30 hover:bg-red-900/20 transition" onclick="deleteClip(${gi}, ${ci}, this)" title="Hapus">🗑</button>
-      </div>
-    </div>
-  </div>`;
 }
 
 function showDetail(gi, ci) {
@@ -356,47 +485,43 @@ function showDetail(gi, ci) {
         <video id="modalPlayer" class="w-full max-h-[50vh]" controls autoplay playsinline src="${vsrc}" poster="/thumb/${encodeURIComponent(s.id)}/${encodeURIComponent(c.dir)}"></video>
       </div>
       <div class="space-y-4">
-        <div class="bg-surface-2 border border-zinc-800 rounded-lg p-3">
-          <h4 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">📋 Metadata Klip</h4>
+        <div class="card-panel p-3.5">
+          <h4 class="text-xs font-bold text-zinc-300 uppercase tracking-wider mb-2">📋 Metadata Klip</h4>
           <table class="w-full text-xs text-zinc-300 border-collapse">
-            <tr class="border-b border-zinc-800"><td class="py-1.5 font-medium text-zinc-500 w-1/3">Waktu</td><td class="py-1.5 text-white">${fmt(c.start_time)} → ${fmt(c.end_time)} (${fmt(c.duration)}s)</td></tr>
-            <tr class="border-b border-zinc-800"><td class="py-1.5 font-medium text-zinc-500">Thumbnail</td><td class="py-1.5 text-white">${fmt(c.hook_text)}</td></tr>
-            <tr class="border-b border-zinc-800"><td class="py-1.5 font-medium text-zinc-500">Deskripsi</td><td class="py-1.5 text-zinc-300">${fmt(c.desc)}</td></tr>
-            <tr class="border-b border-zinc-800"><td class="py-1.5 font-medium text-zinc-500">Hashtag</td><td class="py-1.5 text-zinc-400 break-words">${fmt(c.hashtags)}</td></tr>
-            <tr class="border-b border-zinc-800"><td class="py-1.5 font-medium text-zinc-500">Analisis AI</td><td class="py-1.5 text-zinc-400 italic">${fmt(c.analysis)}</td></tr>
-            <tr class="border-b border-zinc-800"><td class="py-1.5 font-medium text-zinc-500">Skor Viral</td><td class="py-1.5 text-amber-400 font-bold">${c.score != null ? c.score + ' / 10' : '-'}</td></tr>
-            <tr class="border-b border-zinc-800"><td class="py-1.5 font-medium text-zinc-500">Channel</td><td class="py-1.5 text-white">${fmt(c.channel)}</td></tr>
-            <tr class="border-b border-zinc-800"><td class="py-1.5 font-medium text-zinc-500">Format</td><td class="py-1.5 text-white">${esc(c.aspect || '-')}</td></tr>
-            <tr><td class="py-1.5 font-medium text-zinc-500">File Utama</td><td class="py-1.5 text-white font-mono break-all">${esc(c.file)} (${fmtSize(c.size_bytes)})</td></tr>
+            <tr class="border-b border-zinc-800"><td class="py-1.5 font-medium text-zinc-400 w-1/3">Waktu</td><td class="py-1.5 text-white">${fmt(c.start_time)} → ${fmt(c.end_time)} (${fmt(c.duration)}s)</td></tr>
+            <tr class="border-b border-zinc-800"><td class="py-1.5 font-medium text-zinc-400">Thumbnail</td><td class="py-1.5 text-white">${fmt(c.hook_text)}</td></tr>
+            <tr class="border-b border-zinc-800"><td class="py-1.5 font-medium text-zinc-400">Deskripsi</td><td class="py-1.5 text-zinc-300">${fmt(c.desc)}</td></tr>
+            <tr class="border-b border-zinc-800"><td class="py-1.5 font-medium text-zinc-400">Hashtag</td><td class="py-1.5 text-zinc-400 break-words">${fmt(c.hashtags)}</td></tr>
+            <tr class="border-b border-zinc-800"><td class="py-1.5 font-medium text-zinc-400">Analisis AI</td><td class="py-1.5 text-zinc-400 italic">${fmt(c.analysis)}</td></tr>
+            <tr class="border-b border-zinc-800"><td class="py-1.5 font-medium text-zinc-400">Skor Viral</td><td class="py-1.5 text-amber-400 font-bold">${c.score != null ? c.score + ' / 10' : '-'}</td></tr>
+            <tr class="border-b border-zinc-800"><td class="py-1.5 font-medium text-zinc-400">Channel</td><td class="py-1.5 text-white">${fmt(c.channel)}</td></tr>
+            <tr class="border-b border-zinc-800"><td class="py-1.5 font-medium text-zinc-400">Format</td><td class="py-1.5 text-white">${esc(c.aspect || '-')}</td></tr>
+            <tr><td class="py-1.5 font-medium text-zinc-400">File Utama</td><td class="py-1.5 text-white font-mono break-all">${esc(c.file)} (${fmtSize(c.size_bytes)})</td></tr>
           </table>
         </div>
-        ${s.url ? `<div class="text-xs bg-surface-2 border border-zinc-800 rounded-lg p-3">
-          <span class="font-medium text-zinc-500 mr-2">Sumber:</span>
-          <a class="text-accent hover:underline break-all" target="_blank" rel="noopener" href="${esc(s.url)}">${esc(s.url)}</a>
+        ${s.url ? `<div class="text-xs card-panel p-3.5">
+          <span class="font-medium text-zinc-400 mr-2">Sumber:</span>
+          <a class="text-yellow-400 hover:underline break-all" target="_blank" rel="noopener" href="${esc(s.url)}">${esc(s.url)}</a>
         </div>` : ''}
       </div>
     </div>
     
     <div class="border-t border-zinc-800 pt-4 space-y-2">
       <div class="flex flex-col gap-1.5">
-        <label class="text-[10px] text-zinc-500 uppercase tracking-wider block">Transkrip Momen</label>
-        <div class="bg-surface-2 border border-zinc-800 rounded-lg p-3 text-xs text-zinc-300 text-justify leading-relaxed max-h-32 overflow-y-auto">${fmt(c.transcript)}</div>
-      </div>
-      <div class="flex flex-col gap-1.5 pt-2">
-        <label class="text-[10px] text-zinc-500 uppercase tracking-wider block">Daftar File Varian</label>
-        <div class="flex flex-wrap gap-1.5">${c.files.map(f => `<code class="bg-zinc-800 border border-zinc-700 text-zinc-300 text-[10px] px-1.5 py-0.5 rounded font-mono">${esc(f)}</code>`).join('')}</div>
+        <label class="text-xs text-zinc-300 font-semibold uppercase tracking-wider block">Transkrip Momen</label>
+        <div class="card-panel p-3 text-xs text-zinc-300 text-justify leading-relaxed max-h-32 overflow-y-auto">${fmt(c.transcript)}</div>
       </div>
     </div>
     
-    <details class="group border border-zinc-800 rounded-lg bg-surface-2 mt-4">
-      <summary class="flex justify-between items-center px-4 py-2 text-xs font-medium text-zinc-400 hover:text-white cursor-pointer select-none">
+    <details class="group border border-zinc-800 rounded-lg bg-zinc-900 mt-4">
+      <summary class="flex justify-between items-center px-4 py-2.5 text-xs font-semibold text-zinc-300 hover:text-white cursor-pointer select-none">
         <span>✏️ Subtitle Editor Studio (SRT)</span>
         <span class="transition group-open:rotate-180">▼</span>
       </summary>
       <div class="px-4 pb-4 border-t border-zinc-800">
-        <textarea id="srtBox" class="w-full bg-black p-3 rounded-lg text-zinc-300 font-mono text-[11px] h-48 mt-2 border border-zinc-800 focus:outline-none focus:border-accent leading-relaxed" placeholder="memuat..."></textarea>
+        <textarea id="srtBox" class="w-full bg-black p-3 rounded-lg text-zinc-200 font-mono text-xs h-48 mt-2 border border-zinc-800 focus:outline-none focus:border-[var(--accent)] leading-relaxed" placeholder="memuat..."></textarea>
         <div class="flex justify-end gap-2 mt-2">
-          <button onclick="saveSubtitle('${s.id}')" class="px-3 py-1 bg-accent hover:bg-yellow-400 text-black text-xs font-semibold rounded transition flex items-center gap-1">💾 Simpan Perubahan SRT</button>
+          <button onclick="saveSubtitle('${s.id}')" class="min-h-[36px] md:min-h-[44px] px-3 md:px-4 py-1.5 md:py-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text)] text-xs font-bold rounded-lg transition flex items-center gap-1.5">💾 Simpan Perubahan SRT</button>
         </div>
       </div>
     </details>`;
@@ -421,17 +546,17 @@ async function saveSubtitle(sid) {
       body: JSON.stringify({ content }),
     });
     const j = await r.json();
-    if (j.ok) alert('✅ Subtitle SRT berhasil disimpan!');
-    else alert('❌ Gagal: ' + (j.error || 'error'));
-  } catch (e) { alert('❌ Error: ' + String(e)); }
+    if (j.ok) showToast('✅ Subtitle SRT berhasil disimpan!', 'success');
+    else showToast('❌ Gagal: ' + (j.error || 'error'), 'error');
+  } catch (e) { showToast('❌ Error: ' + String(e), 'error'); }
 }
 
 const CFG = {};
 fetch('/api/config').then(r => r.json()).then(c => Object.assign(CFG, c)).catch(() => {});
 
 function cfgSwitch(key, label) {
-  return `<label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1">
-    <input type="checkbox" id="cfg_${key}" ${CFG[key] ? 'checked' : ''} onchange="CFG['${key}']=this.checked" class="w-3.5 h-3.5 accent-[#facc15]">
+  return `<label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1.5">
+    <input type="checkbox" id="cfg_${key}" ${CFG[key] ? 'checked' : ''} onchange="CFG['${key}']=this.checked" class="w-4 h-4 accent-[#facc15] rounded">
     <span>${label}</span>
   </label>`;
 }
@@ -439,16 +564,16 @@ function cfgSwitch(key, label) {
 function cfgSelect(key, label, options) {
   const opts = options.map(o => `<option value="${o}" ${CFG[key] === o ? 'selected' : ''}>${o}</option>`).join('');
   return `<div>
-    <label class="text-[10px] text-zinc-500 block mb-0.5">${label}</label>
-    <select onchange="CFG['${key}']=this.value" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent">${opts}</select>
+    <label class="text-[11px] text-zinc-400 block mb-1 font-medium">${label}</label>
+    <select onchange="CFG['${key}']=this.value" class="w-full min-h-[36px] md:min-h-[44px] bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-xs text-white focus:border-[var(--accent)]">${opts}</select>
   </div>`;
 }
 
 function cfgNum(key, label, step = 'any') {
   return `<div>
-    <label class="text-[10px] text-zinc-500 block mb-0.5">${label}</label>
+    <label class="text-[11px] text-zinc-400 block mb-1 font-medium">${label}</label>
     <input type="number" step="${step}" value="${CFG[key] ?? ''}" oninput="CFG['${key}']=parseFloat(this.value)||0"
-           class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent">
+           class="w-full min-h-[36px] md:min-h-[44px] bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-xs text-white focus:border-[var(--accent)]">
   </div>`;
 }
 
@@ -467,40 +592,26 @@ function openRender(gi, ci) {
     <hr class="border-zinc-800 my-2">
     <div class="grid grid-cols-2 gap-2">
       ${cfgSelect('aspect_ratio', '📐 Rasio', ['9:16', '3:4', '4:5', '1:1', '16:9'])}
-            ${cfgSelect('subtitle_style', '✏️ Gaya Subtitle', ['pop', 'karaoke', 'bounce', 'animated', 'pop_bounce'])}
-            ${cfgSelect('portrait_mode', '🖼️ Portrait Mode', ['crop', 'center', 'blur', 'split_podcast_dynamic'])}
-            ${cfgSelect('face_tracking_mode', '🎯 Face Tracking', ['opencv', 'mediapipe'])}
-            ${cfgNum('sync_offset', '⏱️ Sync Offset (detik)', '0.1')}
-          </div>
-          <div class="grid grid-cols-2 gap-2 mt-2">
-            <div>
-              <label class="text-[10px] text-zinc-500 block mb-0.5">🎵 Mood BGM</label>
-              <select onchange="CFG['bgm_mood']=this.value" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent">
-                <option value="">— default config —</option>
-                <option value="chill">chill</option><option value="epic">epic</option><option value="sad">sad</option>
-                <option value="upbeat">upbeat</option><option value="suspense">suspense</option>
-              </select>
-            </div>
-            <div>
-              <label class="text-[10px] text-zinc-500 block mb-0.5">🎞️ Query B-roll</label>
-              <input type="text" placeholder="mis. cinematic city" oninput="CFG['broll_query']=this.value"
-                     class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-accent">
-            </div>
-          </div>
-    <details class="border border-zinc-800 rounded bg-surface-2 mt-2">
-      <summary class="px-2 py-1 text-xs font-semibold text-zinc-400 hover:text-white cursor-pointer select-none flex justify-between items-center">
-        <span>🎯 Face Tracking Lanjutan</span>
-        <span>▼</span>
-      </summary>
-      <div class="p-2 grid grid-cols-2 gap-2 border-t border-zinc-800">
-        ${cfgNum('pan_speed_limit', 'Pan Speed Limit', '0.1')}
-        ${cfgNum('center_weight', 'Center Weight', '0.05')}
-        ${cfgNum('switch_threshold', 'Switch Threshold', '0.05')}
-        ${cfgNum('min_shot_duration', 'Min Shot Duration', '1')}
-        ${cfgNum('lip_activity', 'Lip Activity', '0.01')}
+      ${cfgSelect('subtitle_style', '✏️ Gaya Subtitle', ['pop', 'karaoke', 'bounce', 'animated', 'pop_bounce'])}
+      ${cfgSelect('portrait_mode', '🖼️ Portrait Mode', ['crop', 'blur', 'split_podcast_dynamic'])}
+      ${cfgSelect('face_tracking_mode', '🎯 Face Tracking', ['opencv', 'mediapipe'])}
+      ${cfgNum('sync_offset', '⏱️ Sync Offset (detik)', '0.1')}
+    </div>
+    <div class="grid grid-cols-2 gap-2 mt-2">
+      <div>
+        <label class="text-[11px] text-zinc-400 block mb-1 font-medium">🎵 Mood BGM</label>
+        <select onchange="CFG['bgm_mood']=this.value" class="w-full min-h-[36px] md:min-h-[44px] bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-xs text-white focus:border-[var(--accent)]">
+          <option value=""> - default config - </option>
+          <option value="chill">chill</option><option value="epic">epic</option><option value="sad">sad</option>
+          <option value="upbeat">upbeat</option><option value="suspense">suspense</option>
+        </select>
       </div>
-    </details>
-    <p class="text-[10px] text-zinc-500 italic mt-2">Butuh <code>landscape.mp4</code> di folder klip & bisa makan waktu beberapa menit.</p>`;
+      <div>
+        <label class="text-[11px] text-zinc-400 block mb-1 font-medium">🎞️ Query B-roll</label>
+        <input type="text" placeholder="mis. cinematic city" oninput="CFG['broll_query']=this.value"
+               class="w-full min-h-[36px] md:min-h-[44px] bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-xs text-white focus:border-[var(--accent)]">
+      </div>
+    </div>`;
   
   Modal.show('renderModal');
   $('#renderGoBtn').onclick = () => doRender(s.id, c.dir);
@@ -509,7 +620,7 @@ function openRender(gi, ci) {
 async function doRender(sid, dir) {
   const st = $('#renderStatus');
   $('#renderGoBtn').disabled = true;
-  st.innerHTML = '<div class="p-3 bg-zinc-950 border border-zinc-800 rounded-lg space-y-2"><div class="flex items-center justify-between text-xs text-zinc-300"><span>⏳ Rendering…</span><span id="rElapsed" class="font-mono"></span></div><pre class="log" id="rLog">memulai…</pre></div>';
+  st.innerHTML = '<div class="p-3.5 bg-zinc-950 border border-zinc-800 rounded-lg space-y-2"><div class="flex items-center justify-between text-xs text-zinc-200 font-semibold"><span>⏳ Rendering…</span><span id="rElapsed" class="font-mono"></span></div><pre class="log" id="rLog">memulai…</pre></div>';
   try {
     const r = await fetch(`/api/render/${encodeURIComponent(sid)}/${encodeURIComponent(dir)}`, {
       method: 'POST',
@@ -518,12 +629,12 @@ async function doRender(sid, dir) {
     });
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.ok) {
-      st.innerHTML = `<div class="p-3 text-xs bg-red-950/20 border border-red-900/30 text-red-400 rounded-lg">❌ Gagal mulai render: ${esc(j.error || 'HTTP ' + r.status)}</div>`;
+      st.innerHTML = `<div class="p-3 text-xs bg-rose-950/20 border border-rose-900/30 text-rose-400 rounded-lg">❌ Gagal mulai render: ${esc(j.error || 'HTTP ' + r.status)}</div>`;
       $('#renderGoBtn').disabled = false;
       return;
     }
   } catch (e) {
-    st.innerHTML = `<div class="p-3 text-xs bg-red-950/20 border border-red-900/30 text-red-400 rounded-lg">❌ ${esc(String(e))}</div>`;
+    st.innerHTML = `<div class="p-3 text-xs bg-rose-950/20 border border-rose-900/30 text-rose-400 rounded-lg">❌ ${esc(String(e))}</div>`;
     $('#renderGoBtn').disabled = false;
     return;
   }
@@ -542,10 +653,10 @@ async function doRender(sid, dir) {
       if (!j.running) {
         clearInterval(poll);
         if (j.code === 0) {
-          st.insertAdjacentHTML('afterbegin', '<div class="p-2 mb-2 text-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded">✅ Render selesai! Memuat ulang…</div>');
+          st.insertAdjacentHTML('afterbegin', '<div class="p-2.5 mb-2 text-xs bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 rounded-lg font-bold">✅ Render selesai! Memuat ulang…</div>');
           setTimeout(async () => { await load(); Modal.hide('renderModal'); }, 1500);
         } else {
-          st.insertAdjacentHTML('afterbegin', `<div class="p-2 mb-2 text-xs bg-red-950/20 border border-red-900/30 text-red-400 rounded">❌ Render gagal (exit ${j.code ?? '?'}) — lihat log di bawah.</div>`);
+          st.insertAdjacentHTML('afterbegin', `<div class="p-2.5 mb-2 text-xs bg-rose-950/20 border border-rose-900/30 text-rose-400 rounded-lg">❌ Render gagal (exit ${j.code ?? '?'}) : lihat log di bawah.</div>`);
           $('#renderGoBtn').disabled = false;
         }
       }
@@ -553,217 +664,39 @@ async function doRender(sid, dir) {
   }, 1000);
 }
 
-async function openRegen(sid) {
-  $('#rgBody').innerHTML = '<div class="text-zinc-500 text-xs py-4 text-center">memuat…</div>';
-  Modal.show('regenModal');
-  let hls = [];
-  try { hls = await (await fetch(`/api/highlights/${encodeURIComponent(sid)}`)).json(); } catch {}
-  if (Array.isArray(hls) && hls.length) return showRegenPicker(sid, hls);
-  
-  $('#rgBody').innerHTML = `
-    <p class="text-xs text-zinc-400">Highlight belum ada untuk sesi ini.</p>
-    <div class="flex gap-2">
-      <button class="px-3 py-1.5 text-xs font-semibold bg-accent text-black rounded hover:bg-yellow-400 transition" onclick="doRefind('${esc(sid)}')">🔍 Cari Highlight Sekarang</button>
-    </div>
-    <div id="rgStatus" class="mt-3"></div><pre class="log hidden mt-2" id="rgLog"></pre>`;
-}
-
-async function showRegenPicker(sid, hls) {
-  const rows = hls.map(h => `
-    <label class="flex items-start gap-3 p-2 border-b border-zinc-800 hover:bg-zinc-800/40 transition cursor-pointer">
-      <input class="form-check-input mt-1 rg-check flex-shrink-0 w-3.5 h-3.5 accent-[#facc15]" type="checkbox" value="${h.i}">
-      <div class="flex-1 min-w-0">
-        <div class="flex items-center gap-2">
-          <span class="font-semibold text-xs text-white truncate">${esc(h.title)}</span>
-          ${h.score != null ? `<span class="px-1 py-0.5 text-[9px] font-bold bg-amber-400 text-black rounded">⭐ ${h.score}</span>` : ''}
-        </div>
-        <span class="text-[10px] text-zinc-500">${esc(h.start)} → ${esc(h.end)} · ${h.duration}s</span>
-      </div>
-    </label>`).join('');
-    
-  $('#rgBody').innerHTML = `
-    <div class="flex justify-between items-center flex-wrap gap-2 text-xs">
-      <span class="text-zinc-400">Sesi: <code class="bg-zinc-800 text-zinc-300 px-1 py-0.5 rounded">${esc(sid)}</code> · ${hls.length} momen siap</span>
-      <a href="#" class="text-accent hover:underline" onclick="toggleRgAll();return false">pilih semua / none</a>
-    </div>
-    <div class="border border-zinc-800 rounded-lg overflow-hidden bg-surface-2 max-h-60 overflow-y-auto mb-3" onchange="updateRgCount()">${rows}</div>
-    <div class="flex flex-wrap items-center gap-3 bg-surface-2 border border-zinc-800 rounded-lg p-2.5 mb-3">
-      <span class="px-2 py-0.5 text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded" id="rgCount"></span>
-      <span class="text-xs text-zinc-400">⚡ Template:</span>
-      <div class="flex flex-wrap gap-1" id="rgTplBar"></div>
-    </div>
-    <div id="rgTplMsg" class="text-xs mb-3 hidden"></div>
-    <div class="flex gap-2 flex-wrap">
-      <button class="px-4 py-2 text-xs font-semibold bg-accent text-black rounded hover:bg-yellow-400 transition" onclick="regenProcess('${esc(sid)}')">🎬 Render Terpilih</button>
-      <button class="px-3 py-2 text-xs text-zinc-300 hover:text-white bg-zinc-800 border border-zinc-700 rounded hover:bg-zinc-700 transition" onclick="doRefind('${esc(sid)}')">🔄 Re-generate Momen</button>
-    </div>
-    <div id="rgStatus" class="mt-3"></div><pre class="log hidden mt-2" id="rgLog"></pre>`;
-  try { CUR_CFG = await (await fetch('/api/config')).json(); } catch { CUR_CFG = {}; }
-  initRgTplBar();
-  updateRgCount();
-}
-
-const RG_TEMPLATES = {
-  podcast2: { label: '🎙 Pod 2 Org', cfg: { face_tracking_mode:'mediapipe', portrait_mode:'crop', smooth_follow:true, pan_speed_limit:1.8, center_weight:0.45, switch_threshold:0.35, min_shot_duration:120, lip_activity:0.12, subtitle_style:'pop', sync_offset:-0.25, aspect_ratio:'9:16', hook:true, captions:true, gpu:true } },
-  podcast3: { label: '🎙 Pod 3+', cfg: { face_tracking_mode:'mediapipe', portrait_mode:'blur', smooth_follow:false, pan_speed_limit:2.5, center_weight:0.25, switch_threshold:0.22, min_shot_duration:60, lip_activity:0.15, subtitle_style:'pop', sync_offset:-0.25, aspect_ratio:'9:16', hook:true, captions:true, gpu:true } },
-  game:     { label: '🎮 Gaming', cfg: { face_tracking_mode:'opencv', portrait_mode:'crop', smooth_follow:true, pan_speed_limit:4.0, center_weight:0.15, switch_threshold:0.15, min_shot_duration:30, lip_activity:0.2, subtitle_style:'bounce', sync_offset:-0.15, aspect_ratio:'9:16', hook:true, captions:true, gpu:true } },
-  news:     { label: '📰 Berita', cfg: { face_tracking_mode:'opencv', portrait_mode:'crop', smooth_follow:false, pan_speed_limit:1.2, center_weight:0.5, switch_threshold:0.4, min_shot_duration:150, lip_activity:0.1, subtitle_style:'karaoke', sync_offset:-0.3, aspect_ratio:'9:16', hook:false, captions:true, gpu:true } },
-  tutorial: { label: '🧑‍🏫 Tutorial', cfg: { face_tracking_mode:'mediapipe', portrait_mode:'crop', smooth_follow:true, pan_speed_limit:1.5, center_weight:0.5, switch_threshold:0.4, min_shot_duration:180, lip_activity:0.1, subtitle_style:'animated', sync_offset:-0.3, aspect_ratio:'9:16', hook:false, captions:true, gpu:true } },
-  vlog:     { label: '📹 Vlog', cfg: { face_tracking_mode:'mediapipe', portrait_mode:'crop', smooth_follow:true, pan_speed_limit:2.2, center_weight:0.35, switch_threshold:0.3, min_shot_duration:90, lip_activity:0.15, subtitle_style:'pop_bounce', sync_offset:-0.25, aspect_ratio:'9:16', hook:true, captions:true, gpu:true } },
-};
-let REG_TPL = null, CUR_CFG = {};
-
-async function applyRegenTemplate(key) {
-  const t = RG_TEMPLATES[key];
-  if (!t) return;
-  REG_TPL = { ...t.cfg };
-  const m = document.getElementById('rgTplMsg');
-  m.classList.remove('hidden', 'text-emerald-400', 'text-red-400');
-  m.classList.add('text-amber-400');
-  m.textContent = `⏳ Menyimpan template ${t.label}…`;
-  try {
-    const r = await fetch('/api/config', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(REG_TPL) });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    m.classList.remove('text-amber-400');
-    m.classList.add('text-emerald-400');
-    m.textContent = `✅ Template ${t.label} tersimpan otomatis.`;
-    setTimeout(() => m.classList.add('hidden'), 4000);
-  } catch (e) {
-    m.classList.remove('text-amber-400');
-    m.classList.add('text-red-400');
-    m.textContent = `❌ Gagal menyimpan template (${e.message || e}).`;
-  }
-}
-
-function initRgTplBar() {
-  const bar = document.getElementById('rgTplBar');
-  if (!bar) return;
-  bar.innerHTML = Object.entries(RG_TEMPLATES).map(([k, t]) =>
-    `<button class="tpl-btn text-[10px] text-zinc-300 hover:text-white" onclick="applyRegenTemplate('${k}')">${t.label}</button>`).join('');
-}
-
-function toggleRgAll() {
-  const b = [...document.querySelectorAll('.rg-check')];
-  const anyOff = b.some(x => !x.checked);
-  b.forEach(x => x.checked = anyOff);
-  updateRgCount();
-}
-
-function updateRgCount() {
-  const el = document.getElementById('rgCount');
-  if (!el) return;
-  const all = document.querySelectorAll('.rg-check');
-  const sel = [...all].filter(x => x.checked).length;
-  el.textContent = `🎬 ${sel} / ${all.length} klip terpilih`;
-}
-
-function rgLogBox(on) { const l = $('#rgLog'); if (!l) return null; l.classList.toggle('hidden', !on); return l; }
-
-async function doRefind(sid) {
-  const st = $('#rgStatus'), logBox = rgLogBox(true);
-  st.innerHTML = '<div class="p-3 text-xs bg-zinc-950 border border-zinc-800 rounded-lg text-zinc-300">⏳ AI mencari ulang momen terbaik…</div>';
-  try {
-    const r = await fetch(`/api/refind/${encodeURIComponent(sid)}`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}' });
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok || !j.ok) throw new Error(j.error || ('HTTP ' + r.status));
-  } catch (e) { st.innerHTML = `<div class="p-3 text-xs bg-red-950/20 border border-red-900/30 text-red-400 rounded-lg">❌ ${esc(String(e))}</div>`; return; }
-  pollJob(`/api/refind/status/${encodeURIComponent(sid)}`, logBox, async j => {
-    if (j.code === 0 && j.result && j.result.ok) {
-      st.innerHTML = `<div class="p-3 text-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg">✅ ${j.result.count} momen baru ditemukan!</div>`;
-      setTimeout(async () => {
-        await load();
-        let hls = [];
-        try { hls = await (await fetch(`/api/highlights/${encodeURIComponent(sid)}`)).json(); } catch {}
-        if (hls.length) showRegenPicker(sid, hls);
-      }, 800);
-    } else {
-      st.innerHTML = `<div class="p-3 text-xs bg-red-950/20 border border-red-900/30 text-red-400 rounded-lg">❌ Gagal regenerate — lihat log.</div>`;
-    }
-  });
-}
-
-async function regenProcess(sid) {
-  const sel = [...document.querySelectorAll('.rg-check:checked')].map(b => parseInt(b.value));
-  if (!sel.length) { alert('Pilih minimal 1 momen'); return; }
-  const base = REG_TPL || CUR_CFG || {};
-  const hook = !!base.hook, caps = !!base.captions;
-  const st = $('#rgStatus'), logBox = rgLogBox(true);
-  try {
-    const r = await fetch(`/api/process/${encodeURIComponent(sid)}`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ selected: sel, hook, captions: caps }) });
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok || !j.ok) throw new Error(j.error || ('HTTP ' + r.status));
-  } catch (e) { st.innerHTML = `<div class="p-3 text-xs bg-red-950/20 border border-red-900/30 text-red-400 rounded-lg">❌ ${esc(String(e))}</div>`; return; }
-  st.innerHTML = '<div class="p-3 text-xs bg-zinc-950 border border-zinc-800 text-zinc-300 rounded-lg">⏳ Download & render klip terpilih…</div>';
-  pollJob(`/api/process/status/${encodeURIComponent(sid)}`, logBox, j => {
-    if (j.code === 0) st.innerHTML = '<div class="p-3 text-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg">✅ Render selesai! Tutup modal untuk lihat hasil di beranda.</div>';
-    else st.innerHTML = `<div class="p-3 text-xs bg-red-950/20 border border-red-900/30 text-red-400 rounded-lg">❌ Process gagal (exit ${j.code ?? '?'}) — lihat log.</div>`;
-  });
-}
-
-function ensureProgressBar(logBox) {
-  if (!logBox || !logBox.parentNode) return null;
-  let bar = logBox.parentNode.querySelector(':scope > .live-progress');
-  if (!bar) {
-    bar = document.createElement('div');
-    bar.className = 'live-progress mt-2';
-    bar.innerHTML = '<div class="h-1.5 bg-zinc-800 rounded-full overflow-hidden"><div class="h-full bg-accent transition-all duration-500" style="width:0%"></div></div><div class="text-[10px] text-zinc-400 mt-1 tabular-nums">0%</div>';
-    logBox.parentNode.insertBefore(bar, logBox);
-  }
-  return bar;
-}
-
-function updateProgressBar(logBox, p) {
-  const bar = ensureProgressBar(logBox);
-  if (!bar) return;
-  if (p == null) { bar.style.display = 'none'; return; }
-  bar.style.display = '';
-  bar.firstElementChild.firstElementChild.style.width = Math.round(p) + '%';
-  bar.lastElementChild.textContent = Math.round(p) + '%';
-}
-
-function pollJob(url, logBox, onDone) {
-  const poll = setInterval(async () => {
-    try {
-      const j = await (await fetch(url)).json();
-      if (logBox) {
-        const stick = logBox.scrollTop + logBox.clientHeight >= logBox.scrollHeight - 60;
-        logBox.textContent = j.log || '';
-        if (stick) logBox.scrollTop = logBox.scrollHeight;
-      }
-      updateProgressBar(logBox, j.progress);
-      if (!j.running) { clearInterval(poll); updateProgressBar(logBox, null); onDone(j); }
-    } catch {}
-  }, 1000);
-}
-
-async function deleteSession(sid, btn) {
-  if (!confirm(`Hapus SELURUH sesi ${sid}?\nSemua klip beserta foldernya ikut terhapus.`)) return;
-  btn.disabled = true;
-  try {
-    const r = await fetch(`/api/delete-session/${encodeURIComponent(sid)}`, { method: 'POST' });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    await load();
-  } catch (e) {
-    alert('Gagal hapus sesi: ' + e);
-    btn.disabled = false;
-  }
-}
-
-async function deleteClip(gi, ci, btn) {
-  const s = DATA[gi], c = s.clips[ci];
-  if (!confirm(`Hapus klip "${c.title}"?\nFolder beserta semua file varian ikut terhapus.`)) return;
-  btn.disabled = true; btn.textContent = '…';
-  try {
-    const r = await fetch(`/api/delete/${encodeURIComponent(s.id)}/${encodeURIComponent(c.dir)}`, { method: 'POST' });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    await load();
-  } catch (e) {
-    alert('Gagal hapus: ' + e);
-    btn.disabled = false; btn.textContent = '🗑';
-  }
-}
-
 $('#search').addEventListener('input', render);
+$('#filterStatus').addEventListener('change', () => { filterStatus = $('#filterStatus').value; curPage = 1; render(); });
+$('#sortBy').addEventListener('change', () => { sortBy = $('#sortBy').value; render(); });
+
+// Auto-refresh during processing (poll /api/tasks tiap 5s)
+let _taskTimer = null;
+async function pollTasks() {
+  try {
+    const r = await fetch('/api/tasks');
+    const tasks = await r.json();
+    const running = (tasks || []).filter(t => t.running);
+    const ind = $('#processingIndicator');
+    const badge = $('#taskStatus');
+    if (ind) {
+      if (running.length > 0) {
+        ind.classList.remove('hidden'); ind.classList.add('flex');
+        ind.lastElementChild.textContent = running.length + ' task berjalan...';
+        if (!_taskTimer) _taskTimer = setInterval(pollTasks, 5000);
+      } else {
+        ind.classList.add('hidden'); ind.classList.remove('flex');
+        if (_taskTimer) { clearInterval(_taskTimer); _taskTimer = null; }
+      }
+    }
+    if (badge) {
+      const total = (tasks || []).length;
+      badge.innerHTML = total
+        ? `<span class="px-2.5 py-1 bg-zinc-900 text-zinc-300 rounded-lg border border-zinc-800 font-semibold text-xs">📋 ${total} task</span>`
+        : '';
+    }
+  } catch {}
+}
+setInterval(pollTasks, 5000);
+pollTasks();
 
 // Check engine binaries status
 async function checkEngineStatus() {
@@ -773,21 +706,14 @@ async function checkEngineStatus() {
     const list = await r.json();
     list.forEach(b => {
       let elId = '';
-      let elMobId = '';
-      if (b.name === 'ffmpeg') { elId = 'st_ffmpeg'; elMobId = 'st_ffmpeg_mob'; }
-      else if (b.name === 'yt-dlp') { elId = 'st_ytdlp'; elMobId = 'st_ytdlp_mob'; }
-      else if (b.name === 'deno') { elId = 'st_deno'; elMobId = 'st_deno_mob'; }
+      if (b.name === 'ffmpeg') elId = 'st_ffmpeg';
+      else if (b.name === 'yt-dlp') elId = 'st_ytdlp';
+      else if (b.name === 'deno') elId = 'st_deno';
       
       const el = document.getElementById(elId);
       if (el) {
-        el.className = `w-2.5 h-2.5 rounded-full ${b.ok ? 'bg-emerald-500' : 'bg-red-500'}`;
+        el.className = `w-2.5 h-2.5 rounded-full ${b.ok ? 'bg-emerald-400' : 'bg-rose-500'}`;
         el.title = b.ok ? `${b.name}: Ready (${b.detail || 'ok'})` : `${b.name}: Error (${b.detail || 'failed'})`;
-      }
-      
-      const elMob = document.getElementById(elMobId);
-      if (elMob) {
-        elMob.className = `w-2 h-2 rounded-full ${b.ok ? 'bg-emerald-500' : 'bg-red-500'}`;
-        elMob.title = b.ok ? `${b.name}: Ready (${b.detail || 'ok'})` : `${b.name}: Error (${b.detail || 'failed'})`;
       }
     });
 
@@ -807,24 +733,18 @@ async function checkEngineStatus() {
         const testData = await testRes.json();
         const aiOk = !!testData.ok;
         
-        ['st_ai', 'st_ai_mob'].forEach(id => {
-          const el = document.getElementById(id);
-          if (el) {
-            el.className = `w-2.5 h-2.5 rounded-full ${aiOk ? 'bg-emerald-500' : 'bg-red-500'}`;
-            if (id.endsWith('_mob')) el.className = `w-2 h-2 rounded-full ${aiOk ? 'bg-emerald-500' : 'bg-red-500'}`;
-            el.title = aiOk ? `AI Proxy: Connected` : `AI Proxy: Disconnected`;
-          }
-        });
+        const el = document.getElementById('st_ai');
+        if (el) {
+          el.className = `w-2.5 h-2.5 rounded-full ${aiOk ? 'bg-emerald-400' : 'bg-rose-500'}`;
+          el.title = aiOk ? `AI Proxy: Connected` : `AI Proxy: Disconnected`;
+        }
       }
     } catch (e) {
-      ['st_ai', 'st_ai_mob'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-          el.className = 'w-2.5 h-2.5 rounded-full bg-red-500';
-          if (id.endsWith('_mob')) el.className = 'w-2 h-2 rounded-full bg-red-500';
-          el.title = 'AI Proxy: Offline/Error';
-        }
-      });
+      const el = document.getElementById('st_ai');
+      if (el) {
+        el.className = 'w-2.5 h-2.5 rounded-full bg-rose-500';
+        el.title = 'AI Proxy: Offline/Error';
+      }
     }
 
   } catch (e) {
@@ -843,5 +763,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 </script>
+<script src="/engine_status.js"></script>
+<script src="/ui.js"></script>
 </body>
 </html>

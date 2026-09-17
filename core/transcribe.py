@@ -392,8 +392,7 @@ class TranscribeMixin:
             segments_gen, info = self.faster_whisper_model.transcribe(
                 audio_path,
                 word_timestamps=True,
-                vad_filter=True,
-                vad_parameters=dict(min_silence_duration_ms=500),
+                vad_filter=False, # Matikan VAD default biar kita bisa potong manual
                 language=lang,
                 log_progress=False,
             )

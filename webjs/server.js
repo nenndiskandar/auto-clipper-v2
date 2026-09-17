@@ -55,7 +55,8 @@ const ADMIN_PASS = process.env.CLIPPER_PASS;
 
 const signVal = v => crypto.createHmac('sha256', AUTH_KEY).update(v).digest('base64url');
 const b64u = s => Buffer.from(String(s), 'utf8').toString('base64url');
-const makeToken = (id, name) => { const exp = Date.now() + 7 * 864e5; const nb = b64u(name || ''); return `${id}|${exp}|${nb}|${signVal(id + '|' + exp + '|' + nb)}`; };
+const SESSION_MS = 24 * 3600 * 1000; // sesi login berlaku 24 jam
+const makeToken = (id, name) => { const exp = Date.now() + SESSION_MS; const nb = b64u(name || ''); return `${id}|${exp}|${nb}|${signVal(id + '|' + exp + '|' + nb)}`; };
 function checkToken(t) {
   if (!t) return null;
   const parts = String(t).split('|');
@@ -68,6 +69,87 @@ function checkToken(t) {
   return Number(exp) > Date.now() ? { id, name: Buffer.from(nb, 'base64url').toString('utf8') } : null;
 }
 const getCookie = h => Object.fromEntries(String(h || '').split(';').map(c => c.trim().split(/=(.*)/s).slice(0, 2)).filter(p => p[0]));
+
+// Login rate limit: maks 5 percobaan per IP per 5 menit
+const LOGIN_MAX = 5;
+const LOGIN_WINDOW_MS = 5 * 60 * 1000;
+const LOGIN_ATTEMPTS = new Map(); // ip -> { count, resetTime }
+function checkLoginLimit(ip) {
+  const now = Date.now();
+  let rec = LOGIN_ATTEMPTS.get(ip);
+  if (!rec || now >= rec.resetTime) {
+    rec = { count: 0, resetTime: now + LOGIN_WINDOW_MS };
+    LOGIN_ATTEMPTS.set(ip, rec);
+  }
+  rec.count++;
+  LOGIN_ATTEMPTS.set(ip, rec);
+  // bersihkan entri kedaluwarsa biar Map tidak membesar
+  if (LOGIN_ATTEMPTS.size > 1000) {
+    for (const [k, v] of LOGIN_ATTEMPTS) if (now >= v.resetTime) LOGIN_ATTEMPTS.delete(k);
+  }
+  const remaining = Math.max(0, LOGIN_MAX - rec.count);
+  return { allowed: remaining > 0, remaining, resetInSec: Math.max(0, Math.ceil((rec.resetTime - now) / 1000)) };
+}
+
+// Statistik disk partisi root (satuan byte), dipakai widget sidebar /api/disk
+function getDiskStats() {
+  const def = { total: 0, used: 0, free: 0, usedPercent: 0, error: null };
+  return new Promise(res => {
+    execFile('df', ['-B1', '/'], { timeout: 5000 }, (err, stdout) => {
+      if (err) return res({ ...def, error: String(err.message || err) });
+      const line = String(stdout || '').split('\n').filter(l => l.trim() && !/^Filesystem/i.test(l.trim()))[0];
+      if (!line) return res({ ...def, error: 'df: output kosong' });
+      const parts = line.trim().split(/\s+/);
+      if (parts.length < 5) return res({ ...def, error: 'df: format tidak dikenal' });
+      const total = parseInt(parts[1], 10) || 0;
+      const used = parseInt(parts[2], 10) || 0;
+      const free = parseInt(parts[3], 10) || 0;
+      return res({ total, used, free, usedPercent: total ? Math.round((used / total) * 100) : 0, error: null });
+    });
+  });
+}
+
+function fmtGB(bytes) {
+  if (!bytes) return '0 GB';
+  return (bytes / (1024 ** 3)).toFixed(1) + ' GB';
+}
+function diskBarColor(pct) {
+  // hijau < 80, kuning < 90, merah >= 90 (peringatan visual sebelum penuh)
+  return pct >= 90 ? 'bg-red-500' : pct >= 80 ? 'bg-yellow-400' : 'bg-emerald-500';
+}
+// Suntik widget ke sidebar: sebelum "Engine Status" desktop, dan sisipkan
+// varian mobile di strip bawah. Halaman tanpa komentar anchor fallback ke nav.
+// NOTE 2026-09-14: widget disk & dark mode sekarang sudah statis di HTML (desktop+mobile),
+// jadi inject server dinonaktifkan untuk hindari duplikat.
+function injectDisk(html, widget) {
+  return html; // no-op: widget sudah ada di HTML statis
+}
+// Auto-refresh widget disk tiap 30 detik (polling /api/disk, update label + bar)
+const DISK_REFRESH_JS = `<script>
+(function(){
+  var label=document.getElementById('diskLabel'), bar=document.querySelector('.disk-widget .h-full');
+  var mob=document.getElementById('diskWidgetMob');
+  if(!label && !bar) return;
+  function fmt(b){ return b ? (b/1073741824).toFixed(1)+' GB' : '0 GB'; }
+  function color(p){ return p>=90 ? 'bg-red-500' : p>=80 ? 'bg-yellow-400' : 'bg-emerald-500'; }
+  function refresh(){
+    fetch('/api/disk').then(function(r){ return r.json(); }).then(function(d){
+      if(d && !d.error && d.total){
+        if(label) label.textContent = fmt(d.used)+' / '+fmt(d.total);
+        if(bar){ bar.style.width = Math.min(100, d.usedPercent)+'%'; bar.className = 'h-full rounded-full transition-all duration-500 '+color(d.usedPercent); }
+        var vb=bar; if(mob){ var mb=mob.querySelector('.h-full'); if(mb){ mb.style.width=Math.min(100,d.usedPercent)+'%'; mb.className='h-full rounded-full transition-all duration-500 '+color(d.usedPercent); } }
+      }
+    }).catch(function(){});
+  }
+  setInterval(refresh, 30000);
+})();
+</script>`;
+// helper render JSON sekaligus inject script refresh ke HTML
+// NOTE 2026-09-14: refresh disk sekarang ditangani ui.js (polling /api/disk 30s),
+// jadi inject script server dinonaktifkan.
+function injectDiskScript(html) {
+  return html; // no-op: ui.js sudah handle refresh disk
+}
 
 // final-output preference order inside each clip folder
 const VARIANTS = ['credit.mp4', 'watermark.mp4', 'captioned.mp4', 'portrait.mp4'];
@@ -326,6 +408,12 @@ const server = http.createServer((req, res) => {
     // login page & root are served as static files (handled below)
     // auth endpoint
     if (p === '/api/auth/login' && req.method === 'POST') {
+      const ip = req.connection.remoteAddress || 'unknown';
+      const lim = checkLoginLimit(ip);
+      // batasi percobaan sebelum dicek: 429 + sisa percobaan supaya UI bisa tampil
+      if (!lim.allowed) {
+        return json(res, 429, { error: `Terlalu banyak percobaan. Coba lagi dalam ${Math.ceil(lim.resetInSec / 60)} menit.`, remaining: 0, resetInSec: lim.resetInSec });
+      }
       let body = '';
       req.on('data', c => body += c);
       req.on('end', () => {
@@ -333,12 +421,17 @@ const server = http.createServer((req, res) => {
           const { password } = JSON.parse(body || '{}');
           if (String(password) === ADMIN_PASS) {
             const token = makeToken('admin', 'admin');
-            res.writeHead(200, { 'Set-Cookie': `${COOKIE_NAME}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800` });
+            res.writeHead(200, { 'Set-Cookie': `${COOKIE_NAME}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(SESSION_MS / 1000)}` });
             return json(res, 200, { ok: true });
           }
-          return json(res, 401, { error: 'Password salah' });
+          return json(res, 401, { error: 'Password salah', remaining: Math.max(0, LOGIN_MAX - (LOGIN_ATTEMPTS.get(ip) || { count: 0 }).count) });
         } catch(e) { return json(res, 400, { error: 'invalid request' }); }
       });
+      return;
+    }
+    // GET /api/disk — statistik disk (total/used/free/usedPercent dalam byte) untuk widget sidebar
+    if (p === '/api/disk' && req.method === 'GET') {
+      getDiskStats().then(st => json(res, st.error ? 500 : 200, st));
       return;
     }
     if (p === '/logout') { res.writeHead(302, { Location: '/', 'Set-Cookie': `${COOKIE_NAME}=; Path=/; Max-Age=0` }); return res.end(); }
@@ -535,18 +628,17 @@ const server = http.createServer((req, res) => {
           temperature: cfg.temperature ?? 1.0,
           subtitle_language: cfg.subtitle_language || 'id',
           hf_system_message: ((ap.highlight_finder || {}).system_message) || '',
-          hf_api_key_set: !!((ap.highlight_finder || {}).api_key),
+          hf_api_key: (ap.highlight_finder || {}).api_key || cfg.api_key || process.env.HF_API_KEY || process.env.OPENAI_API_KEY || '',
+          hf_api_key_set: !!((ap.highlight_finder || {}).api_key || cfg.api_key || process.env.HF_API_KEY || process.env.OPENAI_API_KEY),
           // Pro video editing features
           pro_settings: cfg.pro_settings || {},
           // Fitur baru (feature 1-19)
           face_detector_model: cfg.face_detector_model || 'mediapipe',
           yolo_size: ['8n','8n_v2','8s','8m','9c'].includes(cfg.yolo_size) ? cfg.yolo_size : '8n',
           font_preset: cfg.font_preset || 'DEFAULT',
-          auto_bgm: cfg.auto_bgm || {},
           auto_broll: cfg.auto_broll || {},
           pexels_api_key: (cfg.pexels_api_key || ''),
           auto_camera_switch: cfg.auto_camera_switch || {},
-          transition_library: cfg.transition_library || {},
           thumbnail: cfg.thumbnail || {},
           metadata_settings: cfg.metadata_settings || {},
           story_clip: cfg.story_clip || {},
@@ -617,21 +709,11 @@ const server = http.createServer((req, res) => {
           if (typeof o.wm.text === 'string') cfg.watermark.text = o.wm.text;
           if (isNum(o.wm.padding)) cfg.watermark.padding = o.wm.padding;
         }
-        if (o.auto_bgm && typeof o.auto_bgm === 'object') {
-          cfg.auto_bgm = Object.assign({}, cfg.auto_bgm, o.auto_bgm);
-          if ('enabled' in o.auto_bgm) cfg.auto_bgm.enabled = !!o.auto_bgm.enabled;
-        }
-        if (o.transition_library && typeof o.transition_library === 'object') {
-          cfg.transition_library = Object.assign({}, cfg.transition_library, o.transition_library);
-          if ('enabled' in o.transition_library) cfg.transition_library.enabled = !!o.transition_library.enabled;
-        }
         if (o.thumbnail && typeof o.thumbnail === 'object') {
           cfg.thumbnail = Object.assign({}, cfg.thumbnail, o.thumbnail);
           if ('enabled' in o.thumbnail) cfg.thumbnail.enabled = !!o.thumbnail.enabled;
         }
         // Normalisasi input UI (boolean/string sederhana) ke bentuk object dict yang dipakai engine
-        cfg.auto_bgm = cfg.auto_bgm || {};
-        if (typeof o.auto_bgm === 'boolean') cfg.auto_bgm.enabled = o.auto_bgm;
         cfg.auto_broll = cfg.auto_broll || {};
         if (typeof o.auto_broll === 'boolean') cfg.auto_broll.enabled = o.auto_broll;
         if (typeof o.auto_broll === 'string') cfg.auto_broll.enabled = o.auto_broll !== 'none' && o.auto_broll !== 'false' && o.auto_broll !== '';
@@ -639,11 +721,6 @@ const server = http.createServer((req, res) => {
         if (typeof o.pexels_api_key === 'string') {
           const pk = o.pexels_api_key.trim();
           if (pk) cfg.pexels_api_key = pk; else delete cfg.pexels_api_key;
-        }
-        cfg.transition_library = cfg.transition_library || {};
-        if (typeof o.transition_library === 'string') {
-          cfg.transition_library.enabled = o.transition_library.trim() !== 'none' && o.transition_library.trim() !== '';
-          if (['random', 'cut', 'crossfade', 'static'].includes(o.transition_library.trim())) cfg.transition_library.style = o.transition_library.trim();
         }
         cfg.auto_camera_switch = cfg.auto_camera_switch || {};
         if (typeof o.auto_camera_switch === 'boolean') cfg.auto_camera_switch.enabled = o.auto_camera_switch;
@@ -717,8 +794,8 @@ k=os.environ.get('TC_KEY','').strip()
 try:
     c=OpenAI(api_key=k or 'x', base_url=u or None)
     m=c.models.list()
-    ids=[getattr(x,'id',str(x)) for x in m.data][:20]
-    print(json.dumps({'ok':True,'count':len(ids),'sample':ids}))
+    ids=[getattr(x,'id',str(x)) for x in m.data if getattr(x,'id',str(x))]
+    print(json.dumps({'ok':True,'count':len(ids),'sample':ids,'models':ids}))
 except Exception as e:
     print(json.dumps({'ok':False,'error':str(e)[:300]}))`;
     // proxy TTS models via 9Router cookie auth (POST /api/auth/login {password} -> GET /api/providers)
@@ -839,7 +916,14 @@ except Exception as e:
   req.on('end', () => {
     let o = {};
     try { o = JSON.parse(body || '{}'); } catch {}
-    const env = { ...process.env, TC_URL: String(o.server_url || '').trim(), TC_KEY: String(o.api_key || o.hf_api_key || '') };
+    // Fallback ke config tersimpan kalau field kosong (supaya tidak 401 setelah reload)
+    let savedUrl = '', savedKey = '';
+    try {
+      const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'config.json'), 'utf8'));
+      const hf = cfg.ai_providers && cfg.ai_providers.highlight_finder;
+      if (hf) { savedUrl = hf.base_url || ''; savedKey = hf.api_key || ''; }
+    } catch {}
+    const env = { ...process.env, TC_URL: String(o.server_url || savedUrl || '').trim(), TC_KEY: String(o.api_key || o.hf_api_key || savedKey || '') };
     execFile(PY, ['-c', TC_SRC], { env }, (err, stdout, stderr) => {
       const out = (stdout || '').toString().trim().split('\n').pop();
       try { return json(res, 200, JSON.parse(out)); } catch { return json(res, 200, { ok: false, error: (stderr || stdout || '').toString().slice(-300) }); }
@@ -1732,11 +1816,36 @@ except Exception as e:
         serve();
       });
     }
-    // static
+    // inject widget disk ke sidebar semua halaman HTML (tanpa merubah file HTML)
     let fp = path.join(PUBLIC, p === '/' ? 'index.html' : p);
+    if ((p === '/' || /\.html$/.test(p)) && !p.includes('login.html')) {
+      getDiskStats().then(st => {
+        if (!fs.existsSync(fp) || !fs.statSync(fp).isFile()) return json(res, 404, { error: 'not found' });
+        let html = fs.readFileSync(fp, 'utf8');
+        const widget = st.error ? '' : [
+          '<div class="disk-widget px-4 py-3 border-t border-zinc-800/80 text-xs text-zinc-400 bg-zinc-950/40">',
+          '  <div class="flex items-center justify-between mb-1.5">',
+          '    <span class="font-semibold text-[10px] uppercase tracking-wider text-zinc-400">💾 Disk</span>',
+          `    <span class="text-zinc-400" id="diskLabel">${fmtGB(st.used)} / ${fmtGB(st.total)}</span>`,
+          '  </div>',
+          `  <div class="h-2 w-full bg-zinc-800 rounded-full overflow-hidden" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${st.usedPercent}" aria-label="Penggunaan disk">`,
+          `    <div class="h-full rounded-full transition-all duration-500 ${diskBarColor(st.usedPercent)}" style="width:${Math.min(100, st.usedPercent)}%"></div>`,
+          '  </div>',
+          '</div>'
+        ].join('\n');
+        if (widget) html = injectDisk(html, widget);
+        html = injectDiskScript(html);
+        res.writeHead(200, {
+          'Content-Type': MIME['.html'],
+          'Cache-Control': 'no-cache',
+        });
+        res.end(html);
+      });
+      return;
+    }
     if (!fp.startsWith(PUBLIC)) return json(res, 403, { error: 'forbidden' });
     if (!fs.existsSync(fp) || !fs.statSync(fp).isFile()) return json(res, 404, { error: 'not found' });
-    // ponytail: HTML selalu revalidate biar update UI langsung kelihatan (browser/Telegram in-app suka nge-cache)
+    // static fallback: login.html & semua aset non-HTML (css/js/img) tanpa inject
     res.writeHead(200, {
       'Content-Type': MIME[path.extname(fp)] || 'application/octet-stream',
       'Cache-Control': fp.endsWith('.html') ? 'no-cache' : 'max-age=86400',

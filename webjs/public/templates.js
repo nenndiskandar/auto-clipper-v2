@@ -25,9 +25,6 @@ window.UNIFIED_TEMPLATES = {
       color_grade: 'cinematic',
       stabilize: false,
       sync_offset: 0,
-      auto_bgm: { enabled: true, mood: 'upbeat', mode: 'ducking', base_volume: 0.25 },
-      auto_broll: { enabled: true, query: 'viral hype cinematic' },
-      transition_library: 'cut',
       thumbnail: { enabled: true },
       face_detector_model: 'mediapipe'
     }
@@ -53,35 +50,9 @@ window.UNIFIED_TEMPLATES = {
       color_grade: 'warm',
       stabilize: false,
       sync_offset: -0.25,
-      auto_bgm: { enabled: true, mood: 'chill', mode: 'ducking', base_volume: 0.2 },
       auto_camera_switch: { enabled: true, hold_duration: 2.0, deadzone: 0.15, smooth: 0.3, max_zoom: 3.0 },
       thumbnail: { enabled: true },
       face_detector_model: 'mediapipe'
-    }
-  },
-  face_center_rapih: {
-    label: '⭐ Wajah Tengah Rapih',
-    desc: 'Center face follow, BGM chill ringan, thumbnail auto',
-    cfg: {
-      aspect_ratio: '9:16',
-      portrait_mode: 'center',
-      subtitle_style: 'pop',
-      captions: true,
-      hook: true,
-      gpu: true,
-      hook_style: { font_color: '#ffffff', bg_color: '#000000', corner_radius: 12, font_size: 0.075, glitch: false },
-      smooth_follow: false,
-      face_tracking_mode: 'mediapipe',
-      pan_speed_limit: 1.6,
-      center_weight: 0.10,
-      switch_threshold: 0.18,
-      min_shot_duration: 45,
-      lip_activity: 0.08,
-      color_grade: 'warm',
-      stabilize: false,
-      sync_offset: -0.25,
-      auto_bgm: { enabled: true, mood: 'chill', mode: 'background', base_volume: 0.15 },
-      thumbnail: { enabled: true }
     }
   },
   gaming_action: {
@@ -106,8 +77,6 @@ window.UNIFIED_TEMPLATES = {
       motion_blur: 1.5,
       stabilize: false,
       sync_offset: -0.15,
-      auto_bgm: { enabled: true, mood: 'epic', mode: 'ducking', base_volume: 0.3 },
-      transition_library: 'random',
       thumbnail: { enabled: true }
     }
   },
@@ -132,8 +101,6 @@ window.UNIFIED_TEMPLATES = {
       color_grade: 'none',
       stabilize: false,
       sync_offset: -0.3,
-      auto_bgm: { enabled: true, mood: 'chill', mode: 'background', base_volume: 0.15 },
-      auto_broll: { enabled: true, query: 'whiteboard tutorial writing' },
       thumbnail: { enabled: true }
     }
   },
@@ -182,9 +149,6 @@ window.UNIFIED_TEMPLATES = {
       vignette: 0.2,
       stabilize: false,
       sync_offset: -0.25,
-      auto_bgm: { enabled: true, mood: 'upbeat', mode: 'ducking', base_volume: 0.25 },
-      auto_broll: { enabled: true, query: 'travel cinematic vlog' },
-      transition_library: 'crossfade',
       thumbnail: { enabled: true }
     }
   },
@@ -199,7 +163,6 @@ window.UNIFIED_TEMPLATES = {
       hook: true,
       gpu: true,
       hook_style: { font_color: '#ffe600', bg_color: '#141414', corner_radius: 6, font_size: 0.08, glitch: false },
-      auto_bgm: { enabled: true, mood: 'upbeat', mode: 'background', base_volume: 0.2 },
       thumbnail: { enabled: true }
     }
   },
@@ -222,9 +185,6 @@ window.UNIFIED_TEMPLATES = {
       min_shot_duration: 45,
       lip_activity: 0.1,
       sync_offset: -0.2,
-      auto_bgm: { enabled: true, mood: 'upbeat', mode: 'ducking', base_volume: 0.25 },
-      auto_broll: { enabled: true, query: 'lifestyle aesthetic' },
-      transition_library: 'crossfade',
       thumbnail: { enabled: true }
     }
   },
@@ -248,15 +208,11 @@ window.UNIFIED_TEMPLATES = {
       lip_activity: 0.1,
       color_grade: 'cinematic',
       sync_offset: -0.25,
-      auto_bgm: { enabled: true, mood: 'suspense', mode: 'ducking', base_volume: 0.2 },
-      auto_broll: { enabled: true, query: 'mystery dark cinematic' },
-      transition_library: 'crossfade',
       thumbnail: { enabled: true }
     }
   }
 };
 
-// Auto-reload shared presets: poll templates.js and fire onChange when it changes.
 window.TemplatesAPI = {
   poll(intervalMs, onChange) {
     intervalMs = intervalMs || 5000;
@@ -268,10 +224,10 @@ window.TemplatesAPI = {
         const h = hash(txt);
         if (h !== lastHash) {
           lastHash = h;
-          new Function(txt)();                 // re-assigns window.UNIFIED_TEMPLATES
+          new Function(txt)();
           if (typeof onChange === 'function') onChange(window.UNIFIED_TEMPLATES || {});
         }
-      } catch (e) { /* ignore transient errors */ }
+      } catch (e) { }
     }
     tick();
     setInterval(tick, intervalMs);

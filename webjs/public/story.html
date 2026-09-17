@@ -3,69 +3,127 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Story Clip — Auto Clipper</title>
+<title>Story Clip : Auto Clipper</title>
 <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#facc15">
-<script src="/pwa.js"></script>
+<meta name="theme-color" content="#0d9488">
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
 tailwind.config = {
   darkMode: 'class',
   theme: { extend: { colors: {
-    surface: { 0:'#09090b', 1:'#18181b', 2:'#27272a', 3:'#3f3f46' },
+    surface: { 0:'var(--bg-page)', 1:'var(--bg-surface)', 2:'var(--bg-surface-2)', 3:'var(--border)' },
     zinc: { 450: '#8b8b96', 650: '#43434c' },
-    accent: '#facc15',
+    accent: 'var(--accent)',
   }}}
 }
 </script>
 <style>
-body{background:#09090b;color:#fafafa;font-family:system-ui,-apple-system,sans-serif}
+a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible {
+  outline: 2px solid #facc15 !important;
+  outline-offset: 2px !important;
+}
+
+
 details.cfg-group summary{cursor:pointer;user-select:none;list-style:none}
-details.cfg-group summary::-webkit-details-marker{display:none}
+details.cfg-group summary
 ::webkit-scrollbar{width:6px;height:6px}
-::-webkit-scrollbar{width:6px;height:6px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:#3f3f46;border-radius:3px}
-pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y:auto;white-space:pre-wrap;border-radius:.5rem}
+
+
+
+
 label.fld{font-size:10px;color:#71717a;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.25rem}
-input.in,select.in,textarea.in{width:100%;background:#27272a;border:1px solid #3f3f46;border-radius:.5rem;padding:.45rem .75rem;font-size:.75rem;color:#fff}
+
 textarea.in{font-family:ui-monospace,monospace}
 .src-card{border:1px solid #27272a;border-radius:.5rem;padding:.6rem .75rem;display:flex;flex-wrap:wrap;gap:.35rem;align-items:center}
 .scene-row{display:grid;grid-template-columns:1fr 1.5fr 0.9fr 0.9fr 0.9fr 2rem;gap:.4rem;align-items:center}
-.btn{display:inline-flex;align-items:center;gap:.3rem;border-radius:.4rem;padding:.3rem .6rem;font-size:.7rem;transition:all .15s;cursor:pointer;border:1px solid #3f3f46;background:#27272a;color:#d4d4d8}
-.btn:hover{border-color:#facc15;color:#fff}
-.btn-accent{background:#facc15;color:#000;border-color:#facc15;font-weight:600}
-.btn-accent:hover{background:#fde047}
-.btn-danger{color:#f87171;border-color:rgba(248,113,113,.3);background:rgba(127,29,29,.15)}
-.btn-danger:hover{border-color:#f87171}
+
+
+
+
+
+
 .pill{font-size:.6rem;padding:.1rem .4rem;border-radius:999px;border:1px solid #3f3f46;color:#a1a1aa}
 .badge-ok{background:rgba(74,222,128,.1);color:#4ade80;border:1px solid rgba(74,222,128,.3)}
 </style>
-</head>
-<body class="min-h-screen flex flex-col md:flex-row bg-[#09090b]">
+<link rel="stylesheet" href="/app.css">
 
-<aside class="w-full md:w-60 border-b md:border-b-0 md:border-r border-zinc-800 bg-zinc-950 flex flex-col shrink-0">
+<script>
+// FORCE CACHE CLEAR AND SW UNREGISTER
+(async function() {
+  if (localStorage.getItem('force_cleared_v11')) return;
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      for (let r of regs) await r.unregister();
+    }
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      for (let k of keys) await caches.delete(k);
+    }
+    localStorage.setItem('force_cleared_v11', '1');
+    window.location.reload(true);
+  } catch (e) {}
+})();
+</script>
+
+</head>
+<body class="min-h-screen flex flex-col md:flex-row ">
+
+<!-- SIDEBAR -->
+<aside class="w-full md:w-64 border-b md:border-b-0 md:border-r border-zinc-800  flex flex-col shrink-0">
   <div class="p-4 border-b border-zinc-800 flex items-center justify-between">
-    <span class="font-bold text-sm tracking-wider text-accent">⚡ YT CLIPPER</span>
-    <a href="/logout" class="text-xs text-zinc-400 hover:text-white transition md:hidden">Logout</a>
+    <div class="flex items-center gap-2">
+      <span class="w-7 h-7 rounded-lg logo-mark flex items-center justify-center font-black text-sm">⚡</span>
+      <span class="font-bold text-sm tracking-wide text-white font-heading">AUTO<span class="text-[var(--accent)]">CLIPPER</span></span>
+    </div>
+    <div class="flex items-center gap-2"><button class="darkmode-btn darkmode-compact" aria-label="Toggle dark mode">🌙</button><a href="/logout" class="min-h-[32px] min-w-[44px] flex items-center justify-center text-xs text-zinc-400 hover:text-white transition md:hidden">Logout</a></div>
   </div>
-  <div class="p-3 flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-x-visible">
-    <a href="/" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🏠 Library</a>
-    <a href="/create.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">＋ Create Clip</a>
-    <a href="/story.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition bg-zinc-900 text-white font-medium">🎬 Story</a>
-    <a href="/facebook.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">📘 FB</a>
-    <a href="/tasks.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">📋 Tasks</a>
-    <a href="/cookies.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🍪 Cookies</a>
-    <a href="/bgm.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🎵 Auto BGM</a>
-    <a href="/broll.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🖼 Auto B-roll</a>
-    <a href="/transition.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🌀 Transition</a>
-    <a href="/thumbnail.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🖼 Thumbnail</a>
-    <a href="/settings.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">⚙️ Settings</a>
+
+  <nav aria-label="Menu Utama" class="p-2 md:p-3 flex flex-row md:flex-col gap-1.5 flex-wrap" id="sidebarLinks">
+    <a href="/" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>🏠</span><span>Library Sesi</span></a>
+    <a href="/create.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>➕</span><span>Create Clip</span></a>
+    <a href="/tasks.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>📋</span><span>Antrean Tasks</span></a>
+    <a href="/story.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition bg-[var(--accent)] text-[var(--accent-text)] font-bold shadow-sm"><span>🎬</span><span>AI Story</span></a>
+    <a href="/facebook.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>📘</span><span>FB Auto Upload</span></a>
+    <a href="/cookies.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>🍪</span><span>Cookies YouTube</span></a>
+    <a href="/settings.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>⚙️</span><span>Settings & AI</span></a>
+  </nav>
+
+  <!-- Engine Status Indication -->
+  <div class="mt-auto px-4 py-3 border-t border-zinc-800/80 hidden md:flex flex-col gap-2 text-xs text-zinc-400 bg-zinc-950/40">
+    <span class="font-semibold text-[10px] uppercase tracking-wider text-zinc-400">⚡ Engine Status</span>
+    <div class="flex items-center justify-between">
+      <span>FFmpeg</span>
+      <span id="st_ffmpeg" class="w-2.5 h-2.5 rounded-full bg-zinc-600" title="Checking..."></span>
+    </div>
+    <div class="flex items-center justify-between">
+      <span>yt-dlp</span>
+      <span id="st_ytdlp" class="w-2.5 h-2.5 rounded-full bg-zinc-600" title="Checking..."></span>
+    </div>
+    <div class="flex items-center justify-between">
+      <span>Deno</span>
+      <span id="st_deno" class="w-2.5 h-2.5 rounded-full bg-zinc-600" title="Checking..."></span>
+    </div>
+    <div class="flex items-center justify-between">
+      <span>AI Proxy</span>
+      <span id="st_ai" class="w-2.5 h-2.5 rounded-full bg-zinc-600" title="Checking..."></span>
+    </div>
   </div>
-  <div class="mt-auto p-4 border-t border-zinc-800 hidden md:flex items-center justify-between text-[11px]">
-    <span class="text-zinc-500 truncate max-w-[120px]" id="whoami"></span>
-    <a href="/logout" class="text-zinc-400 hover:text-white transition">Logout</a>
+
+  <div class="p-4 border-t border-zinc-800 hidden md:flex items-center justify-between text-xs">
+    <span class="text-zinc-400 truncate max-w-[130px]" id="whoami"></span>
+    <div class="flex items-center gap-2"><button class="darkmode-btn darkmode-compact" aria-label="Toggle dark mode">🌙</button><a href="/logout" class="text-zinc-400 hover:text-white transition">Logout</a></div>
   </div>
+
+  <!-- Engine Status Mobile -->
+  <div class="md:hidden flex items-center justify-around px-4 py-2.5 border-t border-b border-zinc-800/80 bg-zinc-950/60 text-[10px] text-zinc-300">
+    <div class="flex items-center gap-1.5"><span id="st_ffmpeg_mob" class="w-2 h-2 rounded-full bg-zinc-600" title="Checking..."></span><span>FFmpeg</span></div>
+    <div class="flex items-center gap-1.5"><span id="st_ytdlp_mob" class="w-2 h-2 rounded-full bg-zinc-600" title="Checking..."></span><span>yt-dlp</span></div>
+    <div class="flex items-center gap-1.5"><span id="st_deno_mob" class="w-2 h-2 rounded-full bg-zinc-600" title="Checking..."></span><span>Deno</span></div>
+    <div class="flex items-center gap-1.5"><span id="st_ai_mob" class="w-2 h-2 rounded-full bg-zinc-600" title="Checking..."></span><span>AI</span></div>
+  </div>
+
+  
 </aside>
 
 <div class="flex-1 flex flex-col min-w-0 overflow-y-auto">
@@ -74,7 +132,7 @@ textarea.in{font-family:ui-monospace,monospace}
     <div class="flex items-center justify-between flex-wrap gap-2">
       <div>
         <h2 class="text-sm font-semibold text-white">🎬 Story Clip Mode</h2>
-        <p class="text-[11px] text-zinc-500">Multi-source narrative → hook + highlight 9:16 (faster-whisper lokal).</p>
+        <p class="text-[11px] text-zinc-400">Multi-source narrative → hook + highlight 9:16 (faster-whisper lokal).</p>
       </div>
       <div class="flex gap-2">
         <button class="btn" onclick="toggleRaw()">📝 JSON Raw</button>
@@ -145,7 +203,7 @@ textarea.in{font-family:ui-monospace,monospace}
         </div>
       </div>
       <div class="flex items-center gap-2 flex-wrap">
-        <button id="runBtn" onclick="runStory()" class="px-4 py-2 bg-accent text-black font-medium text-xs rounded-lg hover:bg-yellow-400 transition">▶️ RUN STORY</button>
+        <button id="runBtn" onclick="runStory()" class="px-4 py-2 bg-[var(--accent)] text-[var(--accent-text)] font-medium text-xs rounded-lg hover:bg-[var(--accent-hover)] transition">▶️ RUN STORY</button>
         <button onclick="cancelStory()" class="px-3 py-2 bg-surface-2 border border-zinc-700 text-zinc-300 text-xs rounded hover:border-red-500 hover:text-red-400 transition">⏹ Cancel</button>
         <span id="runMsg" class="text-[11px] text-zinc-400"></span>
       </div>
@@ -182,7 +240,7 @@ function renderSources(){
   wrap.innerHTML = state.sources.map((s, i) => `
     <div class="src-card">
       <span class="pill badge-ok">${esc(s.id || ('src' + (i+1)))}</span>
-      <input class="in !w-24" style="background:#18181b" value="${esc(s.id || '')}" onchange="upd(${i},'id',this.value)" placeholder="id">
+      <input class="in !w-24"  value="${esc(s.id || '')}" onchange="upd(${i},'id',this.value)" placeholder="id">
       <input class="in flex-1 min-w-[120px]" value="${esc(s.name || '')}" onchange="upd(${i},'name',this.value)" placeholder="Nama (Part 1)">
       <select class="in !w-28" onchange="upd(${i},'platform',this.value)">
         ${['youtube','tiktok','instagram','gdrive','local'].map(p => `<option ${s.platform===p?'selected':''}>${p}</option>`).join('')}
@@ -209,7 +267,7 @@ function buildSourcesJson(){
 
 // ---------- clips / recipe ----------
 function srcOptions(sel){
-  return ['', ...state.sources.map(s => s.id)].map(v => `<option value="${esc(v)}" ${v===sel?'selected':''}>${esc(v || '— pilih sumber —')}</option>`).join('');
+  return ['', ...state.sources.map(s => s.id)].map(v => `<option value="${esc(v)}" ${v===sel?'selected':''}>${esc(v || ' -  pilih sumber  - ')}</option>`).join('');
 }
 function renderClips(){
   const wrap = $('clipList');
@@ -225,7 +283,7 @@ function renderClips(){
       ${['hook','highlight'].map(kind => `
         <div class="space-y-1.5">
           <div class="flex items-center justify-between">
-            <span class="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold">${kind==='hook' ? '🎣 Hook' : '⭐ Highlight'}</span>
+            <span class="text-[10px] uppercase tracking-wider text-zinc-400 font-semibold">${kind==='hook' ? '🎣 Hook' : '⭐ Highlight'}</span>
             <div class="flex gap-1.5 items-center">
               <select class="in !w-28" onchange="updClipTransition(${ci}, '${kind}', this.value)">
                 <option value="cut" ${(c[kind].transition||'cut')==='cut'?'selected':''}>cut</option>
@@ -293,7 +351,7 @@ async function saveAll(){
   const ok1 = await saveFile('sources', 1), ok2 = await saveFile('recipe', 1);
   const m = document.createElement('span');
   setMsg((ok1 && ok2) ? '✅ sources + recipe tersimpan' : '❌ gagal simpan (cek JSON)', ok1&&ok2 ? '#4ade80' : '#f87171');
-  if(!(ok1&&ok2)) alert('Cek format JSON di tab Raw — sources: ' + (ok1?'ok':'err') + ', recipe: ' + (ok2?'ok':'err'));
+  if(!(ok1&&ok2)) alert('Cek format JSON di tab Raw : sources: ' + (ok1?'ok':'err') + ', recipe: ' + (ok2?'ok':'err'));
 }
 
 async function syncToRaw(){
@@ -359,7 +417,7 @@ async function poll(){
     if(j.log && j.log.length > lg.textContent.length+200){ lg.textContent = j.log; lg.scrollTop = lg.scrollHeight; }
     if(!j.running){
       clearInterval(POLL); POLL=null;
-      if(j.code===0 && j.result && j.result.ok) setMsg('✅ selesai — '+ (j.result.count||0) + ' clip','#4ade80');
+      if(j.code===0 && j.result && j.result.ok) setMsg('✅ selesai : '+ (j.result.count||0) + ' clip','#4ade80');
       else setMsg('❌ gagal (code '+j.code+')','#f87171');
       loadOutputs();
     }
@@ -375,10 +433,10 @@ async function loadOutputs(){
     const list = await (await fetch('/api/story/outputs')).json();
     const box = $('resultBox'); box.classList.remove('hidden');
     const wrap = $('storyOuts');
-    wrap.innerHTML = list.length ? '' : '<p class="text-xs text-zinc-500 col-span-full">Belum ada output di output/story_clips.</p>';
+    wrap.innerHTML = list.length ? '' : '<p class="text-xs text-zinc-400 col-span-full">Belum ada output di output/story_clips.</p>';
     list.forEach(o => {
       const d = document.createElement('video'); d.controls=true; d.src=o.url; d.className='w-full aspect-video bg-black rounded-lg border border-zinc-800';
-      const lbl = document.createElement('div'); lbl.className='text-[10px] text-zinc-500 mt-1 font-mono'; lbl.textContent = o.clip + ' / ' + o.file + ' · ' + (o.size_bytes>0?(o.size_bytes/1048576).toFixed(1)+' MB':'');
+      const lbl = document.createElement('div'); lbl.className='text-[10px] text-zinc-400 mt-1 font-mono'; lbl.textContent = o.clip + ' / ' + o.file + ' · ' + (o.size_bytes>0?(o.size_bytes/1048576).toFixed(1)+' MB':'');
       const cell = document.createElement('div'); cell.className='space-y-1'; cell.append(d, lbl);
       wrap.append(cell);
     });
@@ -388,5 +446,7 @@ async function loadOutputs(){
 fillFromConfig(); loadFromStorage(); loadOutputs();
 fetch('/api/me').then(r=>r.json()).then(u=>{ if(u && u.name){ $('whoami').textContent=u.name; } }).catch(()=>{});
 </script>
+<script src="/engine_status.js"></script>
+<script src="/ui.js"></script>
 </body>
 </html>

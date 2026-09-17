@@ -1,13 +1,20 @@
-const CACHE_NAME = 'yt-clipper-v6';
+const CACHE_NAME = 'yt-clipper-v11';
 const ASSETS = [
   '/',
   '/index.html',
   '/create.html',
   '/session.html',
   '/tasks.html',
+  '/story.html',
+  '/facebook.html',
+  '/cookies.html',
   '/settings.html',
+  '/detail.html',
+  '/app.css',
   '/templates.js',
   '/pwa.js',
+  '/ui.js',
+  '/engine_status.js',
   '/manifest.json'
 ];
 
@@ -39,8 +46,8 @@ self.addEventListener('fetch', e => {
     e.respondWith(fetch(e.request));
     return;
   }
-  // HTML & templates.js: network-first biar reload langsung dapat versi terbaru (tidak stuck cache lama)
-  if (u.pathname.endsWith('.html') || u.pathname === '/' || u.pathname.endsWith('.js')) {
+  // HTML, CSS, JS: network-first biar reload langsung dapat versi terbaru (tidak stuck cache lama)
+  if (u.pathname.endsWith('.html') || u.pathname === '/' || u.pathname.endsWith('.js') || u.pathname.endsWith('.css')) {
     e.respondWith(
       fetch(e.request).then(res => {
         const copy = res.clone();

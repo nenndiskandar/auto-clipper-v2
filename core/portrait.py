@@ -86,6 +86,7 @@ class PortraitMixin:
                     out[j] = last_val
             return out
 
+        @staticmethod
         def _interpolate_sampled(sampled_values: list, sampled_indices: list, total_frames: int) -> list:
             """Expand sparse per-frame samples to one value per frame (linear interpolation).
 
@@ -103,53 +104,54 @@ class PortraitMixin:
             return np.interp(target, x, y).tolist()
 
         def _build_portrait_filter_script(self, crop_positions, crop_w, crop_h,
-                                          out_w, out_h, min_run=20, quantize=4) -> str:
-            """Build a ffmpeg filter_complex script that crops a tracking window.
+                                          out_w, out_h, min_run=20, quantize=4,
+                                          crop_ys=None) -> str:
+            """Build a ffmpeg filter_complex script that crops a tracking window (segment-based).
 
-            Uses a segment-based ``split`` + per-segment ``trim``/``crop`` + ``concat``
-            chain instead of a single nested ``if(lt(n,...))`` crop expression. The
-            nested form overflows FFmpeg's expression parser for long videos (hundreds
-            of tracking runs), whereas the segmented form scales linearly and decodes
-            the source only once (via ``split``).
+            Supports optional vertical (y) tracking via ``crop_ys`` (list of int per frame).
+            When ``crop_ys`` is None, uses ``y=0`` (legacy).
             """
             total = len(crop_positions)
+            if crop_ys is None:
+                crop_ys = [0] * total
+            
             if total == 0:
                 crop_positions = [0]
+                crop_ys = [0]
                 total = 1
+
             quantize = max(1, int(quantize))
-            # Collapse into piecewise-constant runs (quantized, short runs merged).
             runs = []
-            prev_val = None
+            prev_x = prev_y = None
             for i, x in enumerate(crop_positions):
-                q = int(round(x / quantize) * quantize)
-                if prev_val is None or q != prev_val:
-                    runs.append([i, q])
-                    prev_val = q
+                qx = int(round(x / quantize) * quantize)
+                qy = int(round(crop_ys[i] / quantize) * quantize)
+                if prev_x is None or qx != prev_x or qy != prev_y:
+                    runs.append([i, qx, qy])
+                    prev_x, prev_y = qx, qy
+
             filtered = [runs[0]]
-            for start, val in runs[1:]:
-                if start - filtered[-1][0] < min_run:
+            for start_, qx, qy in runs[1:]:
+                if start_ - filtered[-1][0] < min_run:
                     continue
-                filtered.append([start, val])
+                filtered.append([start_, qx, qy])
 
             if len(filtered) == 1:
                 x = max(0, int(filtered[0][1]))
-                return (
-                    f"[0:v]crop={crop_w}:{crop_h}:x={x}:y=0,"
-                    f"scale={out_w}:{out_h}:flags=bicubic,setsar=1,format=yuv420p[v]"
-                )
+                y = max(0, int(filtered[0][2]))
+                return (f"[0:v]crop={crop_w}:{crop_h}:x={x}:y={y},"
+                        f"scale={out_w}:{out_h}:flags=bicubic,setsar=1,format=yuv420p[v]")
 
             n = len(filtered)
-
-            def seg_chain(k: int) -> str:
-                start = filtered[k][0]
-                end = filtered[k + 1][0] if k + 1 < n else total
+            def seg_chain(k):
+                s0 = filtered[k][0]
+                e0 = filtered[k + 1][0] if k + 1 < n else total
                 x = max(0, int(filtered[k][1]))
-                return (
-                    f"[s{k}]trim=start_frame={start}:end_frame={end},"
-                    f"setpts=PTS-STARTPTS,"
-                    f"crop={crop_w}:{crop_h}:x={x}:y=0,"
-                    f"scale={out_w}:{out_h}:flags=bicubic,setsar=1,format=yuv420p[t{k}]"
-                )
+                y = max(0, int(filtered[k][2]))
+                return (f"[s{k}]trim=start_frame={s0}:end_frame={e0},"
+                        f"setpts=PTS-STARTPTS,"
+                        f"crop={crop_w}:{crop_h}:x={x}:y={y},"
+                        f"scale={out_w}:{out_h}:flags=bicubic,setsar=1,format=yuv420p[t{k}]")
 
             split = f"[0:v]split={n}" + "".join(f"[s{k}]" for k in range(n))
             chains = [split] + [seg_chain(k) for k in range(n)]
@@ -161,16 +163,18 @@ class PortraitMixin:
                                          crop_positions: list, crop_w: int, crop_h: int,
                                          out_w: int, out_h: int,
                                          progress_callback=None, duration: float = 0,
-                                         min_run: int = 20, quantize: int = 4):
+                                         min_run: int = 20, quantize: int = 4,
+                                         crop_ys=None):
             """Crop + scale + encode + audio mux in ONE ffmpeg pass.
 
             Replaces the old two-step flow (OpenCV VideoWriter temp file, then a
             second full re-encode for audio merge) with a single encode, which is
             roughly twice as fast and no longer depends on OpenCV's H.264 writer.
+            ``crop_ys`` (optional per-frame y crop offset) enables vertical centering.
             """
             script = self._build_portrait_filter_script(
                 crop_positions, crop_w, crop_h, out_w, out_h,
-                min_run=min_run, quantize=quantize,
+                min_run=min_run, quantize=quantize, crop_ys=crop_ys,
             )
             fd, script_path = tempfile.mkstemp(suffix=".txt", prefix="portrait_crop_", text=True)
             try:
@@ -212,9 +216,6 @@ class PortraitMixin:
             if self.portrait_mode in ("split", "split_game", "split_podcast"):
                 self.log(f"  Using Split Screen mode: {self.portrait_mode}")
                 return self.convert_to_portrait_split(input_path, output_path)
-            if self.portrait_mode == "center":
-                self.log(f"  Using Center Face Follow (wajah di tengah rapih)")
-                return self.convert_to_portrait_center(input_path, output_path)
             if self.face_tracking_mode == "detector":
                 self.log(f"  Using BlazeFace Detector (face center, tanpa lip)")
                 return self.convert_to_portrait_detector(input_path, output_path)
@@ -1025,13 +1026,18 @@ class PortraitMixin:
                      "3:4": (720, 960), "16:9": (1280, 720)}
             return _dims.get(getattr(self, "aspect_ratio", "9:16"), (720, 1280))
 
-        def _get_crop_window(self, orig_w: int, orig_h: int):
+        def _get_crop_window(self, orig_w: int, orig_h: int, zoom_factor: float = 1.0):
             """Compute (crop_w, crop_h) for the configured aspect ratio, clamped to the
-            source video dimensions so the crop never exceeds the frame."""
+            source video dimensions so the crop never exceeds the frame.
+
+            ``zoom_factor`` (0..1] makes the crop window smaller than the full frame
+            (zoom-in) so the tracked face can be centered on BOTH axes (X + Y) and
+            follow micro-movement without vertical clipping. 1.0 = full frame (legacy).
+            """
             out_w, out_h = self._get_ratio_dimensions()
             target_ratio = out_w / out_h
-            crop_w = int(orig_h * target_ratio)
-            crop_h = orig_h
+            crop_h = int(orig_h * zoom_factor)
+            crop_w = int(crop_h * target_ratio)
             if crop_w > orig_w:
                 crop_w = orig_w
                 crop_h = int(crop_w / target_ratio)
@@ -1530,34 +1536,6 @@ class PortraitMixin:
                     pass
             self.log("  Dynamic split conversion complete")
 
-        # ── CENTER FACE FOLLOW (wajah di tengah rapih, anti-kacau) ────────
-        def convert_to_portrait_center(self, input_path: str, output_path: str):
-            return self.convert_to_portrait_center_with_progress(input_path, output_path, None)
-
-        def convert_to_portrait_center_with_progress(self, input_path: str, output_path: str, progress_callback):
-            """Portrait center — wajah selalu di tengah frame, smooth spring, deadzone kecil, head di upper-third.
-            Pakai MediaPipe jika ada, fallback OpenCV. Lebih rapih dari 'crop' biasa (quantize kecil, min_run besar).
-            """
-            # paksa setting neat center
-            orig_mp = dict(self.mediapipe_settings) if isinstance(self.mediapipe_settings, dict) else {}
-            neat = dict(orig_mp)
-            neat.update({"smooth_follow": True, "pan_speed_limit": 1.6, "center_weight": 0.10, "switch_threshold": 0.18, "min_shot_duration": 45, "lip_activity_threshold": 0.08})
-            saved = self.mediapipe_settings
-            self.mediapipe_settings = neat
-            try:
-                if getattr(self, "face_detector_model", "mediapipe") == "yolo":
-                    return self.convert_to_portrait_yolo_with_progress(input_path, output_path, progress_callback)
-                if self.face_tracking_mode == "mediapipe":
-                    return self.convert_to_portrait_mediapipe_with_progress(input_path, output_path, progress_callback)
-                elif self.face_tracking_mode == "detector":
-                    return self.convert_to_portrait_detector_with_progress(input_path, output_path, progress_callback)
-                else:
-                    # OpenCV juga dibikin smooth: paksa stabilisasi window besar
-                    return self.convert_to_portrait_opencv_with_progress(input_path, output_path, progress_callback)
-            finally:
-                self.mediapipe_settings = saved
-
-
         def convert_to_portrait_blur(self, input_path: str, output_path: str):
             """Convert landscape to 9:16 portrait WITHOUT cropping: the whole video is
             kept visible (fit to height, centered), and a blurred zoomed copy fills
@@ -1617,9 +1595,6 @@ class PortraitMixin:
             if self.portrait_mode in ("split", "split_game", "split_podcast"):
                 self.log(f"  Using Split Screen mode: {self.portrait_mode}")
                 return self.convert_to_portrait_split_with_progress(input_path, output_path, progress_callback)
-            if self.portrait_mode == "center":
-                self.log(f"  Using Center Face Follow (wajah di tengah rapih)")
-                return self.convert_to_portrait_center_with_progress(input_path, output_path, progress_callback)
             if getattr(self, "face_detector_model", "mediapipe") == "yolo":
                 self.log("  Using YOLO Face Detector (wajah terbesar di tengah)")
                 return self.convert_to_portrait_yolo_with_progress(input_path, output_path, progress_callback)
@@ -1774,206 +1749,116 @@ class PortraitMixin:
             sys.stdout.flush()
 
         def convert_to_portrait_mediapipe_with_progress(self, input_path: str, output_path: str, progress_callback):
-            """Convert landscape to 9:16 portrait with active speaker detection and progress (MediaPipe)"""
-        
-            # Initialize MediaPipe
+            """Convert landscape to 9:16 portrait with active speaker detection and progress (MediaPipe).
+            Updated: Tracks X+Y center and uses 75% zoom for better vertical centering.
+            """
             self._init_mediapipe()
-        
-            self.log("[DEBUG] Starting MediaPipe portrait conversion...")
-            debug_log("[DEBUG] Starting MediaPipe portrait conversion...")
-            sys.stdout.flush()
-        
+            debug_log("[DEBUG] Starting MediaPipe portrait conversion (X+Y Center + Zoom)...")
+            
             cap = cv2.VideoCapture(input_path)
             if not cap.isOpened():
                 raise Exception(f"Failed to open video: {input_path}")
-        
+            
             orig_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             orig_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            fps = cap.get(cv2.CAP_PROP_FPS)
+            fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
             total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        
-            self.log(f"[DEBUG] Video: {orig_w}x{orig_h}, {fps}fps, {total_frames} frames")
-            debug_log(f"[DEBUG] Video: {orig_w}x{orig_h}, {fps}fps, {total_frames} frames")
-            sys.stdout.flush()
-        
-            if total_frames == 0 or fps == 0:
-                cap.release()
-                raise Exception(f"Invalid video properties: {total_frames} frames, {fps} fps")
-        
-            # Calculate crop dimensions
-            crop_w, crop_h = self._get_crop_window(orig_w, orig_h)
+            
+            # Zoom-in: use 75% of height to allow vertical movement
+            zoom_factor = 0.75
+            crop_w, crop_h = self._get_crop_window(orig_w, orig_h, zoom_factor=zoom_factor)
             out_w, out_h = self._get_ratio_dimensions()
-        
-            # MediaPipe settings
+            
             lip_threshold = self.mediapipe_settings.get("lip_activity_threshold", 0.08)
-            switch_threshold = self.mediapipe_settings.get("switch_threshold", 0.18)
-            min_shot_duration = self.mediapipe_settings.get("min_shot_duration", 45)
             center_weight = self.mediapipe_settings.get("center_weight", 0.15)
-        
-            # First pass: analyze frames with MediaPipe (0-40%)
-            debug_log("[DEBUG] Pass 1: Analyzing lip movements with MediaPipe... (fast mode: every 5th frame)")
-            sys.stdout.flush()
-        
-            crop_positions = []
-            face_activities = []
-            frame_count = 0
-            last_log_time = 0
-            import time
-        
-            ANALYSIS_STEP = 5
-            ANALYSIS_MAX_WIDTH = 640
-            scale = min(1.0, ANALYSIS_MAX_WIDTH / orig_w)
-        
+            
             analyzed_indices = []
-            analyzed_positions = []
+            analyzed_positions_x = []
+            analyzed_positions_y = []
             analyzed_activities = []
             frames_read = 0
             prev_lip_distances = {}
-            prev_best_face = None  # utk hold-on-silence (jangan drift ke kosong saat diam)
-        
+            prev_best_face = None
+            
+            ANALYSIS_STEP = 5
+            scale = min(1.0, 640 / orig_w)
+            import time
+            last_log_time = 0
+
             while True:
                 if self.is_cancelled():
                     cap.release()
                     raise Exception("Cancelled by user")
-            
+                
                 if frames_read % ANALYSIS_STEP != 0:
-                    ret = cap.grab()
-                    if not ret:
-                        break
+                    if not cap.grab(): break
                     frames_read += 1
                     continue
-            
+                
                 ret, frame = cap.read()
-                if not ret:
-                    break
-            
-                # Downscale for faster inference (coordinates are normalized)
-                if scale < 1.0:
-                    small = cv2.resize(frame, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
-                else:
-                    small = frame
-            
-                # Convert to RGB for MediaPipe
+                if not ret: break
+                
+                small = cv2.resize(frame, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA) if scale < 1.0 else frame
                 rgb_frame = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
                 mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
                 results = self.mp_face_landmarker.detect(mp_image)
-            
+                
                 best_face_x = orig_w / 2
+                best_face_y = orig_h / 2
                 max_activity = 0
-            
+                
                 if results.face_landmarks:
                     faces_data = []
-                
-                    # Sort faces left-to-right by nose tip (landmark 1) x coordinate to ensure consistent face IDs
                     sorted_faces = sorted(results.face_landmarks, key=lambda lm: lm[1].x)
                     for face_id, face_landmarks in enumerate(sorted_faces):
-                        # Calculate lip activity
-                        activity = self._calculate_lip_activity(
-                            face_landmarks,
-                            orig_w,
-                            orig_h,
-                            prev_lip_distances.get(face_id, None)
-                        )
-                    
-                        # Get face center position (landmark 1 is nose tip)
+                        activity = self._calculate_lip_activity(face_landmarks, orig_w, orig_h, prev_lip_distances.get(face_id))
                         face_x = face_landmarks[1].x * orig_w
-                    
-                        # Combined score
+                        face_y = face_landmarks[1].y * orig_h
                         center_score = 1.0 - abs(face_x - orig_w / 2) / (orig_w / 2)
                         combined_score = (activity * (1 - center_weight)) + (center_score * center_weight)
+                        
+                        faces_data.append({'x': face_x, 'y': face_y, 'activity': activity, 'score': combined_score})
+                        prev_lip_distances[face_id] = abs(face_landmarks[13].y - face_landmarks[14].y)
                     
-                        faces_data.append({
-                            'x': face_x,
-                            'activity': activity,
-                            'combined_score': combined_score
-                        })
+                    active = [f for f in faces_data if f['activity'] > lip_threshold]
+                    if active:
+                        best_face = max(active, key=lambda f: f['activity'])
+                    else:
+                        best_face = prev_best_face or min(faces_data, key=lambda f: abs(f['x'] - orig_w/2))
                     
-                        # Update previous lip distance
-                        upper_lip = face_landmarks[13]
-                        lower_lip = face_landmarks[14]
-                        lip_distance = abs(upper_lip.y - lower_lip.y)
-                        prev_lip_distances[face_id] = lip_distance
+                    prev_best_face = best_face
+                    best_face_x, best_face_y = best_face['x'], best_face['y']
+                    max_activity = best_face['activity']
                 
-                    # OpusClip-accurate: prioritize active speaker (activity > thresh), not center
-                    if faces_data:
-                        active = [f for f in faces_data if f['activity'] > lip_threshold]
-                        if active:
-                            # most active speaker — ignore center bias when someone is talking
-                            best_face = max(active, key=lambda f: f['activity'])
-                        else:
-                            # silence → HOLD posisi terakhir (jangan drift ke tengah kosong / area kosong).
-                            # ponytail: hold-on-silence mencegah kamera pindah ke area kosong saat diam;
-                            # kalau mau selalu balik tengah, ganti ke min(abs(f['x']-orig_w/2)).
-                            best_face = prev_best_face
-                            if best_face is None:
-                                best_face = min(faces_data, key=lambda f: abs(f['x'] - orig_w/2))
-                        prev_best_face = best_face
-                        best_face_x = best_face['x']
-                        max_activity = best_face['activity']
-            
                 crop_x = int(best_face_x - crop_w / 2)
-                crop_x = max(0, min(crop_x, orig_w - crop_w))
+                crop_y = int(best_face_y - crop_h / 2)
                 analyzed_indices.append(frames_read)
-                analyzed_positions.append(crop_x)
+                analyzed_positions_x.append(max(0, min(crop_x, orig_w - crop_w)))
+                analyzed_positions_y.append(max(0, min(crop_y, orig_h - crop_h)))
                 analyzed_activities.append(max_activity)
-            
-                frame_count += 1
                 frames_read += 1
-            
-                current_time = time.time()
-                if frames_read % 150 == 0 or (current_time - last_log_time) > 2:
-                    progress = (frames_read / total_frames) * 0.4
-                    debug_log(f"[DEBUG] Pass 1 progress: {progress*100:.1f}% ({frames_read}/{total_frames} frames)")
-                    sys.stdout.flush()
-                    progress_callback(progress)
-                    last_log_time = current_time
-        
-            debug_log(f"[DEBUG] Analyzed {frame_count} frames with MediaPipe (sampled)")
-            sys.stdout.flush()
-        
-            # Interpolate to one position/activity per frame
-            crop_positions = self._interpolate_sampled(analyzed_positions, analyzed_indices, frames_read)
+
+                if frames_read % 150 == 0 or (time.time() - last_log_time) > 2:
+                    progress_callback((frames_read / total_frames) * 0.4 if total_frames else 0.4)
+                    last_log_time = time.time()
+
+            crop_positions = self._interpolate_sampled(analyzed_positions_x, analyzed_indices, frames_read)
+            crop_ys = self._interpolate_sampled(analyzed_positions_y, analyzed_indices, frames_read)
             face_activities = self._interpolate_sampled(analyzed_activities, analyzed_indices, frames_read)
-        
-            # Stabilize positions (40-45%)
-            progress_callback(0.4)
+            
             if self.mediapipe_settings.get("smooth_follow", True):
-                debug_log("[DEBUG] Smooth face follow enabled: camera pans continuously")
-                sys.stdout.flush()
-                crop_positions = self._smooth_follow_positions(
-                    crop_positions,
-                    self.mediapipe_settings.get("pan_speed_limit", 1.8)
-                )
-            else:
-                crop_positions = self._stabilize_positions_with_activity(
-                    crop_positions,
-                    face_activities,
-                    min_shot_duration,
-                    switch_threshold,
-                    orig_w
-                )
-            progress_callback(0.45)
-        
-            # Second pass: single ffmpeg command (45-85%)
-            debug_log("[DEBUG] Pass 2: Encoding portrait video (single ffmpeg pass, crop + audio)...")
-            sys.stdout.flush()
-        
+                pan_limit = self.mediapipe_settings.get("pan_speed_limit", 1.8)
+                crop_positions = self._smooth_follow_positions(crop_positions, pan_limit)
+                crop_ys = self._smooth_follow_positions(crop_ys, pan_limit * 0.8)
+            
             self._encode_portrait_single_pass(
                 input_path, output_path, crop_positions, crop_w, crop_h, out_w, out_h,
-                progress_callback=lambda p: progress_callback(0.45 + p * 0.4),
-                duration=frames_read / fps if fps else 0,
-                **({"min_run": 3, "quantize": 2} if self.mediapipe_settings.get("smooth_follow", True) else {}),
+                crop_ys=crop_ys, progress_callback=lambda p: progress_callback(0.45 + p * 0.4),
+                duration=frames_read / fps,
+                **({"min_run": 3, "quantize": 2} if self.mediapipe_settings.get("smooth_follow", True) else {})
             )
             cap.release()
-        
-            debug_log("[DEBUG] Portrait encode complete")
-            sys.stdout.flush()
-        
-            progress_callback(0.85)
-        
-            debug_log("[DEBUG] MediaPipe portrait conversion complete")
-            sys.stdout.flush()
-
+            progress_callback(1.0)
         def enable_gpu_acceleration(self, enabled: bool = True):
             """Enable or disable GPU acceleration for video encoding"""
             self.gpu_enabled = enabled

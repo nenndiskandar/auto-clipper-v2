@@ -3,55 +3,117 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cookies — Auto Clipper</title>
+<title>Cookies : Auto Clipper</title>
 <link rel="manifest" href="/manifest.json">
-<script src="/pwa.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
 tailwind.config = {
   darkMode: 'class',
   theme: { extend: { colors: {
-    surface: { 0:'#09090b', 1:'#18181b', 2:'#27272a', 3:'#3f3f46' },
+    surface: { 0:'var(--bg-page)', 1:'var(--bg-surface)', 2:'var(--bg-surface-2)', 3:'var(--border)' },
     zinc: { 450: '#8b8b96', 650: '#43434c' },
-    accent: '#facc15',
+    accent: 'var(--accent)',
   }}}
 }
 </script>
 <style>
-body{background:#09090b;color:#fafafa;font-family:system-ui,-apple-system,sans-serif}
-::-webkit-scrollbar{width:6px;height:6px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:#3f3f46;border-radius:3px}
-pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y:auto;white-space:pre-wrap;border-radius:.5rem}
+a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible {
+  outline: 2px solid #facc15 !important;
+  outline-offset: 2px !important;
+}
+
+
+
+
+
+
 </style>
+<link rel="stylesheet" href="/app.css">
+
+<script>
+// FORCE CACHE CLEAR AND SW UNREGISTER
+(async function() {
+  if (localStorage.getItem('force_cleared_v11')) return;
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      for (let r of regs) await r.unregister();
+    }
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      for (let k of keys) await caches.delete(k);
+    }
+    localStorage.setItem('force_cleared_v11', '1');
+    window.location.reload(true);
+  } catch (e) {}
+})();
+</script>
+
 </head>
-<body class="min-h-screen flex flex-col md:flex-row bg-[#09090b]">
+<body class="min-h-screen flex flex-col md:flex-row ">
 
 <!-- SIDEBAR -->
-<aside class="w-full md:w-60 border-b md:border-b-0 md:border-r border-zinc-800 bg-zinc-950 flex flex-col shrink-0">
+<aside class="w-full md:w-64 border-b md:border-b-0 md:border-r border-zinc-800  flex flex-col shrink-0">
   <div class="p-4 border-b border-zinc-800 flex items-center justify-between">
-    <span class="font-bold text-sm tracking-wider text-accent">⚡ YT CLIPPER</span>
-    <a href="/logout" class="text-xs text-zinc-400 hover:text-white transition md:hidden">Logout</a>
+    <div class="flex items-center gap-2">
+      <span class="w-7 h-7 rounded-lg logo-mark flex items-center justify-center font-black text-sm">⚡</span>
+      <span class="font-bold text-sm tracking-wide text-white font-heading">AUTO<span class="text-[var(--accent)]">CLIPPER</span></span>
+    </div>
+    <div class="flex items-center gap-2"><button class="darkmode-btn darkmode-compact" aria-label="Toggle dark mode">🌙</button><a href="/logout" class="min-h-[32px] min-w-[44px] flex items-center justify-center text-xs text-zinc-400 hover:text-white transition md:hidden">Logout</a></div>
   </div>
-  <div class="p-3 flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-x-visible">
-    <a href="/" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🏠 Library</a>
-    <a href="/create.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">＋ Create Clip</a>
-    <a href="/tasks.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">📋 Tasks</a>
-    <a href="/story.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🎬 Story</a>
-    <a href="/facebook.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">📘 FB</a>
-    <a href="/cookies.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition bg-zinc-900 text-white font-medium">🍪 Cookies</a>
-    <a href="/bgm.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🎵 Auto BGM</a>
-    <a href="/broll.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🖼 Auto B-roll</a>
-    <a href="/transition.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🌀 Transition</a>
-    <a href="/thumbnail.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🖼 Thumbnail</a>
-    <a href="/settings.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">⚙️ Settings</a>
+
+  <nav aria-label="Menu Utama" class="p-2 md:p-3 flex flex-row md:flex-col gap-1.5 flex-wrap" id="sidebarLinks">
+    <a href="/" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>🏠</span><span>Library Sesi</span></a>
+    <a href="/create.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>➕</span><span>Create Clip</span></a>
+    <a href="/tasks.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>📋</span><span>Antrean Tasks</span></a>
+    <a href="/story.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>🎬</span><span>AI Story</span></a>
+    <a href="/facebook.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>📘</span><span>FB Auto Upload</span></a>
+    <a href="/cookies.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition bg-[var(--accent)] text-[var(--accent-text)] font-bold shadow-sm"><span>🍪</span><span>Cookies YouTube</span></a>
+                    <a href="/settings.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>⚙️</span><span>Settings & AI</span></a>
+  </nav>
+
+  <!-- Engine Status Indication -->
+  <div class="mt-auto px-4 py-3 border-t border-zinc-800/80 hidden md:flex flex-col gap-2 text-xs text-zinc-400 bg-zinc-950/40">
+    <span class="font-semibold text-[10px] uppercase tracking-wider text-zinc-400">⚡ Engine Status</span>
+    <div class="flex items-center justify-between">
+      <span>FFmpeg</span>
+      <span id="st_ffmpeg" class="w-2.5 h-2.5 rounded-full bg-zinc-600" title="Checking..."></span>
+    </div>
+    <div class="flex items-center justify-between">
+      <span>yt-dlp</span>
+      <span id="st_ytdlp" class="w-2.5 h-2.5 rounded-full bg-zinc-600" title="Checking..."></span>
+    </div>
+    <div class="flex items-center justify-between">
+      <span>Deno</span>
+      <span id="st_deno" class="w-2.5 h-2.5 rounded-full bg-zinc-600" title="Checking..."></span>
+    </div>
+    <div class="flex items-center justify-between">
+      <span>AI Proxy</span>
+      <span id="st_ai" class="w-2.5 h-2.5 rounded-full bg-zinc-600" title="Checking..."></span>
+    </div>
   </div>
+
+  <div class="p-4 border-t border-zinc-800 hidden md:flex items-center justify-between text-xs">
+    <span class="text-zinc-400 truncate max-w-[130px]" id="whoami"></span>
+    <div class="flex items-center gap-2"><button class="darkmode-btn darkmode-compact" aria-label="Toggle dark mode">🌙</button><a href="/logout" class="text-zinc-400 hover:text-white transition">Logout</a></div>
+  </div>
+
+  <!-- Engine Status Mobile -->
+  <div class="md:hidden flex items-center justify-around px-4 py-2.5 border-t border-b border-zinc-800/80 bg-zinc-950/60 text-[10px] text-zinc-300">
+    <div class="flex items-center gap-1.5"><span id="st_ffmpeg_mob" class="w-2 h-2 rounded-full bg-zinc-600" title="Checking..."></span><span>FFmpeg</span></div>
+    <div class="flex items-center gap-1.5"><span id="st_ytdlp_mob" class="w-2 h-2 rounded-full bg-zinc-600" title="Checking..."></span><span>yt-dlp</span></div>
+    <div class="flex items-center gap-1.5"><span id="st_deno_mob" class="w-2 h-2 rounded-full bg-zinc-600" title="Checking..."></span><span>Deno</span></div>
+    <div class="flex items-center gap-1.5"><span id="st_ai_mob" class="w-2 h-2 rounded-full bg-zinc-600" title="Checking..."></span><span>AI</span></div>
+  </div>
+
+
+  
 </aside>
 
 <!-- MAIN -->
 <main class="flex-1 p-4 md:p-6 max-w-3xl mx-auto w-full">
   <h1 class="text-lg font-bold text-white mb-1">🍪 Cookies yt-dlp</h1>
-  <p class="text-xs text-zinc-500 mb-6">Kelola file cookies.txt Netscape untuk autentikasi YouTube saat download. Export dari ekstensi browser (mis. "Get cookies.txt LOCALLY") lalu upload & test.</p>
+  <p class="text-xs text-zinc-400 mb-6">Kelola file cookies.txt Netscape untuk autentikasi YouTube saat download. Export dari ekstensi browser (mis. "Get cookies.txt LOCALLY") lalu upload & test.</p>
 
   <!-- Status -->
   <div id="statusCard" class="bg-surface-1 border border-zinc-800 rounded-2xl p-5 mb-5 flex items-center justify-between">
@@ -59,7 +121,7 @@ pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y
       <span id="statusDot" class="w-3 h-3 rounded-full bg-zinc-650"></span>
       <div>
         <div id="statusTitle" class="text-sm font-semibold text-white">Memuat…</div>
-        <div id="statusSub" class="text-[11px] text-zinc-500 mt-0.5"></div>
+        <div id="statusSub" class="text-[11px] text-zinc-400 mt-0.5"></div>
       </div>
     </div>
     <button id="btnDelete" class="hidden text-xs px-3 py-1.5 rounded-lg border border-zinc-700 text-red-400 hover:bg-red-500/10 transition">Hapus</button>
@@ -71,7 +133,7 @@ pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y
     <div id="dropZone" class="border-2 border-dashed border-zinc-700 rounded-xl p-8 text-center cursor-pointer hover:border-accent transition">
       <div class="text-3xl mb-2">📄</div>
       <div class="text-sm text-zinc-300">Klik atau taruh file <code class="text-accent">cookies.txt</code> di sini</div>
-      <div class="text-[11px] text-zinc-500 mt-1">Format Netscape, export dari ekstensi browser</div>
+      <div class="text-[11px] text-zinc-400 mt-1">Format Netscape, export dari ekstensi browser</div>
     </div>
     <input type="file" id="fileInput" accept=".txt,text/plain" class="hidden">
     <div id="uploadMsg" class="hidden mt-3 text-xs"></div>
@@ -82,8 +144,8 @@ pre.log{background:#000;color:#a1a1aa;font-size:.7rem;max-height:35vh;overflow-y
     <h2 class="text-sm font-semibold text-white mb-3">Test cookies</h2>
     <div class="flex flex-col md:flex-row gap-2 mb-3">
       <input id="testUrl" type="text" placeholder="URL video YouTube (opsional, contoh video jika kosong)"
-        class="flex-1 bg-surface-2/40 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-accent">
-      <button id="btnTest" class="bg-accent text-black font-semibold rounded-xl px-5 py-2.5 text-sm hover:opacity-90 transition">Test</button>
+        class="flex-1 bg-surface-2/40 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-[var(--accent)]">
+      <button id="btnTest" class="bg-[var(--accent)] text-[var(--accent-text)] font-semibold rounded-xl px-5 py-2.5 text-sm hover:opacity-90 transition">Test</button>
     </div>
     <div id="testResult" class="hidden text-sm rounded-xl p-4 border"></div>
   </div>
@@ -164,12 +226,14 @@ $('btnTest').addEventListener('click', async ()=>{
   const ok = r.ok;
   tr.className = 'text-sm rounded-xl p-4 border ' + (ok ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-red-500/40 bg-red-500/5');
   let html = '<div class="font-semibold ' + (ok ? 'text-emerald-400' : 'text-red-400') + ' mb-1">' + (ok ? '✓ ' : '✗ ') + (r.message || 'Selesai') + '</div>';
-  if (r.title) html += '<div class="text-xs text-zinc-300 mt-1">🎬 ' + r.title + (r.channel ? ' — ' + r.channel : '') + '</div>';
+  if (r.title) html += '<div class="text-xs text-zinc-300 mt-1">🎬 ' + r.title + (r.channel ? ' : ' + r.channel : '') + '</div>';
   if (r.detail && r.detail.length) html += '<pre class="log mt-3 p-2">' + r.detail.join('\n').replace(/</g,'&lt;') + '</pre>';
   tr.innerHTML = html;
 });
 
 load();
 </script>
+<script src="/engine_status.js"></script>
+<script src="/ui.js"></script>
 </body>
 </html>

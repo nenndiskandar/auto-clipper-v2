@@ -9,34 +9,62 @@
 tailwind.config = {
   darkMode: 'class',
   theme: { extend: { colors: {
-    surface: { 0:'#09090b', 1:'#18181b', 2:'#27272a', 3:'#3f3f46' },
-    accent: '#facc15',
+    surface: { 0:'var(--bg-page)', 1:'var(--bg-surface)', 2:'var(--bg-surface-2)', 3:'var(--border)' },
+    accent: 'var(--accent)',
   }}}
 }
 </script>
 <style>
-body{background:#09090b;color:#fafafa;font-family:system-ui,-apple-system,sans-serif}
+a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible {
+  outline: 2px solid #facc15 !important;
+  outline-offset: 2px !important;
+}
+
+
 </style>
+<link rel="stylesheet" href="/app.css">
+
+<script>
+// FORCE CACHE CLEAR AND SW UNREGISTER
+(async function() {
+  if (localStorage.getItem('force_cleared_v11')) return;
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      for (let r of regs) await r.unregister();
+    }
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      for (let k of keys) await caches.delete(k);
+    }
+    localStorage.setItem('force_cleared_v11', '1');
+    window.location.reload(true);
+  } catch (e) {}
+})();
+</script>
+
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
-<div class="bg-surface-1 border border-zinc-800 rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center space-y-6">
+<div class="card-panel border border-[var(--border)] rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center space-y-6">
   <div>
-    <h1 class="text-lg font-bold text-white tracking-wide">🎬 Iskan Clip</h1>
-    <p class="text-[11px] text-zinc-500 uppercase tracking-wider mt-1">Panel admin — akses terbatas</p>
+    <h1 class="text-lg font-bold text-[var(--text-primary)] tracking-wide">🎬 Iskan Clip</h1>
+    <p class="text-[11px] text-[var(--text-secondary)] uppercase tracking-wider mt-1">Panel admin : akses terbatas</p>
   </div>
 
-  <form id="login" class="space-y-4">
+  <div class="absolute top-4 right-4"><button class="darkmode-btn rounded-full bg-[var(--bg-surface-2)] border-[var(--border)] w-8 h-8 text-xs flex items-center justify-center shadow-lg" aria-label="Toggle dark mode">🌙</button></div>
+      <form id="login" class="space-y-4">
     <input id="pass" type="password" autocomplete="current-password" placeholder="Password"
-      class="w-full bg-surface-2/40 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-accent">
+      class="w-full bg-[var(--bg-surface-2)] border border-[var(--border)] rounded-xl px-4 py-3 text-sm text-[var(--text-primary)] placeholder-zinc-500 focus:outline-none focus:border-[var(--accent)]">
     <button type="submit"
-      class="w-full bg-accent text-black font-semibold rounded-xl py-3 text-sm hover:opacity-90 transition">
+      class="w-full bg-[var(--accent)] text-[var(--accent-text)] font-semibold rounded-xl py-3 text-sm hover:opacity-90 transition">
       Masuk
     </button>
   </form>
 
   <div class="space-y-1">
-    <p class="text-[11px] text-zinc-400">Masukkan password admin.</p>
+    <p class="text-[11px] text-[var(--text-secondary)]">Masukkan password admin.</p>
     <p id="err" class="text-xs text-red-400 hidden mt-2"></p>
+    <p id="attempts" class="text-[11px] text-yellow-400 hidden mt-1"></p>
   </div>
 </div>
 
@@ -48,12 +76,27 @@ document.getElementById('login').addEventListener('submit', e => {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({ password: pass }),
-  }).then(r => r.json()).then(d => {
+  }).then(r => r.json().then(d => ({ status: r.status, d }))).then(({ status, d }) => {
     if (d.ok) location.href = '/';
     else {
       const el = document.getElementById('err');
+      const att = document.getElementById('attempts');
       el.textContent = d.error || 'Login gagal';
       el.classList.remove('hidden');
+      // tampilkan sisa percobaan yang dikirim server (kunci rate limit)
+      if (typeof d.remaining === 'number') {
+        if (d.remaining > 0) {
+          att.textContent = 'Sisa percobaan: ' + d.remaining;
+          att.classList.remove('hidden');
+        } else {
+          att.textContent = d.resetInSec
+            ? 'Terkunci. Coba lagi dalam ' + Math.ceil(d.resetInSec / 60) + ' menit.'
+            : 'Terkunci. Coba lagi nanti.';
+          att.classList.remove('hidden');
+        }
+      } else {
+        att.classList.add('hidden');
+      }
     }
   }).catch(() => {
     const el = document.getElementById('err');
@@ -62,5 +105,6 @@ document.getElementById('login').addEventListener('submit', e => {
   });
 });
 </script>
+<script src="/ui.js"></script>
 </body>
 </html>

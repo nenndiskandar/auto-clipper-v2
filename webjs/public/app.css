@@ -1,0 +1,421 @@
+/* Auto Clipper Design System — Light-first, dark toggle */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap');
+
+/* ── Tokens ── */
+:root {
+  --font-heading: 'Outfit', sans-serif;
+  --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  /* Light palette */
+  --bg-page: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-surface-2: #f1f5f9;
+  --bg-inset: #f8fafc;
+  --border: #e2e8f0;
+  --border-hover: #cbd5e1;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --accent: #0d9488;
+  --accent-hover: #0f766e;
+  --accent-text: #ffffff;
+  --accent-bg-subtle: #f0fdfa;
+  --selection-bg: #99f6e4;
+  --selection-text: #042f2e;
+  --focus-ring: #0d9488;
+  --scrollbar-track: #f1f5f9;
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-thumb-hover: #94a3b8;
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.06);
+  --shadow-modal: 0 20px 40px rgba(0,0,0,0.12);
+}
+
+html.dark {
+  --bg-page: #09090b;
+  --bg-surface: #121215;
+  --bg-surface-2: #18181b;
+  --bg-inset: #0c0c0e;
+  --border: #27272a;
+  --border-hover: #3f3f46;
+  --text-primary: #f4f4f5;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+  --accent: #2dd4bf;
+  --accent-hover: #5eead4;
+  --accent-text: #042f2e;
+  --accent-bg-subtle: rgba(45,212,191,0.08);
+  --selection-bg: #2dd4bf;
+  --selection-text: #042f2e;
+  --focus-ring: #2dd4bf;
+  --scrollbar-track: #09090b;
+  --scrollbar-thumb: #27272a;
+  --scrollbar-thumb-hover: #3f3f46;
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.3);
+  --shadow-modal: 0 20px 40px rgba(0,0,0,0.5);
+}
+
+/* ── Base ── */
+body {
+  font-family: var(--font-body);
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  overflow-x: hidden;
+}
+
+::selection {
+  background: var(--selection-bg);
+  color: var(--selection-text);
+}
+
+h1, h2, h3, h4, h5, h6, .font-heading {
+  font-family: var(--font-heading);
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+
+/* ── Focus (WCAG AA keyboard) ── */
+a:focus-visible,
+button:focus-visible,
+select:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--focus-ring) !important;
+  outline-offset: 2px !important;
+}
+
+/* ── Cards ── */
+.card-panel {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow-card);
+  transition: border-color 0.2s ease;
+}
+.card-panel-hover:hover {
+  border-color: var(--accent);
+}
+
+/* ── Sidebar ── */
+aside {
+  background-color: var(--bg-surface) !important;
+  border-color: var(--border) !important;
+}
+
+/* ── Shared bg/text overrides via vars ── */
+.bg-\[\#09090b\],
+.bg-\[\#0c0c0e\] {
+  background-color: var(--bg-inset) !important;
+}
+
+.border-zinc-800,
+.border-zinc-800\/80,
+.border-zinc-700,
+.border-zinc-700\/80 {
+  border-color: var(--border) !important;
+}
+
+.text-white { color: var(--text-primary) !important; }
+.text-zinc-100 { color: var(--text-primary) !important; }
+.text-zinc-200 { color: var(--text-primary) !important; }
+.text-zinc-300 { color: var(--text-secondary) !important; }
+.text-zinc-400 { color: var(--text-muted) !important; }
+.text-zinc-500 { color: var(--text-muted) !important; }
+
+/* ── Header bar ── */
+.bg-zinc-950\/40,
+.bg-zinc-950\/60,
+.bg-zinc-950\/80,
+.bg-zinc-950,
+.bg-zinc-900,
+.bg-zinc-900\/50,
+.bg-zinc-900\/80 {
+  background-color: var(--bg-surface) !important;
+}
+
+/* ── Inputs ── */
+input[type="text"],
+input[type="password"],
+input[type="url"],
+input[type="number"],
+select,
+textarea {
+  background-color: var(--bg-surface) !important;
+  border-color: var(--border) !important;
+  color: var(--text-primary) !important;
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted) !important;
+}
+
+/* ── Accent: buttons, badges, active nav ── */
+.bg-yellow-400,
+.bg-accent {
+  background-color: var(--accent) !important;
+  color: var(--accent-text) !important;
+}
+.hover\:bg-yellow-300:hover,
+.hover\:bg-yellow-400:hover {
+  background-color: var(--accent-hover) !important;
+}
+.text-yellow-400 {
+  color: var(--accent) !important;
+}
+
+/* ── Nav ── */
+nav a:hover {
+  background-color: var(--bg-surface-2) !important;
+  color: var(--text-primary) !important;
+}
+
+/* ── Template Button & Card ── */
+.tpl-btn,
+.tpl-card {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  min-height: 44px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+.tpl-btn:hover,
+.tpl-card:hover {
+  border-color: var(--accent);
+  background-color: var(--bg-surface-2);
+}
+.tpl-btn.active,
+.tpl-card.active {
+  border-color: var(--accent);
+  background-color: var(--accent-bg-subtle);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+/* ── Log ── */
+pre.log {
+  background: var(--bg-inset);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  max-height: 35vh;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  padding: 0.75rem;
+}
+
+/* ── Toast ── */
+.toast-container {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 90vw;
+  pointer-events: none;
+}
+.toast {
+  min-height: 44px;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  animation: toast-in 0.25s ease;
+  pointer-events: auto;
+}
+html.dark .toast { box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+.toast-success { background: #f0fdf4; border-color: #86efac; color: #14532d; }
+.toast-error   { background: #fef2f2; border-color: #fca5a5; color: #7f1d1d; }
+.toast-info    { background: #eff6ff; border-color: #93c5fd; color: #1e3a5f; }
+html.dark .toast-success { background: #052e1f; border-color: #34d399; color: #d1fae5; }
+html.dark .toast-error   { background: #3f0a0a; border-color: #f87171; color: #fee2e2; }
+html.dark .toast-info    { background: #082f49; border-color: #38bdf8; color: #e0f2fe; }
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.toast.hide { animation: toast-out 0.25s ease forwards; }
+@keyframes toast-out {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-8px); }
+}
+
+/* ── Confirm Modal ── */
+.confirm-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0,0,0,0.4);
+}
+html.dark .confirm-modal { background: rgba(0,0,0,0.7); }
+.confirm-modal.open { display: flex; }
+.confirm-box {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  width: 100%;
+  max-width: 26rem;
+  box-shadow: var(--shadow-modal);
+}
+.confirm-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+.confirm-msg {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 1.25rem;
+  white-space: pre-line;
+}
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+.btn-confirm {
+  min-height: 44px;
+  padding: 0.5rem 1.25rem;
+  border-radius: 0.5rem;
+  font-weight: 700;
+  font-size: 0.8rem;
+  background: var(--accent);
+  color: var(--accent-text);
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.btn-confirm:hover { background: var(--accent-hover); }
+.btn-cancel {
+  min-height: 44px;
+  padding: 0.5rem 1.25rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  font-size: 0.8rem;
+  background: var(--bg-surface-2);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+.btn-cancel:hover { border-color: var(--border-hover); }
+
+/* ── Disk Widget ── */
+.disk-widget { padding: 0.6rem 0.9rem; }
+.disk-label {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+.disk-bar {
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--bg-surface-2);
+  overflow: hidden;
+}
+.disk-fill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.4s ease;
+  background: #10b981;
+}
+.disk-fill.warn { background: #f59e0b; }
+.disk-fill.danger { background: #ef4444; }
+
+/* ── Dark Mode Toggle ── */
+.darkmode-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.darkmode-btn:hover {
+  border-color: var(--accent);
+  background: var(--bg-surface-2);
+}
+
+.darkmode-compact {
+  min-height: 32px !important;
+  min-width: 32px !important;
+  width: 32px;
+  height: 32px;
+  font-size: 0.9rem;
+  border-radius: 0.4rem;
+  padding: 0;
+  display: flex;
+}
+
+/* ── Logo mark override for accent ── */
+.logo-mark {
+  background-color: var(--accent) !important;
+  color: var(--accent-text) !important;
+}
+
+/* ── Sidebar active nav ── */
+nav a.nav-active,
+nav a[data-active="true"] {
+  background-color: var(--accent) !important;
+  color: var(--accent-text) !important;
+}
+
+/* ── Badge / status colors (keep universal) ── */
+.bg-emerald-400 { background-color: #34d399 !important; }
+.bg-rose-500 { background-color: #f43f5e !important; }
+.bg-amber-400 { background-color: #fbbf24 !important; }
+
+/* ── Ring override ── */
+.focus-visible\:ring-yellow-400:focus-visible,
+.focus\:border-accent:focus {
+  border-color: var(--accent) !important;
+}
+
+/* ── Modal footer ── */
+.bg-\[\#0c0c0e\] {
+  background-color: var(--bg-inset) !important;
+}
+
+/* ── Pagination buttons ── */
+.bg-zinc-800,
+.bg-zinc-800,
+.hover\:bg-zinc-800:hover,
+.hover\:bg-zinc-800\/40:hover,
+.hover\:bg-zinc-700:hover,
+.hover\:bg-zinc-900:hover {
+  background-color: var(--bg-surface-2) !important;
+}

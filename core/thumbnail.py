@@ -26,7 +26,10 @@ THUMBNAIL_FONT_FILE = "Inter-ExtraBold.ttf"
 
 def _pick_thumbnail_font(font_dir: str = None) -> str | None:
     """Resolve a bold TTF usable for thumbnails (downloads Inter ExtraBold if needed)."""
-    candidates = []
+    candidates = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf",
+    ]
     if font_dir:
         candidates.append(os.path.join(font_dir, THUMBNAIL_FONT_FILE))
     # Windows system bold fonts
@@ -61,10 +64,10 @@ def _pick_thumbnail_font(font_dir: str = None) -> str | None:
 def buat_thumbnail(
     video_path: str,
     output_image_path: str,
-    teks: str,
+    teks: str = None,
     font_path: str = None,
-    frame_ms: int = 5000,
-    overlay_alpha: int = 128,
+    frame_ms: int = 1000,
+    overlay_alpha: int = 0,
 ) -> str | None:
     """
     Extract a frame from the video, composite the clip title, save as JPEG/PNG.
@@ -95,37 +98,39 @@ def buat_thumbnail(
         debug_log("[Thumbnail] Tidak bisa membaca frame (pastikan duration >= 5s).")
         return None
 
-    img = Image.alpha_composite(
-        Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)).convert("RGBA"),
-        Image.new("RGBA", (frame.shape[1], frame.shape[0]), (0, 0, 0, overlay_alpha)),
-    ).convert("RGB")
+    if overlay_alpha > 0 and teks:
+        img = Image.alpha_composite(
+            Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)).convert("RGBA"),
+            Image.new("RGBA", (frame.shape[1], frame.shape[0]), (0, 0, 0, overlay_alpha)),
+        ).convert("RGB")
+        draw = ImageDraw.Draw(img)
+        font_sz = int(img.size[0] * 0.12)
+        if font_file and os.path.exists(font_file):
+            try:
+                pil_font = ImageFont.truetype(font_file, font_sz)
+            except Exception as e:
+                debug_log(f"[Thumbnail] Gagal load font {font_file}: {e}")
+                pil_font = None
+        if pil_font is None:
+            pil_font = ImageFont.load_default()
 
-    draw = ImageDraw.Draw(img)
-    font_sz = int(img.size[0] * 0.12)
-    if font_file and os.path.exists(font_file):
-        try:
-            pil_font = ImageFont.truetype(font_file, font_sz)
-        except Exception as e:
-            debug_log(f"[Thumbnail] Gagal load font {font_file}: {e}")
-            pil_font = None
-    if pil_font is None:
-        pil_font = ImageFont.load_default()
-
-    lines = textwrap.wrap(str(teks or ""), width=12) or ["Clip"]
-    y_text = (img.size[1] - (len(lines) * (font_sz + 10))) // 2
-    for line in lines:
-        bbox = draw.textbbox((0, 0), line, font=pil_font)
-        line_w = bbox[2] - bbox[0]
-        x_text = (img.size[0] - line_w) // 2
-        draw.text(
-            (x_text, y_text),
-            line,
-            font=pil_font,
-            fill="white",
-            stroke_width=5,
-            stroke_fill="black",
-        )
-        y_text += font_sz + 10
+        lines = textwrap.wrap(str(teks or ""), width=12) or ["Clip"]
+        y_text = (img.size[1] - (len(lines) * (font_sz + 10))) // 2
+        for line in lines:
+            bbox = draw.textbbox((0, 0), line, font=pil_font)
+            line_w = bbox[2] - bbox[0]
+            x_text = (img.size[0] - line_w) // 2
+            draw.text(
+                (x_text, y_text),
+                line,
+                font=pil_font,
+                fill="white",
+                stroke_width=5,
+                stroke_fill="black",
+            )
+            y_text += font_sz + 10
+    else:
+        img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
 
     img.save(output_image_path)
     debug_log(f"[Thumbnail] Disimpan: {output_image_path}")

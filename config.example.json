@@ -91,7 +91,7 @@
   },
   "appearance_mode": "dark",
   "provider_type": "custom",
-  "portrait_mode": "center",
+  "portrait_mode": "crop",
   "subtitle_style": "pop",
   "aspect_ratio": "9:16",
   "subtitle_sync_offset": -0.25,

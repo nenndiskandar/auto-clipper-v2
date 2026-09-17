@@ -535,7 +535,6 @@ def get_core_instance(config_mgr: ConfigManager, log_cb=None, progress_cb=None) 
         thumbnail_settings=cfg.get("thumbnail"),
         metadata_settings=cfg.get("metadata_settings"),
         auto_broll_settings=cfg.get("auto_broll"),
-        transition_library_settings=cfg.get("transition_library"),
         subtitle_language=cfg.get("subtitle_language", "id"),
         subtitle_sync_offset=cfg.get("subtitle_sync_offset", -0.3),
         log_callback=log_cb,
@@ -717,7 +716,7 @@ def _back_to_menu_keyboard():
 
 
 async def menu_main_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Callback tombol 'Menu Utama' — tampilkan menu utama."""
+    """Callback tombol 'Menu Utama' : tampilkan menu utama."""
     query = update.callback_query
     await query.answer()
     await query.edit_message_text(MAIN_MENU_TEXT, parse_mode="HTML")
@@ -1292,7 +1291,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def config_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Menu konfigurasi — fungsi ganti /status"""
+    """Menu konfigurasi : fungsi ganti /status"""
     return await status_command(update, context)
 
 
@@ -1341,7 +1340,7 @@ async def story_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             lines = [f"✅ *Selesai* {len(manifest)} clip:"]
             for m in manifest:
                 lines.append(
-                    f"• clip_{m.get('clip_id') or m.get('id')} — hook: `{m.get('hook_file') or m.get('hook') or '-'}` · highlight: `{m.get('highlight_file') or m.get('highlight') or '-'}`"
+                    f"• clip_{m.get('clip_id') or m.get('id')} : hook: `{m.get('hook_file') or m.get('hook') or '-'}` · highlight: `{m.get('highlight_file') or m.get('highlight') or '-'}`"
                 )
             await context.bot.edit_message_text("\n".join(lines), chat_id=msg.chat_id, message_id=msg.message_id, parse_mode="Markdown")
         else:
@@ -1370,7 +1369,7 @@ async def fb_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if test_mode:
             info = await loop.run_in_executor(None, facebook_uploader.validate_page_token, fb_config)
             await context.bot.edit_message_text(
-                f"✅ *Token valid* — Page: `{info.get('name')}` (ID `{info.get('id')}`)\n"
+                f"✅ *Token valid* : Page: `{info.get('name')}` (ID `{info.get('id')}`)\n"
                 f"Kuartal: `{info.get('category') or '-'}`",
                 chat_id=msg.chat_id, message_id=msg.message_id, parse_mode="Markdown",
             )
@@ -1384,7 +1383,7 @@ async def fb_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         if results:
             statuses = "\n".join(
-                f"• Rank {r.get('rank')} — `{r.get('fb_video_id') or r.get('status') or 'ok'}`"
+                f"• Rank {r.get('rank')} : `{r.get('fb_video_id') or r.get('status') or 'ok'}`"
                 for r in results
             )
             await context.bot.edit_message_text(f"✅ *Upload sukses* {len(results)} clip:\n{statuses}", chat_id=msg.chat_id, message_id=msg.message_id, parse_mode="Markdown")
@@ -1429,7 +1428,7 @@ def _apply_server(raw_url: str):
     return raw
 
 async def server_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Menu server AI — set base URL dan/atau API key.
+    """Menu server AI : set base URL dan/atau API key.
     Usage:
         /server             -> tampilkan status + menu tombol
         /server <url>       -> langsung set base URL
@@ -1480,7 +1479,7 @@ async def server_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # /server — tampilkan status + tombol
+    # /server : tampilkan status + tombol
     keyboard = InlineKeyboardMarkup([
         [
             InlineKeyboardButton("🌐 Ganti Base URL", callback_data="sv_url"),
@@ -1558,12 +1557,12 @@ async def model_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
-    # Mode daftar: /model — fetch realtime dari server
+    # Mode daftar: /model : fetch realtime dari server
     current = _hf_model(cfg)
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
     models, live = await asyncio.get_running_loop().run_in_executor(None, _hf_available_models, cfg)
 
-    src = "🟢 live dari server" if live else "🟠 server tidak merespon — daftar fallback"
+    src = "🟢 live dari server" if live else "🟠 server tidak merespon : daftar fallback"
     lines = [f"*🤖 Model Highlight-Finder ({len(models)}):*", f"_{src}_", ""]
     lines.append("💡 Klik nama model untuk langsung mengganti.")
 
@@ -1572,7 +1571,7 @@ async def model_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def model_list_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Callback tombol 'Kembali' — tampilkan ulang daftar model."""
+    """Callback tombol 'Kembali' : tampilkan ulang daftar model."""
     query = update.callback_query
     await query.answer()
 
@@ -1582,7 +1581,7 @@ async def model_list_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
     current = _hf_model(cfg)
     models, live = await asyncio.get_running_loop().run_in_executor(None, _hf_available_models, cfg)
 
-    src = "🟢 live dari server" if live else "🟠 server tidak merespon — daftar fallback"
+    src = "🟢 live dari server" if live else "🟠 server tidak merespon : daftar fallback"
     lines = [f"*🤖 Model Highlight-Finder ({len(models)}):*", f"_{src}_", ""]
     lines.append("💡 Klik nama model untuk langsung mengganti.")
 
@@ -1626,7 +1625,7 @@ def _set_hf_model(cfg: dict, model: str):
 _model_map: Dict[str, list] = {}  # ponytail: user_id -> daftar model terakhir (callback_data Telegram limit 64 byte)
 
 def _build_model_keyboard(current: str, models: list, user_key: str = "default") -> InlineKeyboardMarkup:
-    """Keyboard daftar model — klik untuk langsung mengganti.
+    """Keyboard daftar model : klik untuk langsung mengganti.
 
     callback_data pakai index karena nama model bisa >64 byte (Button_data_invalid).
     Mapping index -> nama disimpan di _model_map[user_key].
@@ -1649,7 +1648,7 @@ def _build_model_keyboard(current: str, models: list, user_key: str = "default")
     return InlineKeyboardMarkup(rows)
 
 async def model_select_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Callback klik tombol model (mdl_<index>) — set model highlight-finder."""
+    """Callback klik tombol model (mdl_<index>) : set model highlight-finder."""
     query = update.callback_query
     await query.answer()
     raw = (query.data or "")[len("mdl_"):]
@@ -1731,7 +1730,7 @@ def build_fw_menu(cfg: dict):
         marker = "✅" if size == current else "·"
         installed = _fw_model_installed(size)
         status = "🟢 terunduh" if installed else "🔴 belum ada"
-        lines.append(f"{marker} `{size}` — {status}")
+        lines.append(f"{marker} `{size}` : {status}")
         lines.append(f"    ↳ {FW_MODEL_LABELS[size]}")
 
     lines.append("\n💡 Pilih ukuran untuk dipakai, atau download yang belum ada.")
@@ -1843,7 +1842,7 @@ def _binaries_status_lines() -> list:
     app_dir = Path(__file__).parent.resolve()
     lines = []
 
-    # yt-dlp — utamakan python module, fallback ke binary di PATH
+    # yt-dlp : utamakan python module, fallback ke binary di PATH
     try:
         import yt_dlp
         ver = getattr(getattr(yt_dlp, "version", None), "__version__", "?")
@@ -1855,7 +1854,7 @@ def _binaries_status_lines() -> list:
         else:
             lines.append("❌ yt-dlp tidak ditemukan (`pip install yt-dlp`)")
 
-    # ffmpeg — cek bundled dulu (sama seperti GUI), lalu system PATH
+    # ffmpeg : cek bundled dulu (sama seperti GUI), lalu system PATH
     from utils.dependency_manager import check_dependency
     if check_dependency("ffmpeg", app_dir):
         lines.append(f"✅ ffmpeg (bundled) `{app_dir / 'ffmpeg'}`")
@@ -1875,7 +1874,7 @@ def _binaries_status_lines() -> list:
         else:
             lines.append("❌ ffmpeg tidak ditemukan (`apt install ffmpeg`)")
 
-    # deno — cek bundled (app_dir/bin), lalu system PATH
+    # deno : cek bundled (app_dir/bin), lalu system PATH
     if check_dependency("deno", app_dir):
         lines.append(f"✅ deno (bundled) `{app_dir / 'bin' / 'deno'}`")
     else:
@@ -2046,7 +2045,7 @@ async def status_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         idx = opts.index(cur) if cur in opts else 0
         cfg["subtitle_sync_offset"] = opts[(idx + 1) % len(opts)]
     elif data == "portrait":
-        opts = ["crop", "center", "blur", "split_podcast_dynamic", "camera_switch"]
+        opts = ["crop", "blur", "split_podcast_dynamic", "camera_switch"]
         cur = str(cfg.get("portrait_mode", "crop"))
         cfg["portrait_mode"] = opts[(opts.index(cur) + 1) % len(opts)] if cur in opts else "crop"
     elif data == "face":
@@ -2133,7 +2132,7 @@ async def status_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
 REQUIRED_AUTH_COOKIES = ["SID", "HSID", "SSID", "APISID", "SAPISID", "LOGIN_INFO"]
 SECURE_COOKIE_PREFIXES = ["__Secure-1P", "__Secure-3P"]
 
-# (key, label, domains) — setiap platform punya file cookies sendiri
+# (key, label, domains) : setiap platform punya file cookies sendiri
 PLATFORMS = [
     ("youtube", "YouTube", ("youtube.com", "youtu.be")),
     ("tiktok", "TikTok", ("tiktok.com",)),

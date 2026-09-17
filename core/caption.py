@@ -183,47 +183,53 @@ class CaptionMixin:
                 import shutil
                 shutil.copy(input_path, output_path)
 
+        def add_timed_overlay(self, input_path: str, output_path: str, text: str, 
+                              start_t: float, end_t: float, 
+                              x: str = "(W-text_w)/2", y: str = "(H-text_h)/2",
+                              font_size: int = 55,
+                              font_color: str = "white",
+                              bg_color: str = "black",
+                              box_alpha: float = 0.6):
+            """
+            Menambahkan overlay teks dengan background kotak (box) yang muncul tepat dari start_t sampai end_t.
+            Mendukung word wrap agar teks panjang terbungkus rapi.
+            """
+            font_path = self._find_system_font_bold() or "Arial"
+            font_path = font_path.replace("\\", "/").replace(":", "\\:")
+
+            # Bungkus teks pakai word wrap sederhana (misal max 25 karakter per baris agar rapi)
+            import textwrap
+            wrapped_lines = textwrap.wrap(text, width=22)
+            formatted_text = "\n".join(wrapped_lines)
+            escaped_text = formatted_text.replace(":", "\\:").replace("\n", "\\n")
+
+            # FFmpeg drawtext box parameters: box=1, boxcolor=black@0.6, boxborderw=15
+            filter_expr = (
+                f"drawtext=fontfile='{font_path}':text='{escaped_text}':"
+                f"x={x}:y={y}:fontsize={font_size}:fontcolor={font_color}:"
+                f"box=1:boxcolor={bg_color}@{box_alpha}:boxborderw=20:"
+                f"enable='between(t,{start_t:.3f},{end_t:.3f})'"
+            )
+            
+            cmd = [
+                self.ffmpeg_path, "-y",
+                "-i", input_path,
+                "-vf", filter_expr,
+                *self.get_video_encoder_args(),
+                "-c:a", "copy",
+                output_path
+            ]
+            
+            self.log_ffmpeg_command(cmd, "Burn Timed Text Overlay with Background", step="caption")
+            return self._run_ffmpeg_subprocess(cmd)
+
         def add_hook_with_progress(self, input_path: str, hook_text: str, output_path: str, progress_callback) -> float:
-            """Add hook scene at the beginning with progress tracking"""
-        
-            # Report TTS character usage (skip, no TTS)
-            # self.report_tokens(0, 0, 0, len(hook_text))
-        
-            # Generate silent audio (10% progress)
+            """Add hook text overlay at the beginning of the video (tanpa pause / tanpa concat)"""
             progress_callback(0.1)
             
-            tts_file = str(Path(output_path).parent / "hook_tts.mp3")
-            # Generate silent mp3 using ffmpeg
-            silent_cmd = [
-                self.ffmpeg_path, "-y",
-                "-f", "lavfi",
-                "-i", "anullsrc=r=44100:cl=stereo",
-                "-t", "3.0",
-                "-c:a", "libmp3lame",
-                tts_file
-            ]
-            subprocess.run(silent_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=SUBPROCESS_FLAGS)
-        
-            progress_callback(0.2)
-        
-            # Get TTS duration using ffprobe
-            probe_cmd = [
-                self.ffmpeg_path, "-i", tts_file,
-                "-f", "null", "-"
-            ]
-            result = subprocess.run(probe_cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
-            duration_match = re.search(r"Duration: (\d+):(\d+):(\d+\.\d+)", result.stderr)
-        
-            if duration_match:
-                h, m, s = duration_match.groups()
-                hook_duration = int(h) * 3600 + int(m) * 60 + float(s) + 0.5
-            else:
-                hook_duration = float(style.get("duration", 1.0))
-        
-            # Format hook text
+            # Format hook text into lines
             hook_upper = hook_text.upper()
             words = hook_upper.split()
-        
             lines = []
             current_line = []
             for word in words:
@@ -233,103 +239,37 @@ class CaptionMixin:
                     current_line = []
             if current_line:
                 lines.append(' '.join(current_line))
-        
-            # Get input video info
+
+            # Get input video dimensions and fps
             probe_cmd = [self.ffmpeg_path, "-i", input_path]
             result = subprocess.run(probe_cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
-        
-            fps_match = re.search(r'(\d+(?:\.\d+)?)\s*fps', result.stderr)
-            fps = float(fps_match.group(1)) if fps_match else 30
-        
             res_match = re.search(r'(\d{3,4})x(\d{3,4})', result.stderr)
             if res_match:
                 width, height = int(res_match.group(1)), int(res_match.group(2))
             else:
-                width, height = 1080, 1920
-        
-            progress_callback(0.3)
-        
-            # Create hook video in our temp directory
-            hook_video = str(self.temp_dir / f"hook_{int(time.time() * 1000)}.mp4")
-        
-            # Use a simpler approach: create static image with text, then combine with audio
-            # This avoids complex FFmpeg filter escaping issues
-        
-            # First, create a simple background video from the first frame using GPU/CPU encoder.
-            # Robust strategy: extract one frame as PNG, then loop it as a static image video.
-            # (The old trim+loop filter chain is flaky on some inputs/encoders.)
-            bg_video = str(self.temp_dir / f"hook_bg_{int(time.time() * 1000)}.mp4")
-            frame_png = str(self.temp_dir / f"hook_frame_{int(time.time() * 1000)}.png")
-        
-            encoder_args = self.get_video_encoder_args()
-        
-            def _bg_ok() -> bool:
-                return os.path.exists(bg_video) and os.path.getsize(bg_video) >= 1000
-        
-            # Step 1: extract the first frame to a PNG (letterboxed to target size)
-            frame_cmd = [
-                self.ffmpeg_path, "-y",
-                "-i", input_path,
-                "-frames:v", "1",
-                "-vf", f"scale={width}:{height}:force_original_aspect_ratio=decrease,"
-                       f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black",
-                "-q:v", "2",
-                frame_png
-            ]
-            self.log_ffmpeg_command(frame_cmd, "Extract Hook Background Frame", step="hook")
-            self._run_ffmpeg_subprocess(frame_cmd)
-        
-            # Step 2: loop the frame PNG into a video of hook_duration
-            bg_cmd = [
-                self.ffmpeg_path, "-y",
-                "-loop", "1",
-                "-i", frame_png,
-                "-t", str(hook_duration),
-                *encoder_args,
-                "-r", str(fps),
-                "-s", f"{width}x{height}",
-                "-pix_fmt", "yuv420p",
-                "-an",
-                bg_video
-            ]
-            self.log_ffmpeg_command(bg_cmd, "Create Hook Background", step="hook")
-            result = self._run_ffmpeg_subprocess(bg_cmd)
-            if result.returncode != 0:
-                self.log(f"Failed to create background video: {result.stderr}")
-        
-            if not _bg_ok():
-                # Fallback: solid dark background (never let the hook hard-fail here)
-                self.log("  ⚠ Background frame loop failed, using solid dark background")
-                bg_cmd = [
-                    self.ffmpeg_path, "-y",
-                    "-f", "lavfi",
-                    "-i", f"color=c=0x141414:s={width}x{height}:r={fps}",
-                    "-t", str(hook_duration),
-                    *encoder_args,
-                    "-pix_fmt", "yuv420p",
-                    "-an",
-                    bg_video
-                ]
-                self.log_ffmpeg_command(bg_cmd, "Create Hook Background (fallback)", step="hook")
-                result = self._run_ffmpeg_subprocess(bg_cmd)
-        
-            # Verify background video was created successfully
-            if not _bg_ok():
-                raise Exception("Background video was not created properly")
-        
-            # === Render hook overlay using PIL (supports user-customized font, colors, corners) ===
-            from PIL import Image, ImageDraw, ImageFont
+                width, height = 720, 1280
 
+            progress_callback(0.3)
+
+            # === Render hook overlay using PIL (exact match with HTML settings preview) ===
+            from PIL import Image, ImageDraw, ImageFont
             style = self.hook_style_settings or {}
-            font_size_frac = float(style.get("font_size", 0.054))
-            font_color_hex = style.get("font_color", "#FFD166")
-            bg_color_hex = style.get("bg_color", "#FFFFFF")
-            corner_radius = int(style.get("corner_radius", 0))
+            font_size_frac = float(style.get("font_size", 0.075))
+            font_color_hex = style.get("font_color", "#ffffff")
+            bg_color_hex = style.get("bg_color", "#000000")
+            corner_radius = int(style.get("corner_radius", 12))
             pos_x = float(style.get("position_x", 0.5))
-            pos_y = float(style.get("position_y", 0.333))
+            pos_y = float(style.get("position_y", 0.46))
             user_font_path = style.get("font_path") or ""
 
-            # Resolve font path with sensible fallbacks
+            # Handle font path and style fallbacks
+            if not user_font_path or not os.path.exists(user_font_path):
+                from utils.font_scanner import resolve_preset_font
+                try:
+                    user_font_path = resolve_preset_font(getattr(self, "font_preset", "default")) or self._find_system_font_bold()
+                except Exception:
+                    user_font_path = self._find_system_font_bold()
+
             font_candidates = [user_font_path, self._find_system_font_bold()]
             pil_font = None
             font_px = max(20, int(font_size_frac * width))
@@ -338,29 +278,27 @@ class CaptionMixin:
                     continue
                 try:
                     pil_font = ImageFont.truetype(candidate, font_px)
-                    self.log(f"  Hook font: {candidate} @ {font_px}px")
                     break
-                except Exception as e:
-                    self.log(f"  ⚠ Failed to load font {candidate}: {e}")
+                except Exception:
+                    pass
             if pil_font is None:
-                self.log("  ⚠ No usable TTF font found, using PIL default (will look basic)")
                 pil_font = ImageFont.load_default()
 
             font_color_rgb = _hex_to_rgb(font_color_hex)
             bg_color_rgb = _hex_to_rgb(bg_color_hex)
             bg_opacity = max(0, min(100, int(style.get("bg_opacity", 100))))
             bg_alpha = int(bg_opacity * 255 / 100)
-            box_mode = style.get("box_mode", "fit_text") # fit_text, full_width, half_screen
+            box_mode = style.get("box_mode", "fit_text")
             glitch_on = bool(style.get("glitch"))
-            GLITCH_CYAN = (37, 244, 238)   # TikTok cyan
-            GLITCH_RED = (254, 44, 85)     # TikTok red
+            GLITCH_CYAN = (37, 244, 238)
+            GLITCH_RED = (254, 44, 85)
 
-            # Per-line geometry (closure supaya bisa diukur ulang saat font menyusut)
             margin_x = max(16, int(width * 0.04))
+            pad_x = max(16, int(font_px * 0.4))
+            pad_y = max(12, int(font_px * 0.3))
+            line_spacing = max(6, int(font_px * 0.2))
 
             def _measure(fnt, fpx):
-                pad = max(10, int(fpx * 0.22))
-                ls = max(6, int(fpx * 0.25))
                 ms = []
                 for line in lines:
                     try:
@@ -370,264 +308,103 @@ class CaptionMixin:
                         bbox = (0, 0, w0, h0)
                     text_w = bbox[2] - bbox[0]
                     text_h = bbox[3] - bbox[1]
-                    ms.append({"text": line, "bbox": bbox, "box_w": text_w + pad * 2, "box_h": text_h + pad * 2})
-                t_h = sum(m["box_h"] for m in ms)
-                if len(ms) > 1:
-                    t_h += ls * (len(ms) - 1)
-                return ms, pad, ls, t_h
+                    ms.append({"text": line, "bbox": bbox, "w": text_w, "h": text_h})
+                t_h = sum(m["h"] for m in ms) + line_spacing * (len(ms) - 1) if ms else 0
+                max_w = max(m["w"] for m in ms) if ms else 0
+                return ms, max_w, t_h
 
-            line_metrics, padding, line_spacing, total_h = _measure(pil_font, font_px)
-
-            # Anti-terpotong: kecilkan font sampai baris terlebar muat di dalam margin frame
-            widest = max(m["box_w"] for m in line_metrics)
-            while widest > width - 2 * margin_x and font_px > 20:
+            line_metrics, max_text_w, total_text_h = _measure(pil_font, font_px)
+            while (max_text_w + pad_x * 2) > width - 2 * margin_x and font_px > 20:
                 font_px = max(20, int(font_px * 0.92))
                 try:
                     pil_font = ImageFont.truetype(pil_font.path, font_px)
-                    self.log(f"  Hook font disusutkan otomatis ke {font_px}px agar tidak terpotong")
                 except Exception:
                     break
-                line_metrics, padding, line_spacing, total_h = _measure(pil_font, font_px)
-                widest = max(m["box_w"] for m in line_metrics)
+                line_metrics, max_text_w, total_text_h = _measure(pil_font, font_px)
 
             center_x = int(pos_x * width)
             center_y = int(pos_y * height)
-            # Clamp blok vertikal agar tetap sepenuhnya di dalam frame
-            top_min = max(16, int(height * 0.04))
-            bot_max = height - top_min
-            block_top = max(top_min, min(center_y - total_h // 2, bot_max - total_h))
 
-            # Compose the static overlay (transparent everywhere except the hook boxes)
+            if box_mode == "full_width":
+                box_w = width
+                box_h = total_text_h + pad_y * 2
+                box_x1 = 0
+                box_x2 = width
+                box_y1 = max(16, min(center_y - box_h // 2, height - 16 - box_h))
+                box_y2 = box_y1 + box_h
+            elif box_mode == "half_screen":
+                box_w = width
+                box_h = max(total_text_h + pad_y * 4, int(height * 0.45))
+                box_x1 = 0
+                box_x2 = width
+                box_y1 = max(16, min(center_y - box_h // 2, height - 16 - box_h))
+                box_y2 = box_y1 + box_h
+            else: # fit_text
+                box_w = min(width - margin_x * 2, max_text_w + pad_x * 2)
+                box_h = total_text_h + pad_y * 2
+                box_x1 = max(margin_x, min(center_x - box_w // 2, width - margin_x - box_w))
+                box_x2 = box_x1 + box_w
+                box_y1 = max(16, min(center_y - box_h // 2, height - 16 - box_h))
+                box_y2 = box_y1 + box_h
+
             overlay_img = Image.new("RGBA", (width, height), (0, 0, 0, 0))
             draw = ImageDraw.Draw(overlay_img)
 
-            if box_mode == "half_screen":
-                # Render satu kotak background besar setengah layar (atau blok penuh)
-                half_h = max(total_h + padding * 4, int(height * 0.45))
-                box_y1 = max(0, min(center_y - half_h // 2, height - half_h))
-                box_y2 = box_y1 + half_h
-                box_x1 = 0
-                box_x2 = width
-                if corner_radius > 0 and hasattr(draw, "rounded_rectangle"):
-                    draw.rounded_rectangle([box_x1, box_y1, box_x2, box_y2], radius=corner_radius, fill=(*bg_color_rgb, bg_alpha))
-                else:
-                    draw.rectangle([box_x1, box_y1, box_x2, box_y2], fill=(*bg_color_rgb, bg_alpha))
+            c_radius = corner_radius * 2
+            if c_radius > 0 and box_mode != "full_width":
+                r = min(c_radius, box_w // 2, box_h // 2)
+                draw.rounded_rectangle([box_x1, box_y1, box_x2, box_y2], radius=r, fill=(*bg_color_rgb, bg_alpha))
+            else:
+                draw.rectangle([box_x1, box_y1, box_x2, box_y2], fill=(*bg_color_rgb, bg_alpha))
 
-            cur_y = block_top
+            cur_y = box_y1 + pad_y
             for m in line_metrics:
-                box_w = width if box_mode == "full_width" else m["box_w"]
-                box_h = m["box_h"]
-                
-                if box_mode == "full_width":
-                    box_x1 = 0
-                    box_x2 = width
-                else:
-                    box_x1 = max(margin_x, min(center_x - box_w // 2, width - margin_x - box_w))
-                    box_x2 = box_x1 + box_w
-                
-                box_y1 = cur_y
-                box_y2 = box_y1 + box_h
+                text_x = box_x1 + (box_w - m["w"]) // 2 - m["bbox"][0]
+                text_y = cur_y - m["bbox"][1]
 
-                if box_mode != "half_screen":
-                    if corner_radius > 0 and hasattr(draw, "rounded_rectangle") and box_mode != "full_width":
-                        r = min(corner_radius, box_w // 2, box_h // 2)
-                        draw.rounded_rectangle(
-                            [box_x1, box_y1, box_x2, box_y2],
-                            radius=r,
-                            fill=(*bg_color_rgb, bg_alpha),
-                        )
-                    else:
-                        draw.rectangle(
-                            [box_x1, box_y1, box_x2, box_y2],
-                            fill=(*bg_color_rgb, bg_alpha),
-                        )
-
-                # Center text inside line box
-                text_actual_w = m["bbox"][2] - m["bbox"][0]
-                text_x = box_x1 + (box_w - text_actual_w) // 2 - m["bbox"][0]
-                text_y = box_y1 + (box_h - (m["bbox"][3] - m["bbox"][1])) // 2 - m["bbox"][1]
                 if glitch_on:
-                    # Efek glitch ala TikTok: salinan cyan & merah digeser diagonal
-                    off = max(2, font_px // 28)
-                    draw.text(
-                        (text_x - off, text_y - off),
-                        m["text"],
-                        font=pil_font,
-                        fill=(*GLITCH_CYAN, 255),
-                    )
-                    draw.text(
-                        (text_x + off, text_y + off),
-                        m["text"],
-                        font=pil_font,
-                        fill=(*GLITCH_RED, 255),
-                    )
-                # Stroke outline hitam tebal untuk keterbacaan maksimal
-                stroke_w = max(2, int(font_px * 0.08))
-                draw.text(
-                    (text_x, text_y),
-                    m["text"],
-                    font=pil_font,
-                    fill=(*font_color_rgb, 255),
-                    stroke_width=stroke_w,
-                    stroke_fill=(0, 0, 0, 255),
-                )
+                    off = max(2, int(font_px * 0.05))
+                    draw.text((text_x - off, text_y), m["text"], font=pil_font, fill=(*GLITCH_CYAN, 255))
+                    draw.text((text_x + off, text_y), m["text"], font=pil_font, fill=(*GLITCH_RED, 255))
 
-                cur_y = box_y2 + line_spacing
+                draw.text((text_x, text_y), m["text"], font=pil_font, fill=(*font_color_rgb, 255))
+                cur_y += m["h"] + line_spacing
 
             overlay_png = str(self.temp_dir / f"hook_overlay_{int(time.time() * 1000)}.png")
             overlay_img.save(overlay_png, "PNG")
-            progress_callback(0.4)
+            progress_callback(0.6)
 
-            # Composite overlay on the (frozen) background video in one FFmpeg pass
-            overlay_video = str(self.temp_dir / f"hook_overlay_video_{int(time.time() * 1000)}.mp4")
+            # Direct FFmpeg overlay on input video for 3.5 seconds (TANPA CONCAT, TANPA PAUSE!)
+            hook_dur_sec = float(style.get("duration", 3.5))
             encoder_args = self.get_video_encoder_args()
             overlay_cmd = [
                 self.ffmpeg_path, "-y",
-                "-i", bg_video,
-                "-i", overlay_png,
-                "-filter_complex", "[0:v][1:v]overlay=0:0[v]",
-                "-map", "[v]",
-                *encoder_args,
-                "-pix_fmt", "yuv420p",
-                "-an",
-                overlay_video,
-            ]
-            self.log_ffmpeg_command(overlay_cmd, "Composite Hook Overlay (PIL)", step="hook")
-            result = self._run_ffmpeg_subprocess(overlay_cmd)
-            if result.returncode != 0:
-                self.log(f"Failed to composite hook overlay: {result.stderr}")
-                raise Exception("Failed to composite hook overlay video")
-
-            if not os.path.exists(overlay_video) or os.path.getsize(overlay_video) < 1000:
-                raise Exception("Hook overlay video was not created properly")
-
-            # --- Hook V2: intro flash + glitch (efek khas short-form) ---
-            style = self.hook_style_settings or {}
-            if style.get("v2") and self._hook_v2_available():
-                try:
-                    intro = min(
-                        float(style.get("v2_intro_duration", 0.4)),
-                        max(0.1, hook_duration - 0.2),
-                    )
-                    self._apply_hook_v2_effect(
-                        overlay_video, fps, intro,
-                        flash=bool(style.get("v2_flash", True)),
-                        glitch=bool(style.get("v2_glitch", True)),
-                    )
-                    self.log(f"  Hook V2: intro flash+glitch ({intro:.2f}s)")
-                except Exception as e:
-                    self.log(f"  ⚠ Hook V2 intro effect skipped: {e}")
-
-            progress_callback(0.55)
-
-            # Both names point at the same file so the rest of the pipeline (audio mux,
-            # cleanup) keeps working without further changes.
-            current_video = overlay_video
-            reencoded_video = overlay_video
-
-        
-            # Finally, add audio to re-encoded video
-            cmd = [
-                self.ffmpeg_path, "-y",
-                "-i", reencoded_video,
-                "-i", tts_file,
-                "-c:v", "copy",
-                "-c:a", "aac",
-                "-b:a", "192k",
-                "-ar", "44100",
-                "-ac", "2",
-                "-shortest",
-                hook_video
-            ]
-        
-            # Hook creation is 30-60%
-            self.run_ffmpeg_with_progress(cmd, hook_duration, 
-                lambda p: progress_callback(0.3 + p * 0.3))
-        
-            # Re-encode main video (60-80%) using GPU/CPU encoder
-            progress_callback(0.6)
-            main_reencoded = tempfile.NamedTemporaryFile(suffix='.mp4', delete=False).name
-        
-            # Get main video duration
-            probe_cmd = [self.ffmpeg_path, "-i", input_path, "-f", "null", "-"]
-            result = subprocess.run(probe_cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
-            duration_match = re.search(r"Duration: (\d+):(\d+):(\d+\.\d+)", result.stderr)
-            main_duration = 60
-            if duration_match:
-                h, m, s = duration_match.groups()
-                main_duration = int(h) * 3600 + int(m) * 60 + float(s)
-        
-            encoder_args = self.get_video_encoder_args()
-            cmd = [
-                self.ffmpeg_path, "-y",
                 "-i", input_path,
+                "-i", overlay_png,
+                "-filter_complex", f"[0:v][1:v]overlay=0:0:enable='between(t,0,{hook_dur_sec:.1f})'[v]",
+                "-map", "[v]",
+                "-map", "0:a?",
                 *encoder_args,
-                "-r", str(fps),
-                "-s", f"{width}x{height}",
-                "-pix_fmt", "yuv420p",
-                "-c:a", "aac",
-                "-b:a", "192k",
-                "-ar", "44100",
-                "-ac", "2",
-                "-progress", "pipe:1",
-                main_reencoded
+                "-c:a", "copy",
+                output_path,
             ]
-        
-            self.log_ffmpeg_command(cmd, "Re-encode Main Video for Hook Concat", step="hook")
-            self.run_ffmpeg_with_progress(cmd, main_duration,
-                lambda p: progress_callback(0.6 + p * 0.2))
-        
-            # Concatenate (80-100%)
-            progress_callback(0.8)
-            concat_list = tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False).name
-            with open(concat_list, 'w') as f:
-                f.write(f"file '{hook_video.replace(chr(92), '/')}'\n")
-                f.write(f"file '{main_reencoded.replace(chr(92), '/')}'\n")
-        
-            cmd = [
-                self.ffmpeg_path, "-y",
-                "-f", "concat",
-                "-safe", "0",
-                "-i", concat_list,
-                "-c", "copy",
-                output_path
-            ]
-            result = subprocess.run(cmd, capture_output=True, text=True, creationflags=SUBPROCESS_FLAGS)
-        
-            if result.returncode != 0:
-                # Fallback to filter_complex using GPU/CPU encoder
-                encoder_args = self.get_video_encoder_args()
-                cmd = [
-                    self.ffmpeg_path, "-y",
-                    "-i", hook_video,
-                    "-i", main_reencoded,
-                    "-filter_complex",
-                    "[0:v:0][0:a:0][1:v:0][1:a:0]concat=n=2:v=1:a=1[outv][outa]",
-                    "-map", "[outv]",
-                    "-map", "[outa]",
-                    *encoder_args,
-                    "-c:a", "aac",
-                    "-b:a", "192k",
-                    "-progress", "pipe:1",
-                    output_path
-                ]
-                self.log_ffmpeg_command(cmd, "Concat Hook (filter_complex fallback - old)", step="hook")
-                total_duration = hook_duration + main_duration
-                self.run_ffmpeg_with_progress(cmd, total_duration,
-                    lambda p: progress_callback(0.8 + p * 0.2))
-            else:
-                progress_callback(1.0)
-        
-            # Cleanup (hook_tts.mp3 is kept in the clip folder for inspection)
-            for path in (hook_video, main_reencoded, concat_list,
-                         bg_video, overlay_video, overlay_png, frame_png):
-                try:
-                    if path and os.path.exists(path):
-                        os.unlink(path)
-                except Exception:
-                    pass
-        
-            return hook_duration
+            self.log_ffmpeg_command(overlay_cmd, "Overlay Hook Text (tanpa pause)", step="hook")
+            result = self._run_ffmpeg_subprocess(overlay_cmd)
+            progress_callback(1.0)
+
+            try:
+                if os.path.exists(overlay_png):
+                    os.unlink(overlay_png)
+            except Exception:
+                pass
+
+            if result.returncode != 0 or not os.path.exists(output_path):
+                self.log(f"  ⚠ Overlay hook gagal: {result.stderr}, copying input as fallback")
+                import shutil
+                shutil.copy(input_path, output_path)
+
+            self.log(f"  ✓ Intro Hook ditambahkan (overlay 0-{hook_dur_sec:.1f}s, tanpa pause)")
+            return 0.0
 
         @staticmethod
         def _hook_v2_available() -> bool:
@@ -1262,9 +1039,33 @@ class CaptionMixin:
             
                 debug_log(f"[DEBUG] clip_progress: {status} (overall: {overall*100:.1f}%)")
                 self.set_progress(status, overall)
-        
+
             current_step = 0
-        
+
+            # === Jump-Cut Automation (Remove Silences) ===
+            # Menggunakan segmen transkrip yang tidak ada suaranya
+            # (transkrip difilter dari segmen yang teksnya kosong/hanya spasi)
+            if hasattr(self, 'get_segments_for_clip'): 
+                # Kita ambil segmen transkrip utk klip ini
+                # highlight_start = self.parse_timestamp(start)
+                trans_segments = self.get_segments_for_clip(highlight)
+                if trans_segments:
+                    active_segments = [s for s in trans_segments if s.text.strip()]
+                    if len(active_segments) > 1:
+                        # Hitung durasi total dan buat segment baru
+                        # yg cuma mengandung segment berisi suara
+                        scenes = []
+                        for s in active_segments:
+                            scenes.append((s.start - self.parse_timestamp(start), s.end - self.parse_timestamp(start)))
+                        
+                        cut_file = clip_dir / "jumpcut.mp4"
+                        if self._cut_with_segments(landscape_file, 0, scenes, str(cut_file)):
+                            landscape_file = cut_file
+                            self.log("  ✓ Jump-cut: Senyap dibuang")
+                            current_step += 1
+            
+            # ============================================
+
             # Step 1: Cut video (skip if pre-cut section from --download-sections)
             if self.is_cancelled():
                 return
@@ -1360,7 +1161,6 @@ class CaptionMixin:
             self.log(self.colorize("  ✓ Portrait conversion", "portrait"))
             current_step += 1
         
-            # Track which file is the current output
             current_output = portrait_file
             hook_duration = 0
         
@@ -1422,7 +1222,7 @@ class CaptionMixin:
                 # Use portrait_file (without hook) as audio source for transcription
                 audio_source = str(portrait_file) if add_hook else None
             
-                self.add_captions_api_with_progress(str(current_output), str(captioned_file), audio_source, hook_duration,
+                self.add_captions_api_with_progress(str(current_output), str(captioned_file), audio_source, 0,
                     lambda p: clip_progress("Adding captions...", current_step, p))
             
                 if not captioned_file.exists():
@@ -1639,6 +1439,7 @@ class CaptionMixin:
                     current_output = credit_file
                     current_step += 1
         
+
             # Copy the final stage to the clip-named output file
             if str(current_output) != str(final_file):
                 import shutil
@@ -1662,6 +1463,7 @@ class CaptionMixin:
                 "start_time": highlight["start_time"],
                 "end_time": highlight["end_time"],
                 "duration_seconds": highlight["duration_seconds"],
+                "timed_title": highlight.get("timed_title"),
                 "has_hook": add_hook,
                 "has_captions": add_captions and not getattr(self, "_caption_failed", False),
                 "has_watermark": watermark_applied,
@@ -1776,7 +1578,8 @@ class CaptionMixin:
                     buat_thumbnail(
                         str(final_file),
                         str(thumb_path),
-                        teks=thumb_cfg.get("text") or clip_title,
+                        teks=thumb_cfg.get("text"),
+                        frame_ms=1000,
                     )
                     metadata["thumbnail"] = thumb_path.name
                     self.log(f"  ✓ Thumbnail: {thumb_path.name}")

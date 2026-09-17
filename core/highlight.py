@@ -69,8 +69,12 @@ class HighlightMixin:
     2. Pilih momen yang menarik, lucu, atau memiliki statement penting.
     3. Tiap klip harus punya momen inti yang berbeda (hindari klip yang hampir sama/berulang).
     4. Format waktu: HH:MM:SS,mmm.
+    5. WAJIB BERIKAN 'timed_title' UNTUK SETIAP KLIP. Ini untuk overlay judul 3 detik pertama di klip.
+       - format: "timed_title": {"text": "Judul Singkat Max 20 Karakter", "start": 0.0, "end": 3.0}
+       - Pastikan durasi selalu start=0.0 dan end=3.0.
+       - Judul harus sangat menarik (hook).
 
-    OUTPUT HARUS BERUPA JSON ARRAY TANPA TEKS LAIN:
+    OUTPUT HARUS BERUPA JSON ARRAY TANPA TEKS LAIN (format JSON harus valid):
     [
       {
         "start_time": "00:01:10,000",
@@ -79,7 +83,8 @@ class HighlightMixin:
         "description": "Deskripsi singkat klip ini.",
         "virality_score": 95,
         "virality_reason": "Topik ini sangat relevan dan kontroversial saat ini.",
-        "hook_text": "Kalimat pendek yang menarik"
+        "hook_text": "Kalimat pendek yang menarik",
+        "timed_title": {"text": "JUDUL VIRAL", "start": 0.0, "end": 3.0}
       }
     ]
 

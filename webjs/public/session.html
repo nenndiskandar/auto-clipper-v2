@@ -1,12 +1,11 @@
 <!DOCTYPE html>
-<html lang="id" class="dark">
+<html lang="id">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Auto Clipper</title>
 <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#facc15">
-<script src="/pwa.js"></script>
+<meta name="theme-color" content="#0d9488">
 <script src="/templates.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
@@ -15,8 +14,8 @@ tailwind.config = {
   theme: {
     extend: {
       colors: {
-        accent: '#facc15',
-        surface: { 0: '#09090b', 1: '#121215', 2: '#18181b', 3: '#27272a' },
+        accent: 'var(--accent)',
+        surface: { 0:'var(--bg-page)', 1:'var(--bg-surface)', 2:'var(--bg-surface-2)', 3:'var(--border)' },
         zinc: { 450: '#8b8b96', 650: '#43434c' }
       }
     }
@@ -24,47 +23,94 @@ tailwind.config = {
 }
 </script>
 <style>
-body { background: #09090b; color: #f4f4f5; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; }
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
-pre.log { background: #000; color: #a1a1aa; font-size: .75rem; max-height: 40vh; overflow-y: auto; white-space: pre-wrap; border-radius: .5rem; }
-.tpl-btn { padding: .25rem .5rem; border-radius: .375rem; border: 1px solid #3f3f46; background: #18181b; font-size: .75rem; transition: all .15s; }
-.tpl-btn:hover { border-color: #facc15; color: #fff; }
+a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible {
+  outline: 2px solid #facc15 !important;
+  outline-offset: 2px !important;
+}
+
+
+
+
+
+
+
+
 </style>
+<link rel="stylesheet" href="/app.css">
+
+<script>
+// FORCE CACHE CLEAR AND SW UNREGISTER
+(async function() {
+  if (localStorage.getItem('force_cleared_v11')) return;
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      for (let r of regs) await r.unregister();
+    }
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      for (let k of keys) await caches.delete(k);
+    }
+    localStorage.setItem('force_cleared_v11', '1');
+    window.location.reload(true);
+  } catch (e) {}
+})();
+</script>
+
 </head>
-<body class="min-h-screen flex flex-col md:flex-row bg-[#09090b]">
+<body class="min-h-screen flex flex-col md:flex-row ">
 
 <!-- SIDEBAR -->
-<aside class="w-full md:w-60 border-b md:border-b-0 md:border-r border-zinc-800 bg-zinc-950 flex flex-col shrink-0">
+<aside class="w-full md:w-64 border-b md:border-b-0 md:border-r border-zinc-800  flex flex-col shrink-0">
   <div class="p-4 border-b border-zinc-800 flex items-center justify-between">
-    <span class="font-bold text-sm tracking-wider text-accent">⚡ YT CLIPPER</span>
-    <a href="/logout" class="text-xs text-zinc-400 hover:text-white transition md:hidden">Logout</a>
+    <div class="flex items-center gap-2">
+      <span class="w-7 h-7 rounded-lg logo-mark flex items-center justify-center font-black text-sm">⚡</span>
+      <span class="font-bold text-sm tracking-wide text-white font-heading">AUTO<span class="text-[var(--accent)]">CLIPPER</span></span>
+    </div>
+    <div class="flex items-center gap-2"><button class="darkmode-btn darkmode-compact" aria-label="Toggle dark mode">🌙</button><a href="/logout" class="min-h-[32px] min-w-[44px] flex items-center justify-center text-xs text-zinc-400 hover:text-white transition md:hidden">Logout</a></div>
   </div>
-  <div class="p-3 flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-x-visible">
-    <a href="/" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition bg-zinc-900 text-white font-medium">🏠 Library</a>
-    <a href="/create.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">＋ Create Clip</a>
-    <a href="/tasks.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">📋 Tasks</a>
-    <a href="/story.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🎬 Story</a>
-    <a href="/facebook.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">📘 FB</a>
-    <a href="/cookies.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🍪 Cookies</a>
-    <a href="/bgm.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🎵 Auto BGM</a>
-    <a href="/broll.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🖼 Auto B-roll</a>
-    <a href="/transition.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🌀 Transition</a>
-    <a href="/thumbnail.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">🖼 Thumbnail</a>
-    <a href="/settings.html" class="flex items-center gap-2 px-3 py-2 text-xs rounded transition text-zinc-450 hover:text-white hover:bg-zinc-900/50">⚙️ Settings</a>
+
+  <nav aria-label="Menu Utama" class="p-2 md:p-3 flex flex-row md:flex-col gap-1.5 flex-wrap" id="sidebarLinks">
+    <a href="/" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition bg-[var(--accent)] text-[var(--accent-text)] font-bold shadow-sm"><span>🏠</span><span>Library Sesi</span></a>
+    <a href="/create.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>➕</span><span>Create Clip</span></a>
+    <a href="/tasks.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>📋</span><span>Antrean Tasks</span></a>
+    <a href="/story.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>🎬</span><span>AI Story</span></a>
+    <a href="/facebook.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>📘</span><span>FB Auto Upload</span></a>
+    <a href="/cookies.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>🍪</span><span>Cookies YouTube</span></a>
+                    <a href="/settings.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>⚙️</span><span>Settings & AI</span></a>
+  </nav>
+
+  <!-- Engine Status Indication -->
+  <div class="mt-auto px-4 py-3 border-t border-zinc-800/80 hidden md:flex flex-col gap-2 text-xs text-zinc-400 bg-zinc-950/40">
+    <span class="font-semibold text-[10px] uppercase tracking-wider text-zinc-400">⚡ Engine Status</span>
+    <div class="flex items-center justify-between"><span>FFmpeg</span><span id="st_ffmpeg" class="w-2.5 h-2.5 rounded-full bg-zinc-600" title="Checking..."></span></div>
+    <div class="flex items-center justify-between"><span>yt-dlp</span><span id="st_ytdlp" class="w-2.5 h-2.5 rounded-full bg-zinc-600" title="Checking..."></span></div>
+    <div class="flex items-center justify-between"><span>Deno</span><span id="st_deno" class="w-2.5 h-2.5 rounded-full bg-zinc-600" title="Checking..."></span></div>
+    <div class="flex items-center justify-between"><span>AI Proxy</span><span id="st_ai" class="w-2.5 h-2.5 rounded-full bg-zinc-600" title="Checking..."></span></div>
   </div>
-  <div class="mt-auto p-4 border-t border-zinc-800 hidden md:flex items-center justify-between text-[11px]">
-    <span class="text-zinc-500 truncate max-w-[120px]" id="whoami"></span>
-    <a href="/logout" class="text-zinc-400 hover:text-white transition">Logout</a>
+
+  <div class="p-4 border-t border-zinc-800 hidden md:flex items-center justify-between text-xs">
+    <span class="text-zinc-400 truncate max-w-[130px]" id="whoami"></span>
+    <div class="flex items-center gap-2"><button class="darkmode-btn darkmode-compact" aria-label="Toggle dark mode">🌙</button><a href="/logout" class="text-zinc-400 hover:text-white transition">Logout</a></div>
   </div>
+
+  <!-- Engine Status Mobile -->
+  <div class="md:hidden flex items-center justify-around px-4 py-2.5 border-t border-b border-zinc-800/80 bg-zinc-950/60 text-[10px] text-zinc-300">
+    <div class="flex items-center gap-1.5"><span id="st_ffmpeg_mob" class="w-2 h-2 rounded-full bg-zinc-600" title="Checking..."></span><span>FFmpeg</span></div>
+    <div class="flex items-center gap-1.5"><span id="st_ytdlp_mob" class="w-2 h-2 rounded-full bg-zinc-600" title="Checking..."></span><span>yt-dlp</span></div>
+    <div class="flex items-center gap-1.5"><span id="st_deno_mob" class="w-2 h-2 rounded-full bg-zinc-600" title="Checking..."></span><span>Deno</span></div>
+    <div class="flex items-center gap-1.5"><span id="st_ai_mob" class="w-2 h-2 rounded-full bg-zinc-600" title="Checking..."></span><span>AI</span></div>
+  </div>
+
+
+  
 </aside>
 
 <!-- MAIN CONTENT WRAPPER -->
 <div class="flex-1 flex flex-col min-w-0 overflow-y-auto">
   <!-- MAIN CONTENT -->
   <main class="max-w-5xl w-full mx-auto p-4 md:p-6 space-y-6 flex-1">
-    <div class="text-center text-zinc-500 py-12 text-sm" id="loadingState">Memuat detail sesi…</div>
+    <div class="text-center text-zinc-400 py-12 text-sm" id="loadingState">Memuat detail sesi…</div>
     
     <div id="contentState" class="hidden space-y-6">
       
@@ -78,7 +124,7 @@ pre.log { background: #000; color: #a1a1aa; font-size: .75rem; max-height: 40vh;
           <span class="bg-zinc-800 text-zinc-300 text-xs px-2.5 py-1 rounded font-mono" id="s_id"></span>
         </div>
         <div id="sourceBox" class="text-xs bg-surface-2 border border-zinc-800 rounded-lg p-3 hidden">
-          <span class="font-medium text-zinc-500 mr-2">Sumber Video:</span>
+          <span class="font-medium text-zinc-400 mr-2">Sumber Video:</span>
           <a id="s_url" class="text-accent hover:underline break-all font-mono" target="_blank" rel="noopener" href="#"></a>
         </div>
       </div>
@@ -88,7 +134,7 @@ pre.log { background: #000; color: #a1a1aa; font-size: .75rem; max-height: 40vh;
         <div class="flex flex-wrap justify-between items-center gap-2 pb-3 border-b border-zinc-800">
           <h2 class="text-sm font-semibold text-white flex items-center gap-2">
             <span>🎞️ Klip Hasil Render</span>
-            <span class="text-xs text-zinc-500 font-normal" id="clipCountInfo"></span>
+            <span class="text-xs text-zinc-400 font-normal" id="clipCountInfo"></span>
           </h2>
         </div>
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3" id="clipsGrid"></div>
@@ -100,7 +146,7 @@ pre.log { background: #000; color: #a1a1aa; font-size: .75rem; max-height: 40vh;
           <h2 class="text-sm font-semibold text-white">🔁 Render Ulang</h2>
           <p class="text-[11px] text-zinc-400">Buka Create untuk pilih momen & render ulang</p>
         </div>
-        <button onclick="goCreate()" class="px-4 py-2 text-xs font-semibold bg-accent text-black rounded-lg hover:bg-yellow-400 transition">🎬 Render Ulang → Create</button>
+        <button onclick="goCreate()" class="px-4 py-2 text-xs font-semibold bg-[var(--accent)] text-[var(--accent-text)] rounded-lg hover:bg-[var(--accent-hover)] transition">🎬 Render Ulang → Create</button>
       </div>
 
     </div>
@@ -178,7 +224,7 @@ function fmtDur(s) {
 function renderClips(clips) {
   const container = document.getElementById('clipsGrid');
   if (!clips || !clips.length) {
-    container.innerHTML = '<div class="col-span-full p-4 text-xs text-zinc-500 text-center">Belum ada klip yang dirender.</div>';
+    container.innerHTML = '<div class="col-span-full p-4 text-xs text-zinc-400 text-center">Belum ada klip yang dirender.</div>';
     document.getElementById('clipCountInfo').textContent = '(0 klip)';
     return;
   }
@@ -208,9 +254,9 @@ function renderClips(clips) {
       <div class="p-2 flex flex-col flex-1">
         <a href="${detailUrl}" class="text-[11px] font-bold text-white line-clamp-2 mb-1 hover:text-accent transition" title="${esc(c.title)}">${esc(c.title)}</a>
         ${c.hook_text ? `<p class="text-[10px] text-zinc-300 line-clamp-1 mb-0.5">🎯 ${esc(c.hook_text)}</p>` : ''}
-        <p class="text-[10px] text-zinc-500 line-clamp-1 mb-1.5">${esc(c.desc)}</p>
+        <p class="text-[10px] text-zinc-400 line-clamp-1 mb-1.5">${esc(c.desc)}</p>
         
-        <div class="text-[9px] text-zinc-500 mb-2 flex items-center justify-between mt-auto">
+        <div class="text-[9px] text-zinc-400 mb-2 flex items-center justify-between mt-auto">
           <span>💾 ${fmtSize(c.size_bytes)}</span>
           <span>${c.created ? new Date(c.created).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}</span>
         </div>
@@ -244,7 +290,7 @@ function renderHighlights() {
   const container = document.getElementById('hlListContainer');
   if(!container) return;
   if (!Array.isArray(HIGHLIGHTS) || !HIGHLIGHTS.length) {
-    container.innerHTML = '<div class="p-4 text-xs text-zinc-500 text-center">Belum ada highlight. Silakan klik Cari Ulang Highlight di bawah.</div>';
+    container.innerHTML = '<div class="p-4 text-xs text-zinc-400 text-center">Belum ada highlight. Silakan klik Cari Ulang Highlight di bawah.</div>';
     const a=document.getElementById('hlCountInfo'); if(a) a.textContent = '(0 momen)';
     updateCount();
     return;
@@ -260,7 +306,7 @@ function renderHighlights() {
         </div>
         <span class="text-[11px] text-zinc-400 mt-0.5 block">${esc(h.start)} → ${esc(h.end)} · ${h.duration}s</span>
         ${h.hook_text ? `<p class="text-[10px] text-zinc-300 font-medium mt-0.5">🎯 ${esc(h.hook_text)}</p>` : ''}
-        ${h.reason ? `<p class="text-[10px] text-zinc-500 italic mt-0.5">💡 ${esc(h.reason)}</p>` : ''}
+        ${h.reason ? `<p class="text-[10px] text-zinc-400 italic mt-0.5">💡 ${esc(h.reason)}</p>` : ''}
       </div>
     </label>
   `).join('');
@@ -342,7 +388,7 @@ async function doRefind() {
         renderHighlights();
       }, 1000);
     } else {
-      st.innerHTML = `<div class="p-3 text-xs bg-red-950/20 border border-red-900/30 text-red-400 rounded-lg">❌ Gagal mencari highlight — lihat log.</div>`;
+      st.innerHTML = `<div class="p-3 text-xs bg-red-950/20 border border-red-900/30 text-red-400 rounded-lg">❌ Gagal mencari highlight : lihat log.</div>`;
     }
   });
 }
@@ -382,7 +428,7 @@ async function startProcess() {
     if (j.code === 0) {
       st.innerHTML = '<div class="p-3 text-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg">✅ Render klip selesai! Hasilnya sudah masuk ke Library.</div>';
     } else {
-      st.innerHTML = `<div class="p-3 text-xs bg-red-950/20 border border-red-900/30 text-red-400 rounded-lg">❌ Render gagal (exit ${j.code ?? '?'}) — cek log di bawah.</div>`;
+      st.innerHTML = `<div class="p-3 text-xs bg-red-950/20 border border-red-900/30 text-red-400 rounded-lg">❌ Render gagal (exit ${j.code ?? '?'}) : cek log di bawah.</div>`;
     }
   });
 }
@@ -433,5 +479,7 @@ function goCreate(){
 }
 loadSession();
 </script>
+<script src="/engine_status.js"></script>
+<script src="/ui.js"></script>
 </body>
 </html>
