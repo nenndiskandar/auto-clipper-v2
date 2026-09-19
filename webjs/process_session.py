@@ -74,8 +74,6 @@ def main():
     core.enable_gpu_acceleration(True)
     if cfg.get("face_detector_model"):
         core.face_detector_model = cfg.get("face_detector_model")
-    if cfg.get("yolo_size"):
-        core.yolo_size = cfg.get("yolo_size")
 
     debug_log(f"[progress] Process start {len(sel_idx)} clips (overall: 10%)", flush=True)
     sd_path = Path(SESSION_DIR) / "session_data.json"

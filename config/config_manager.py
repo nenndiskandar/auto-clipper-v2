@@ -175,9 +175,8 @@ class ConfigManager:
             "duration": 0.5,
         })
 
-        config.setdefault("face_detector_model", "mediapipe")  # "mediapipe" | "yolo"
-        config.setdefault("yolo_size", "8n")
-
+        config.setdefault("face_detector_model", "mediapipe")  # locked to mediapipe
+        return config
         config.setdefault("thumbnail", {
             "enabled": False,
             "text": "",

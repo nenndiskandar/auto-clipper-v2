@@ -546,8 +546,6 @@ def get_core_instance(config_mgr: ConfigManager, log_cb=None, progress_cb=None) 
         core.enable_gpu_acceleration(False)
     if cfg.get("face_detector_model"):
         core.face_detector_model = cfg.get("face_detector_model")
-    if cfg.get("yolo_size"):
-        core.yolo_size = cfg.get("yolo_size")
     return core
 
 

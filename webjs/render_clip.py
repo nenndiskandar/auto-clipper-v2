@@ -2,7 +2,7 @@
 """Re-render satu klip (dari landscape.mp4) dengan konfigurasi aktif.
 
 Env RENDER_OPTS (JSON): {hook,captions,watermark,credit,aspect_ratio,subtitle_style,
-portrait_mode,face_tracking_mode,sync_offset,gpu,face_detector_model,yolo_size,
+portrait_mode,face_tracking_mode,sync_offset,gpu,face_detector_model,
 bgm_mood,bgm_path,broll_query,pexels_api_key}
 """
 import sys, os, json, traceback
@@ -101,8 +101,6 @@ def main():
         core.auto_broll_settings["pexels_api_key"] = str(opts["pexels_api_key"]).strip()
     if cfg.get("face_detector_model"):
         core.face_detector_model = cfg.get("face_detector_model")
-    if cfg.get("yolo_size"):
-        core.yolo_size = cfg.get("yolo_size")
     if "gpu" in opts:
         core.enable_gpu_acceleration(bool(opts["gpu"]))
     else:  # GPU selalu aktif

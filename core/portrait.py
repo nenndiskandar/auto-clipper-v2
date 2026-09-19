@@ -210,27 +210,19 @@ class PortraitMixin:
             if self._source_is_portrait(input_path):
                 self._passthrough_portrait(input_path, output_path, None)
                 return
-            if self.face_tracking_mode == "detector":
-                self.log(f"  Using BlazeFace Detector (face center, tanpa lip)")
-                return self.convert_to_portrait_detector(input_path, output_path)
             if self.portrait_mode == "blur":
                 self.log("  Using Blurred Background (no crop)")
                 return self.convert_to_portrait_blur(input_path, output_path)
+            if self.face_tracking_mode == "detector":
+                self.log(f"  Using BlazeFace Detector (face center, tanpa lip)")
+                return self.convert_to_portrait_detector(input_path, output_path)
             try:
-                if self.face_tracking_mode == "mediapipe":
-                    self.log("  Using MediaPipe (Active Speaker Detection)")
-                    return self.convert_to_portrait_mediapipe(input_path, output_path)
-                else:
-                    self.log("  Using OpenCV (Fast Mode)")
-                    return self.convert_to_portrait_opencv(input_path, output_path)
+                self.log("  Using MediaPipe (Active Speaker Detection)")
+                return self.convert_to_portrait_mediapipe(input_path, output_path)
             except Exception as e:
-                # Fallback to OpenCV if MediaPipe fails
-                if self.face_tracking_mode == "opencv":
-                    self.log(f"  ⚠ MediaPipe failed: {e}")
-                    self.log("  Falling back to OpenCV mode...")
-                    return self.convert_to_portrait_opencv(input_path, output_path)
-                else:
-                    raise
+                self.log(f"  ⚠ MediaPipe failed: {e}")
+                self.log("  Falling back to OpenCV mode...")
+                return self.convert_to_portrait_opencv(input_path, output_path)
 
         def convert_to_portrait_opencv(self, input_path: str, output_path: str):
             """Convert landscape to 9:16 portrait with speaker tracking (OpenCV Haar Cascade)"""
@@ -482,140 +474,6 @@ class PortraitMixin:
             crop_positions = self._smooth_follow_positions(crop_positions, 1.6)
             self.log(f"  BlazeFace tracked {len(analyzed_positions)} samples → {len(crop_positions)} frames")
             self._encode_portrait_single_pass(input_path, output_path, crop_positions, crop_w, crop_h, out_w, out_h, duration=frames_read/fps if fps else 0, progress_callback=lambda p: progress_callback(0.5 + p*0.5) if progress_callback else None)
-
-        def _init_yolo_detector(self):
-            """Lazy-init YOLO face detector (getattr-safe, optional dependency)."""
-            if getattr(self, "_yolo_detector", None) is None:
-                try:
-                    from core.yolo_detector import YOLOFaceDetector
-                    size = getattr(self, "yolo_size", "8n") or "8n"
-                    if size not in ("8n", "8n_v2", "8s", "8m", "9c"):
-                        size = "8n"
-                    self._yolo_detector = YOLOFaceDetector(model_size=size, conf=0.3)
-                except Exception as e:
-                    self.log(f"  ⚠ YOLO tidak tersedia ({e}), fallback ke MediaPipe.")
-                    self._yolo_detector = None
-            return self._yolo_detector
-
-        def convert_to_portrait_yolo(self, input_path: str, output_path: str):
-            return self.convert_to_portrait_yolo_with_progress(input_path, output_path, None)
-
-        def convert_to_portrait_yolo_with_progress(self, input_path: str, output_path: str, progress_callback):
-            """YOLO face detector — wajah terbesar dikunci di tengah, tanpa lip (setara detector)."""
-            det = self._init_yolo_detector()
-            if det is None:
-                self.log("  ⚠ YOLO tidak tersedia, fallback ke BlazeFace (detector).")
-                return self.convert_to_portrait_detector_with_progress(input_path, output_path, progress_callback)
-            cap = cv2.VideoCapture(input_path)
-            if not cap.isOpened():
-                raise Exception(f"Failed to open video: {input_path}")
-            orig_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-            orig_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
-            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or 0
-            crop_w, crop_h = self._get_crop_window(orig_w, orig_h)
-            out_w, out_h = self._get_ratio_dimensions()
-            if total_frames == 0 or fps == 0:
-                cap.release()
-                raise Exception(f"Invalid video: {total_frames} frames, {fps} fps")
-            self.log("  YOLO: analyzing every 5th frame...")
-            analyzed_indices, analyzed_positions = [], []
-            frames_read = 0
-            current_target = orig_w / 2
-            ANALYSIS_STEP = 5
-            scale = min(1.0, 640 / orig_w)
-            # Promise: deteksi MULUT yg bergerak (lip motion) utk tahu siapa pembicara, lalu
-            # follow wajah pembicara itu (tetap di tengah / dikunci kamera).
-            # ponytail: tanpa audio, lip-motion via frame-diff dipakai sbg proksi bicara;
-            # idealnya adiaran speaker aktif utk akurasi penuh.
-            locked_cx = None
-            locked_lip = 0.0
-            lost_frames = 0
-            switch_cooldown = 0
-            prev_gray = None
-            while True:
-                if self.is_cancelled():
-                    cap.release()
-                    raise Exception("Cancelled by user")
-                if frames_read % ANALYSIS_STEP != 0:
-                    ret = cap.grab()
-                    if not ret:
-                        break
-                    frames_read += 1
-                    continue
-                ret, frame = cap.read()
-                if not ret:
-                    break
-                small = cv2.resize(frame, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA) if scale < 1 else frame
-                gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
-                try:
-                    boxes = det.detect(small)
-                except Exception as e:
-                    debug_log(f"YOLO detect gagal: {e}")
-                    boxes = []
-                if boxes:
-                    saw_lock = False
-                    best_face = None
-                    for b in boxes:
-                        cx = (b[0] + b[2]) / 2
-                        if locked_cx is not None and abs(cx - locked_cx) / small.shape[1] < 0.15:
-                            saw_lock = True
-                        # lip ROI: bagian bawah wajah (mulut); diff antar sample frame
-                        lip = 0.0
-                        if prev_gray is not None:
-                            y1, y2 = int(b[1] + 0.55 * (b[3] - b[1])), int(b[3])
-                            x1, x2 = int(b[0]), int(b[2])
-                            hh = small.shape[0]
-                            y1, y2 = max(0, min(y1, hh - 1)), max(0, min(y2, hh))
-                            x1, x2 = max(0, min(x1, small.shape[1] - 1)), max(0, min(x2, small.shape[1]))
-                            if y2 > y1 and x2 > x1:
-                                roi = gray[y1:y2, x1:x2]
-                                proi = prev_gray[y1:y2, x1:x2]
-                                if roi.size and proi.size:
-                                    lip = float(cv2.absdiff(roi, proi).mean())
-                        if best_face is None or lip > best_face[1]:
-                            best_face = (cx, lip)
-                    # pilih pembicara: lip tertinggi, dgn preferensi wajah yg sudah dikunci
-                    # (kecuali wajah lain bicara jauh lebih aktif → pindah pembicara)
-                    if best_face is not None:
-                        if locked_cx is None or lost_frames >= ANALYSIS_STEP * 5:
-                            locked_cx = best_face[0]
-                            locked_lip = best_face[1]
-                            lost_frames = 0
-                        else:
-                            if (saw_lock and best_face[1] < 2.0 * locked_lip + 3.0):
-                                pass  # tetap di wajah yg dikunci (bicara aktif)
-                            elif best_face[1] > 1.6 * (locked_lip + 1.0) and switch_cooldown <= 0:
-                                # wajah lain jauh lebih aktif bicara → pindah pembicara
-                                locked_cx = best_face[0]
-                                locked_lip = best_face[1]
-                                switch_cooldown = ANALYSIS_STEP * 12  # hold ~12 sample stlh pindah
-                        locked_lip = 0.9 * locked_lip + 0.1 * best_face[1]
-                    if switch_cooldown > 0:
-                        switch_cooldown -= ANALYSIS_STEP
-                    if locked_cx is None:
-                        locked_cx = orig_w / 2
-                    current_target = float(locked_cx) * (orig_w / small.shape[1])
-                else:
-                    lost_frames += ANALYSIS_STEP
-                prev_gray = gray
-                crop_x = int(current_target - crop_w / 2)
-                crop_x = max(0, min(crop_x, orig_w - crop_w))
-                analyzed_indices.append(frames_read)
-                analyzed_positions.append(crop_x)
-                frames_read += 1
-                if progress_callback and frames_read % 150 == 0 and total_frames:
-                    try:
-                        progress_callback(min(0.45, (frames_read / total_frames) * 0.45))
-                    except Exception:
-                        pass
-            cap.release()
-            if not analyzed_positions:
-                raise Exception("No faces detected by YOLO")
-            crop_positions = self._hold_sampled_values(analyzed_positions, analyzed_indices, frames_read)
-            crop_positions = self._smooth_follow_positions(crop_positions, 1.6)
-            self.log(f"  YOLO tracked {len(analyzed_positions)} samples → {len(crop_positions)} frames")
-            self._encode_portrait_single_pass(input_path, output_path, crop_positions, crop_w, crop_h, out_w, out_h, duration=frames_read / fps if fps else 0, progress_callback=lambda p: progress_callback(0.5 + p * 0.5) if progress_callback else None)
 
         def convert_to_portrait_mediapipe(self, input_path: str, output_path: str):
             """Convert landscape to 9:16 portrait with active speaker detection (MediaPipe)"""
@@ -1172,30 +1030,19 @@ class PortraitMixin:
             if self._source_is_portrait(input_path):
                 self._passthrough_portrait(input_path, output_path, progress_callback)
                 return
-            if getattr(self, "face_detector_model", "mediapipe") == "yolo":
-                self.log("  Using YOLO Face Detector (wajah terbesar di tengah)")
-                return self.convert_to_portrait_yolo_with_progress(input_path, output_path, progress_callback)
-            if self.face_tracking_mode == "detector":
-                self.log(f"  Using BlazeFace Detector (face center, tanpa lip)")
-                return self.convert_to_portrait_detector_with_progress(input_path, output_path, progress_callback)
             if self.portrait_mode == "blur":
                 self.log("  Using Blurred Background (no crop)")
                 return self.convert_to_portrait_blur_with_progress(input_path, output_path, progress_callback)
+            if self.face_tracking_mode == "detector":
+                self.log(f"  Using BlazeFace Detector (face center, tanpa lip)")
+                return self.convert_to_portrait_detector_with_progress(input_path, output_path, progress_callback)
             try:
-                if self.face_tracking_mode == "mediapipe":
-                    self.log("  Using MediaPipe (Active Speaker Detection)")
-                    return self.convert_to_portrait_mediapipe_with_progress(input_path, output_path, progress_callback)
-                else:
-                    self.log("  Using OpenCV (Fast Mode)")
-                    return self.convert_to_portrait_opencv_with_progress(input_path, output_path, progress_callback)
+                self.log("  Using MediaPipe (Active Speaker Detection)")
+                return self.convert_to_portrait_mediapipe_with_progress(input_path, output_path, progress_callback)
             except Exception as e:
-                # Fallback to OpenCV if MediaPipe fails
-                if self.face_tracking_mode == "mediapipe":
-                    self.log(f"  ⚠ MediaPipe failed: {e}")
-                    self.log("  Falling back to OpenCV mode...")
-                    return self.convert_to_portrait_opencv_with_progress(input_path, output_path, progress_callback)
-                else:
-                    raise
+                self.log(f"  ⚠ MediaPipe failed: {e}")
+                self.log("  Falling back to OpenCV mode...")
+                return self.convert_to_portrait_opencv_with_progress(input_path, output_path, progress_callback)
 
         def convert_to_portrait_opencv_with_progress(self, input_path: str, output_path: str, progress_callback):
             """Convert landscape to 9:16 portrait with speaker tracking and progress (OpenCV)"""

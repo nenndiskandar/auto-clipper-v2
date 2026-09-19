@@ -125,7 +125,6 @@
   "subtitle_language": "id",
   "font_preset": "DEFAULT",
   "face_detector_model": "mediapipe",
-  "yolo_size": "8n",
   "auto_bgm": {
     "enabled": false,
     "mood": "",

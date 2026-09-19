@@ -179,25 +179,7 @@ details.cfg-group[open] summary::before{transform:rotate(90deg)}
                         <input type="number" step="0.05" id="f_sync_offset" placeholder="-0.3" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-teal-500">
                     </div>
                 </div></details>
-                <details class="cfg-group"><summary class="px-2 py-1.5 text-xs font-semibold text-zinc-300 hover:text-white">🎯 AI Face Tracking</summary>
-                <div class="px-2 pb-2 space-y-2 text-xs">
-                    <div>
-                        <label class="text-[10px] text-zinc-400 block mb-0.5" for="f_face_detector_model">Engine Detektor Wajah</label>
-                        <select id="f_face_detector_model" onchange="toggleYoloSize()" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-teal-500">
-                            <option value="mediapipe">MediaPipe Face Mesh (Cepat &amp; Ringan)</option>
-                            <option value="yolo">YOLOv8 (Presisi Akurat)</option>
-                        </select>
-                    </div>
-                    <div id="yoloSizeBox" class="hidden">
-                        <label class="text-[10px] text-zinc-400 block mb-0.5" for="f_yolo_size">Ukuran Model YOLO</label>
-                        <select id="f_yolo_size" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-teal-500">
-                            <option value="8n">YOLOv8 Nano (Super Fast)</option>
-                            <option value="8s">YOLOv8 Small</option>
-                            <option value="8m">YOLOv8 Medium</option>
-                            <option value="9c">YOLOv9 Compact</option>
-                        </select>
-                    </div>
-                </div></details>
+
             </div>
             <div id="saveMsg" class="px-3 pb-2 text-xs"></div>
         </div>
@@ -309,12 +291,7 @@ details.cfg-group[open] summary::before{transform:rotate(90deg)}
         }catch(e){st.innerHTML='<div class="bg-red-500/10 border border-red-500/20 rounded px-3 py-2 text-xs text-red-300">❌ '+esc(e.message)+'</div>';}
     }
 
-    function toggleYoloSize(){
-        const fm=$('#f_face_detector_model');
-        const box=$('#yoloSizeBox');
-        if(!fm||!box)return;
-        box.classList.toggle('hidden', fm.value !== 'yolo');
-    }
+
 
     async function saveConfig(){
         const v=id=>{const el=document.getElementById(id);return el?el.value:''};
@@ -329,9 +306,7 @@ details.cfg-group[open] summary::before{transform:rotate(90deg)}
             gpu:c('f_gpu'),
             aspect_ratio:v('f_aspect_ratio'),
             portrait_mode:v('f_portrait_mode'),
-            subtitle_style:v('f_subtitle_style'),
-            face_detector_model:v('f_face_detector_model'),
-            yolo_size:v('f_yolo_size')
+            subtitle_style:v('f_subtitle_style')
         };
         if(!isNaN(syncVal)) payload.sync_offset=syncVal;
         try{
@@ -364,10 +339,7 @@ details.cfg-group[open] summary::before{transform:rotate(90deg)}
         if(c.aspect_ratio && $('#f_aspect_ratio')) $('#f_aspect_ratio').value=c.aspect_ratio;
         if(c.portrait_mode && $('#f_portrait_mode')) $('#f_portrait_mode').value=c.portrait_mode;
         if(c.subtitle_style && $('#f_subtitle_style')) $('#f_subtitle_style').value=c.subtitle_style;
-        if(c.face_detector_model && $('#f_face_detector_model')) $('#f_face_detector_model').value=c.face_detector_model;
-        if(c.yolo_size && $('#f_yolo_size')) $('#f_yolo_size').value=c.yolo_size;
         if(c.sync_offset != null && $('#f_sync_offset')) $('#f_sync_offset').value=c.sync_offset;
-        toggleYoloSize();
         await saveConfig();
         const msg=$('#tplMsg');if(msg){msg.textContent='✅ '+t.label+' diterapkan';msg.classList.remove('hidden');setTimeout(()=>msg.classList.add('hidden'),3000);}
     }
@@ -380,10 +352,7 @@ details.cfg-group[open] summary::before{transform:rotate(90deg)}
             if(c.aspect_ratio && $('#f_aspect_ratio')) $('#f_aspect_ratio').value=c.aspect_ratio;
             if(c.portrait_mode && $('#f_portrait_mode')) $('#f_portrait_mode').value=c.portrait_mode;
             if(c.subtitle_style && $('#f_subtitle_style')) $('#f_subtitle_style').value=c.subtitle_style;
-            if(c.face_detector_model && $('#f_face_detector_model')) $('#f_face_detector_model').value=c.face_detector_model;
-            if(c.yolo_size && $('#f_yolo_size')) $('#f_yolo_size').value=c.yolo_size;
             if(c.sync_offset != null && $('#f_sync_offset')) $('#f_sync_offset').value=c.sync_offset;
-            toggleYoloSize();
         }catch(e){}
     }
 

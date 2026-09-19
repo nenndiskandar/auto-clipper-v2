@@ -282,27 +282,10 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
           <span class="text-[10px] text-zinc-400">Face Follow</span>
         </div>
         <div class="card-body p-4 pt-0 space-y-3">
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-1 gap-3">
             <div>
               <label class="text-[10px] text-zinc-400 block mb-0.5">Deteksi Wajah</label>
               <select id="s_face_tracking_mode" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[var(--accent)]"><option>mediapipe</option></select>
-            </div>
-            <div>
-              <label class="text-[10px] text-zinc-400 block mb-0.5">Face Detector (YOLO)</label>
-              <select id="s_face_detector_model" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[var(--accent)]">
-                <option value="mediapipe">MediaPipe (default)</option>
-                <option value="yolo">YOLO (akurasi tinggi)</option>
-              </select>
-            </div>
-            <div>
-              <label class="text-[10px] text-zinc-400 block mb-0.5">YOLO Model Size</label>
-              <select id="s_yolo_size" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[var(--accent)]">
-                <option value="8n">8n (tercepat)</option>
-                <option value="8n_v2">8n_v2</option>
-                <option value="8s">8s</option>
-                <option value="8m">8m</option>
-                <option value="9c">9c (paling akurat)</option>
-              </select>
             </div>
             <div class="hidden"><input type="hidden" id="s_pan_speed_limit" value="1.8"></div>
             <div class="hidden"><input type="hidden" id="s_center_weight" value="0.15"></div>
@@ -643,7 +626,6 @@ function collectFormData() {
     smooth_follow: $('#s_smooth_follow').checked,
     face_tracking_mode: $('#s_face_tracking_mode').value,
     face_detector_model: $('#s_face_detector_model')?.value || 'mediapipe',
-    yolo_size: $('#s_yolo_size')?.value || 'tiny',
     pan_speed_limit: parseFloat($('#s_pan_speed_limit').value) || 1.8,
     center_weight: parseFloat($('#s_center_weight').value) || 0.15,
     switch_threshold: parseFloat($('#s_switch_threshold').value) || 0.18,
@@ -707,7 +689,6 @@ function populateForm(d) {
   chk('s_smooth_follow', d.smooth_follow !== false);
   set('s_face_tracking_mode', d.face_tracking_mode || 'opencv');
   set('s_face_detector_model', d.face_detector_model || 'mediapipe');
-  set('s_yolo_size', d.yolo_size || '8n');
   set('s_pan_speed_limit', d.pan_speed_limit ?? 1.8);
   set('s_center_weight', d.center_weight ?? 0.15);
   set('s_switch_threshold', d.switch_threshold ?? 0.18);

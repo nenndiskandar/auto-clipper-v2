@@ -219,7 +219,8 @@ class AutoClipperCore(SubtitleGeneratorMixin, DownloadMixin, TranscribeMixin, Hi
         self.metadata_settings = metadata_settings or {}
         self.auto_broll_settings = auto_broll_settings or {}
         ps = self.pro_settings
-        self.face_detector_model = ps.get("face_detector_model", "mediapipe")
+        self.face_detector_model = "mediapipe"
+
         self.subtitle_language = subtitle_language
         # Whisper word timestamps tend to run LATE by ~0.2-0.4s.
         # Negative = show subtitles earlier to compensate.

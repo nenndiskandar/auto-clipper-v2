@@ -78,8 +78,6 @@ def main():
     core.enable_gpu_acceleration(True)
     if cfg.get("face_detector_model"):
         core.face_detector_model = cfg.get("face_detector_model")
-    if cfg.get("yolo_size"):
-        core.yolo_size = cfg.get("yolo_size")
 
     num_clips = "auto"
     debug_log(f"[progress] Starting Phase1 analyze (overall: 0.0%)", flush=True)

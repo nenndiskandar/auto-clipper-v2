@@ -57,9 +57,6 @@ def build_core():
     )
     # GPU selalu aktif
     core.enable_gpu_acceleration(True)
-    # Face detector (mediapipe/yolo) disuntikkan agar camera-switch bisa memakai YOLO
-    if cfg.get("face_detector_model"):
-        core.face_detector_model = cfg.get("face_detector_model")
-    if cfg.get("yolo_size"):
-        core.yolo_size = cfg.get("yolo_size")
+    # Face detector dikunci ke mediapipe
+    core.face_detector_model = "mediapipe"
     return core, cfg

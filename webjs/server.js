@@ -628,9 +628,7 @@ const server = http.createServer((req, res) => {
           hf_api_key_set: !!((ap.highlight_finder || {}).api_key || cfg.api_key || process.env.HF_API_KEY || process.env.OPENAI_API_KEY),
           // Pro video editing features
           pro_settings: cfg.pro_settings || {},
-          // Fitur baru (feature 1-19)
-          face_detector_model: cfg.face_detector_model || 'mediapipe',
-          yolo_size: ['8n','8n_v2','8s','8m','9c'].includes(cfg.yolo_size) ? cfg.yolo_size : '8n',
+          face_detector_model: 'mediapipe',
           font_preset: cfg.font_preset || 'DEFAULT',
           auto_broll: cfg.auto_broll || {},
           pexels_api_key: (cfg.pexels_api_key || ''),
@@ -676,8 +674,8 @@ const server = http.createServer((req, res) => {
         if (isNum(o.speed_ramp_end)) cfg.pro_settings.speed_ramp_end = Math.max(0, o.speed_ramp_end);
         if (isNum(o.speed_factor)) cfg.pro_settings.speed_factor = Math.max(0.1, Math.min(2, o.speed_factor));
         if (isNum(o.ducking_level_db)) cfg.pro_settings.ducking_level_db = Math.max(-30, Math.min(0, o.ducking_level_db));
-        if (typeof o.face_detector_model === 'string' && o.face_detector_model.trim()) cfg.face_detector_model = o.face_detector_model.trim();
-        if (typeof o.yolo_size === 'string' && ['8n','8n_v2','8s','8m','9c'].includes(o.yolo_size.trim())) cfg.yolo_size = o.yolo_size.trim();
+        cfg.face_detector_model = 'mediapipe';
+        delete cfg.yolo_size;
         if (typeof o.font_preset === 'string' && o.font_preset.trim()) cfg.font_preset = o.font_preset.trim();
         if (typeof o.wm === 'object' && o.wm) {
           if (typeof o.wm.position === 'string') cfg.watermark.position = o.wm.position;
