@@ -483,6 +483,20 @@ class PortraitMixin:
             self.log(f"  BlazeFace tracked {len(analyzed_positions)} samples → {len(crop_positions)} frames")
             self._encode_portrait_single_pass(input_path, output_path, crop_positions, crop_w, crop_h, out_w, out_h, duration=frames_read/fps if fps else 0, progress_callback=lambda p: progress_callback(0.5 + p*0.5) if progress_callback else None)
 
+        def _init_yolo_detector(self):
+            """Lazy-init YOLO face detector (getattr-safe, optional dependency)."""
+            if getattr(self, "_yolo_detector", None) is None:
+                try:
+                    from core.yolo_detector import YOLOFaceDetector
+                    size = getattr(self, "yolo_size", "8n") or "8n"
+                    if size not in ("8n", "8n_v2", "8s", "8m", "9c"):
+                        size = "8n"
+                    self._yolo_detector = YOLOFaceDetector(model_size=size, conf=0.3)
+                except Exception as e:
+                    self.log(f"  ⚠ YOLO tidak tersedia ({e}), fallback ke MediaPipe.")
+                    self._yolo_detector = None
+            return self._yolo_detector
+
         def convert_to_portrait_yolo(self, input_path: str, output_path: str):
             return self.convert_to_portrait_yolo_with_progress(input_path, output_path, None)
 
