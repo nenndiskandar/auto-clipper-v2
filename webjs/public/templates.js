@@ -1,5 +1,5 @@
 // Shared presets across all pages (Create, Session, Settings)
-// Dioptimasi untuk fitur aktif: Auto Follow Face, Split Podcast Dynamic,
+// Dioptimasi untuk fitur aktif: Auto Follow Face (crop/blur),
 // Subtitle Typography (Pop/Karaoke/Bounce), Hook Overlay, Cover Thumbnail.
 window.UNIFIED_TEMPLATES = {
   tiktok_viral: {
@@ -25,33 +25,6 @@ window.UNIFIED_TEMPLATES = {
       color_grade: 'cinematic',
       stabilize: false,
       sync_offset: 0,
-      thumbnail: { enabled: true }
-    }
-  },
-  podcast_dynamic: {
-    label: '🎙️ Podcast Dynamic Split (OpusClip)',
-    desc: 'Split 2 orang, active speaker switch, thumbnail auto',
-    cfg: {
-      aspect_ratio: '9:16',
-      portrait_mode: 'split_podcast_dynamic',
-      subtitle_style: 'karaoke',
-      captions: true,
-      hook: true,
-      gpu: true,
-      hook_style: { box_mode: 'fit_text', font_color: '#ffd166', bg_color: '#000000', corner_radius: 8, font_size: 0.08, bg_opacity: 90, glitch: false },
-      smooth_follow: false,
-      face_tracking_mode: 'mediapipe',
-      face_detector_model: 'mediapipe',
-      yolo_size: '8n',
-      pan_speed_limit: 1.5,
-      center_weight: 0.12,
-      switch_threshold: 0.18,
-      min_shot_duration: 45,
-      lip_activity: 0.08,
-      color_grade: 'warm',
-      stabilize: false,
-      sync_offset: -0.25,
-      auto_camera_switch: { enabled: true, hold_duration: 2.0, deadzone: 0.15, smooth: 0.3, max_zoom: 3.0 },
       thumbnail: { enabled: true }
     }
   },

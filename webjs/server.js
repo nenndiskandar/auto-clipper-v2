@@ -634,19 +634,7 @@ const server = http.createServer((req, res) => {
           font_preset: cfg.font_preset || 'DEFAULT',
           auto_broll: cfg.auto_broll || {},
           pexels_api_key: (cfg.pexels_api_key || ''),
-          auto_camera_switch: cfg.auto_camera_switch || {},
           thumbnail: cfg.thumbnail || {},
-          metadata_settings: cfg.metadata_settings || {},
-          story_clip: cfg.story_clip || {},
-          facebook_uploader: cfg.facebook_uploader || {},
-          cs: {
-            step: (cfg.pro_settings && cfg.pro_settings.camera_switch_step) ?? 0.25,
-            deadzone: (cfg.pro_settings && cfg.pro_settings.camera_switch_deadzone),
-            smooth: (cfg.pro_settings && cfg.pro_settings.camera_switch_smooth),
-            hold_duration: (cfg.pro_settings && cfg.pro_settings.switch_hold_duration),
-            blend_duration: (cfg.pro_settings && cfg.pro_settings.switch_blend_duration),
-            max_zoom: (cfg.pro_settings && cfg.pro_settings.camera_switch_max_zoom),
-          },
         });
       } catch { return json(res, 500, { error: 'config.json tidak terbaca' }); }
     }
@@ -688,15 +676,6 @@ const server = http.createServer((req, res) => {
         if (isNum(o.speed_ramp_end)) cfg.pro_settings.speed_ramp_end = Math.max(0, o.speed_ramp_end);
         if (isNum(o.speed_factor)) cfg.pro_settings.speed_factor = Math.max(0.1, Math.min(2, o.speed_factor));
         if (isNum(o.ducking_level_db)) cfg.pro_settings.ducking_level_db = Math.max(-30, Math.min(0, o.ducking_level_db));
-        // Fitur baru (feature 1-19)
-        cfg.auto_camera_switch = cfg.auto_camera_switch || {};
-        if ('acs_enabled' in o) cfg.auto_camera_switch.enabled = !!o.acs_enabled;
-        for (const [k, sk] of [['acs_deadzone','deadzone'],['acs_smooth','smooth'],['acs_hold','hold_duration'],['acs_blend','blend_duration'],['acs_max_zoom','max_zoom']]) {
-          if (isNum(o[k])) cfg.auto_camera_switch[sk] = o[k];
-        }
-        for (const [k, sk] of [['cs_step','camera_switch_step'],['cs_deadzone','camera_switch_deadzone'],['cs_smooth','camera_switch_smooth'],['cs_hold','switch_hold_duration'],['cs_blend','switch_blend_duration'],['cs_max_zoom','camera_switch_max_zoom']]) {
-          if (isNum(o[k])) cfg.pro_settings[sk] = o[k];
-        }
         if (typeof o.face_detector_model === 'string' && o.face_detector_model.trim()) cfg.face_detector_model = o.face_detector_model.trim();
         if (typeof o.yolo_size === 'string' && ['8n','8n_v2','8s','8m','9c'].includes(o.yolo_size.trim())) cfg.yolo_size = o.yolo_size.trim();
         if (typeof o.font_preset === 'string' && o.font_preset.trim()) cfg.font_preset = o.font_preset.trim();
@@ -713,13 +692,10 @@ const server = http.createServer((req, res) => {
         cfg.auto_broll = cfg.auto_broll || {};
         if (typeof o.auto_broll === 'boolean') cfg.auto_broll.enabled = o.auto_broll;
         if (typeof o.auto_broll === 'string') cfg.auto_broll.enabled = o.auto_broll !== 'none' && o.auto_broll !== 'false' && o.auto_broll !== '';
-        // Pexels API key untuk Auto B-roll (on-demand video search)
         if (typeof o.pexels_api_key === 'string') {
           const pk = o.pexels_api_key.trim();
           if (pk) cfg.pexels_api_key = pk; else delete cfg.pexels_api_key;
         }
-        cfg.auto_camera_switch = cfg.auto_camera_switch || {};
-        if (typeof o.auto_camera_switch === 'boolean') cfg.auto_camera_switch.enabled = o.auto_camera_switch;
         cfg.thumbnail = cfg.thumbnail || {};
         if (typeof o.thumbnail === 'boolean') cfg.thumbnail.enabled = o.thumbnail;
         cfg.font_preset = cfg.font_preset || 'default';

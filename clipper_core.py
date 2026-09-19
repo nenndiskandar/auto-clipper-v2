@@ -89,10 +89,9 @@ from core.transcribe import TranscribeMixin
 from core.highlight import HighlightMixin
 from core.portrait import PortraitMixin
 from core.caption import CaptionMixin
-from core.camera_switch import CameraSwitchMixin
 
 
-class AutoClipperCore(SubtitleGeneratorMixin, DownloadMixin, TranscribeMixin, HighlightMixin, PortraitMixin, CaptionMixin, CameraSwitchMixin):
+class AutoClipperCore(SubtitleGeneratorMixin, DownloadMixin, TranscribeMixin, HighlightMixin, PortraitMixin, CaptionMixin):
     """Core processing logic for Auto Clipper"""
     
     def __init__(
@@ -116,7 +115,6 @@ class AutoClipperCore(SubtitleGeneratorMixin, DownloadMixin, TranscribeMixin, Hi
         ai_providers: dict = None,
         pro_settings: dict = None,
         auto_bgm_settings: dict = None,
-        auto_camera_switch_settings: dict = None,
         thumbnail_settings: dict = None,
         metadata_settings: dict = None,
         auto_broll_settings: dict = None,
@@ -220,15 +218,7 @@ class AutoClipperCore(SubtitleGeneratorMixin, DownloadMixin, TranscribeMixin, Hi
         self.thumbnail_settings = thumbnail_settings or {}
         self.metadata_settings = metadata_settings or {}
         self.auto_broll_settings = auto_broll_settings or {}
-        # Camera-Switch settings (dimuat dari pro_settings bila tersedia)
         ps = self.pro_settings
-        acs = auto_camera_switch_settings or {}
-        self.camera_switch_step = float(ps.get("camera_switch_step", 0.25))
-        self.camera_switch_deadzone = float(ps.get("camera_switch_deadzone", acs.get("deadzone", 0.15)))
-        self.camera_switch_smooth = float(ps.get("camera_switch_smooth", acs.get("smooth", 0.30)))
-        self.switch_hold_duration = float(ps.get("switch_hold_duration", acs.get("hold_duration", 2.0)))
-        self.switch_blend_duration = float(ps.get("switch_blend_duration", acs.get("blend_duration", 0.0)))
-        self.camera_switch_max_zoom = float(ps.get("camera_switch_max_zoom", acs.get("max_zoom", 3.0)))
         self.face_detector_model = ps.get("face_detector_model", "mediapipe")
         self.subtitle_language = subtitle_language
         # Whisper word timestamps tend to run LATE by ~0.2-0.4s.

@@ -146,14 +146,6 @@
     "type": "slide_up",
     "duration": 0.5
   },
-  "auto_camera_switch": {
-    "enabled": false,
-    "hold_duration": 2,
-    "blend_duration": 0,
-    "deadzone": 0.15,
-    "smooth": 0.3,
-    "max_zoom": 3
-  },
   "thumbnail": {
     "enabled": false,
     "text": "",

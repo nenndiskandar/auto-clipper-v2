@@ -531,7 +531,6 @@ def get_core_instance(config_mgr: ConfigManager, log_cb=None, progress_cb=None) 
         ai_providers=cfg.get("ai_providers"),
         pro_settings=cfg.get("pro_settings"),
         auto_bgm_settings=cfg.get("auto_bgm"),
-        auto_camera_switch_settings=cfg.get("auto_camera_switch"),
         thumbnail_settings=cfg.get("thumbnail"),
         metadata_settings=cfg.get("metadata_settings"),
         auto_broll_settings=cfg.get("auto_broll"),
@@ -2045,7 +2044,7 @@ async def status_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         idx = opts.index(cur) if cur in opts else 0
         cfg["subtitle_sync_offset"] = opts[(idx + 1) % len(opts)]
     elif data == "portrait":
-        opts = ["crop", "blur", "split_podcast_dynamic", "camera_switch"]
+        opts = ["crop", "blur"]
         cur = str(cfg.get("portrait_mode", "crop"))
         cfg["portrait_mode"] = opts[(opts.index(cur) + 1) % len(opts)] if cur in opts else "crop"
     elif data == "face":

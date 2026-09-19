@@ -54,7 +54,7 @@ class ConfigManager:
                     self.save_config(config)
                 # Add default portrait mode if not exists
                 if "portrait_mode" not in config:
-                    config["portrait_mode"] = "crop"  # "crop" | "blur" | "split"|"split_game"|"split_podcast"|"split_podcast_dynamic"
+                    config["portrait_mode"] = "crop"  # "crop" | "blur"
                 # Add default subtitle style if not exists
                 if "subtitle_style" not in config:
                     config["subtitle_style"] = "pop"  # "pop" (word pop highlight), "karaoke", "bounce", or "animated"
@@ -175,15 +175,6 @@ class ConfigManager:
             "duration": 0.5,
         })
 
-        config.setdefault("auto_camera_switch", {
-            "enabled": False,
-            "hold_duration": 2.0,
-            "blend_duration": 0.0,
-            "deadzone": 0.15,
-            "smooth": 0.30,
-            "max_zoom": 3.0,
-        })
-
         config.setdefault("face_detector_model", "mediapipe")  # "mediapipe" | "yolo"
         config.setdefault("yolo_size", "8n")
 
@@ -218,13 +209,7 @@ class ConfigManager:
             "test_mode": False,
         })
 
-        ps = config.setdefault("pro_settings", {})
-        ps.setdefault("camera_switch_step", 0.25)
-        ps.setdefault("camera_switch_deadzone", 0.15)
-        ps.setdefault("camera_switch_smooth", 0.30)
-        ps.setdefault("switch_hold_duration", 2.0)
-        ps.setdefault("switch_blend_duration", 0.0)
-        ps.setdefault("camera_switch_max_zoom", 3.0)
+        config.setdefault("pro_settings", {})
         return config
 
     def _get_default_ai_providers(self):

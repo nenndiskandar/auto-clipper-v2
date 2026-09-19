@@ -41,47 +41,5 @@
       "credit_watermark": false,
       "thumbnail": { "enabled": true }
     }
-  },
-  "split_dynamic_rapih": {
-    "label": "🎙️ Split Dynamic Rapih",
-    "desc": "Podcast 2 orang split atas-bawah active speaker, anti-kacau",
-    "cfg": {
-      "server_url": "http://localhost:20128/v1",
-      "hf_model": "AUTO",
-      "subtitle_language": "id",
-      "fw_model": "small",
-      "resolution": "1080p",
-      "aspect_ratio": "9:16",
-      "portrait_mode": "split_podcast_dynamic",
-      "num_clips": 5,
-      "use_gpu": true,
-      "stabilize": false,
-      "smooth_follow": false,
-      "face_tracking_mode": "mediapipe",
-      "face_detector_model": "mediapipe",
-      "yolo_size": "8n",
-      "pan_speed_limit": 1.5,
-      "center_weight": 0.15,
-      "switch_threshold": 0.18,
-      "min_shot_duration": 45,
-      "lip_activity": 0.08,
-      "captions": true,
-      "subtitle_style": "karaoke",
-      "sync_offset": -0.25,
-      "hook": true,
-      "hook_style": {
-        "box_mode": "fit_text",
-        "font_size": 0.08,
-        "corner_radius": 8,
-        "bg_opacity": 90,
-        "font_color": "#ffd166",
-        "bg_color": "#000000",
-        "glitch": false
-      },
-      "watermark_enabled": false,
-      "credit_watermark": false,
-      "thumbnail": { "enabled": true }
-    },
-    "name": "🎙️ Split Dynamic Rapih"
   }
 }

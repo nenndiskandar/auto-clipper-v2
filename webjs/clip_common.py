@@ -49,7 +49,6 @@ def build_core():
         ai_providers=prov or None,
         pro_settings=cfg.get("pro_settings"),
         auto_bgm_settings=cfg.get("auto_bgm"),
-        auto_camera_switch_settings=cfg.get("auto_camera_switch"),
         thumbnail_settings=cfg.get("thumbnail"),
         metadata_settings=cfg.get("metadata_settings"),
         auto_broll_settings=cfg.get("auto_broll"),

@@ -3,8 +3,7 @@ core/yolo_detector.py — YOLO Face Detector & Debug Tools.
 
 Wraps Ultralytics YOLO face models (face_yolov8n/s/m/v2, face_yolov9c) with a
 MediaPipe-compatible interface, plus optional debug visualization tools
-(face bounding box, crosshair tracking lines) like the opensource-clipping
-``face_detection.py`` / ``render_camera_switch.py`` dev-mode.
+(face bounding box, crosshair tracking lines) dev-mode.
 
 Model is downloaded lazily from HuggingFace (Bingsu/adetailer) and cached in
 ``utils.helpers.get_model_dir()``.
