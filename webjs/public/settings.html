@@ -688,8 +688,8 @@ function collectFormData() {
 
 function populateForm(d) {
   if (!d) return;
-  const set = (id, v) => { const el=document.getElementById(id); if(el) el.value=v; };
-  const chk = (id, v) => { const el=document.getElementById(id); if(el) el.checked=!!v; };
+  const set = (id, v) => { const el=document.getElementById(id); if(el) el.value = (v === null || v === undefined) ? '' : v; };
+  const chk = (id, v) => { const el=document.getElementById(id); if(el) el.checked = !!v; };
   set('s_server_url', d.server_url || '');
   if (d.hf_api_key) set('s_hf_api_key', d.hf_api_key);
   set('s_hf_system_message', d.hf_system_message || '');
@@ -708,7 +708,7 @@ function populateForm(d) {
   chk('s_smooth_follow', d.smooth_follow !== false);
   set('s_face_tracking_mode', d.face_tracking_mode || 'opencv');
   set('s_face_detector_model', d.face_detector_model || 'mediapipe');
-  set('s_yolo_size', d.yolo_size || 'tiny');
+  set('s_yolo_size', d.yolo_size || '8n');
   set('s_pan_speed_limit', d.pan_speed_limit ?? 1.8);
   set('s_center_weight', d.center_weight ?? 0.15);
   set('s_switch_threshold', d.switch_threshold ?? 0.18);
@@ -719,16 +719,15 @@ function populateForm(d) {
   set('s_sync_offset', d.sync_offset ?? 0);
   chk('s_hook', !!d.hook);
 
-  if (d.hook_style) {
-    set('s_hs_box_mode', d.hook_style.box_mode || 'fit_text');
-    set('s_hs_size', d.hook_style.font_size ?? 0.075);
-    set('s_hs_radius', d.hook_style.corner_radius ?? 12);
-    set('s_hs_duration', d.hook_style.duration ?? 1.0);
-    set('s_hs_opacity', d.hook_style.bg_opacity ?? 100);
-    const f=document.getElementById('s_hs_fc'); if(f) f.value=d.hook_style.font_color || '#ffffff';
-    const b=document.getElementById('s_hs_bc'); if(b) b.value=d.hook_style.bg_color || '#000000';
-    chk('s_hs_glitch', !!d.hook_style.glitch);
-  }
+  const hs = d.hook_style || {};
+  set('s_hs_box_mode', hs.box_mode || 'fit_text');
+  set('s_hs_size', hs.font_size ?? 0.075);
+  set('s_hs_radius', hs.corner_radius ?? 12);
+  set('s_hs_duration', hs.duration ?? 1.0);
+  set('s_hs_opacity', hs.bg_opacity ?? 100);
+  const f=document.getElementById('s_hs_fc'); if(f) f.value = hs.font_color || '#ffffff';
+  const b=document.getElementById('s_hs_bc'); if(b) b.value = hs.bg_color || '#000000';
+  chk('s_hs_glitch', !!hs.glitch);
 
   chk('s_wm_on', !!d.watermark_enabled);
   set('s_wm_scale', d.watermark_scale ?? 0.15);

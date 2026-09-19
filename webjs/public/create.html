@@ -361,7 +361,8 @@ details.cfg-group[open] summary::before{transform:rotate(90deg)}
         const t=TEMPLATES[key];if(!t)return;
         const c=t.cfg||{};
         const m={watermark:'f_watermark',credit:'f_credit',hook:'f_hook',captions:'f_captions',gpu:'f_gpu'};
-        Object.entries(m).forEach(([k,id])=>{const el=document.getElementById(id);if(el)el.checked=!!c[k];});
+        Object.entries(m).forEach(([k,id])=>{const el=document.getElementById(id);if(el && c[k] != null)el.checked=!!c[k];});
+        if(c.thumbnail != null && $('#f_thumbnail')) $('#f_thumbnail').checked = typeof c.thumbnail === 'object' ? !!c.thumbnail.enabled : !!c.thumbnail;
         if(c.aspect_ratio && $('#f_aspect_ratio')) $('#f_aspect_ratio').value=c.aspect_ratio;
         if(c.portrait_mode && $('#f_portrait_mode')) $('#f_portrait_mode').value=c.portrait_mode;
         if(c.subtitle_style && $('#f_subtitle_style')) $('#f_subtitle_style').value=c.subtitle_style;
