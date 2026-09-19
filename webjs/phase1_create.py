@@ -6,6 +6,10 @@ Tulis result JSON: {ok, session_dir, error?}
 import sys, os, json, traceback
 from pathlib import Path
 
+if len(sys.argv) < 4:
+    print(f"Error: argumen kurang. Usage: {sys.argv[0]} <url> <num_clips> <result_file>", file=sys.stderr)
+    sys.exit(1)
+
 URL = sys.argv[1]
 NUM_CLIPS = int(sys.argv[2])
 RESULT_FILE = sys.argv[3]

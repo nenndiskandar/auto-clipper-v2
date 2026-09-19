@@ -6,7 +6,6 @@ Refactored to use OpenAI Whisper API instead of local model
 import subprocess
 import os
 from core.subtitle_generator import SubtitleGeneratorMixin
-from core.effects import EffectsMixin
 import re
 import threading
 import json
@@ -93,7 +92,7 @@ from core.caption import CaptionMixin
 from core.camera_switch import CameraSwitchMixin
 
 
-class AutoClipperCore(SubtitleGeneratorMixin, EffectsMixin, DownloadMixin, TranscribeMixin, HighlightMixin, PortraitMixin, CaptionMixin, CameraSwitchMixin):
+class AutoClipperCore(SubtitleGeneratorMixin, DownloadMixin, TranscribeMixin, HighlightMixin, PortraitMixin, CaptionMixin, CameraSwitchMixin):
     """Core processing logic for Auto Clipper"""
     
     def __init__(

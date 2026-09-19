@@ -6,6 +6,10 @@ Env: SELECTED="0,2,3" ADD_HOOK=0/1 ADD_CAPS=0/1 BGM_MOOD=... BROLL_QUERY=...
 from pathlib import Path
 import sys, os, json, traceback
 
+if len(sys.argv) < 2:
+    print(f"Error: argumen kurang. Usage: {sys.argv[0]} <session_dir>", file=sys.stderr)
+    sys.exit(1)
+
 SESSION_DIR = sys.argv[1]
 
 APP_DIR = str(Path(__file__).resolve().parents[1])

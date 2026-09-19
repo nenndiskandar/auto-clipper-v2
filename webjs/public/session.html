@@ -129,6 +129,28 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
         </div>
       </div>
 
+      <!-- HIGHLIGHTS -->
+      <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 md:p-5 shadow-sm space-y-3">
+        <div class="flex flex-wrap justify-between items-center gap-2 pb-3 border-b border-zinc-800">
+          <h2 class="text-sm font-semibold text-white flex items-center gap-2">
+            <span>🎯 Highlight</span>
+            <span class="text-xs text-zinc-400 font-normal" id="hlCountInfo"></span>
+          </h2>
+          <div class="flex items-center gap-2">
+            <input type="number" id="refindCount" min="1" max="20" placeholder="auto" class="w-16 bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs text-white">
+            <button onclick="doRefind()" class="px-3 py-1.5 text-xs font-semibold bg-zinc-800 text-zinc-200 border border-zinc-700 rounded-lg hover:bg-zinc-700 transition">🔍 Cari Ulang</button>
+            <button onclick="toggleAllCheck()" class="px-3 py-1.5 text-xs font-semibold bg-zinc-800 text-zinc-200 border border-zinc-700 rounded-lg hover:bg-zinc-700 transition">☑️ Pilih Semua</button>
+          </div>
+        </div>
+        <div id="tplBar" class="flex flex-wrap gap-1.5"></div>
+        <div id="tplMsg" class="hidden text-xs px-2 py-1"></div>
+        <div id="hlListContainer" class="divide-y divide-zinc-800/50"></div>
+        <div class="flex items-center justify-between pt-2">
+          <span class="text-xs text-zinc-400" id="selCount"></span>
+          <button onclick="startProcess()" class="px-4 py-2 text-xs font-semibold bg-[var(--accent)] text-[var(--accent-text)] rounded-lg hover:bg-[var(--accent-hover)] transition">▶️ Proses Terpilih</button>
+        </div>
+      </div>
+
       <!-- DAFTAR KLIP HASIL RENDER -->
       <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 md:p-5 shadow-sm space-y-4">
         <div class="flex flex-wrap justify-between items-center gap-2 pb-3 border-b border-zinc-800">
@@ -141,12 +163,17 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
       </div>
 
       <!-- RENDER ULANG -->
-      <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 md:p-5 shadow-sm flex items-center justify-between">
-        <div>
-          <h2 class="text-sm font-semibold text-white">🔁 Render Ulang</h2>
-          <p class="text-[11px] text-zinc-400">Buka Create untuk pilih momen & render ulang</p>
+      <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 md:p-5 shadow-sm space-y-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-sm font-semibold text-white">🔁 Render Ulang</h2>
+            <p class="text-[11px] text-zinc-400">Buka Create untuk pilih momen &amp; render ulang</p>
+          </div>
+          <button onclick="goCreate()" class="px-4 py-2 text-xs font-semibold bg-[var(--accent)] text-[var(--accent-text)] rounded-lg hover:bg-[var(--accent-hover)] transition">🎬 Render Ulang → Create</button>
         </div>
-        <button onclick="goCreate()" class="px-4 py-2 text-xs font-semibold bg-[var(--accent)] text-[var(--accent-text)] rounded-lg hover:bg-[var(--accent-hover)] transition">🎬 Render Ulang → Create</button>
+        <div id="actionStatus"></div>
+        <pre class="log hidden mt-2" id="actionLog" style="max-height:250px;overflow:auto;display:none"></pre>
+      </div>
       </div>
 
     </div>
@@ -364,8 +391,8 @@ async function doRefind() {
   const num_clips = countEl ? (countEl.value || 'auto') : 'auto';
   const st = document.getElementById('actionStatus');
   const logBox = document.getElementById('actionLog');
-  logBox.classList.remove('hidden');
-  st.innerHTML = `<div class="p-3 text-xs bg-zinc-950 border border-zinc-800 rounded-lg text-zinc-300">⏳ AI sedang menganalisis transkrip & mencari ${num_clips} highlight baru…</div>`;
+  if (logBox) { logBox.classList.remove('hidden'); logBox.style.display = ''; }
+  if (st) st.innerHTML = `<div class="p-3 text-xs bg-zinc-950 border border-zinc-800 rounded-lg text-zinc-300">⏳ AI sedang menganalisis transkrip &amp; mencari ${num_clips} highlight baru…</div>`;
   try {
     const r = await fetch(`/api/refind/${encodeURIComponent(sid)}`, {
       method: 'POST',
@@ -381,14 +408,14 @@ async function doRefind() {
 
   pollJob(`/api/refind/status/${encodeURIComponent(sid)}`, logBox, async j => {
     if (j.code === 0 && j.result && j.result.ok) {
-      st.innerHTML = `<div class="p-3 text-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg">✅ ${j.result.count} momen baru berhasil ditemukan! Memuat ulang…</div>`;
+      if (st) st.innerHTML = `<div class="p-3 text-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg">✅ ${j.result.count} momen baru berhasil ditemukan! Memuat ulang…</div>`;
       setTimeout(async () => {
         const rHls = await fetch(`/api/highlights/${encodeURIComponent(sid)}`);
         HIGHLIGHTS = await rHls.json().catch(() => []);
         renderHighlights();
       }, 1000);
     } else {
-      st.innerHTML = `<div class="p-3 text-xs bg-red-950/20 border border-red-900/30 text-red-400 rounded-lg">❌ Gagal mencari highlight : lihat log.</div>`;
+      if (st) st.innerHTML = `<div class="p-3 text-xs bg-red-950/20 border border-red-900/30 text-red-400 rounded-lg">❌ Gagal mencari highlight : lihat log.</div>`;
     }
   });
 }
@@ -408,8 +435,8 @@ async function startProcess() {
 
   const st = document.getElementById('actionStatus');
   const logBox = document.getElementById('actionLog');
-  logBox.classList.remove('hidden');
-  st.innerHTML = '<div class="p-3 text-xs bg-zinc-950 border border-zinc-800 text-zinc-300 rounded-lg">⏳ Mengunduh & merender klip terpilih ke format vertikal…</div>';
+  if (logBox) { logBox.classList.remove('hidden'); logBox.style.display = ''; }
+  if (st) st.innerHTML = '<div class="p-3 text-xs bg-zinc-950 border border-zinc-800 text-zinc-300 rounded-lg">⏳ Mengunduh &amp; merender klip terpilih ke format vertikal…</div>';
 
   try {
     const r = await fetch(`/api/process/${encodeURIComponent(sid)}`, {
@@ -420,15 +447,15 @@ async function startProcess() {
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.ok) throw new Error(j.error || ('HTTP ' + r.status));
   } catch (e) {
-    st.innerHTML = `<div class="p-3 text-xs bg-red-950/20 border border-red-900/30 text-red-400 rounded-lg">❌ ${esc(String(e))}</div>`;
+    if (st) st.innerHTML = `<div class="p-3 text-xs bg-red-950/20 border border-red-900/30 text-red-400 rounded-lg">❌ ${esc(String(e))}</div>`;
     return;
   }
 
   pollJob(`/api/process/status/${encodeURIComponent(sid)}`, logBox, j => {
     if (j.code === 0) {
-      st.innerHTML = '<div class="p-3 text-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg">✅ Render klip selesai! Hasilnya sudah masuk ke Library.</div>';
+      if (st) st.innerHTML = '<div class="p-3 text-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg">✅ Render klip selesai! Hasilnya sudah masuk ke Library.</div>';
     } else {
-      st.innerHTML = `<div class="p-3 text-xs bg-red-950/20 border border-red-900/30 text-red-400 rounded-lg">❌ Render gagal (exit ${j.code ?? '?'}) : cek log di bawah.</div>`;
+      if (st) st.innerHTML = `<div class="p-3 text-xs bg-red-950/20 border border-red-900/30 text-red-400 rounded-lg">❌ Render gagal (exit ${j.code ?? '?'}) : cek log di bawah.</div>`;
     }
   });
 }

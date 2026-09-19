@@ -18,6 +18,10 @@ from utils.logger import debug_log
 from utils.helpers import get_ffmpeg_path, get_ytdlp_path
 from clipper_core import AutoClipperCore
 
+if len(sys.argv) < 3:
+    print(f"Error: argumen kurang. Usage: {sys.argv[0]} <session_dir> <clip_dir>", file=sys.stderr)
+    sys.exit(1)
+
 SESSION_DIR = sys.argv[1]
 CLIP_DIR = sys.argv[2]
 

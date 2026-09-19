@@ -288,7 +288,7 @@ details.cfg-group[open] summary::before{transform:rotate(90deg)}
     async function applyTemplate(key){
         const t=TEMPLATES[key];if(!t)return;
         const c=t.cfg||{};
-        const m={watermark:'f_watermark',credit:'f_credit',hook:'f_thumbnail',captions:'f_captions',gpu:'f_gpu'};
+        const m={watermark:'f_watermark',credit:'f_credit',hook:'f_hook',captions:'f_captions',gpu:'f_gpu'};
         Object.entries(m).forEach(([k,id])=>{const el=document.getElementById(id);if(el)el.checked=!!c[k];});
         if(c.aspect_ratio){const el=document.getElementById('f_aspect_ratio');if(el)el.value=c.aspect_ratio;}
         await saveConfig();

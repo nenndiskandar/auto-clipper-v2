@@ -9,6 +9,10 @@ Options dibaca dari env FB_OPTS (JSON):
 import sys, os, json, traceback
 from pathlib import Path
 
+if len(sys.argv) < 2:
+    print(f"Error: argumen kurang. Usage: {sys.argv[0]} <result_file>", file=sys.stderr)
+    sys.exit(1)
+
 RESULT_FILE = sys.argv[1]
 
 APP_DIR = str(Path(__file__).resolve().parents[1])
