@@ -655,7 +655,9 @@ const server = http.createServer((req, res) => {
         if (isNum(o.num_clips)) cfg.num_clips = Math.max(1, Math.round(o.num_clips));
         if (typeof o.resolution === 'string' && o.resolution) cfg.resolution = o.resolution;
         if (typeof o.aspect_ratio === 'string' && o.aspect_ratio) cfg.aspect_ratio = o.aspect_ratio;
-        if (typeof o.subtitle_style === 'string' && o.subtitle_style) cfg.subtitle_style = o.subtitle_style;
+        if (typeof o.subtitle_style === 'string' && o.subtitle_style) {
+          cfg.subtitle_style = o.subtitle_style === 'karaoke' ? 'karaoke' : 'pop';
+        }
         if (isNum(o.sync_offset)) cfg.subtitle_sync_offset = o.sync_offset;
         if (typeof o.portrait_mode === 'string' && o.portrait_mode) cfg.portrait_mode = o.portrait_mode;
         if (typeof o.face_tracking_mode === 'string' && o.face_tracking_mode) cfg.face_tracking_mode = o.face_tracking_mode;

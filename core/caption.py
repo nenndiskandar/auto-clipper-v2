@@ -150,12 +150,6 @@ class CaptionMixin:
             ass_offset = time_offset + sync_offset
             if getattr(self, "subtitle_style", "pop") == "karaoke":
                 self.create_ass_subtitle_karaoke(transcript, ass_file, ass_offset)
-            elif getattr(self, "subtitle_style", "pop") == "bounce":
-                self.create_ass_subtitle_bounce(transcript, ass_file, ass_offset)
-            elif getattr(self, "subtitle_style", "pop") == "animated":
-                self.create_ass_subtitle_animated(transcript, ass_file, ass_offset)
-            elif getattr(self, "subtitle_style", "pop") == "pop_bounce":
-                self.create_ass_subtitle_pop_bounce(transcript, ass_file, ass_offset)
             else:
                 self.create_ass_subtitle_capcut(transcript, ass_file, ass_offset)
         
@@ -638,12 +632,6 @@ class CaptionMixin:
             ass_offset = time_offset + sync_offset
             if getattr(self, "subtitle_style", "pop") == "karaoke":
                 self.create_ass_subtitle_karaoke(transcript, ass_file, ass_offset)
-            elif getattr(self, "subtitle_style", "pop") == "bounce":
-                self.create_ass_subtitle_bounce(transcript, ass_file, ass_offset)
-            elif getattr(self, "subtitle_style", "pop") == "animated":
-                self.create_ass_subtitle_animated(transcript, ass_file, ass_offset)
-            elif getattr(self, "subtitle_style", "pop") == "pop_bounce":
-                self.create_ass_subtitle_pop_bounce(transcript, ass_file, ass_offset)
             else:
                 self.create_ass_subtitle_capcut(transcript, ass_file, ass_offset)
         
@@ -1164,33 +1152,6 @@ class CaptionMixin:
             current_output = portrait_file
             hook_duration = 0
         
-            # Step 2.5: Stabilization — DIMATIKAN permanen (render stabilizer dihapus).
-            # ponytail: blok dipertahankan utk referensi; aktifkan lagi seting if usernya mau.
-            if False and self.pro_settings.get("stabilize"):
-                if self.is_cancelled(): return
-                stab_file = clip_dir / "stabilized.mp4"
-                self.stabilize_video_with_progress(str(current_output), str(stab_file),
-                    lambda p: clip_progress("Stabilizing...", current_step, p))
-                if stab_file.exists():
-                    current_output = stab_file
-                    self.log(self.colorize("  ✓ Stabilized", "ok"))
-            current_step += 1
-        
-            # Step 2.6: Pro features — speed ramp
-            sr_start = self.pro_settings.get("speed_ramp_start", 0)
-            sr_end = self.pro_settings.get("speed_ramp_end", 0)
-            if sr_start > 0 or sr_end > 0:
-                if self.is_cancelled(): return
-                sr_file = clip_dir / "speedramp.mp4"
-                self.apply_speed_ramp_with_progress(str(current_output), str(sr_file),
-                    lambda p: clip_progress("Speed ramp...", current_step, p),
-                    slow_start=sr_start, slow_end=sr_end,
-                    speed_factor=self.pro_settings.get("speed_factor", 0.5))
-                if sr_file.exists():
-                    current_output = sr_file
-                    self.log(self.colorize("  ✓ Speed ramp", "ok"))
-            current_step += 1
-        
             # Step 3: Add hook (optional)
             if add_hook:
                 if self.is_cancelled():
@@ -1234,62 +1195,6 @@ class CaptionMixin:
             else:
                 self.log("  ⊘ Skipped captions (disabled)")
         
-            # Step 4.5: Post-processing pro features (after captions, before watermark)
-            # --- Color Grade ---
-            cg_style = self.pro_settings.get("color_grade", "none")
-            if cg_style and cg_style != "none":
-                if self.is_cancelled():
-                    return
-                cg_file = clip_dir / "colorgraded.mp4"
-                clip_progress("Applying color grade...", current_step, 0.5)
-                self.apply_color_grade_with_progress(str(current_output), str(cg_file),
-                    lambda p: clip_progress("Color grading...", current_step, p), style=cg_style)
-                if cg_file.exists():
-                    current_output = cg_file
-                    self.log(self.colorize(f"  ✓ Color grade: {cg_style}", "colorgrade"))
-        
-            # --- Motion Blur ---
-            mb_strength = self.pro_settings.get("motion_blur", 0)
-            if mb_strength > 0:
-                if self.is_cancelled():
-                    return
-                mb_file = clip_dir / "motionblur.mp4"
-                clip_progress("Applying motion blur...", current_step, 0.5)
-                self.apply_motion_blur_with_progress(str(current_output), str(mb_file),
-                    lambda p: clip_progress("Motion blur...", current_step, p), strength=mb_strength)
-                if mb_file.exists():
-                    current_output = mb_file
-                    self.log(self.colorize(f"  ✓ Motion blur ({mb_strength})", "motionblur"))
-        
-            # --- Vignette — DIMATIKAN permanen (render vignette dihapus).
-            # ponytail: blok dipertahankan utk referensi; aktifkan lagi seting if usernya mau.
-            vig_angle = self.pro_settings.get("vignette", 0)
-            if False and vig_angle > 0:
-                if self.is_cancelled():
-                    return
-                vig_file = clip_dir / "vignette.mp4"
-                clip_progress("Applying vignette...", current_step, 0.5)
-                self.apply_vignette_with_progress(str(current_output), str(vig_file),
-                    lambda p: clip_progress("Vignette...", current_step, p), angle=vig_angle)
-                if vig_file.exists():
-                    current_output = vig_file
-                    self.log(self.colorize(f"  ✓ Vignette ({vig_angle})", "vignette"))
-        
-            # --- Audio Ducking ---
-            duck_level = self.pro_settings.get("ducking_level_db", -15)
-            music_path = self.pro_settings.get("music_path", "")
-            if music_path and Path(music_path).exists():
-                if self.is_cancelled():
-                    return
-                duck_file = clip_dir / "ducked.mp4"
-                clip_progress("Audio ducking...", current_step, 0.5)
-                self.duck_audio_with_progress(str(current_output), str(duck_file),
-                    lambda p: clip_progress("Audio ducking...", current_step, p),
-                    music_path=music_path, duck_level_db=duck_level)
-                if duck_file.exists():
-                    current_output = duck_file
-                    self.log(self.colorize(f"  ✓ Audio ducking ({duck_level}dB)", "duck"))
-
             # --- Auto BGM (mood) ---
             bgm_cfg = getattr(self, "auto_bgm_settings", {}) or {}
             if bgm_cfg.get("enabled"):

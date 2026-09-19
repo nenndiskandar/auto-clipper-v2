@@ -316,7 +316,6 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
               <select id="s_subtitle_style" onchange="updateSubPreview()" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[var(--accent)]">
                 <option value="pop">Pop</option>
                 <option value="karaoke">Karaoke</option>
-                <option value="animated">Animasi</option>
               </select>
             </div>
             <div>
@@ -522,7 +521,6 @@ function updateThumbnailPreview() {
 function updateSubPreview() {
   const style = $('#s_subtitle_style').value;
   const hi = $('#subHighlight');
-  const box = $('#subPreviewBox');
 
   hi.style.animation = 'none';
   hi.offsetHeight;
@@ -530,16 +528,10 @@ function updateSubPreview() {
   if (style === 'karaoke') {
     hi.className = 'text-yellow-400 underline font-black transition-all duration-300';
     hi.style.animation = 'subKaraoke 1s infinite alternate';
-  } else if (style === 'bounce' || style === 'pop_bounce') {
-    hi.className = 'text-yellow-300 inline-block font-black';
-    hi.style.animation = 'subBounce 0.6s infinite ease-in-out';
-  } else if (style === 'animated') {
-    hi.className = 'text-cyan-400 font-bold';
-    hi.style.animation = 'subAnimated 1.5s infinite linear';
   } else {
-    hi.className = 'text-yellow-400 font-bold';
-    hi.style.animation = 'subPop 0.8s infinite ease-out';
+    hi.className = 'text-teal-400 font-bold';
   }
+}
 }
 
 function updateWmPreview() {

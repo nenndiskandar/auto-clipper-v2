@@ -114,7 +114,7 @@
   ],
   "pro_settings": {
     "stabilize": false,
-    "color_grade": "cinematic",
+    "color_grade": "none",
     "motion_blur": 0,
     "vignette": 0,
     "speed_ramp_start": 0,

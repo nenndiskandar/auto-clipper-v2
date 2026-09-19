@@ -57,7 +57,7 @@ class ConfigManager:
                     config["portrait_mode"] = "crop"  # "crop" | "blur"
                 # Add default subtitle style if not exists
                 if "subtitle_style" not in config:
-                    config["subtitle_style"] = "pop"  # "pop" (word pop highlight), "karaoke", "bounce", or "animated"
+                    config["subtitle_style"] = "pop"  # "pop" (CapCut-style word pop highlight) or "karaoke"
                 # Add default aspect ratio if not exists
                 if "aspect_ratio" not in config:
                     config["aspect_ratio"] = "9:16"  # "9:16", "1:1", "4:5", or "16:9"
