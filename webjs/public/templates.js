@@ -1,12 +1,10 @@
 // Shared presets across all pages (Create, Session, Settings)
-// Dioptimasi untuk fitur saat ini: BGM mood, B-roll (Pexels), camera-switch,
-// transition library, thumbnail, font preset, YOLO face detector.
-// auto_bgm/auto_broll/auto_camera_switch boleh object {enabled, mood/query/...}
-// (server merge; create.html cukup pakai .enabled-nya).
+// Dioptimasi untuk fitur aktif: Auto Follow Face, Split Podcast Dynamic,
+// Subtitle Typography (Pop/Karaoke/Bounce), Hook Overlay, Cover Thumbnail.
 window.UNIFIED_TEMPLATES = {
   tiktok_viral: {
     label: '🔥 TikTok Viral Thumbnail',
-    desc: '9:16, subtitle pop bounce, hook glitch, BGM upbeat + B-roll hype, thumbnail auto',
+    desc: '9:16, subtitle pop bounce, hook glitch, thumbnail auto',
     cfg: {
       aspect_ratio: '9:16',
       portrait_mode: 'crop',
@@ -17,6 +15,8 @@ window.UNIFIED_TEMPLATES = {
       hook_style: { font_color: '#ffffff', bg_color: '#000000', corner_radius: 12, font_size: 0.08, glitch: true },
       smooth_follow: false,
       face_tracking_mode: 'mediapipe',
+      face_detector_model: 'mediapipe',
+      yolo_size: '8n',
       pan_speed_limit: 1.5,
       center_weight: 0.6,
       switch_threshold: 0.35,
@@ -25,13 +25,12 @@ window.UNIFIED_TEMPLATES = {
       color_grade: 'cinematic',
       stabilize: false,
       sync_offset: 0,
-      thumbnail: { enabled: true },
-      face_detector_model: 'mediapipe'
+      thumbnail: { enabled: true }
     }
   },
   podcast_dynamic: {
     label: '🎙️ Podcast Dynamic Split (OpusClip)',
-    desc: 'Split 2 orang, camera-switch otomatis, BGM chill, thumbnail auto',
+    desc: 'Split 2 orang, active speaker switch, thumbnail auto',
     cfg: {
       aspect_ratio: '9:16',
       portrait_mode: 'split_podcast_dynamic',
@@ -42,6 +41,8 @@ window.UNIFIED_TEMPLATES = {
       hook_style: { font_color: '#ffd166', bg_color: '#000000', corner_radius: 8, font_size: 0.08, glitch: false },
       smooth_follow: false,
       face_tracking_mode: 'mediapipe',
+      face_detector_model: 'mediapipe',
+      yolo_size: '8n',
       pan_speed_limit: 1.5,
       center_weight: 0.12,
       switch_threshold: 0.18,
@@ -51,13 +52,12 @@ window.UNIFIED_TEMPLATES = {
       stabilize: false,
       sync_offset: -0.25,
       auto_camera_switch: { enabled: true, hold_duration: 2.0, deadzone: 0.15, smooth: 0.3, max_zoom: 3.0 },
-      thumbnail: { enabled: true },
-      face_detector_model: 'mediapipe'
+      thumbnail: { enabled: true }
     }
   },
   gaming_action: {
     label: '🎮 Gaming / Action',
-    desc: 'Subtitle bounce, warna cool, BGM epic, transition random, thumbnail auto',
+    desc: 'Subtitle bounce, warna cool, motion blur, thumbnail auto',
     cfg: {
       aspect_ratio: '9:16',
       portrait_mode: 'crop',
@@ -67,7 +67,9 @@ window.UNIFIED_TEMPLATES = {
       gpu: true,
       hook_style: { font_color: '#25f4ee', bg_color: '#111118', corner_radius: 10, font_size: 0.08, glitch: true },
       smooth_follow: false,
-      face_tracking_mode: 'opencv',
+      face_tracking_mode: 'mediapipe',
+      face_detector_model: 'yolo',
+      yolo_size: '8n',
       pan_speed_limit: 3.0,
       center_weight: 0.15,
       switch_threshold: 0.15,
@@ -82,7 +84,7 @@ window.UNIFIED_TEMPLATES = {
   },
   education_clean: {
     label: '📚 Edukasi / Tutorial',
-    desc: 'Bersih, thumbnail teks tegas, B-roll whiteboard, BGM subtle',
+    desc: 'Bersih, subtitle pop, thumbnail auto',
     cfg: {
       aspect_ratio: '9:16',
       portrait_mode: 'crop',
@@ -93,6 +95,8 @@ window.UNIFIED_TEMPLATES = {
       hook_style: { font_color: '#ffffff', bg_color: '#fe2c55', corner_radius: 8, font_size: 0.075, glitch: false },
       smooth_follow: false,
       face_tracking_mode: 'mediapipe',
+      face_detector_model: 'mediapipe',
+      yolo_size: '8n',
       pan_speed_limit: 1.0,
       center_weight: 0.20,
       switch_threshold: 0.30,
@@ -116,6 +120,8 @@ window.UNIFIED_TEMPLATES = {
       gpu: true,
       smooth_follow: false,
       face_tracking_mode: 'mediapipe',
+      face_detector_model: 'mediapipe',
+      yolo_size: '8n',
       pan_speed_limit: 1.3,
       center_weight: 0.15,
       switch_threshold: 0.30,
@@ -129,7 +135,7 @@ window.UNIFIED_TEMPLATES = {
   },
   vlog_dynamic: {
     label: '📹 Vlog Dinamis',
-    desc: 'Follow kamera halus, BGM upbeat, B-roll travel, transisi crossfade',
+    desc: 'Follow kamera halus, subtitle pop bounce, thumbnail auto',
     cfg: {
       aspect_ratio: '9:16',
       portrait_mode: 'crop',
@@ -140,6 +146,8 @@ window.UNIFIED_TEMPLATES = {
       hook_style: { font_color: '#ffffff', bg_color: '#000000', corner_radius: 12, font_size: 0.075, glitch: false },
       smooth_follow: false,
       face_tracking_mode: 'mediapipe',
+      face_detector_model: 'mediapipe',
+      yolo_size: '8n',
       pan_speed_limit: 1.8,
       center_weight: 0.4,
       switch_threshold: 0.35,
@@ -154,7 +162,7 @@ window.UNIFIED_TEMPLATES = {
   },
   square_feed: {
     label: '⏹️ IG / FB Feed (1:1)',
-    desc: 'Rasio kotak 1:1, karaoke tengah, BGM upbeat, thumbnail auto',
+    desc: 'Rasio kotak 1:1, karaoke tengah, thumbnail auto',
     cfg: {
       aspect_ratio: '1:1',
       portrait_mode: 'crop',
@@ -163,12 +171,14 @@ window.UNIFIED_TEMPLATES = {
       hook: true,
       gpu: true,
       hook_style: { font_color: '#ffe600', bg_color: '#141414', corner_radius: 6, font_size: 0.08, glitch: false },
+      face_detector_model: 'mediapipe',
+      yolo_size: '8n',
       thumbnail: { enabled: true }
     }
   },
   reels_34: {
     label: '🎬 Reels FB/IG (3:4)',
-    desc: 'Rasio 3:4 untuk Reels/FB, B-roll + transisi crossfade, thumbnail auto',
+    desc: 'Rasio 3:4 untuk Reels/FB, subtitle pop, thumbnail auto',
     cfg: {
       aspect_ratio: '3:4',
       portrait_mode: 'crop',
@@ -179,6 +189,8 @@ window.UNIFIED_TEMPLATES = {
       hook_style: { font_color: '#ffffff', bg_color: '#0064e0', corner_radius: 10, font_size: 0.08, glitch: false },
       smooth_follow: false,
       face_tracking_mode: 'mediapipe',
+      face_detector_model: 'mediapipe',
+      yolo_size: '8n',
       pan_speed_limit: 1.5,
       center_weight: 0.3,
       switch_threshold: 0.25,
@@ -190,7 +202,7 @@ window.UNIFIED_TEMPLATES = {
   },
   story_time: {
     label: '📖 Story Time Naratif',
-    desc: 'B-roll naratif + BGM suspense, transisi crossfade, thumbnail teks',
+    desc: 'Preset naratif, subtitle pop, thumbnail teks',
     cfg: {
       aspect_ratio: '9:16',
       portrait_mode: 'crop',
@@ -201,6 +213,8 @@ window.UNIFIED_TEMPLATES = {
       hook_style: { font_color: '#ffffff', bg_color: '#7c3aed', corner_radius: 12, font_size: 0.08, glitch: false },
       smooth_follow: false,
       face_tracking_mode: 'mediapipe',
+      face_detector_model: 'mediapipe',
+      yolo_size: '8n',
       pan_speed_limit: 1.4,
       center_weight: 0.25,
       switch_threshold: 0.25,
