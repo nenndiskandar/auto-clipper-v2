@@ -132,23 +132,73 @@ details.cfg-group[open] summary::before{transform:rotate(90deg)}
                 <button id="saveBtn" onclick="saveConfig()" class="px-3 py-1 text-xs font-medium bg-[var(--accent)] text-[var(--accent-text)] rounded hover:bg-[var(--accent-hover)] transition">💾 Simpan</button>
             </div>
             <div class="p-3 space-y-0.5" id="cfgForm">
-                <details class="cfg-group" open><summary class="px-2 py-1.5 text-xs font-semibold text-zinc-300 hover:text-white">🎬 Output & Efek</summary>
+                <details class="cfg-group" open><summary class="px-2 py-1.5 text-xs font-semibold text-zinc-300 hover:text-white">🎬 Output &amp; Efek</summary>
                 <div class="px-2 pb-2 grid grid-cols-2 gap-1.5">
-                    <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="f_hook" class="w-3.5 h-3.5 accent-[#facc15]"> 🎬 Intro Hook (Pause 3.5s)</label>
-                    <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="f_thumbnail" class="w-3.5 h-3.5 accent-[#facc15]"> 🖼️ Thumbnail (.jpg)</label>
-                    <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="f_watermark" class="w-3.5 h-3.5 accent-[#facc15]"> 🖼️ Watermark</label>
-                    <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="f_credit" class="w-3.5 h-3.5 accent-[#facc15]"> 🏷️ Credit</label>
-                    <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="f_captions" class="w-3.5 h-3.5 accent-[#facc15]"> 💬 Subtitle</label>
-                    <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="f_gpu" class="w-3.5 h-3.5 accent-[#facc15]"> ⚡ GPU</label>
+                    <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="f_hook" class="w-3.5 h-3.5 accent-[#facc15]"> 🎬 Intro Hook</label>
+                    <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="f_thumbnail" class="w-3.5 h-3.5 accent-[#facc15]"> 🖼️ Cover Thumbnail</label>
+                    <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="f_watermark" class="w-3.5 h-3.5 accent-[#facc15]"> 🖼️ Watermark Logo</label>
+                    <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="f_credit" class="w-3.5 h-3.5 accent-[#facc15]"> 🏷️ Credit Channel</label>
+                    <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="f_captions" class="w-3.5 h-3.5 accent-[#facc15]"> 💬 Bakar Subtitle</label>
+                    <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer py-1"><input type="checkbox" id="f_gpu" class="w-3.5 h-3.5 accent-[#facc15]"> ⚡ Akselerasi GPU</label>
                 </div></details>
-                <details class="cfg-group" open><summary class="px-2 py-1.5 text-xs font-semibold text-zinc-300 hover:text-white">📐 Layout</summary>
+                <details class="cfg-group" open><summary class="px-2 py-1.5 text-xs font-semibold text-zinc-300 hover:text-white">📐 Layout &amp; Crop</summary>
                 <div class="px-2 pb-2 space-y-2 text-xs">
-                    <label class="text-[10px] text-zinc-400 block mb-0.5">Aspect Ratio</label>
-                    <select id="f_aspect_ratio" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1 text-xs text-white">
-                        <option value="9:16">9:16 (Vertikal)</option>
-                        <option value="1:1">1:1 (Square)</option>
-                        <option value="16:9">16:9 (Landscape)</option>
-                    </select>
+                    <div>
+                        <label class="text-[10px] text-zinc-400 block mb-0.5" for="f_aspect_ratio">Rasio Layar (Aspect Ratio)</label>
+                        <select id="f_aspect_ratio" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-teal-500">
+                            <option value="9:16">9:16 (Vertikal TikTok, Reels, Shorts)</option>
+                            <option value="4:5">4:5 (Portrait Feed Instagram, FB)</option>
+                            <option value="3:4">3:4 (Portrait Tablet, Feed)</option>
+                            <option value="1:1">1:1 (Persegi Square Feed)</option>
+                            <option value="16:9">16:9 (Landscape YouTube, Standard)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-zinc-400 block mb-0.5" for="f_portrait_mode">Mode Smart Crop (Portrait)</label>
+                        <select id="f_portrait_mode" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-teal-500">
+                            <option value="crop">Crop (Auto Follow Face)</option>
+                            <option value="pad">Pad (Blur Bar Atas/Bawah)</option>
+                            <option value="split_podcast">Split Podcast (2 Person)</option>
+                            <option value="split_podcast_dynamic">Dynamic Podcast (Active Speaker)</option>
+                        </select>
+                    </div>
+                </div></details>
+                <details class="cfg-group" open><summary class="px-2 py-1.5 text-xs font-semibold text-zinc-300 hover:text-white">💬 Subtitle &amp; Typography</summary>
+                <div class="px-2 pb-2 space-y-2 text-xs">
+                    <div>
+                        <label class="text-[10px] text-zinc-400 block mb-0.5" for="f_subtitle_style">Gaya Animasi Subtitle</label>
+                        <select id="f_subtitle_style" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-teal-500">
+                            <option value="pop">Pop (Default)</option>
+                            <option value="highlight">Yellow Highlight</option>
+                            <option value="bounce">Bounce Animation</option>
+                            <option value="karaoke">Karaoke (Kata per Kata)</option>
+                            <option value="animated">Smooth Animated</option>
+                            <option value="capcut">CapCut Style</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-zinc-400 block mb-0.5" for="f_sync_offset">Sync Offset Audio (Detik)</label>
+                        <input type="number" step="0.05" id="f_sync_offset" placeholder="-0.3" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-teal-500">
+                    </div>
+                </div></details>
+                <details class="cfg-group"><summary class="px-2 py-1.5 text-xs font-semibold text-zinc-300 hover:text-white">🎯 AI Face Tracking</summary>
+                <div class="px-2 pb-2 space-y-2 text-xs">
+                    <div>
+                        <label class="text-[10px] text-zinc-400 block mb-0.5" for="f_face_detector_model">Engine Detektor Wajah</label>
+                        <select id="f_face_detector_model" onchange="toggleYoloSize()" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-teal-500">
+                            <option value="mediapipe">MediaPipe Face Mesh (Cepat &amp; Ringan)</option>
+                            <option value="yolo">YOLOv8 (Presisi Akurat)</option>
+                        </select>
+                    </div>
+                    <div id="yoloSizeBox" class="hidden">
+                        <label class="text-[10px] text-zinc-400 block mb-0.5" for="f_yolo_size">Ukuran Model YOLO</label>
+                        <select id="f_yolo_size" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-teal-500">
+                            <option value="8n">YOLOv8 Nano (Super Fast)</option>
+                            <option value="8s">YOLOv8 Small</option>
+                            <option value="8m">YOLOv8 Medium</option>
+                            <option value="9c">YOLOv9 Compact</option>
+                        </select>
+                    </div>
                 </div></details>
             </div>
             <div id="saveMsg" class="px-3 pb-2 text-xs"></div>
@@ -226,6 +276,7 @@ details.cfg-group[open] summary::before{transform:rotate(90deg)}
         const capsOn=($('#f_captions')||{}).checked||false;
         const proc=$('#pStatus');if($('#procBtn'))$('#procBtn').disabled=true;
         try{
+            await saveConfig();
             const r=await fetch('/api/process/'+encodeURIComponent(PICK_SESSION),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({selected:sel,hook:hookOn,captions:capsOn})});
             const j=await r.json().catch(()=>({}));
             if(!r.ok||!j.ok)throw new Error(j.error||'HTTP '+r.status);
@@ -260,10 +311,31 @@ details.cfg-group[open] summary::before{transform:rotate(90deg)}
         }catch(e){st.innerHTML='<div class="bg-red-500/10 border border-red-500/20 rounded px-3 py-2 text-xs text-red-300">❌ '+esc(e.message)+'</div>';}
     }
 
+    function toggleYoloSize(){
+        const fm=$('#f_face_detector_model');
+        const box=$('#yoloSizeBox');
+        if(!fm||!box)return;
+        box.classList.toggle('hidden', fm.value !== 'yolo');
+    }
+
     async function saveConfig(){
         const v=id=>{const el=document.getElementById(id);return el?el.value:''};
         const c=id=>{const el=document.getElementById(id);return el?el.checked:false};
-        const payload={watermark:c('f_watermark'),credit:c('f_credit'),hook:c('f_hook'),thumbnail:{enabled:c('f_thumbnail')},captions:c('f_captions'),gpu:c('f_gpu'),aspect_ratio:v('f_aspect_ratio')};
+        const syncVal=parseFloat(v('f_sync_offset'));
+        const payload={
+            watermark:c('f_watermark'),
+            credit:c('f_credit'),
+            hook:c('f_hook'),
+            thumbnail:{enabled:c('f_thumbnail')},
+            captions:c('f_captions'),
+            gpu:c('f_gpu'),
+            aspect_ratio:v('f_aspect_ratio'),
+            portrait_mode:v('f_portrait_mode'),
+            subtitle_style:v('f_subtitle_style'),
+            face_detector_model:v('f_face_detector_model'),
+            yolo_size:v('f_yolo_size')
+        };
+        if(!isNaN(syncVal)) payload.sync_offset=syncVal;
         try{
             const r=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
             const j=await r.json().catch(()=>({}));
@@ -290,7 +362,13 @@ details.cfg-group[open] summary::before{transform:rotate(90deg)}
         const c=t.cfg||{};
         const m={watermark:'f_watermark',credit:'f_credit',hook:'f_hook',captions:'f_captions',gpu:'f_gpu'};
         Object.entries(m).forEach(([k,id])=>{const el=document.getElementById(id);if(el)el.checked=!!c[k];});
-        if(c.aspect_ratio){const el=document.getElementById('f_aspect_ratio');if(el)el.value=c.aspect_ratio;}
+        if(c.aspect_ratio && $('#f_aspect_ratio')) $('#f_aspect_ratio').value=c.aspect_ratio;
+        if(c.portrait_mode && $('#f_portrait_mode')) $('#f_portrait_mode').value=c.portrait_mode;
+        if(c.subtitle_style && $('#f_subtitle_style')) $('#f_subtitle_style').value=c.subtitle_style;
+        if(c.face_detector_model && $('#f_face_detector_model')) $('#f_face_detector_model').value=c.face_detector_model;
+        if(c.yolo_size && $('#f_yolo_size')) $('#f_yolo_size').value=c.yolo_size;
+        if(c.sync_offset != null && $('#f_sync_offset')) $('#f_sync_offset').value=c.sync_offset;
+        toggleYoloSize();
         await saveConfig();
         const msg=$('#tplMsg');if(msg){msg.textContent='✅ '+t.label+' diterapkan';msg.classList.remove('hidden');setTimeout(()=>msg.classList.add('hidden'),3000);}
     }
@@ -300,7 +378,13 @@ details.cfg-group[open] summary::before{transform:rotate(90deg)}
             const c=await(await fetch('/api/config')).json();
             ['f_watermark','f_credit','f_captions','f_gpu','f_hook'].forEach(id=>{const el=document.getElementById(id);if(el)el.checked=!!c[id.replace('f_','')];});
             const thumb=document.getElementById('f_thumbnail');if(thumb)thumb.checked=c.thumbnail ? !!c.thumbnail.enabled : true;
-            const ar=document.getElementById('f_aspect_ratio');if(ar&&c.aspect_ratio)ar.value=c.aspect_ratio;
+            if(c.aspect_ratio && $('#f_aspect_ratio')) $('#f_aspect_ratio').value=c.aspect_ratio;
+            if(c.portrait_mode && $('#f_portrait_mode')) $('#f_portrait_mode').value=c.portrait_mode;
+            if(c.subtitle_style && $('#f_subtitle_style')) $('#f_subtitle_style').value=c.subtitle_style;
+            if(c.face_detector_model && $('#f_face_detector_model')) $('#f_face_detector_model').value=c.face_detector_model;
+            if(c.yolo_size && $('#f_yolo_size')) $('#f_yolo_size').value=c.yolo_size;
+            if(c.sync_offset != null && $('#f_sync_offset')) $('#f_sync_offset').value=c.sync_offset;
+            toggleYoloSize();
         }catch(e){}
     }
 
