@@ -103,83 +103,55 @@ class PortraitMixin:
             target = np.arange(total_frames, dtype=float)
             return np.interp(target, x, y).tolist()
 
-        def _build_portrait_filter_script(self, crop_positions, crop_w, crop_h,
-                                          out_w, out_h, min_run=20, quantize=4,
-                                          crop_ys=None) -> str:
-            """Build a ffmpeg filter_complex script that crops a tracking window (segment-based).
+        def _encode_portrait_single_pass(self, input_path: str, output_path: str,
+                                         crop_positions: list, crop_w: int, crop_h: int,
+                                         out_w: int, out_h: int,
+                                         progress_callback=None, duration: float = 0,
+                                         min_run: int = 1, quantize: int = 1,
+                                         crop_ys=None):
+            """Crop + scale + encode + audio mux in ONE ffmpeg pass via sendcmd for 100% smooth camera motion.
 
-            Supports optional vertical (y) tracking via ``crop_ys`` (list of int per frame).
-            When ``crop_ys`` is None, uses ``y=0`` (legacy).
+            Eliminates segment trim/concat snapping and discrete quantization.
             """
             total = len(crop_positions)
             if crop_ys is None:
                 crop_ys = [0] * total
-            
+
             if total == 0:
                 crop_positions = [0]
                 crop_ys = [0]
                 total = 1
 
-            quantize = max(1, int(quantize))
-            runs = []
-            prev_x = prev_y = None
-            for i, x in enumerate(crop_positions):
-                qx = int(round(x / quantize) * quantize)
-                qy = int(round(crop_ys[i] / quantize) * quantize)
-                if prev_x is None or qx != prev_x or qy != prev_y:
-                    runs.append([i, qx, qy])
-                    prev_x, prev_y = qx, qy
+            fps = (total / duration) if (duration and duration > 0) else 30.0
 
-            filtered = [runs[0]]
-            for start_, qx, qy in runs[1:]:
-                if start_ - filtered[-1][0] < min_run:
-                    continue
-                filtered.append([start_, qx, qy])
+            fd_cmd, cmd_path = tempfile.mkstemp(suffix=".txt", prefix="portrait_sendcmd_", text=True)
+            fd_script, script_path = tempfile.mkstemp(suffix=".txt", prefix="portrait_fc_", text=True)
 
-            if len(filtered) == 1:
-                x = max(0, int(filtered[0][1]))
-                y = max(0, int(filtered[0][2]))
-                return (f"[0:v]crop={crop_w}:{crop_h}:x={x}:y={y},"
-                        f"scale={out_w}:{out_h}:flags=bicubic,setsar=1,format=yuv420p[v]")
-
-            n = len(filtered)
-            def seg_chain(k):
-                s0 = filtered[k][0]
-                e0 = filtered[k + 1][0] if k + 1 < n else total
-                x = max(0, int(filtered[k][1]))
-                y = max(0, int(filtered[k][2]))
-                return (f"[s{k}]trim=start_frame={s0}:end_frame={e0},"
-                        f"setpts=PTS-STARTPTS,"
-                        f"crop={crop_w}:{crop_h}:x={x}:y={y},"
-                        f"scale={out_w}:{out_h}:flags=bicubic,setsar=1,format=yuv420p[t{k}]")
-
-            split = f"[0:v]split={n}" + "".join(f"[s{k}]" for k in range(n))
-            chains = [split] + [seg_chain(k) for k in range(n)]
-            labels = "".join(f"[t{k}]" for k in range(n))
-            concat = f"{labels}concat=n={n}:v=1:a=0[v]"
-            return ";\n".join(chains) + ";\n" + concat
-
-        def _encode_portrait_single_pass(self, input_path: str, output_path: str,
-                                         crop_positions: list, crop_w: int, crop_h: int,
-                                         out_w: int, out_h: int,
-                                         progress_callback=None, duration: float = 0,
-                                         min_run: int = 20, quantize: int = 4,
-                                         crop_ys=None):
-            """Crop + scale + encode + audio mux in ONE ffmpeg pass.
-
-            Replaces the old two-step flow (OpenCV VideoWriter temp file, then a
-            second full re-encode for audio merge) with a single encode, which is
-            roughly twice as fast and no longer depends on OpenCV's H.264 writer.
-            ``crop_ys`` (optional per-frame y crop offset) enables vertical centering.
-            """
-            script = self._build_portrait_filter_script(
-                crop_positions, crop_w, crop_h, out_w, out_h,
-                min_run=min_run, quantize=quantize, crop_ys=crop_ys,
-            )
-            fd, script_path = tempfile.mkstemp(suffix=".txt", prefix="portrait_crop_", text=True)
             try:
-                with os.fdopen(fd, "w", encoding="utf-8") as f:
-                    f.write(script)
+                prev_x = None
+                prev_y = None
+                with os.fdopen(fd_cmd, "w", encoding="utf-8") as f:
+                    for i in range(total):
+                        x = int(round(crop_positions[i]))
+                        y = int(round(crop_ys[i]))
+                        if x != prev_x or y != prev_y:
+                            t_sec = i / fps
+                            f.write(f"{t_sec:.4f} [enter] crop x {x}, crop y {y};\n")
+                            prev_x, prev_y = x, y
+
+                escaped_cmd_path = cmd_path.replace("\\", "/").replace(":", "\\:")
+                init_x = int(round(crop_positions[0]))
+                init_y = int(round(crop_ys[0]))
+
+                filter_content = (
+                    f"sendcmd=f='{escaped_cmd_path}',"
+                    f"crop=w={crop_w}:h={crop_h}:x={init_x}:y={init_y},"
+                    f"scale={out_w}:{out_h}:flags=bicubic,setsar=1,format=yuv420p[v]"
+                )
+
+                with os.fdopen(fd_script, "w", encoding="utf-8") as f:
+                    f.write(filter_content)
+
                 encoder_args = self.get_video_encoder_args()
                 cmd = [
                     self.ffmpeg_path, "-y",
@@ -191,7 +163,7 @@ class PortraitMixin:
                     "-shortest",
                     output_path,
                 ]
-                self.log_ffmpeg_command(cmd, "Portrait Crop+Encode (single pass)", step="portrait")
+                self.log_ffmpeg_command(cmd, "Portrait Crop+Encode (sendcmd smooth pass)", step="portrait")
                 if progress_callback is not None:
                     self.run_ffmpeg_with_progress(cmd, duration, progress_callback)
                 else:
@@ -200,10 +172,11 @@ class PortraitMixin:
                         stderr = (result.stderr or "")[-2000:]
                         raise Exception(f"Portrait encode failed:\n{stderr}")
             finally:
-                try:
-                    os.unlink(script_path)
-                except OSError:
-                    pass
+                for p in [cmd_path, script_path]:
+                    try:
+                        os.unlink(p)
+                    except OSError:
+                        pass
 
         def convert_to_portrait(self, input_path: str, output_path: str):
             """Convert landscape to 9:16 portrait (router method)"""
@@ -471,7 +444,7 @@ class PortraitMixin:
             if not analyzed_positions:
                 raise Exception("No faces detected by BlazeFace")
             crop_positions = self._interpolate_sampled(analyzed_positions, analyzed_indices, frames_read)
-            crop_positions = self._smooth_follow_positions(crop_positions, 1.6)
+            crop_positions = self._smooth_follow_positions(crop_positions, 1.6, fps=fps or 30.0)
             self.log(f"  BlazeFace tracked {len(analyzed_positions)} samples → {len(crop_positions)} frames")
             self._encode_portrait_single_pass(input_path, output_path, crop_positions, crop_w, crop_h, out_w, out_h, duration=frames_read/fps if fps else 0, progress_callback=lambda p: progress_callback(0.5 + p*0.5) if progress_callback else None)
 
@@ -631,7 +604,8 @@ class PortraitMixin:
                 self.log(f"  Smooth face follow: camera pans continuously after face movement")
                 crop_positions = self._smooth_follow_positions(
                     crop_positions,
-                    self.mediapipe_settings.get("pan_speed_limit", 1.8)
+                    self.mediapipe_settings.get("pan_speed_limit", 1.8),
+                    fps=fps or 30.0
                 )
             else:
                 crop_positions = self._stabilize_positions_with_activity(
@@ -748,61 +722,41 @@ class PortraitMixin:
 
             return final
 
-        def _smooth_follow_positions(self, positions: list, pan_speed_limit: float = 1.8):
-            """Smooth continuous camera pan — professional-grade tracking.
+        def _smooth_follow_positions(self, positions: list, pan_speed_limit: float = 1.8, fps: float = 30.0):
+            """Smooth continuous camera pan — cinematic camera tracking.
 
-            Features (inspired by DaVinci Resolve / Premiere Pro smooth follow):
-            1. Critically damped spring — no oscillation, natural momentum
-            2. Dead zone — camera holds when subject is near center (anti micro-jitter)
-            3. Velocity-adaptive — fast subjects get responsive tracking, slow subjects get heavy smoothing
-            4. Ease-in/ease-out — natural acceleration curves, no hard starts/stops
+            1. Hanning window low-pass filter eliminates face tracking jitter.
+            2. Proportional ease-in/ease-out glides smoothly without staircases or overshoot.
+            3. Adaptive dead-zone prevents camera buzzing when subject is still.
             """
             if not positions or len(positions) < 2:
                 return positions
 
-            # === Spring parameters ===
-            k = max(0.5, 30.0 / max(pan_speed_limit, 0.5))  # stiffness
-            c = 2.0 * np.sqrt(k)                              # critical damping
+            arr = np.array(positions, dtype=float)
+            kernel_size = max(5, int(fps * 0.4) | 1)
+            kernel = np.hanning(kernel_size)
+            kernel /= kernel.sum()
 
-            # === Dead zone (pixels from center before camera reacts) ===
-            dead_zone = max(2.0, 8.0 / max(pan_speed_limit, 0.5))  # adaptive dead zone
+            padded = np.pad(arr, (kernel_size // 2, kernel_size // 2), mode='edge')
+            smoothed = np.convolve(padded, kernel, mode='valid')
 
-            # Sub-pixel precision throughout
-            current = float(positions[0])
-            velocity = 0.0
-            result = [current]
+            dt = 1.0 / max(1.0, fps)
+            max_speed_px_sec = 180.0 * max(0.5, pan_speed_limit)
+            max_step = max_speed_px_sec * dt
 
-            for i in range(1, len(positions)):
-                target = float(positions[i])
-                displacement = target - current
+            dead_zone = 6.0
+            result = []
+            current = float(smoothed[0])
 
-                # Dead zone: if subject is within dead zone of current position, hold
-                if abs(displacement) < dead_zone:
-                    # Gently decay velocity (ease-out) instead of freezing
-                    velocity *= 0.85
-                    current += velocity
-                    result.append(current)
-                    continue
-
-                # Velocity-adaptive damping:
-                # When moving fast → less damping (responsive)
-                # When moving slow → more damping (smooth)
-                speed = abs(velocity)
-                adaptive_c = c * (0.7 + 0.3 * min(speed / max(pan_speed_limit, 0.5), 1.0))
-
-                # Spring force with adaptive damping — clamp to avoid overflow NaN
-                try:
-                    acceleration = -k * displacement - adaptive_c * velocity
-                    # clamp extreme values
-                    if not np.isfinite(acceleration):
-                        acceleration = np.clip(acceleration, -50, 50) if np.isfinite(acceleration) else 0
-                    acceleration = float(np.clip(acceleration, -100, 100))
-                    velocity = float(np.clip(velocity + acceleration, -50, 50))
-                    current = float(np.clip(current + velocity, 0, 1920))
-                except Exception:
-                    velocity = 0
-                    acceleration = 0
-                result.append(current)
+            for target in smoothed:
+                diff = target - current
+                if abs(diff) > dead_zone:
+                    step = diff * 0.15
+                    step = float(np.clip(step, -max_step, max_step))
+                    current += step
+                else:
+                    current += diff * 0.04
+                result.append(float(current))
 
             return result
 
@@ -1272,8 +1226,8 @@ class PortraitMixin:
             
             if self.mediapipe_settings.get("smooth_follow", True):
                 pan_limit = self.mediapipe_settings.get("pan_speed_limit", 1.8)
-                crop_positions = self._smooth_follow_positions(crop_positions, pan_limit)
-                crop_ys = self._smooth_follow_positions(crop_ys, pan_limit * 0.8)
+                crop_positions = self._smooth_follow_positions(crop_positions, pan_limit, fps=fps or 30.0)
+                crop_ys = self._smooth_follow_positions(crop_ys, pan_limit * 0.8, fps=fps or 30.0)
             
             self._encode_portrait_single_pass(
                 input_path, output_path, crop_positions, crop_w, crop_h, out_w, out_h,
