@@ -258,11 +258,7 @@ class CaptionMixin:
 
             # Handle font path and style fallbacks
             if not user_font_path or not os.path.exists(user_font_path):
-                from utils.font_scanner import resolve_preset_font
-                try:
-                    user_font_path = resolve_preset_font(getattr(self, "font_preset", "default")) or self._find_system_font_bold()
-                except Exception:
-                    user_font_path = self._find_system_font_bold()
+                user_font_path = self._find_system_font_bold()
 
             font_candidates = [user_font_path, self._find_system_font_bold()]
             pil_font = None
