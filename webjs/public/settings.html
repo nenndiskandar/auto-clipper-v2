@@ -542,7 +542,6 @@ function updateSubPreview() {
     hi.className = 'text-teal-400 font-bold';
   }
 }
-}
 
 function updateWmPreview() {
   const on = $('#s_wm_on').checked;
@@ -882,7 +881,7 @@ async function fetchModels(){
     sel.innerHTML='<option value="AUTO">AUTO</option>'+models.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
     if(cur) sel.value=cur;
     modelBadge();
-    $('#connMsg').textContent='+models.length+' model dimuat'; $('#connMsg').className='text-[11px] text-emerald-400';
+    $('#connMsg').textContent='✅ '+models.length+' model dimuat'; $('#connMsg').className='text-[11px] text-emerald-400';
     // tampilkan model aktif di input filter
     pickModel(sel.value);
     checkHfStatus();
@@ -891,7 +890,7 @@ async function fetchModels(){
     MODEL_LIST = [];
     modelBadge();
     MODEL_LIST_EL().classList.add('hidden');
-    $('#connMsg').textContent='+e.message; $('#connMsg').className='text-[11px] text-red-400';
+    $('#connMsg').textContent='❌ '+e.message; $('#connMsg').className='text-[11px] text-red-400';
   }
 }
 async function testConnection() {
@@ -946,7 +945,7 @@ async function downloadFwModel(size){
     const d=await r.json(); if(!d.ok) throw new Error(d.error||'gagal');
     box.innerHTML='<i class="bi bi-hourglass-split text-blue-400"></i> Download berjalan… refresh cek lagi dalam 30s';
     setTimeout(checkFwModels, 5000);
-  }catch(e){ box.textContent='+e.message; }
+  }catch(e){ box.textContent='❌ '+e.message; }
 }
 loadConfig();
 </script>

@@ -95,15 +95,28 @@ function checkLoginLimit(ip) {
 function getDiskStats() {
   const def = { total: 0, used: 0, free: 0, usedPercent: 0, error: null };
   return new Promise(res => {
-    execFile('df', ['-B1', '/'], { timeout: 5000 }, (err, stdout) => {
+    execFile('df', ['-B1', '/'], { timeout: 5000, env: { ...process.env, LC_ALL: 'C' } }, (err, stdout) => {
       if (err) return res({ ...def, error: String(err.message || err) });
-      const line = String(stdout || '').split('\n').filter(l => l.trim() && !/^Filesystem/i.test(l.trim()))[0];
+      // locale-proof: LC_ALL=C bikin header selalu "Filesystem", tapi tetap fallback jika filter gagal
+      let lines = String(stdout || '').split('\n').filter(l => l.trim());
+      let line = lines.find(l => !/^Filesystem/i.test(l.trim()) && /^\//.test(l.trim()));
+      if (!line) line = lines.filter(l => l.trim() && !/^Filesystem/i.test(l.trim()))[0];
+      if (!line) line = lines[lines.length - 1];
       if (!line) return res({ ...def, error: 'df: output kosong' });
       const parts = line.trim().split(/\s+/);
       if (parts.length < 5) return res({ ...def, error: 'df: format tidak dikenal' });
-      const total = parseInt(parts[1], 10) || 0;
-      const used = parseInt(parts[2], 10) || 0;
-      const free = parseInt(parts[3], 10) || 0;
+      // jika parts[1] bukan angka (header keambil), coba ambil dari belakang
+      let total, used, free;
+      if (!isNaN(parseInt(parts[1], 10))) {
+        total = parseInt(parts[1], 10) || 0;
+        used = parseInt(parts[2], 10) || 0;
+        free = parseInt(parts[3], 10) || 0;
+      } else {
+        const rev = parts.slice().reverse();
+        free = parseInt(rev[2], 10) || 0;
+        used = parseInt(rev[3], 10) || 0;
+        total = parseInt(rev[4], 10) || 0;
+      }
       return res({ total, used, free, usedPercent: total ? Math.round((used / total) * 100) : 0, error: null });
     });
   });
