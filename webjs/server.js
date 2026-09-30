@@ -201,7 +201,8 @@ const REFIND_JOBS = new Map();
 let TRANS_JOB = null;
 // job story clip & facebook upload
 let STORY_JOBS = new Map(); // key "run" -> job (biar /api/tasks legible)
-const FB_JOBS = new Map();  // key "run" -> job
+const FB_JOBS = new Map();
+const DEP_JOBS = new Map(); // dependency download/update jobs: target -> {proc,code,startedAt,logPath}  // key "run" -> job
 
 function safe(seg) {
   const decoded = decodeURIComponent(seg || '');
@@ -1084,11 +1085,92 @@ except Exception as e:
         const logPath=path.join(ROOT,'output',`whisper_download_${size}.log`);
         const out=fs.createWriteStream(logPath,{flags:'a'});
         fs.appendFileSync(logPath,`\n===== download ${size} ${new Date().toISOString()} =====\n`);
-        const child=spawn(PY, ['-c', `from pathlib import Path;from utils.dependency_manager import setup_faster_whisper_model;import sys;ok=setup_faster_whisper_model(Path(r'${ROOT.replace(/\\/g,'\\\\')}'), '${size}');print('DONE:'+str(ok));sys.exit(0 if ok else 1)`], {env:{...process.env, PYTHONIOENCODING:'utf-8'}});
+        const child=spawn(PY, ['-c', `import sys;sys.path.insert(0, r'${ROOT.replace(/\\/g,'\\\\')}');from pathlib import Path;from utils.dependency_manager import setup_faster_whisper_model;ok=setup_faster_whisper_model(Path(r'${ROOT.replace(/\\/g,'\\\\')}'), '${size}');print('DONE:'+str(ok));sys.exit(0 if ok else 1)`], {cwd: ROOT, env:{...process.env, PYTHONIOENCODING:'utf-8'}});
         child.stdout.pipe(out); child.stderr.pipe(out);
         child.on('close',code=>{ out.end(); });
         json(res,200,{ok:true, started:true, log: logPath});
       });
+      return;
+    }
+    // POST /api/dependencies/install — unified download/update for binaries & pip packages
+    // body: {target: 'ffmpeg'|'deno'|'mediapipe'|'yt-dlp'|'pip:<pkg>'|'whisper:tiny'|'whisper:base'|'whisper:small'|'whisper:medium'|'whisper:large-v3'}
+    if (p === '/api/dependencies/install' && req.method === 'POST') {
+      let body=''; req.on('data',c=>body+=c); req.on('end',()=>{
+        let o={}; try{o=JSON.parse(body||'{}')}catch{}
+        let target=String(o.target||'').trim();
+        // normalize legacy: whisper small -> whisper:small
+        if (['tiny','base','small','medium','large-v3'].includes(target)) target='whisper:'+target;
+        const allowed = new Set(['ffmpeg','deno','mediapipe','yt-dlp','whisper:tiny','whisper:base','whisper:small','whisper:medium','whisper:large-v3']);
+        const isPip = target.startsWith('pip:');
+        const pipPkg = isPip ? target.slice(4).trim() : '';
+        const isPipValid = isPip && /^[a-zA-Z0-9_\-.]+$/.test(pipPkg);
+        if (!allowed.has(target) && !isPipValid) return json(res,400,{error:'invalid target: '+target});
+        const jobKey = target;
+        const prev = DEP_JOBS.get(jobKey);
+        if (prev && prev.proc && !prev.proc.killed && prev.code===undefined) return json(res,409,{error:'masih berjalan', target});
+        const safeTarget = target.replace(/[:\/]/g,'_');
+        const logPath = path.join(ROOT,'output',`dep_${safeTarget}.log`);
+        try{ fs.mkdirSync(path.join(ROOT,'output'),{recursive:true}); }catch{}
+        fs.appendFileSync(logPath,`\n===== ${target} ${new Date().toISOString()} =====\n`);
+        const out = fs.createWriteStream(logPath,{flags:'a'});
+        let child;
+        const env = {...process.env, PYTHONIOENCODING:'utf-8'};
+        // helper to add sys.path for dependency_manager imports
+        const pyPrefix = `import sys;sys.path.insert(0, r'${ROOT.replace(/\\/g,'\\\\')}');`;
+        if (target==='ffmpeg') {
+          child=spawn(PY, ['-c', `${pyPrefix}from pathlib import Path;from utils.dependency_manager import setup_ffmpeg;ok=setup_ffmpeg(Path(r'${ROOT.replace(/\\/g,'\\\\')}'));print('DONE:'+str(ok));sys.exit(0 if ok else 1)`], {cwd: ROOT, env});
+        } else if (target==='deno') {
+          child=spawn(PY, ['-c', `${pyPrefix}from pathlib import Path;from utils.dependency_manager import setup_deno;ok=setup_deno(Path(r'${ROOT.replace(/\\/g,'\\\\')}'));print('DONE:'+str(ok));sys.exit(0 if ok else 1)`], {cwd: ROOT, env});
+        } else if (target==='mediapipe') {
+          child=spawn(PY, ['-c', `${pyPrefix}from pathlib import Path;from utils.dependency_manager import setup_mediapipe_model;ok=setup_mediapipe_model(Path(r'${ROOT.replace(/\\/g,'\\\\')}'));print('DONE:'+str(ok));sys.exit(0 if ok else 1)`], {cwd: ROOT, env});
+        } else if (target==='yt-dlp') {
+          child=spawn(PY, ['-m','pip','install','--upgrade','yt-dlp'], {cwd: ROOT, env});
+        } else if (target.startsWith('whisper:')) {
+          const size=target.split(':')[1];
+          // for update: remove old dir first if exists (force re-download)
+          child=spawn(PY, ['-c', `${pyPrefix}from pathlib import Path, shutil;from utils.dependency_manager import setup_faster_whisper_model, get_faster_whisper_model_dir;app=Path(r'${ROOT.replace(/\\/g,'\\\\')}');d=get_faster_whisper_model_dir(app,'${size}');\nif d.exists() and (d/'model.bin').exists():\n  import time; print('existing '+str(d)+' will be refreshed');\nok=setup_faster_whisper_model(app,'${size}');print('DONE:'+str(ok));sys.exit(0 if ok else 1)`.replace('${size}', size)], {cwd: ROOT, env});
+          // fix spawn arg interpolation — need size variable
+        } else if (isPip) {
+          child=spawn(PY, ['-m','pip','install','--upgrade', pipPkg], {cwd: ROOT, env});
+        }
+        // whisper size interpolation fix (re-create child correctly for whisper)
+        if (target.startsWith('whisper:')) {
+          const size=target.split(':')[1];
+          child=spawn(PY, ['-c', pyPrefix+`from pathlib import Path;from utils.dependency_manager import setup_faster_whisper_model;app=Path(r'${ROOT.replace(/\\/g,'\\\\')}');ok=setup_faster_whisper_model(app,'${size}');print('DONE:'+str(ok));import sys;sys.exit(0 if ok else 1)`], {cwd: ROOT, env});
+        }
+        if (!child) return json(res,500,{error:'failed to start'});
+        child.stdout.pipe(out); child.stderr.pipe(out);
+        const job={proc:child, code:undefined, startedAt:Date.now(), logPath, target};
+        DEP_JOBS.set(jobKey, job);
+        child.on('close',code=>{ job.code=code; try{ out.end(); }catch{} });
+        child.on('error',e=>{ try{ fs.appendFileSync(logPath,'\n[spawn error] '+String(e)+'\n'); }catch{} });
+        json(res,200,{ok:true, started:true, target, log: logPath});
+      });
+      return;
+    }
+    // GET /api/dependencies/status?target=xxx
+    if (p === '/api/dependencies/status' && req.method === 'GET') {
+      const target=String(u.searchParams.get('target')||'').trim();
+      if (!target) return json(res,400,{error:'target required'});
+      const job=DEP_JOBS.get(target);
+      if (!job) return json(res,200,{running:false, target});
+      const running = job.code===undefined && job.proc && !job.proc.killed;
+      json(res,200,{running: !!running, code: job.code, startedAt: job.startedAt, target, log: job.logPath});
+      return;
+    }
+    // GET /api/dependencies/log?target=xxx
+    if (p === '/api/dependencies/log' && req.method === 'GET') {
+      const target=String(u.searchParams.get('target')||'').trim();
+      if (!target) return json(res,400,{error:'target required'});
+      const safeTarget=target.replace(/[:\/]/g,'_');
+      const logPath=path.join(ROOT,'output',`dep_${safeTarget}.log`);
+      // also catch whisper legacy logs
+      let altPath=null;
+      if (target.startsWith('whisper:')) altPath=path.join(ROOT,'output',`whisper_download_${target.split(':')[1]}.log`);
+      let txt='';
+      if (fs.existsSync(logPath)) txt=tailFile(logPath, 12000);
+      else if (altPath && fs.existsSync(altPath)) txt=tailFile(altPath, 12000);
+      json(res,200,{log: txt, target});
       return;
     }
     // GET /api/system — host & runtime overview untuk halaman Dependencies
