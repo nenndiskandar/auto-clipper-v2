@@ -1,62 +1,62 @@
 {
-  "telegram_bot_token": "<redacted>",
-  "telegram_api_id": "<redacted>",
-  "telegram_api_hash": "<redacted>",
-  "telegram_phone": "+6285847406352",
+  "telegram_bot_token": "YOUR_TELEGRAM_BOT_TOKEN",
+  "telegram_api_id": "YOUR_TELEGRAM_API_ID",
+  "telegram_api_hash": "YOUR_TELEGRAM_API_HASH",
+  "telegram_phone": "+628000000000",
   "telegram_session": "ytclipper_client",
-  "api_key": "<redacted>",
+  "api_key": "YOUR_OMNIROUTE_API_KEY",
   "base_url": "http://localhost:20128/v1",
-  "model": "AUTO",
-  "tts_model": "edge-tts/id-ID-GadisNeural",
+  "model": "Kiro",
+  "tts_model": "elevenlabs/eleven_flash_v2_5/pNInz6obpgDQGcFmaJgB",
   "temperature": 0.7,
-  "output_dir": "<redacted>",
-  "system_prompt": "<redacted>",
-  "installation_id": "<redacted>",
+  "output_dir": "./output",
+  "system_prompt": "Kamu adalah asisten AI untuk menemukan highlight video. Tugasmu adalah memilih momen terbaik dari transcript dan mereturn tepat {num_clips} klip.\n\nSYARAT:\n1. Durasi tiap klip antara 60 hingga 120 detik (hitung dari timestamp).\n2. Pilih momen yang menarik, lucu, atau memiliki statement penting.\n3. Format waktu: HH:MM:SS,mmm.\n\nOUTPUT HARUS BERUPA JSON ARRAY TANPA TEKS LAIN:\n[\n {\n  \"start_time\": \"00:01:10,000\",\n  \"end_time\": \"00:02:15,000\",\n  \"title\": \"Judul Klip Menarik\",\n  \"description\": \"Deskripsi singkat klip ini.\",\n  \"virality_score\": 8,\n  \"hook_text\": \"Kalimat pendek yang menarik\"\n }\n]\n\n====================\n{video_context}\n\nTranscript:\n{transcript}",
+  "installation_id": "YOUR_INSTALLATION_ID",
   "ai_providers": {
     "_provider_type": "custom",
     "highlight_finder": {
       "base_url": "http://localhost:20128/v1",
-      "api_key": "<redacted>",
-      "model": "Loading…",
-      "system_message": "<redacted>"
+      "api_key": "YOUR_OMNIROUTE_API_KEY",
+      "model": "auto/best-coding-fast",
+      "system_message": "Kamu adalah asisten AI untuk menemukan highlight video. Tugasmu adalah memilih momen terbaik dari transcript dan mereturn tepat {num_clips} klip.\n\nSYARAT:\n1. Durasi tiap klip antara 60 hingga 120 detik (hitung dari timestamp).\n2. Pilih momen yang menarik, lucu, atau memiliki statement penting.\n3. Format waktu: HH:MM:SS,mmm.\n\nOUTPUT HARUS BERUPA JSON ARRAY TANPA TEKS LAIN:\n[\n {\n  \"start_time\": \"00:01:10,000\",\n  \"end_time\": \"00:02:15,000\",\n  \"title\": \"Judul Klip Menarik\",\n  \"description\": \"Deskripsi singkat klip ini.\",\n  \"virality_score\": 10,\n  \"hook_text\": \"Kalimat pendek yang menarik\"\n }\n]\n\n====================\n{video_context}\n\nTranscript:\n{transcript}"
     },
     "caption_maker": {
-      "base_url": "https://api.openai.com/v1",
-      "api_key": "",
-      "model": "whisper-1",
+      "base_url": "http://localhost:20128/v1/audio/transcriptions",
+      "api_key": "YOUR_OMNIROUTE_API_KEY",
+      "model": "groq/whisper-large-v3",
       "faster_whisper": {
-        "model_size": "medium"
+        "model_size": "large-v3"
       }
     },
     "hook_maker": {
-      "base_url": "http://localhost:20128/v1/",
-      "api_key": "<redacted>",
-      "model": "edge-tts/id-ID-GadisNeural"
+      "base_url": "http://localhost:20128/v1/audio/speech?response_format=json",
+      "api_key": "YOUR_OMNIROUTE_API_KEY",
+      "model": "elevenlabs/eleven_flash_v2_5/pNInz6obpgDQGcFmaJgB"
     },
     "youtube_title_maker": {
       "base_url": "http://localhost:20128/v1",
-      "api_key": "",
-      "model": "GEMINI"
+      "api_key": "YOUR_OMNIROUTE_API_KEY",
+      "model": "Kiro"
     }
   },
   "watermark": {
     "enabled": false,
-    "image_path": "<redacted>",
+    "image_path": "./assets/watermarks/watermark.png",
     "position_x": 0.85,
     "position_y": 0.05,
+    "opacity": 0.81,
+    "scale": 0.15,
     "position": "",
     "padding": 0.02,
-    "text": "",
-    "opacity": 0.8,
-    "scale": 0.15
+    "text": ""
   },
   "face_tracking_mode": "mediapipe",
   "mediapipe_settings": {
-    "lip_activity_threshold": 0,
-    "switch_threshold": 0.18,
-    "min_shot_duration": 45,
-    "center_weight": 0.12,
-    "smooth_follow": true,
+    "lip_activity_threshold": 0.05,
+    "switch_threshold": 0.35,
+    "min_shot_duration": 30,
+    "center_weight": 0.6,
+    "smooth_follow": false,
     "pan_speed_limit": 1.5
   },
   "repliz": {
@@ -64,23 +64,23 @@
     "secret_key": ""
   },
   "gpu_acceleration": {
-    "enabled": true
+    "enabled": false
   },
   "tos_accepted": true,
   "autoklip_promo_shown": true,
   "hook_style": {
-    "font_name": "Corbel Bold",
-    "font_path": "C:\\\\Windows\\\\Fonts\\\\corbelb.ttf",
+    "font_name": "DejaVu Sans Mono",
+    "font_path": "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
     "font_size": 0.085,
     "font_color": "#000000",
     "bg_color": "#ccff00",
     "corner_radius": 8,
-    "position_x": 0.5,
-    "position_y": 0.33,
+    "position_x": 0.5074074074074074,
+    "position_y": 0.459375,
     "glitch": true,
     "box_mode": "fit_text",
     "bg_opacity": 100,
-    "duration": 1
+    "duration": 3
   },
   "credit_watermark": {
     "enabled": false,
@@ -94,64 +94,52 @@
   "portrait_mode": "crop",
   "subtitle_style": "pop",
   "aspect_ratio": "9:16",
-  "subtitle_sync_offset": -0.25,
-  "resolution": "1080p",
+  "subtitle_sync_offset": 0,
+  "resolution": "auto",
   "hook_enabled": false,
-  "startup_notify_chat_id": 233439175,
-  "subtitle_enabled": true,
-  "num_clips": 5,
+  "startup_notify_chat_id": 12345678,
+  "subtitle_enabled": false,
+  "num_clips": 25,
   "telegram_bot_commands": [
     "start",
     "help",
     "status",
     "result",
-    "<redacted>",
+    "cancel_session",
     "config"
   ],
-  "owner_id": 233439175,
+  "owner_id": 12345678,
   "allowed_user_ids": [
-    233439175
+    12345678
   ],
+  "subtitle_language": "id",
   "pro_settings": {
     "stabilize": false,
-    "color_grade": "none",
+    "color_grade": "",
     "motion_blur": 0,
     "vignette": 0,
     "speed_ramp_start": 0,
     "speed_ramp_end": 0,
-    "speed_factor": 0.5,
-    "ducking_level_db": -15
+    "speed_factor": 1,
+    "ducking_level_db": -12
   },
-  "subtitle_language": "id",
-  "font_preset": "DEFAULT",
   "face_detector_model": "mediapipe",
   "auto_bgm": {
     "enabled": false,
-    "mood": "",
-    "mode": "ducking",
-    "base_volume": 0.25,
-    "bgm_dir": "",
-    "path": ""
+    "mood": "chill"
   },
   "auto_broll": {
-    "enabled": false,
-    "pexels_api_key": "",
-    "per_clip": 1,
-    "duration": 3,
-    "mix_volume": 0.35
+    "enabled": true
   },
   "transition_library": {
     "enabled": false,
-    "type": "slide_up",
-    "duration": 0.5
+    "style": "crossfade"
   },
   "thumbnail": {
-    "enabled": false,
-    "text": "",
-    "render_front": true,
-    "position": "bottom",
-    "font_size": 0.05
+    "enabled": true
   },
+  "font_preset": "default",
+  "pexels_api_key": "YOUR_PEXELS_API_KEY",
   "metadata_settings": {
     "classification": "auto",
     "target_platforms": [
