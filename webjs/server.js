@@ -430,6 +430,106 @@ const server = http.createServer((req, res) => {
       getDiskStats().then(st => json(res, st.error ? 500 : 200, st));
       return;
     }
+
+    // GET /api/proxy/ternakklip (deprecated, use /api/ternakklip-campaigns for pagination)
+    if (p === '/api/proxy/ternakklip' && req.method === 'GET') {
+      const https = require('https');
+      const reqOpts = {
+        hostname: 'api.ternakklip.com',
+        path: '/api/v1/public/campaigns?limit=50',
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      };
+      const proxyReq = https.request(reqOpts, (proxyRes) => {
+        let resBody = '';
+        proxyRes.on('data', chunk => resBody += chunk);
+        proxyRes.on('end', () => {
+          try {
+            const jsonParsed = JSON.parse(resBody);
+            json(res, 200, jsonParsed);
+          } catch (e) {
+            json(res, 500, { error: 'Invalid JSON from TernakKlip: ' + resBody.slice(0, 100) });
+          }
+        });
+      });
+      proxyReq.on('error', e => json(res, 500, { error: e.message }));
+      proxyReq.end();
+      return;
+    }
+
+    // GET /api/ternakklip-campaigns?page=1&limit=36 - paginated proxy untuk ternaklip.html
+    if (p.startsWith('/api/ternakklip-campaigns') && req.method === 'GET') {
+      const qPage = parseInt(u.searchParams.get('page') || '1', 10);
+      const qLimit = parseInt(u.searchParams.get('limit') || '36', 10);
+      const offset = (qPage - 1) * qLimit;
+      const https = require('https');
+      const reqOpts = {
+        hostname: 'api.ternakklip.com',
+        path: `/api/v1/public/campaigns?limit=100&page=1`,
+        method: 'GET',
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+      };
+      const proxyReq = https.request(reqOpts, (proxyRes) => {
+        let resBody = '';
+        proxyRes.on('data', chunk => resBody += chunk);
+        proxyRes.on('end', () => {
+          try {
+            const jsonParsed = JSON.parse(resBody);
+            const allData = jsonParsed.data || [];
+            const paged = allData.slice(offset, offset + qLimit);
+            json(res, 200, {
+              status: 'success',
+              data: paged,
+              meta: {
+                page: qPage,
+                limit: qLimit,
+                total: jsonParsed.meta?.total_data || allData.length,
+                total_pages: Math.ceil((jsonParsed.meta?.total_data || allData.length) / qLimit)
+              }
+            });
+          } catch (e) {
+            json(res, 500, { error: 'Invalid JSON from TernakKlip: ' + resBody.slice(0, 100) });
+          }
+        });
+      });
+      proxyReq.on('error', e => json(res, 500, { error: e.message }));
+      proxyReq.end();
+      return;
+    }
+
+    // GET /api/ternakklip-campaign-detail/:id — full campaign detail (brief, source_links, dll)
+    const mDetail = p.match(/^\/api\/ternakklip-campaign-detail\/([^/]+)$/);
+    if (mDetail && req.method === 'GET') {
+      const campId = encodeURI(mDetail[1]);
+      const https = require('https');
+      const reqOpts = {
+        hostname: 'api.ternakklip.com',
+        path: `/api/v1/public/campaigns/${campId}`,
+        method: 'GET',
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+      };
+      const proxyReq = https.request(reqOpts, (proxyRes) => {
+        let resBody = '';
+        proxyRes.on('data', chunk => resBody += chunk);
+        proxyRes.on('end', () => {
+          try {
+            const jsonParsed = JSON.parse(resBody);
+            if (jsonParsed.status !== 'success' || !jsonParsed.data) {
+              return json(res, jsonParsed.status === 'error' ? 400 : 500, jsonParsed);
+            }
+            json(res, 200, { status: 'success', data: jsonParsed.data });
+          } catch (e) {
+            json(res, 500, { error: 'Invalid JSON from TernakKlip: ' + resBody.slice(0, 100) });
+          }
+        });
+      });
+      proxyReq.on('error', e => json(res, 500, { error: e.message }));
+      proxyReq.end();
+      return;
+    }
+
     if (p === '/logout') { res.writeHead(302, { Location: '/', 'Set-Cookie': `${COOKIE_NAME}=; Path=/; Max-Age=0` }); return res.end(); }
     // --- public routes: video stream & download (tanpa auth) ---
     const mVidPub = p.match(/^\/(video|download)\/([^/]+)\/(.+)$/);
@@ -493,6 +593,27 @@ const server = http.createServer((req, res) => {
         });
       } catch { return json(res, 500, { error: 'read error' }); }
     }
+    // POST /api/campaign/process/:id — Inisialisasi Master Sesi TernakKlip
+    if (p.startsWith('/api/campaign/process/') && req.method === 'POST') {
+      const campId = p.split('/')[4];
+      const proc = spawn(PY, [path.join(__dirname, 'phase1_campaign.py'), campId]);
+      let out = '';
+      proc.stdout.on('data', d => out += d);
+      proc.on('close', code => {
+        try {
+          const j = JSON.parse(out);
+          if (code === 0 && j.ok) {
+            json(res, 200, { ok: true, session_id: j.session_id });
+          } else {
+            json(res, 500, { error: j.error || 'Gagal menyiapkan sesi campaign' });
+          }
+        } catch (e) {
+          json(res, 500, { error: 'Format output salah: ' + out });
+        }
+      });
+      return;
+    }
+
     // GET/POST /api/sessions/:session/subtitle — ambil & simpan editan subtitle SRT
     const mSub = p.match(/^\/api\/sessions\/([^/]+)\/subtitle$/);
     if (mSub) {
