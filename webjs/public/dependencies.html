@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Auto Clipper : Dependencies</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: { extend: { colors: {
+    surface: { 0:'var(--bg-page)', 1:'var(--bg-surface)', 2:'var(--bg-surface-2)', 3:'var(--border)' },
+    accent: 'var(--accent)',
+  }}}
+}
+</script>
+<style>
+a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible {
+  outline: 2px solid #facc15 !important;
+  outline-offset: 2px !important;
+}
+.card-panel{background:var(--bg-surface);border:1px solid var(--border);border-radius:12px}
+.dot-ok{box-shadow:0 0 8px rgba(52,211,153,.6)}
+.dot-err{box-shadow:0 0 8px rgba(244,63,94,.6)}
+</style>
+<link rel="stylesheet" href="/app.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<script>
+// FORCE CACHE CLEAR AND SW UNREGISTER
+(async function() {
+  if (localStorage.getItem('force_cleared_v11')) return;
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      for (let r of regs) await r.unregister();
+    }
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      for (let k of keys) await caches.delete(k);
+    }
+    localStorage.setItem('force_cleared_v11', '1');
+    window.location.reload(true);
+  } catch (e) {}
+})();
+</script>
+</head>
+<body class="min-h-screen flex flex-col md:flex-row antialiased">
+
+<!-- SIDEBAR -->
+<aside class="w-full md:w-64 border-b md:border-b-0 md:border-r border-zinc-800  flex flex-col shrink-0">
+  <div class="p-4 border-b border-zinc-800 flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <span class="w-7 h-7 rounded-lg logo-mark flex items-center justify-center font-black text-sm"><i class="bi bi-lightning-charge-fill text-amber-400"></i></span>
+      <span class="font-bold text-sm tracking-wide text-white font-heading">AUTO<span class="text-[var(--accent)]">CLIPPER</span></span>
+    </div>
+    <div class="flex items-center gap-2"><button class="darkmode-btn darkmode-compact" aria-label="Toggle dark mode"><i class="bi bi-moon-stars"></i></button><a href="/logout" class="min-h-[32px] min-w-[44px] flex items-center justify-center text-xs text-zinc-400 hover:text-white transition md:hidden">Logout</a></div>
+  </div>
+
+  <nav aria-label="Menu Utama" class="p-2 md:p-3 flex flex-row md:flex-col gap-1.5 flex-wrap" id="sidebarLinks">
+    <a href="/" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-house-door text-sky-400"></i><span>Library Sesi</span></a>
+    <a href="/create.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-plus-square text-emerald-400"></i><span>Create Clip</span></a>
+    <a href="/tasks.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-list-task text-amber-400"></i><span>Antrean Tasks</span></a>
+    <a href="/story.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-film text-fuchsia-400"></i><span>AI Story</span></a>
+    <a href="/facebook.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-facebook text-blue-400"></i><span>FB Auto Upload</span></a>
+    <a href="/cookies.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-shield-lock text-orange-400"></i><span>Cookies YouTube</span></a>
+    <a href="/ternaklip.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-bullseye text-teal-400"></i><span>TernakKlip</span></a>
+    <a href="/dependencies.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition bg-[var(--accent)] text-[var(--accent-text)] font-bold shadow-sm"><i class="bi bi-box-seam"></i><span>Dependencies</span></a>
+    <a href="/settings.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-gear text-zinc-400"></i><span>Settings & AI</span></a>
+  </nav>
+
+  <!-- Engine Status Indication -->
+  <div class="mt-auto px-4 py-3 border-t border-zinc-800/80 hidden md:flex flex-col gap-2 text-xs text-zinc-400 bg-zinc-950/40">
+    <span class="font-semibold text-[10px] uppercase tracking-wider text-zinc-400"><i class="bi bi-cpu text-emerald-400"></i> Engine Status</span>
+    <div class="flex items-center justify-between">
+      <span>FFmpeg</span>
+      <span id="st_ffmpeg" class="w-2.5 h-2.5 rounded-full bg-zinc-600" title="Checking..."></span>
+    </div>
+    <div class="flex items-center justify-between">
+      <span>yt-dlp</span>
+      <span id="st_ytdlp" class="w-2.5 h-2.5 rounded-full bg-zinc-600" title="Checking..."></span>
+    </div>
+    <div class="flex items-center justify-between">
+      <span>Deno</span>
+      <span id="st_deno" class="w-2.5 h-2.5 rounded-full bg-zinc-600" title="Checking..."></span>
+    </div>
+    <div class="flex items-center justify-between">
+      <span>AI Proxy</span>
+      <span id="st_ai" class="w-2.5 h-2.5 rounded-full bg-zinc-600" title="Checking..."></span>
+    </div>
+  </div>
+  <div class="p-4 border-t border-zinc-800 hidden md:flex items-center justify-between text-xs">
+    <span class="text-zinc-400 truncate max-w-[130px]" id="whoami"></span>
+    <div class="flex items-center gap-2"><button class="darkmode-btn darkmode-compact" aria-label="Toggle dark mode"><i class="bi bi-moon-stars"></i></button><a href="/logout" class="text-zinc-400 hover:text-white transition">Logout</a></div>
+  </div>
+
+  <!-- Engine Status Mobile -->
+  <div class="md:hidden flex items-center justify-around px-4 py-2.5 border-t border-b border-zinc-800/80 bg-zinc-950/60 text-[10px] text-zinc-300">
+    <div class="flex items-center gap-1.5"><span id="st_ffmpeg_mob" class="w-2 h-2 rounded-full bg-zinc-600" title="Checking..."></span><span>FFmpeg</span></div>
+    <div class="flex items-center gap-1.5"><span id="st_ytdlp_mob" class="w-2 h-2 rounded-full bg-zinc-600" title="Checking..."></span><span>yt-dlp</span></div>
+    <div class="flex items-center gap-1.5"><span id="st_deno_mob" class="w-2 h-2 rounded-full bg-zinc-600" title="Checking..."></span><span>Deno</span></div>
+    <div class="flex items-center gap-1.5"><span id="st_ai_mob" class="w-2 h-2 rounded-full bg-zinc-600" title="Checking..."></span><span>AI</span></div>
+  </div>
+
+
+  <!-- Disk Space Widget (desktop & mobile) -->
+  <div class="disk-widget border-t border-zinc-800/80">
+    <div class="disk-label"><i class="bi bi-hdd-stack text-sky-400"></i> memuat...</div>
+    <div class="disk-bar"><div class="disk-fill" style="width:0%"></div></div>
+  </div>
+</aside>
+
+<!-- MAIN CONTENT WRAPPER -->
+<div class="flex-1 flex flex-col min-w-0 overflow-y-auto">
+  <main class="max-w-6xl w-full mx-auto p-4 md:p-6 space-y-6 flex-1 pb-10" id="main">
+
+    <!-- HEADER -->
+    <div class="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h1 class="text-lg font-black tracking-tight text-white flex items-center gap-2"><i class="bi bi-box-seam text-violet-400"></i> Dependencies</h1>
+        <p class="text-xs text-zinc-400 mt-1">Kelola semua dependensi engine — binaries, Python packages, disk, services, dan model AI.</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <span id="depUpdated" class="text-[10px] text-zinc-500 hidden md:inline">—</span>
+        <button onclick="refreshAll()" id="btnRefresh" class="min-h-[36px] px-3 py-1.5 bg-surface-2 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+        <button onclick="testAiProxy()" id="btnTestAi" class="min-h-[36px] px-3 py-1.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text)] text-xs font-bold rounded-lg transition flex items-center gap-1.5"><i class="bi bi-plugin"></i> Test AI Proxy</button>
+      </div>
+    </div>
+
+    <!-- SYSTEM OVERVIEW -->
+    <section class="space-y-3">
+      <h2 class="text-[11px] font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5"><i class="bi bi-cpu text-emerald-400"></i> System Overview</h2>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="systemGrid">
+        <div class="card-panel p-4">
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 flex items-center gap-1"><i class="bi bi-hdd"></i> Host</div>
+          <div class="text-sm font-bold text-white mt-1 truncate" id="sysHost">—</div>
+          <div class="text-[10px] text-zinc-400 mt-0.5" id="sysPlatform">—</div>
+        </div>
+        <div class="card-panel p-4">
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 flex items-center gap-1"><i class="bi bi-stopwatch"></i> Uptime</div>
+          <div class="text-sm font-bold text-white mt-1" id="sysUptime">—</div>
+          <div class="text-[10px] text-zinc-400 mt-0.5" id="sysLoad">load —</div>
+        </div>
+        <div class="card-panel p-4">
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 flex items-center gap-1"><i class="bi bi-memory"></i> Memory</div>
+          <div class="text-sm font-bold text-white mt-1" id="sysMem">—</div>
+          <div class="text-[10px] text-zinc-400 mt-0.5" id="sysMemDetail">—</div>
+        </div>
+        <div class="card-panel p-4">
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 flex items-center gap-1"><i class="bi bi-cpu"></i> CPU</div>
+          <div class="text-sm font-bold text-white mt-1 truncate" id="sysCpu">—</div>
+          <div class="text-[10px] text-zinc-400 mt-0.5" id="sysCpuCount">—</div>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div class="card-panel p-4">
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 flex items-center gap-1"><i class="bi bi-code-slash text-sky-400"></i> Runtime</div>
+          <div class="space-y-1.5 mt-2 text-xs">
+            <div class="flex justify-between"><span class="text-zinc-400">Node.js</span><span class="font-mono text-white" id="sysNode">—</span></div>
+            <div class="flex justify-between"><span class="text-zinc-400">Python</span><span class="font-mono text-white" id="sysPython">—</span></div>
+            <div class="flex justify-between"><span class="text-zinc-400">pip</span><span class="font-mono text-zinc-300 text-[11px] truncate max-w-[160px]" id="sysPip" title="">—</span></div>
+            <div class="flex justify-between"><span class="text-zinc-400">Python bin</span><span class="font-mono text-zinc-300 text-[11px] truncate max-w-[160px]" id="sysPyBin" title="">—</span></div>
+          </div>
+        </div>
+        <div class="card-panel p-4">
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 flex items-center gap-1"><i class="bi bi-hdd-stack text-sky-400"></i> Disk Usage</div>
+          <div class="mt-2">
+            <div class="flex justify-between text-xs mb-1"><span class="text-zinc-400" id="diskLabelDep">—</span><span class="font-mono text-white" id="diskPctDep">—</span></div>
+            <div class="h-2 bg-zinc-800 rounded-full overflow-hidden"><div id="diskBarDep" class="h-full bg-emerald-500 rounded-full transition-all duration-500" style="width:0%"></div></div>
+            <div class="text-[10px] text-zinc-500 mt-1" id="diskDetailDep">—</div>
+          </div>
+        </div>
+        <div class="card-panel p-4">
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 flex items-center gap-1"><i class="bi bi-gear text-zinc-400"></i> Services</div>
+          <div class="space-y-2 mt-2" id="svcList">
+            <div class="flex items-center justify-between text-xs"><span class="text-zinc-400 flex items-center gap-1.5"><i class="bi bi-globe text-sky-400"></i> Web</span><span id="svcWeb" class="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-zinc-800 text-zinc-400 border-zinc-700">—</span></div>
+            <div class="flex items-center justify-between text-xs"><span class="text-zinc-400 flex items-center gap-1.5"><i class="bi bi-telegram text-sky-400"></i> Bot</span><span id="svcBot" class="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-zinc-800 text-zinc-400 border-zinc-700">—</span></div>
+            <div class="flex items-center justify-between text-xs"><span class="text-zinc-400 flex items-center gap-1.5"><i class="bi bi-robot text-violet-400"></i> AI Proxy</span><span id="svcAi" class="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-zinc-800 text-zinc-400 border-zinc-700">checking…</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BINARIES -->
+    <section class="space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="text-[11px] font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5"><i class="bi bi-terminal text-amber-400"></i> Binaries & Core Dependencies</h2>
+        <span class="text-[10px] text-zinc-500" id="binCount">—</span>
+      </div>
+      <div class="card-panel overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-zinc-800 bg-zinc-900/40 text-zinc-400 text-[10px] uppercase tracking-wider">
+                <th class="py-2.5 px-4 font-semibold">Status</th>
+                <th class="py-2.5 px-4 font-semibold">Name</th>
+                <th class="py-2.5 px-4 font-semibold">Version / Detail</th>
+                <th class="py-2.5 px-4 font-semibold hidden md:table-cell">Path</th>
+              </tr>
+            </thead>
+            <tbody id="binBody" class="divide-y divide-zinc-800/60">
+              <tr><td colspan="4" class="py-6 text-center text-zinc-500">memuat…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- PYTHON PACKAGES -->
+    <section class="space-y-3">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <h2 class="text-[11px] font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5"><i class="bi bi-box-seam text-sky-400"></i> Python Packages</h2>
+        <div class="flex items-center gap-2">
+          <div class="relative">
+            <i class="bi bi-search absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500 text-xs"></i>
+            <input id="pkgFilter" placeholder="Filter package…" class="pl-7 pr-3 py-1.5 bg-zinc-900 border border-zinc-700 rounded-lg text-xs text-white placeholder-zinc-500 focus:border-[var(--accent)] w-44">
+          </div>
+          <span class="text-[10px] text-zinc-500" id="pkgCount">—</span>
+        </div>
+      </div>
+      <div class="card-panel overflow-hidden">
+        <div class="overflow-x-auto max-h-[320px] overflow-y-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead class="sticky top-0 bg-zinc-900/90 backdrop-blur">
+              <tr class="border-b border-zinc-800 text-zinc-400 text-[10px] uppercase tracking-wider">
+                <th class="py-2.5 px-4 font-semibold">Status</th>
+                <th class="py-2.5 px-4 font-semibold">Package</th>
+                <th class="py-2.5 px-4 font-semibold">Version</th>
+              </tr>
+            </thead>
+            <tbody id="pkgBody" class="divide-y divide-zinc-800/60">
+              <tr><td colspan="3" class="py-6 text-center text-zinc-500">memuat…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- FASTER-WHISPER MODELS -->
+    <section class="space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="text-[11px] font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5"><i class="bi bi-mic text-fuchsia-400"></i> Faster-Whisper Models</h2>
+        <span class="text-[10px] text-zinc-500">5 sizes · huggingface Hub</span>
+      </div>
+      <div class="card-panel overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-zinc-800 bg-zinc-900/40 text-zinc-400 text-[10px] uppercase tracking-wider">
+                <th class="py-2.5 px-4 font-semibold">Status</th>
+                <th class="py-2.5 px-4 font-semibold">Size</th>
+                <th class="py-2.5 px-4 font-semibold">Installed</th>
+                <th class="py-2.5 px-4 font-semibold">Size on Disk</th>
+                <th class="py-2.5 px-4 font-semibold text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody id="whisperBody" class="divide-y divide-zinc-800/60">
+              <tr><td colspan="5" class="py-6 text-center text-zinc-500">memuat…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="px-4 py-2.5 bg-zinc-900/30 border-t border-zinc-800 text-[10px] text-zinc-500 flex items-center gap-1.5">
+          <i class="bi bi-info-circle"></i> Download berjalan di background — cek <a href="/tasks.html" class="text-[var(--accent)] hover:underline">Antrean Tasks</a> atau refresh tabel setelah selesai.
+        </div>
+      </div>
+    </section>
+
+    <!-- AI PROXY DETAIL -->
+    <section class="space-y-3">
+      <h2 class="text-[11px] font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5"><i class="bi bi-plugin text-teal-400"></i> AI Proxy Detail</h2>
+      <div class="card-panel p-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+          <div class="space-y-2">
+            <div class="flex justify-between"><span class="text-zinc-400">Base URL</span><span class="font-mono text-white truncate max-w-[200px]" id="aiUrl">—</span></div>
+            <div class="flex justify-between"><span class="text-zinc-400">Model</span><span class="font-mono text-white" id="aiModel">—</span></div>
+            <div class="flex justify-between"><span class="text-zinc-400">API Key</span><span class="font-mono text-zinc-400" id="aiKey">—</span></div>
+          </div>
+          <div class="space-y-2">
+            <div class="flex items-center justify-between"><span class="text-zinc-400">Status</span><span id="aiStatus" class="px-2.5 py-1 rounded-full text-[10px] font-bold border bg-zinc-800 text-zinc-400 border-zinc-700">checking…</span></div>
+            <div class="text-[10px] text-zinc-500" id="aiDetail">—</div>
+            <div class="flex gap-2">
+              <button onclick="testAiProxy()" class="px-3 py-1.5 bg-surface-2 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs font-semibold rounded-lg transition flex items-center gap-1"><i class="bi bi-lightning-charge"></i> Test Koneksi</button>
+              <a href="/settings.html" class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 text-xs font-semibold rounded-lg transition">Buka Settings</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmtBytes = b => {
+  if (!b) return '—';
+  const gb = b / (1024*1024*1024);
+  if (gb >= 1) return gb.toFixed(1) + ' GB';
+  const mb = b / (1024*1024);
+  return mb.toFixed(1) + ' MB';
+};
+const fmtUptime = s => {
+  if (!s && s !== 0) return '—';
+  const d = Math.floor(s/86400), h = Math.floor((s%86400)/3600), m = Math.floor((s%3600)/60);
+  if (d) return d + 'd ' + h + 'h';
+  if (h) return h + 'h ' + m + 'm';
+  return m + 'm';
+};
+const diskColor = pct => pct >= 90 ? 'bg-red-500' : pct >= 80 ? 'bg-amber-400' : 'bg-emerald-500';
+const badge = (ok, labelOk, labelErr) => ok
+  ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"><i class="bi bi-check-circle-fill"></i> ' + esc(labelOk) + '</span>'
+  : '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20"><i class="bi bi-x-circle-fill"></i> ' + esc(labelErr) + '</span>';
+const dot = ok => ok ? 'bg-emerald-400 dot-ok' : 'bg-rose-500 dot-err';
+
+let PKG_CACHE = [];
+
+fetch('/api/me').then(r=>r.json()).then(d=>{ if(d.name) $('#whoami').innerHTML='<i class="bi bi-person text-zinc-400"></i> '+esc(d.name); });
+
+async function loadSystem(){
+  try{
+    const r = await fetch('/api/system');
+    const s = await r.json();
+    $('#sysHost').textContent = s.host || '—';
+    $('#sysPlatform').textContent = (s.platform || '') + ' ' + (s.arch || '') + ' · ' + (s.release || '');
+    $('#sysUptime').textContent = fmtUptime(s.uptime_s);
+    $('#sysLoad').textContent = 'load ' + (s.loadavg||[]).map(v=>v.toFixed(2)).join(' · ');
+    const memUsedPct = s.mem_total ? Math.round((s.mem_used/s.mem_total)*100) : 0;
+    $('#sysMem').textContent = fmtBytes(s.mem_used) + ' / ' + fmtBytes(s.mem_total) + ' (' + memUsedPct + '%)';
+    $('#sysMemDetail').textContent = 'free ' + fmtBytes(s.mem_free);
+    $('#sysCpu').textContent = s.cpu_model || '—';
+    $('#sysCpuCount').textContent = (s.cpu_count||0) + ' cores';
+    $('#sysNode').textContent = s.node || '—';
+    $('#sysPython').textContent = s.python || '—';
+    $('#sysPip').textContent = s.pip || '—';
+    $('#sysPip').title = s.pip || '';
+    $('#sysPyBin').textContent = s.py || '—';
+    $('#sysPyBin').title = s.py || '';
+    if(s.disk){
+      const pct = s.disk.usedPercent || 0;
+      $('#diskLabelDep').textContent = fmtBytes(s.disk.used) + ' / ' + fmtBytes(s.disk.total);
+      $('#diskPctDep').textContent = pct + '%';
+      $('#diskDetailDep').textContent = 'free ' + fmtBytes(s.disk.free);
+      const bar = $('#diskBarDep');
+      bar.style.width = Math.min(100,pct)+'%';
+      bar.className = 'h-full rounded-full transition-all duration-500 ' + diskColor(pct);
+    }
+    const svcWeb = s.services?.web || 'unknown';
+    const svcBot = s.services?.bot || 'unknown';
+    const svcBadge = v => {
+      const ok = v === 'active';
+      const cls = ok ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : (v==='inactive' ? 'bg-zinc-800 text-zinc-400 border-zinc-700' : 'bg-amber-500/10 text-amber-400 border-amber-500/20');
+      return '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold border ' + cls + '">' + esc(v) + '</span>';
+    };
+    $('#svcWeb').outerHTML = '<span id="svcWeb" class="px-2 py-0.5 rounded-full text-[10px] font-bold border ' + (svcWeb==='active' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : svcWeb==='inactive' ? 'bg-zinc-800 text-zinc-400 border-zinc-700' : 'bg-amber-500/10 text-amber-400 border-amber-500/20') + '">' + esc(svcWeb) + '</span>';
+    $('#svcBot').outerHTML = '<span id="svcBot" class="px-2 py-0.5 rounded-full text-[10px] font-bold border ' + (svcBot==='active' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : svcBot==='inactive' ? 'bg-zinc-800 text-zinc-400 border-zinc-700' : 'bg-amber-500/10 text-amber-400 border-amber-500/20') + '">' + esc(svcBot) + '</span>';
+  }catch(e){
+    console.error('system',e);
+  }
+}
+
+async function loadBinaries(){
+  try{
+    const r = await fetch('/api/binaries');
+    const list = await r.json();
+    $('#binCount').textContent = list.length + ' items';
+    const iconMap = {
+      'ffmpeg': 'bi-camera-reels text-rose-400',
+      'ffprobe': 'bi-film text-orange-400',
+      'deno': 'bi-braces text-emerald-400',
+      'yt-dlp': 'bi-download text-sky-400',
+      'python': 'bi-code-slash text-amber-400',
+      'node': 'bi-hexagon text-emerald-400',
+      'mediapipe': 'bi-eye text-fuchsia-400'
+    };
+    $('#binBody').innerHTML = list.map(b => {
+      const ic = iconMap[b.name] || 'bi-box text-zinc-400';
+      const ver = esc(b.version || b.detail || '');
+      const pathVal = esc(b.path || (b.detail && b.detail.includes('/') ? b.detail : '—'));
+      return '<tr class="hover:bg-zinc-800/30 transition">'
+        + '<td class="py-2.5 px-4"><span class="inline-flex items-center gap-1.5">' + '<span class="w-2 h-2 rounded-full ' + dot(!!b.ok) + '"></span>' + badge(!!b.ok, 'Ready', 'Missing') + '</span></td>'
+        + '<td class="py-2.5 px-4 font-semibold text-white"><span class="inline-flex items-center gap-1.5"><i class="bi ' + ic + '"></i> ' + esc(b.name) + '</span></td>'
+        + '<td class="py-2.5 px-4 font-mono text-[11px] text-zinc-300 max-w-[360px] truncate" title="' + ver + '">' + ver + '</td>'
+        + '<td class="py-2.5 px-4 font-mono text-[11px] text-zinc-500 hidden md:table-cell max-w-[260px] truncate" title="' + pathVal + '">' + pathVal + '</td>'
+        + '</tr>';
+    }).join('');
+  }catch(e){
+    $('#binBody').innerHTML = '<tr><td colspan="4" class="py-6 text-center text-rose-400">gagal memuat binaries</td></tr>';
+  }
+}
+
+async function loadPackages(){
+  try{
+    const r = await fetch('/api/python/packages');
+    const list = await r.json();
+    PKG_CACHE = Array.isArray(list) ? list : [];
+    renderPackages();
+  }catch(e){
+    $('#pkgBody').innerHTML = '<tr><td colspan="3" class="py-6 text-center text-rose-400">gagal memuat packages</td></tr>';
+  }
+}
+function renderPackages(){
+  const q = ($('#pkgFilter').value || '').toLowerCase().trim();
+  const filtered = q ? PKG_CACHE.filter(p => p.name.toLowerCase().includes(q)) : PKG_CACHE;
+  $('#pkgCount').textContent = filtered.length + ' / ' + PKG_CACHE.length;
+  if(!filtered.length){
+    $('#pkgBody').innerHTML = '<tr><td colspan="3" class="py-6 text-center text-zinc-500">tidak ada hasil untuk "' + esc(q) + '"</td></tr>';
+    return;
+  }
+  $('#pkgBody').innerHTML = filtered.map(p => {
+    return '<tr class="hover:bg-zinc-800/30 transition">'
+      + '<td class="py-2 px-4">' + badge(!!p.ok, 'Installed', 'Missing') + '</td>'
+      + '<td class="py-2 px-4 font-mono text-white">' + esc(p.name) + '</td>'
+      + '<td class="py-2 px-4 font-mono text-zinc-300">' + esc(p.version || '—') + '</td>'
+      + '</tr>';
+  }).join('');
+}
+$('#pkgFilter').addEventListener('input', renderPackages);
+
+async function loadWhisper(){
+  try{
+    const r = await fetch('/api/whisper/models');
+    const list = await r.json();
+    $('#whisperBody').innerHTML = list.map(m => {
+      const ok = !!m.installed;
+      const sizeLabel = m.mb || '—';
+      const btn = ok
+        ? '<span class="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-semibold"><i class="bi bi-check-circle-fill"></i> Terpasang</span>'
+        : '<button onclick="downloadWhisper(\'' + esc(m.size) + '\', this)" class="px-3 py-1.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text)] text-xs font-bold rounded-lg transition flex items-center gap-1 ml-auto"><i class="bi bi-download"></i> Download</button>';
+      return '<tr class="hover:bg-zinc-800/30 transition">'
+        + '<td class="py-2.5 px-4">' + badge(ok, 'Ready', 'Belum') + '</td>'
+        + '<td class="py-2.5 px-4 font-mono font-bold text-white">' + esc(m.size) + '</td>'
+        + '<td class="py-2.5 px-4">' + (ok ? '<span class="w-2 h-2 rounded-full bg-emerald-400 dot-ok inline-block"></span> <span class="text-xs text-emerald-400">ya</span>' : '<span class="w-2 h-2 rounded-full bg-zinc-600 inline-block"></span> <span class="text-xs text-zinc-500">tidak</span>') + '</td>'
+        + '<td class="py-2.5 px-4 font-mono text-zinc-300">' + esc(sizeLabel) + '</td>'
+        + '<td class="py-2.5 px-4 text-right"><div class="flex justify-end">' + btn + '</div></td>'
+        + '</tr>';
+    }).join('');
+  }catch(e){
+    $('#whisperBody').innerHTML = '<tr><td colspan="5" class="py-6 text-center text-rose-400">gagal memuat whisper models</td></tr>';
+  }
+}
+async function downloadWhisper(size, btn){
+  const orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass-split animate-spin"></i> Memulai…';
+  try{
+    const r = await fetch('/api/whisper/download', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({size}) });
+    const j = await r.json();
+    if(!r.ok) throw new Error(j.error || 'gagal');
+    btn.innerHTML = '<i class="bi bi-check-circle"></i> Dijadwalkan';
+    btn.className = 'px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-lg flex items-center gap-1 ml-auto';
+    setTimeout(loadWhisper, 4000);
+  }catch(e){
+    btn.innerHTML = orig;
+    btn.disabled = false;
+    alert('Gagal download ' + size + ': ' + e.message);
+  }
+}
+
+async function loadAiProxy(){
+  try{
+    const cfg = await (await fetch('/api/config')).json();
+    const hf = (cfg.ai_providers && cfg.ai_providers.highlight_finder) || {};
+    $('#aiUrl').textContent = hf.base_url || cfg.server_url || cfg.base_url || '—';
+    $('#aiModel').textContent = hf.model || cfg.model || '—';
+    const hasKey = !!(hf.api_key || cfg.api_key);
+    $('#aiKey').textContent = hasKey ? '•••• tersimpan' : '— belum diatur';
+    // test
+    const testRes = await fetch('/api/test-llm', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ server_url: hf.base_url || cfg.server_url || '', hf_api_key: '' })
+    });
+    const t = await testRes.json();
+    const ok = !!t.ok;
+    $('#aiStatus').outerHTML = '<span id="aiStatus" class="px-2.5 py-1 rounded-full text-[10px] font-bold border ' + (ok ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20') + '">' + (ok ? '<i class="bi bi-check-circle-fill"></i> Connected' : '<i class="bi bi-x-circle-fill"></i> Disconnected') + '</span>';
+    $('#aiDetail').textContent = ok ? 'AI Proxy siap — ' + (t.models ? (t.models.length + ' models') : 'ok') : (t.error || 'tidak terhubung');
+    // also update svcAi
+    $('#svcAi').outerHTML = '<span id="svcAi" class="px-2 py-0.5 rounded-full text-[10px] font-bold border ' + (ok ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20') + '">' + (ok ? 'connected' : 'disconnected') + '</span>';
+  }catch(e){
+    $('#aiStatus').textContent = 'error';
+    $('#aiDetail').textContent = String(e.message || e);
+  }
+}
+async function testAiProxy(){
+  const btn = $('#btnTestAi');
+  const orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass-split animate-spin"></i> Testing…';
+  await loadAiProxy();
+  btn.innerHTML = orig;
+  btn.disabled = false;
+}
+
+async function refreshAll(){
+  const btn = $('#btnRefresh');
+  const orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-arrow-clockwise animate-spin"></i> Memuat…';
+  $('#depUpdated').textContent = 'memuat…';
+  await Promise.all([loadSystem(), loadBinaries(), loadPackages(), loadWhisper(), loadAiProxy()]);
+  $('#depUpdated').textContent = 'diperbarui ' + new Date().toLocaleTimeString('id-ID');
+  btn.innerHTML = orig;
+  btn.disabled = false;
+}
+
+refreshAll();
+</script>
+<script src="/engine_status.js"></script>
+<script src="/ui.js"></script>
+</body>
+</html>
