@@ -1180,7 +1180,7 @@ print(json.dumps(out))`;
         new Promise(r => execFile(PY, ['-c', 'import yt_dlp;print(yt_dlp.version.__version__)'], (e, so) => r(e ? '' : 'v' + (so || '').toString().trim()))),
         new Promise(r => execFile(PY, ['-c', 'import sys;print(sys.version.split()[0])'], (e, so) => r(e ? '' : (so || '').toString().trim()))),
         new Promise(r => {
-          const PYCHK = `from pathlib import Path;from utils.dependency_manager import check_dependency;import json;app=Path(r'${ROOT.replace(/\\/g,'\\\\')}');print(json.dumps(check_dependency('mediapipe_model', app)))`;
+          const PYCHK = `from pathlib import Path;import sys;sys.path.insert(0, r'${ROOT.replace(/\\/g,'\\\\')}');from utils.dependency_manager import check_dependency;import json;app=Path(r'${ROOT.replace(/\\/g,'\\\\')}');print(json.dumps(check_dependency('mediapipe_model', app)))`;
           execFile(PY, ['-c', PYCHK], (e, so) => {
             let ok = false; try { ok = JSON.parse((so || '').toString().trim().split('\n').pop() || 'false'); } catch {}
             r(ok);
