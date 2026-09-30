@@ -46,6 +46,7 @@ textarea.in{font-family:ui-monospace,monospace}
 .badge-ok{background:rgba(74,222,128,.1);color:#4ade80;border:1px solid rgba(74,222,128,.3)}
 </style>
 <link rel="stylesheet" href="/app.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
 <script>
 // FORCE CACHE CLEAR AND SW UNREGISTER
@@ -73,26 +74,26 @@ textarea.in{font-family:ui-monospace,monospace}
 <aside class="w-full md:w-64 border-b md:border-b-0 md:border-r border-zinc-800  flex flex-col shrink-0">
   <div class="p-4 border-b border-zinc-800 flex items-center justify-between">
     <div class="flex items-center gap-2">
-      <span class="w-7 h-7 rounded-lg logo-mark flex items-center justify-center font-black text-sm">⚡</span>
+      <span class="w-7 h-7 rounded-lg logo-mark flex items-center justify-center font-black text-sm"><i class="bi bi-lightning-charge-fill text-amber-400"></i></span>
       <span class="font-bold text-sm tracking-wide text-white font-heading">AUTO<span class="text-[var(--accent)]">CLIPPER</span></span>
     </div>
-    <div class="flex items-center gap-2"><button class="darkmode-btn darkmode-compact" aria-label="Toggle dark mode">🌙</button><a href="/logout" class="min-h-[32px] min-w-[44px] flex items-center justify-center text-xs text-zinc-400 hover:text-white transition md:hidden">Logout</a></div>
+    <div class="flex items-center gap-2"><button class="darkmode-btn darkmode-compact" aria-label="Toggle dark mode"><i class="bi bi-moon-stars"></i></button><a href="/logout" class="min-h-[32px] min-w-[44px] flex items-center justify-center text-xs text-zinc-400 hover:text-white transition md:hidden">Logout</a></div>
   </div>
 
   <nav aria-label="Menu Utama" class="p-2 md:p-3 flex flex-row md:flex-col gap-1.5 flex-wrap" id="sidebarLinks">
-    <a href="/" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>🏠</span><span>Library Sesi</span></a>
-    <a href="/create.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>➕</span><span>Create Clip</span></a>
-    <a href="/tasks.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>📋</span><span>Antrean Tasks</span></a>
-    <a href="/story.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition bg-[var(--accent)] text-[var(--accent-text)] font-bold shadow-sm"><span>🎬</span><span>AI Story</span></a>
-    <a href="/facebook.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>📘</span><span>FB Auto Upload</span></a>
-    <a href="/cookies.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>🍪</span><span>Cookies YouTube</span></a>
-    <a href="/ternaklip.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>🎯</span><span>TernakKlip</span></a>
-    <a href="/settings.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>⚙️</span><span>Settings & AI</span></a>
+    <a href="/" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-house-door text-sky-400"></i><span>Library Sesi</span></a>
+    <a href="/create.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-plus-square text-emerald-400"></i><span>Create Clip</span></a>
+    <a href="/tasks.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-list-task text-amber-400"></i><span>Antrean Tasks</span></a>
+    <a href="/story.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition bg-[var(--accent)] text-[var(--accent-text)] font-bold shadow-sm"><i class="bi bi-film"></i><span>AI Story</span></a>
+    <a href="/facebook.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-facebook text-blue-400"></i><span>FB Auto Upload</span></a>
+    <a href="/cookies.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-shield-lock text-orange-400"></i><span>Cookies YouTube</span></a>
+    <a href="/ternaklip.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-bullseye text-teal-400"></i><span>TernakKlip</span></a>
+    <a href="/settings.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-gear text-zinc-400"></i><span>Settings & AI</span></a>
   </nav>
 
   <!-- Engine Status Indication -->
   <div class="mt-auto px-4 py-3 border-t border-zinc-800/80 hidden md:flex flex-col gap-2 text-xs text-zinc-400 bg-zinc-950/40">
-    <span class="font-semibold text-[10px] uppercase tracking-wider text-zinc-400">⚡ Engine Status</span>
+    <span class="font-semibold text-[10px] uppercase tracking-wider text-zinc-400"><i class="bi bi-cpu text-emerald-400"></i> Engine Status</span>
     <div class="flex items-center justify-between">
       <span>FFmpeg</span>
       <span id="st_ffmpeg" class="w-2.5 h-2.5 rounded-full bg-zinc-600" title="Checking..."></span>
@@ -113,7 +114,7 @@ textarea.in{font-family:ui-monospace,monospace}
 
   <div class="p-4 border-t border-zinc-800 hidden md:flex items-center justify-between text-xs">
     <span class="text-zinc-400 truncate max-w-[130px]" id="whoami"></span>
-    <div class="flex items-center gap-2"><button class="darkmode-btn darkmode-compact" aria-label="Toggle dark mode">🌙</button><a href="/logout" class="text-zinc-400 hover:text-white transition">Logout</a></div>
+    <div class="flex items-center gap-2"><button class="darkmode-btn darkmode-compact" aria-label="Toggle dark mode"><i class="bi bi-moon-stars"></i></button><a href="/logout" class="text-zinc-400 hover:text-white transition">Logout</a></div>
   </div>
 
   <!-- Engine Status Mobile -->
@@ -128,7 +129,7 @@ textarea.in{font-family:ui-monospace,monospace}
 
   <!-- Disk Space Widget (desktop & mobile) -->
   <div class="disk-widget border-t border-zinc-800/80">
-    <div class="disk-label">💾 memuat...</div>
+    <div class="disk-label"><i class="bi bi-hdd-stack text-sky-400"></i> memuat...</div>
     <div class="disk-bar"><div class="disk-fill" style="width:0%"></div></div>
   </div>
 
@@ -139,29 +140,29 @@ textarea.in{font-family:ui-monospace,monospace}
 
     <div class="flex items-center justify-between flex-wrap gap-2">
       <div>
-        <h2 class="text-sm font-semibold text-white">🎬 Story Clip Mode</h2>
+        <h2 class="text-sm font-semibold text-white"><i class="bi bi-film text-fuchsia-400"></i> Story Clip Mode</h2>
         <p class="text-[11px] text-zinc-400">Multi-source narrative → hook + highlight 9:16 (faster-whisper lokal).</p>
       </div>
       <div class="flex gap-2">
-        <button class="btn" onclick="toggleRaw()">📝 JSON Raw</button>
-        <button class="btn" onclick="saveAll()">💾 Simpan &amp; Validasi</button>
+        <button class="btn" onclick="toggleRaw()"><i class="bi bi-journal-text text-amber-400"></i> JSON Raw</button>
+        <button class="btn" onclick="saveAll()"><i class="bi bi-floppy text-sky-400"></i> Simpan &amp; Validasi</button>
       </div>
     </div>
 
     <!-- RAW JSON (collapsed by default) -->
     <div id="rawBox" class="bg-surface-1 border border-zinc-800 rounded-xl p-4 space-y-3 hidden">
       <details class="cfg-group bg-zinc-950/50 border border-zinc-800 rounded-lg p-3" open id="rawSourcesDl">
-        <summary class="text-xs font-semibold text-zinc-300">📄 sources.json</summary>
+        <summary class="text-xs font-semibold text-zinc-300"><i class="bi bi-file-earmark-text text-sky-400"></i> sources.json</summary>
         <div class="pt-2 space-y-2">
           <textarea id="srcText" rows="6" class="in" placeholder='{ "sources": [ { "id": "src1", "name": "Part 1", "platform": "youtube", "url": "https://..." } ] }'></textarea>
-          <div class="flex gap-2"><button class="btn btn-accent" onclick="saveFile('sources', 1)">💾 Simpan sources.json</button><span id="srcMsgRaw" class="text-[11px] self-center"></span></div>
+          <div class="flex gap-2"><button class="btn btn-accent" onclick="saveFile('sources', 1)"><i class="bi bi-floppy text-sky-400"></i> Simpan sources.json</button><span id="srcMsgRaw" class="text-[11px] self-center"></span></div>
         </div>
       </details>
       <details class="cfg-group bg-zinc-950/50 border border-zinc-800 rounded-lg p-3" open>
-        <summary class="text-xs font-semibold text-zinc-300">🎬 story_recipe.json</summary>
+        <summary class="text-xs font-semibold text-zinc-300"><i class="bi bi-film"></i> story_recipe.json</summary>
         <div class="pt-2 space-y-2">
           <textarea id="recText" rows="8" class="in" placeholder='{ "default_settings": { "ratio": "9:16" }, "clips": [ { "clip_id": 1, "title": "...", "hook": { "scenes": [ { "source_id": "src1", "start": 0, "end": 10 } ] }, "highlight": { "scenes": [...] } } ] }'></textarea>
-          <div class="flex gap-2"><button class="btn btn-accent" onclick="saveFile('recipe', 1)">💾 Simpan story_recipe.json</button><span id="recMsgRaw" class="text-[11px] self-center"></span></div>
+          <div class="flex gap-2"><button class="btn btn-accent" onclick="saveFile('recipe', 1)"><i class="bi bi-floppy text-sky-400"></i> Simpan story_recipe.json</button><span id="recMsgRaw" class="text-[11px] self-center"></span></div>
         </div>
       </details>
     </div>
@@ -172,7 +173,7 @@ textarea.in{font-family:ui-monospace,monospace}
       <!-- SOURCES -->
       <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 space-y-3">
         <div class="flex items-center justify-between">
-          <h3 class="text-xs font-semibold uppercase tracking-wider text-zinc-400">📼 Sumber Video <span id="srcCount" class="ml-1 text-zinc-600 font-normal">(0)</span></h3>
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-zinc-400"><i class="bi bi-cassette text-amber-400"></i> Sumber Video <span id="srcCount" class="ml-1 text-zinc-600 font-normal">(0)</span></h3>
           <button class="btn btn-accent" onclick="addSource()">＋ Tambah Sumber</button>
         </div>
         <div id="srcList" class="space-y-2"></div>
@@ -182,7 +183,7 @@ textarea.in{font-family:ui-monospace,monospace}
       <!-- RECIPE CLIPS -->
       <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 space-y-3">
         <div class="flex items-center justify-between">
-          <h3 class="text-xs font-semibold uppercase tracking-wider text-zinc-400">🎬 Story Clips <span id="clipCount" class="ml-1 text-zinc-600 font-normal">(0)</span></h3>
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-zinc-400"><i class="bi bi-film"></i> Story Clips <span id="clipCount" class="ml-1 text-zinc-600 font-normal">(0)</span></h3>
           <button class="btn btn-accent" onclick="addClip()">＋ Tambah Clip</button>
         </div>
         <div id="clipList" class="space-y-4"></div>
@@ -211,8 +212,8 @@ textarea.in{font-family:ui-monospace,monospace}
         </div>
       </div>
       <div class="flex items-center gap-2 flex-wrap">
-        <button id="runBtn" onclick="runStory()" class="px-4 py-2 bg-[var(--accent)] text-[var(--accent-text)] font-medium text-xs rounded-lg hover:bg-[var(--accent-hover)] transition">▶️ RUN STORY</button>
-        <button onclick="cancelStory()" class="px-3 py-2 bg-surface-2 border border-zinc-700 text-zinc-300 text-xs rounded hover:border-red-500 hover:text-red-400 transition">⏹ Cancel</button>
+        <button id="runBtn" onclick="runStory()" class="px-4 py-2 bg-[var(--accent)] text-[var(--accent-text)] font-medium text-xs rounded-lg hover:bg-[var(--accent-hover)] transition"><i class="bi bi-play-fill"></i> RUN STORY</button>
+        <button onclick="cancelStory()" class="px-3 py-2 bg-surface-2 border border-zinc-700 text-zinc-300 text-xs rounded hover:border-red-500 hover:text-red-400 transition"><i class="bi bi-stop-fill text-rose-400"></i> Cancel</button>
         <span id="runMsg" class="text-[11px] text-zinc-400"></span>
       </div>
       <div class="h-1.5 bg-surface-2 rounded-full overflow-hidden">
@@ -222,7 +223,7 @@ textarea.in{font-family:ui-monospace,monospace}
     </div>
 
     <div id="resultBox" class="bg-surface-1 border border-zinc-800 rounded-xl p-4 space-y-3 hidden">
-      <h3 class="text-xs font-semibold uppercase tracking-wider text-zinc-400">📦 Hasil Story Clip</h3>
+      <h3 class="text-xs font-semibold uppercase tracking-wider text-zinc-400"><i class="bi bi-box-seam text-amber-400"></i> Hasil Story Clip</h3>
       <div id="storyOuts" class="grid grid-cols-2 md:grid-cols-3 gap-3"></div>
     </div>
 
@@ -255,7 +256,7 @@ function renderSources(){
       </select>
       <input class="in flex-1 min-w-[140px]" value="${esc(s.url || s.local_path || '')}" onchange="upd(${i},'url',this.value)" placeholder="URL (atau local_path)">
       <input class="in !w-16" value="${esc(s.speaker || '')}" onchange="upd(${i},'speaker',this.value)" placeholder="A">
-      <button class="btn btn-danger" onclick="delSource(${i})">🗑</button>
+      <button class="btn btn-danger" onclick="delSource(${i})"><i class="bi bi-trash text-rose-400"></i></button>
     </div>`).join('');
 }
 function addSource(){ state.sources.push({ id:'', name:'', platform:'youtube', url:'', speaker:'' }); renderSources(); }
@@ -286,12 +287,12 @@ function renderClips(){
       <div class="flex items-center gap-2 flex-wrap">
         <input class="in !w-14" value="${esc(c.clip_id)}" onchange="updClip(${ci},'clip_id',this.value)" placeholder="1">
         <input class="in flex-1 min-w-[140px]" value="${esc(c.title || '')}" onchange="updClip(${ci},'title',this.value)" placeholder="Judul clip">
-        <button class="btn btn-danger" onclick="delClip(${ci})">🗑 Hapus</button>
+        <button class="btn btn-danger" onclick="delClip(${ci})"><i class="bi bi-trash text-rose-400"></i> Hapus</button>
       </div>
       ${['hook','highlight'].map(kind => `
         <div class="space-y-1.5">
           <div class="flex items-center justify-between">
-            <span class="text-[10px] uppercase tracking-wider text-zinc-400 font-semibold">${kind==='hook' ? '🎣 Hook' : '⭐ Highlight'}</span>
+            <span class="text-[10px] uppercase tracking-wider text-zinc-400 font-semibold">${kind==='hook' ? 'Hook' : 'Highlight'}</span>
             <div class="flex gap-1.5 items-center">
               <select class="in !w-28" onchange="updClipTransition(${ci}, '${kind}', this.value)">
                 <option value="cut" ${(c[kind].transition||'cut')==='cut'?'selected':''}>cut</option>
@@ -351,14 +352,14 @@ async function saveFile(file, quiet){
   const j = await r.json();
   if(!quiet){
     const m = $(file==='sources'?'srcMsgRaw':'recMsgRaw');
-    if(m){ m.textContent = j.ok ? 'Tersimpan ✓' : '❌ '+(j.error||''); m.style.color = j.ok ? '#4ade80' : '#f87171'; }
+    if(m){ m.textContent = j.ok ? 'Tersimpan ✓' : ' '+(j.error||''); m.style.color = j.ok ? '#4ade80' : '#f87171'; }
   }
   return j.ok;
 }
 async function saveAll(){
   const ok1 = await saveFile('sources', 1), ok2 = await saveFile('recipe', 1);
   const m = document.createElement('span');
-  setMsg((ok1 && ok2) ? '✅ sources + recipe tersimpan' : '❌ gagal simpan (cek JSON)', ok1&&ok2 ? '#4ade80' : '#f87171');
+  setMsg((ok1 && ok2) ? 'sources + recipe tersimpan' : 'Gagal simpan (cek JSON)', ok1&&ok2 ? '#4ade80' : '#f87171');
   if(!(ok1&&ok2)) alert('Cek format JSON di tab Raw : sources: ' + (ok1?'ok':'err') + ', recipe: ' + (ok2?'ok':'err'));
 }
 
@@ -406,14 +407,14 @@ function fillFromConfig(){
 // ---------- run ----------
 async function runStory(){
   await saveAll();
-  if(!$('srcText').value.trim() || !$('recText').value.trim()){ setMsg('⚠️ Isi sources & recipe dulu','#fbbf24'); return; }
+  if(!$('srcText').value.trim() || !$('recText').value.trim()){ setMsg('Isi sources & recipe dulu','#fbbf24'); return; }
   setMsg('menjalankan…','#a1a1aa');
   $('bar').style.width='0%';
   $('logArea').textContent=''; $('logArea').classList.remove('hidden');
   const body = { ratio: $('sRatio').value, whisper_model: $('sWhisper').value, download_height: $('sHeight').value, skip_download: $('sSkip').checked };
   const r = await fetch('/api/story/run', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
   const j = await r.json();
-  if(!j.ok && !j.started){ setMsg('❌ '+ (j.error||'gagal'),'#f87171'); return; }
+  if(!j.ok && !j.started){ setMsg(' '+ (j.error||'gagal'),'#f87171'); return; }
   setMsg('running…','#a1a1aa');
   POLL = setInterval(poll, 2000);
 }
@@ -425,8 +426,8 @@ async function poll(){
     if(j.log && j.log.length > lg.textContent.length+200){ lg.textContent = j.log; lg.scrollTop = lg.scrollHeight; }
     if(!j.running){
       clearInterval(POLL); POLL=null;
-      if(j.code===0 && j.result && j.result.ok) setMsg('✅ selesai : '+ (j.result.count||0) + ' clip','#4ade80');
-      else setMsg('❌ gagal (code '+j.code+')','#f87171');
+      if(j.code===0 && j.result && j.result.ok) setMsg(' selesai : '+ (j.result.count||0) + ' clip','#4ade80');
+      else setMsg(' gagal (code '+j.code+')','#f87171');
       loadOutputs();
     }
   }catch{}

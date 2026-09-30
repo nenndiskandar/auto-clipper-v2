@@ -53,7 +53,7 @@
         b = document.createElement('div');
         b.id = 'offlineBanner';
         b.className = 'fixed bottom-4 right-4 z-50 bg-red-600 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 border border-red-500';
-        b.innerHTML = '<span>⚠️ Offline</span>';
+        b.innerHTML = '<i class="bi bi-wifi-off text-amber-400"></i> Offline';
         document.body.appendChild(b);
       }
     } else {

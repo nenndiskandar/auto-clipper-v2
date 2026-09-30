@@ -33,6 +33,7 @@ label.fld{font-size:10px;color:#71717a;text-transform:uppercase;letter-spacing:.
 
 </style>
 <link rel="stylesheet" href="/app.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
 <script>
 // FORCE CACHE CLEAR AND SW UNREGISTER
@@ -60,26 +61,26 @@ label.fld{font-size:10px;color:#71717a;text-transform:uppercase;letter-spacing:.
 <aside class="w-full md:w-64 border-b md:border-b-0 md:border-r border-zinc-800  flex flex-col shrink-0">
   <div class="p-4 border-b border-zinc-800 flex items-center justify-between">
     <div class="flex items-center gap-2">
-      <span class="w-7 h-7 rounded-lg logo-mark flex items-center justify-center font-black text-sm">⚡</span>
+      <span class="w-7 h-7 rounded-lg logo-mark flex items-center justify-center font-black text-sm"><i class="bi bi-lightning-charge-fill text-amber-400"></i></span>
       <span class="font-bold text-sm tracking-wide text-white font-heading">AUTO<span class="text-[var(--accent)]">CLIPPER</span></span>
     </div>
-    <div class="flex items-center gap-2"><button class="darkmode-btn darkmode-compact" aria-label="Toggle dark mode">🌙</button><a href="/logout" class="min-h-[32px] min-w-[44px] flex items-center justify-center text-xs text-zinc-400 hover:text-white transition md:hidden">Logout</a></div>
+    <div class="flex items-center gap-2"><button class="darkmode-btn darkmode-compact" aria-label="Toggle dark mode"><i class="bi bi-moon-stars"></i></button><a href="/logout" class="min-h-[32px] min-w-[44px] flex items-center justify-center text-xs text-zinc-400 hover:text-white transition md:hidden">Logout</a></div>
   </div>
 
   <nav aria-label="Menu Utama" class="p-2 md:p-3 flex flex-row md:flex-col gap-1.5 flex-wrap" id="sidebarLinks">
-    <a href="/" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>🏠</span><span>Library Sesi</span></a>
-    <a href="/create.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>➕</span><span>Create Clip</span></a>
-    <a href="/tasks.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>📋</span><span>Antrean Tasks</span></a>
-    <a href="/story.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>🎬</span><span>AI Story</span></a>
-    <a href="/facebook.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition bg-[var(--accent)] text-[var(--accent-text)] font-bold shadow-sm"><span>📘</span><span>FB Auto Upload</span></a>
-    <a href="/cookies.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>🍪</span><span>Cookies YouTube</span></a>
-    <a href="/ternaklip.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>🎯</span><span>TernakKlip</span></a>
-    <a href="/settings.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>⚙️</span><span>Settings & AI</span></a>
+    <a href="/" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-house-door text-sky-400"></i><span>Library Sesi</span></a>
+    <a href="/create.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-plus-square text-emerald-400"></i><span>Create Clip</span></a>
+    <a href="/tasks.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-list-task text-amber-400"></i><span>Antrean Tasks</span></a>
+    <a href="/story.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-film text-fuchsia-400"></i><span>AI Story</span></a>
+    <a href="/facebook.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition bg-[var(--accent)] text-[var(--accent-text)] font-bold shadow-sm"><i class="bi bi-facebook"></i><span>FB Auto Upload</span></a>
+    <a href="/cookies.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-shield-lock text-orange-400"></i><span>Cookies YouTube</span></a>
+    <a href="/ternaklip.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-bullseye text-teal-400"></i><span>TernakKlip</span></a>
+    <a href="/settings.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-gear text-zinc-400"></i><span>Settings & AI</span></a>
   </nav>
 
   <!-- Engine Status Indication -->
   <div class="mt-auto px-4 py-3 border-t border-zinc-800/80 hidden md:flex flex-col gap-2 text-xs text-zinc-400 bg-zinc-950/40">
-    <span class="font-semibold text-[10px] uppercase tracking-wider text-zinc-400">⚡ Engine Status</span>
+    <span class="font-semibold text-[10px] uppercase tracking-wider text-zinc-400"><i class="bi bi-cpu text-emerald-400"></i> Engine Status</span>
     <div class="flex items-center justify-between">
       <span>FFmpeg</span>
       <span id="st_ffmpeg" class="w-2.5 h-2.5 rounded-full bg-zinc-600" title="Checking..."></span>
@@ -100,7 +101,7 @@ label.fld{font-size:10px;color:#71717a;text-transform:uppercase;letter-spacing:.
 
   <div class="p-4 border-t border-zinc-800 hidden md:flex items-center justify-between text-xs">
     <span class="text-zinc-400 truncate max-w-[130px]" id="whoami"></span>
-    <div class="flex items-center gap-2"><button class="darkmode-btn darkmode-compact" aria-label="Toggle dark mode">🌙</button><a href="/logout" class="text-zinc-400 hover:text-white transition">Logout</a></div>
+    <div class="flex items-center gap-2"><button class="darkmode-btn darkmode-compact" aria-label="Toggle dark mode"><i class="bi bi-moon-stars"></i></button><a href="/logout" class="text-zinc-400 hover:text-white transition">Logout</a></div>
   </div>
 
   <!-- Engine Status Mobile -->
@@ -115,7 +116,7 @@ label.fld{font-size:10px;color:#71717a;text-transform:uppercase;letter-spacing:.
 
   <!-- Disk Space Widget (desktop & mobile) -->
   <div class="disk-widget border-t border-zinc-800/80">
-    <div class="disk-label">💾 memuat...</div>
+    <div class="disk-label"><i class="bi bi-hdd-stack text-sky-400"></i> memuat...</div>
     <div class="disk-bar"><div class="disk-fill" style="width:0%"></div></div>
   </div>
 
@@ -126,7 +127,7 @@ label.fld{font-size:10px;color:#71717a;text-transform:uppercase;letter-spacing:.
 
     <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 space-y-3">
       <div>
-        <h2 class="text-sm font-semibold text-white">📘 Facebook Reels Uploader</h2>
+        <h2 class="text-sm font-semibold text-white"><i class="bi bi-facebook text-blue-400"></i> Facebook Reels Uploader</h2>
         <p class="text-[11px] text-zinc-400">Upload clip dari render_manifest.json ke Page Facebook (jadwal otomatis, rate limit 30/24 jam).</p>
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -151,18 +152,18 @@ label.fld{font-size:10px;color:#71717a;text-transform:uppercase;letter-spacing:.
         <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
           <input type="checkbox" id="fTest" class="accent-yellow-400"> test mode (validasi token saja)
         </label>
-        <button onclick="saveCfg()" class="px-3 py-1.5 bg-surface-2 border border-zinc-700 text-zinc-200 text-xs rounded hover:border-accent transition">💾 Simpan Config</button>
+        <button onclick="saveCfg()" class="px-3 py-1.5 bg-surface-2 border border-zinc-700 text-zinc-200 text-xs rounded hover:border-accent transition"><i class="bi bi-floppy text-sky-400"></i> Simpan Config</button>
         <span id="cfgMsg" class="text-[11px]"></span>
       </div>
     </div>
 
     <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 space-y-3">
-      <h3 class="text-xs font-semibold uppercase tracking-wider text-zinc-400">📦 Manifest</h3>
+      <h3 class="text-xs font-semibold uppercase tracking-wider text-zinc-400"><i class="bi bi-box-seam text-amber-400"></i> Manifest</h3>
       <select id="fManifest" class="w-full bg-surface-2 border border-zinc-700 rounded px-2 py-1.5 text-xs text-white"></select>
       <p id="manHint" class="text-[10px] text-zinc-600 hidden"></p>
       <div class="flex items-center gap-2">
-        <button onclick="runFb()" class="px-4 py-2 bg-[var(--accent)] text-[var(--accent-text)] font-medium text-xs rounded-lg hover:bg-[var(--accent-hover)] transition">▶️ UPLOAD</button>
-        <button onclick="cancelFb()" class="px-3 py-2 bg-surface-2 border border-zinc-700 text-zinc-300 text-xs rounded hover:border-red-500 hover:text-red-400 transition">⏹ Cancel</button>
+        <button onclick="runFb()" class="px-4 py-2 bg-[var(--accent)] text-[var(--accent-text)] font-medium text-xs rounded-lg hover:bg-[var(--accent-hover)] transition"><i class="bi bi-cloud-arrow-up"></i> UPLOAD</button>
+        <button onclick="cancelFb()" class="px-3 py-2 bg-surface-2 border border-zinc-700 text-zinc-300 text-xs rounded hover:border-red-500 hover:text-red-400 transition"><i class="bi bi-stop-fill text-rose-400"></i> Cancel</button>
         <span id="fbMsg" class="text-[11px] text-zinc-400"></span>
       </div>
       <div id="fbResult" class="hidden text-xs text-zinc-300 space-y-1"></div>
@@ -197,7 +198,7 @@ async function saveCfg(){
   };
   const r = await fetch('/api/config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ facebook_uploader: fb }) });
   const j = await r.json();
-  const m = $('cfgMsg'); m.textContent = j.ok ? 'Tersimpan ✓' : '❌ '+(j.error||''); m.style.color = j.ok ? '#4ade80' : '#f87171';
+  const m = $('cfgMsg'); m.textContent = j.ok ? 'Tersimpan' : (j.error||'Gagal'); m.style.color = j.ok ? '#4ade80' : '#f87171';
 }
 
 async function loadManifests(){
@@ -216,14 +217,14 @@ function setMsg(t,c){ const el=$('fbMsg'); el.textContent=t; if(c) el.style.colo
 
 async function runFb(){
   const manifest = $('fManifest').value;
-  if(!manifest){ setMsg('❌ pilih manifest dulu','#f87171'); return; }
+  if(!manifest){ setMsg('Pilih manifest dulu','#f87171'); return; }
   setMsg('menjalankan…','#a1a1aa');
   $('fbLog').textContent=''; $('fbLog').classList.remove('hidden');
   $('fbResult').classList.add('hidden');
   const body = { manifest, test_mode: $('fTest').checked };
   const r = await fetch('/api/fb/upload', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
   const j = await r.json();
-  if(!j.ok && !j.started){ setMsg('❌ '+(j.error||'gagal'),'#f87171'); return; }
+  if(!j.ok && !j.started){ setMsg((j.error||'Gagal'),'#f87171'); return; }
   if(j.ok) setMsg('uploading…','#a1a1aa');
   POLL = setInterval(poll, 2500);
 }
@@ -237,13 +238,13 @@ async function poll(){
       clearInterval(POLL); POLL=null;
       const box=$('fbResult');
       if(j.code===0 && j.result && j.result.ok){
-        setMsg('✅ selesai','#4ade80');
-        if(j.result.test){ box.innerHTML = '<span class="text-emerald-400">✅ Token valid : Page: '+esc(j.result.page||'')+' (ID '+esc(j.result.page_id||'')+')</span>'; }
-        else { box.innerHTML = '<span class="text-emerald-400">✅ Uploaded: '+esc(String(j.result.uploaded||[]).length||j.result.uploaded||0)+' clip</span>'; }
+        setMsg('Selesai','#4ade80');
+        if(j.result.test){ box.innerHTML = '<span class="text-emerald-400"><i class="bi bi-check-circle text-emerald-400"></i> Token valid : Page: '+esc(j.result.page||'')+' (ID '+esc(j.result.page_id||'')+')</span>'; }
+        else { box.innerHTML = '<span class="text-emerald-400"><i class="bi bi-check-circle text-emerald-400"></i> Uploaded: '+esc(String(j.result.uploaded||[]).length||j.result.uploaded||0)+' clip</span>'; }
         box.classList.remove('hidden');
       } else {
-        setMsg('❌ gagal (code '+j.code+')','#f87171');
-        box.innerHTML = '<span class="text-red-400">'+esc((j.result&&j.result.error)||'error')+'</span>';
+        setMsg('Gagal (code '+j.code+')','#f87171');
+        box.innerHTML = '<span class="text-red-400"><i class="bi bi-x-circle text-rose-400"></i> '+esc((j.result&&j.result.error)||'error')+'</span>';
         box.classList.remove('hidden');
       }
       loadManifests();

@@ -10,8 +10,8 @@ function showToast(message, type = 'info', duration = 3000) {
   }
   const toast = document.createElement('div');
   toast.className = 'toast toast-' + type;
-  const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
-  toast.innerHTML = '<span>' + icon + '</span><span></span>';
+  const iconCls = type === 'success' ? 'bi-check-circle-fill text-emerald-400' : type === 'error' ? 'bi-x-circle-fill text-rose-400' : 'bi-info-circle text-sky-400';
+  toast.innerHTML = '<i class="bi ' + iconCls + '"></i><span></span>';
   toast.lastElementChild.textContent = message;
   container.appendChild(toast);
   setTimeout(() => {
@@ -61,11 +61,11 @@ async function refreshDisk() {
     const d = await r.json();
     const pct = Math.round(d.usedPercent || 0);
     const gb = v => (v / (1024 * 1024 * 1024)).toFixed(1);
-    label.textContent = '💾 ' + gb(d.used) + ' / ' + gb(d.total) + ' GB (' + pct + '%)';
+    label.innerHTML = '<i class="bi bi-hdd-stack text-sky-400"></i> ' + gb(d.used) + ' / ' + gb(d.total) + ' GB (' + pct + '%)';
     bar.style.width = pct + '%';
     bar.className = 'disk-fill' + (pct >= 90 ? ' danger' : pct >= 80 ? ' warn' : '');
   } catch {
-    label.textContent = '💾 disk: n/a';
+    label.innerHTML = '<i class="bi bi-hdd-stack text-sky-400"></i> disk: n/a';
   }
 }
 
@@ -83,7 +83,7 @@ function applyTheme(theme) {
     localStorage.setItem('ac_theme', theme);
   } catch (e) {}
   document.querySelectorAll('.darkmode-btn').forEach(btn => {
-    btn.textContent = theme === 'light' ? '☀️' : '🌙';
+    btn.innerHTML = theme === 'light' ? '<i class="bi bi-sun-fill text-amber-400"></i>' : '<i class="bi bi-moon-stars text-sky-400"></i>';
   });
 }
 

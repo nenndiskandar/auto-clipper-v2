@@ -3,7 +3,7 @@
 // Subtitle Typography (Pop/Karaoke), Hook Overlay, Cover Thumbnail.
 window.UNIFIED_TEMPLATES = {
   tiktok_viral: {
-    label: '🔥 TikTok Viral Thumbnail',
+    label: 'TikTok Viral Thumbnail',
     desc: '9:16, subtitle pop, hook glitch, thumbnail auto',
     cfg: {
       aspect_ratio: '9:16',
@@ -23,7 +23,7 @@ window.UNIFIED_TEMPLATES = {
     }
   },
   gaming_action: {
-    label: '🎮 Gaming / Action',
+    label: 'Gaming / Action',
     desc: 'Subtitle pop, hook glitch, thumbnail auto',
     cfg: {
       aspect_ratio: '9:16',
@@ -45,7 +45,7 @@ window.UNIFIED_TEMPLATES = {
     }
   },
   education_clean: {
-    label: '📚 Edukasi / Tutorial',
+    label: 'Edukasi / Tutorial',
     desc: 'Bersih, subtitle pop, thumbnail auto',
     cfg: {
       aspect_ratio: '9:16',
@@ -65,7 +65,7 @@ window.UNIFIED_TEMPLATES = {
     }
   },
   news_formal: {
-    label: '📰 Berita / Formal',
+    label: 'Berita / Formal',
     desc: 'Kamera statis, subtitle karaoke, warna netral, thumbnail auto',
     cfg: {
       aspect_ratio: '9:16',
@@ -85,7 +85,7 @@ window.UNIFIED_TEMPLATES = {
     }
   },
   vlog_dynamic: {
-    label: '📹 Vlog Dinamis',
+    label: 'Vlog Dinamis',
     desc: 'Follow kamera halus, subtitle pop, thumbnail auto',
     cfg: {
       aspect_ratio: '9:16',
@@ -105,7 +105,7 @@ window.UNIFIED_TEMPLATES = {
     }
   },
   square_feed: {
-    label: '⏹️ IG / FB Feed (1:1)',
+    label: 'IG / FB Feed (1:1)',
     desc: 'Rasio kotak 1:1, karaoke tengah, thumbnail auto',
     cfg: {
       aspect_ratio: '1:1',
@@ -121,7 +121,7 @@ window.UNIFIED_TEMPLATES = {
     }
   },
   reels_34: {
-    label: '🎬 Reels FB/IG (3:4)',
+    label: 'Reels FB/IG (3:4)',
     desc: 'Rasio 3:4 untuk Reels/FB, subtitle pop, thumbnail auto',
     cfg: {
       aspect_ratio: '3:4',
@@ -141,7 +141,7 @@ window.UNIFIED_TEMPLATES = {
     }
   },
   story_time: {
-    label: '📖 Story Time Naratif',
+    label: 'Story Time Naratif',
     desc: 'Preset naratif, subtitle pop, thumbnail teks',
     cfg: {
       aspect_ratio: '9:16',

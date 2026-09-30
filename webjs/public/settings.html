@@ -47,6 +47,7 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
 .section-label{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#71717a;padding:0 4px}
 </style>
 <link rel="stylesheet" href="/app.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
 <script>
 // FORCE CACHE CLEAR AND SW UNREGISTER
@@ -75,26 +76,26 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
 <aside class="w-full md:w-64 border-b md:border-b-0 md:border-r border-zinc-800  flex flex-col shrink-0">
   <div class="p-4 border-b border-zinc-800 flex items-center justify-between">
     <div class="flex items-center gap-2">
-      <span class="w-7 h-7 rounded-lg logo-mark flex items-center justify-center font-black text-sm">⚡</span>
+      <span class="w-7 h-7 rounded-lg logo-mark flex items-center justify-center font-black text-sm"><i class="bi bi-lightning-charge-fill text-amber-400"></i></span>
       <span class="font-bold text-sm tracking-wide text-white font-heading">AUTO<span class="text-[var(--accent)]">CLIPPER</span></span>
     </div>
-    <div class="flex items-center gap-2"><button class="darkmode-btn darkmode-compact" aria-label="Toggle dark mode">🌙</button><a href="/logout" class="min-h-[32px] min-w-[44px] flex items-center justify-center text-xs text-zinc-400 hover:text-white transition md:hidden">Logout</a></div>
+    <div class="flex items-center gap-2"><button class="darkmode-btn darkmode-compact" aria-label="Toggle dark mode"><i class="bi bi-moon-stars"></i></button><a href="/logout" class="min-h-[32px] min-w-[44px] flex items-center justify-center text-xs text-zinc-400 hover:text-white transition md:hidden">Logout</a></div>
   </div>
 
   <nav aria-label="Menu Utama" class="p-2 md:p-3 flex flex-row md:flex-col gap-1.5 flex-wrap" id="sidebarLinks">
-    <a href="/" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>🏠</span><span>Library Sesi</span></a>
-    <a href="/create.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>➕</span><span>Create Clip</span></a>
-    <a href="/tasks.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>📋</span><span>Antrean Tasks</span></a>
-    <a href="/story.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>🎬</span><span>AI Story</span></a>
-    <a href="/facebook.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>📘</span><span>FB Auto Upload</span></a>
-    <a href="/cookies.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>🍪</span><span>Cookies YouTube</span></a>
-    <a href="/ternaklip.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><span>🎯</span><span>TernakKlip</span></a>
-    <a href="/settings.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition bg-[var(--accent)] text-[var(--accent-text)] font-bold shadow-sm"><span>⚙️</span><span>Settings & AI</span></a>
+    <a href="/" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-house-door text-sky-400"></i><span>Library Sesi</span></a>
+    <a href="/create.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-plus-square text-emerald-400"></i><span>Create Clip</span></a>
+    <a href="/tasks.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-list-task text-amber-400"></i><span>Antrean Tasks</span></a>
+    <a href="/story.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-film text-fuchsia-400"></i><span>AI Story</span></a>
+    <a href="/facebook.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-facebook text-blue-400"></i><span>FB Auto Upload</span></a>
+    <a href="/cookies.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-shield-lock text-orange-400"></i><span>Cookies YouTube</span></a>
+    <a href="/ternaklip.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-bullseye text-teal-400"></i><span>TernakKlip</span></a>
+    <a href="/settings.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition bg-[var(--accent)] text-[var(--accent-text)] font-bold shadow-sm"><i class="bi bi-gear"></i><span>Settings & AI</span></a>
   </nav>
 
   <!-- Engine Status Indication -->
   <div class="mt-auto px-4 py-3 border-t border-zinc-800/80 hidden md:flex flex-col gap-2 text-xs text-zinc-400 bg-zinc-950/40">
-    <span class="font-semibold text-[10px] uppercase tracking-wider text-zinc-400">⚡ Engine Status</span>
+    <span class="font-semibold text-[10px] uppercase tracking-wider text-zinc-400"><i class="bi bi-cpu text-emerald-400"></i> Engine Status</span>
     <div class="flex items-center justify-between">
       <span>FFmpeg</span>
       <span id="st_ffmpeg" class="w-2.5 h-2.5 rounded-full bg-zinc-600" title="Checking..."></span>
@@ -115,7 +116,7 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
 
   <div class="p-4 border-t border-zinc-800 hidden md:flex items-center justify-between text-xs">
     <span class="text-zinc-400 truncate max-w-[130px]" id="whoami"></span>
-    <div class="flex items-center gap-2"><button class="darkmode-btn darkmode-compact" aria-label="Toggle dark mode">🌙</button><a href="/logout" class="text-zinc-400 hover:text-white transition">Logout</a></div>
+    <div class="flex items-center gap-2"><button class="darkmode-btn darkmode-compact" aria-label="Toggle dark mode"><i class="bi bi-moon-stars"></i></button><a href="/logout" class="text-zinc-400 hover:text-white transition">Logout</a></div>
   </div>
 
   <!-- Engine Status Mobile -->
@@ -131,7 +132,7 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
 
   <!-- Disk Space Widget (desktop & mobile) -->
   <div class="disk-widget border-t border-zinc-800/80">
-    <div class="disk-label">💾 memuat...</div>
+    <div class="disk-label"><i class="bi bi-hdd-stack text-sky-400"></i> memuat...</div>
     <div class="disk-bar"><div class="disk-fill" style="width:0%"></div></div>
   </div>
 
@@ -145,7 +146,7 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
     <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md p-4 space-y-3">
       <div class="flex justify-between items-center flex-wrap gap-2">
         <div>
-          <h2 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">⚡ Template</h2>
+          <h2 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider"><i class="bi bi-lightning-charge text-amber-400"></i> Template</h2>
           <p class="text-[10px] text-zinc-400">Pilih template bawaan</p>
         </div>
       </div>
@@ -154,14 +155,14 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
     </div>
 
     <!-- ── AI & ENGINE (3-col) ── -->
-    <div class="section-label">⚡ AI &amp; Engine</div>
+    <div class="section-label"><i class="bi bi-lightning-charge"></i> AI &amp; Engine</div>
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 
       <!-- 1️⃣ SERVER AI -->
       <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md">
         <div class="card-head flex items-center gap-2 p-4" onclick="toggleCard(this)">
           <span class="chev text-zinc-400">▾</span>
-          <h3 class="text-xs font-semibold text-zinc-300 uppercase tracking-wider">🖥️ Server AI</h3>
+          <h3 class="text-xs font-semibold text-zinc-300 uppercase tracking-wider"><i class="bi bi-display"></i> Server AI</h3>
           <span id="hfStatus" class="ml-auto text-[10px] px-2 py-0.5 rounded-full border border-zinc-700 text-zinc-400">● checking…</span>
         </div>
         <div class="card-body p-4 pt-0 space-y-3">
@@ -174,7 +175,7 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
               <label class="text-[10px] text-zinc-400 block mb-0.5">API Key</label>
               <div class="flex items-stretch gap-2">
                 <input type="password" id="s_hf_api_key" placeholder="(tidak diubah)" autocomplete="off" class="flex-1 min-w-0 bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-teal-500" oninput="debounceHfCheck()">
-                <button type="button" onclick="toggleApiKey()" class="shrink-0 min-h-[36px] md:min-h-[44px] min-w-[44px] flex items-center justify-center text-sm bg-surface-2 hover:bg-surface-3 border border-zinc-700 rounded text-zinc-300 hover:text-white transition focus-visible:ring-2 focus-visible:ring-teal-500" title="Tampilkan / sembunyikan API key" aria-label="Tampilkan atau sembunyikan API key" aria-pressed="false">👁</button>
+                <button type="button" onclick="toggleApiKey()" class="shrink-0 min-h-[36px] md:min-h-[44px] min-w-[44px] flex items-center justify-center text-sm bg-surface-2 hover:bg-surface-3 border border-zinc-700 rounded text-zinc-300 hover:text-white transition focus-visible:ring-2 focus-visible:ring-teal-500" title="Tampilkan / sembunyikan API key" aria-label="Tampilkan atau sembunyikan API key" aria-pressed="false"><i class="bi bi-eye"></i></button>
               </div>
             </div>
             <div>
@@ -187,7 +188,7 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
               <select id="s_hf_model" class="hidden"><option value="AUTO">AUTO</option></select>
             </div>
             <div class="flex items-center gap-2">
-              <button onclick="testConnection()" class="px-2.5 py-1 bg-surface-2 hover:bg-surface-3 border border-zinc-700 text-zinc-200 text-xs rounded transition">🔌 Tes Koneksi</button>
+              <button onclick="testConnection()" class="px-2.5 py-1 bg-surface-2 hover:bg-surface-3 border border-zinc-700 text-zinc-200 text-xs rounded transition"><i class="bi bi-plugin"></i> Tes Koneksi</button>
               <span id="connMsg" class="text-[11px]"></span>
             </div>
           </div>
@@ -198,7 +199,7 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
       <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md">
         <div class="card-head flex items-center gap-2 p-4" onclick="toggleCard(this)">
           <span class="chev text-zinc-400">▾</span>
-          <h3 class="text-xs font-semibold text-zinc-300 uppercase tracking-wider">🔍 Pencari Momen</h3>
+          <h3 class="text-xs font-semibold text-zinc-300 uppercase tracking-wider"><i class="bi bi-search text-sky-400"></i> Pencari Momen</h3>
         </div>
         <div class="card-body p-4 pt-0 space-y-3">
           <div class="grid grid-cols-2 gap-3">
@@ -222,7 +223,7 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
       <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md">
         <div class="card-head flex items-center gap-2 p-4" onclick="toggleCard(this)">
           <span class="chev text-zinc-400">▾</span>
-          <h3 class="text-xs font-semibold text-zinc-300 uppercase tracking-wider">💬 Subtitle Engine</h3>
+          <h3 class="text-xs font-semibold text-zinc-300 uppercase tracking-wider"><i class="bi bi-chat-quote text-sky-400"></i> Subtitle Engine</h3>
         </div>
         <div class="card-body p-4 pt-0 space-y-3">
           <div class="grid grid-cols-1 gap-3">
@@ -231,7 +232,7 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
               <input id="s_subtitle_language" placeholder="id" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[var(--accent)]">
             </div>
             <div>
-              <label class="text-[10px] text-zinc-400 block mb-0.5">🎙 Model Size <span id="fwBadge" class="text-[9px] px-1 py-0.5 rounded font-mono ml-1"></span></label>
+              <label class="text-[10px] text-zinc-400 block mb-0.5"><i class="bi bi-mic"></i> Model Size <span id="fwBadge" class="text-[9px] px-1 py-0.5 rounded font-mono ml-1"></span></label>
               <select id="s_fw_model" onchange="checkFwModels()" class="w-full bg-surface-2 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[var(--accent)]"><option value="tiny">tiny</option><option value="base">base</option><option value="small">small</option><option value="medium">medium</option><option value="large-v3">large-v3</option></select>
               <div id="fwCheck" class="mt-1 text-[10px]"></div>
             </div>
@@ -242,7 +243,7 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
     </div>
 
     <!-- ── VIDEO & TRACKING (2-col) ── -->
-    <div class="mt-6 section-label">🎬 Video &amp; Tracking</div>
+    <div class="mt-6 section-label"><i class="bi bi-film text-fuchsia-400"></i> Video &amp; Tracking</div>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
       <!-- 1. RENDER & VIDEO CONFIG -->
@@ -250,7 +251,7 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
         <div class="card-head flex items-center justify-between p-4 cursor-pointer" onclick="toggleCard(this)">
           <div class="flex items-center gap-2">
             <span class="chev text-zinc-400">▾</span>
-            <h3 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">🎬 Render Config</h3>
+            <h3 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider"><i class="bi bi-film"></i> Render Config</h3>
           </div>
           <span class="text-[10px] text-zinc-400">Kualitas &amp; Format</span>
         </div>
@@ -274,7 +275,7 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
             <input type="hidden" id="s_num_clips" value="auto">
             <input type="checkbox" id="s_smooth_follow" class="hidden">
             <div class="col-span-2 flex flex-wrap gap-4 pt-1">
-              <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="s_gpu" class="w-3.5 h-3.5 accent-[#facc15]"> ⚡ GPU</label>
+              <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" id="s_gpu" class="w-3.5 h-3.5 accent-[#facc15]"> <i class="bi bi-lightning-charge"></i> GPU</label>
             </div>
           </div>
         </div>
@@ -285,7 +286,7 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
         <div class="card-head flex items-center justify-between p-4 cursor-pointer" onclick="toggleCard(this)">
           <div class="flex items-center gap-2">
             <span class="chev text-zinc-400">▾</span>
-            <h3 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">🎯 Tracking</h3>
+            <h3 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider"><i class="bi bi-bullseye text-teal-400"></i> Tracking</h3>
           </div>
           <span class="text-[10px] text-zinc-400">Face Follow</span>
         </div>
@@ -307,14 +308,14 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
     </div>
 
     <!-- ── STYLE & PREVIEW (2-col) ── -->
-    <div class="mt-6 section-label">🎨 Style &amp; Preview</div>
+    <div class="mt-6 section-label"><i class="bi bi-palette text-fuchsia-400"></i> Style &amp; Preview</div>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
       <!-- 3. SUBTITLE STYLE : FIXED -->
       <div class="bg-surface-1 border border-zinc-800 rounded-xl shadow-md">
         <div class="card-head flex items-center justify-between p-4 cursor-pointer" onclick="toggleCard(this)">
           <span class="chev text-zinc-400">▾</span>
-          <h3 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">💬 Subtitle Style</h3>
+          <h3 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider"><i class="bi bi-chat-quote text-sky-400"></i> Subtitle Style</h3>
           <label class="flex items-center gap-1.5 text-xs text-zinc-300 cursor-pointer" onclick="event.stopPropagation()"><input type="checkbox" id="s_captions" class="w-3.5 h-3.5 accent-[#facc15]"> Bakar Sub</label>
         </div>
         <div class="card-body p-4 pt-0 space-y-3">
@@ -356,7 +357,7 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
         <div class="card-head flex items-center justify-between p-4 cursor-pointer" onclick="toggleCard(this)">
           <div class="flex items-center gap-2">
             <span class="chev text-zinc-400">▾</span>
-            <h3 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">🎬 Intro Hook Style</h3>
+            <h3 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider"><i class="bi bi-film"></i> Intro Hook Style</h3>
           </div>
           <label class="flex items-center gap-1.5 text-xs text-zinc-300 cursor-pointer" onclick="event.stopPropagation()"><input type="checkbox" id="s_hook" class="w-3.5 h-3.5 accent-[#facc15]"> Tampilkan Intro</label>
         </div>
@@ -405,7 +406,7 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
             <div class="col-span-4 pt-1">
               <label class="text-[9px] text-zinc-400 block mb-1">Preview</label>
               <div id="thumbnailPreviewContainer" class="h-20 bg-zinc-950 border border-zinc-800 rounded-lg flex items-center justify-center overflow-hidden relative">
-                <div id="thumbnailPreview" class="px-3 py-1.5 text-xs font-black tracking-wide uppercase transition-all shadow-md text-center">🔥 INI THUMBNAIL VIRAL!</div>
+                <div id="thumbnailPreview" class="px-3 py-1.5 text-xs font-black tracking-wide uppercase transition-all shadow-md text-center"><i class="bi bi-fire text-orange-400"></i> INI THUMBNAIL VIRAL!</div>
               </div>
             </div>
           </div>
@@ -417,7 +418,7 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
         <div class="card-head flex items-center justify-between p-4 cursor-pointer" onclick="toggleCard(this)">
           <div class="flex items-center gap-2">
             <span class="chev text-zinc-400">▾</span>
-            <h3 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">🖼️ Image Watermark</h3>
+            <h3 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider"><i class="bi bi-image"></i> Image Watermark</h3>
             <span class="text-[9px] px-1.5 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-400">posisi fix kanan atas</span>
           </div>
           <label class="flex items-center gap-1.5 text-xs text-zinc-300 cursor-pointer" onclick="event.stopPropagation()"><input type="checkbox" id="s_wm_on" onchange="updateWmPreview()" class="w-3.5 h-3.5 accent-[#facc15]"> Aktif</label>
@@ -456,7 +457,7 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
 <!-- FLOATING SAVE BAR -->
 <div class="save-float" id="saveFloatBar">
   <button onclick="loadConfig()" class="px-3 py-1.5 bg-surface-2 hover:bg-surface-3 text-zinc-300 text-xs font-medium rounded border border-zinc-700 transition">↺ Reset</button>
-  <button onclick="saveAll()" class="px-4 py-1.5 bg-accent hover:bg-[var(--accent-hover)] text-black text-xs font-bold rounded shadow transition">💾 Simpan</button>
+  <button onclick="saveAll()" class="px-4 py-1.5 bg-accent hover:bg-[var(--accent-hover)] text-black text-xs font-bold rounded shadow transition"><i class="bi bi-floppy"></i> Simpan</button>
   <span id="saveMsg" class="save-msg"></span>
 </div>
 
@@ -464,7 +465,7 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
-fetch('/api/me').then(r=>r.json()).then(d=>{if(d.name)$('#whoami').textContent='👤 '+d.name;});
+fetch('/api/me').then(r=>r.json()).then(d=>{if(d.name)$('#whoami').innerHTML='<i class="bi bi-person text-zinc-400"></i> '+esc(d.name);});
 
 function toggleCard(head) {
   const body = head.nextElementSibling;
@@ -554,14 +555,14 @@ function updateWmPreview() {
 
 // HOOK PRESETS
 const THUMBNAIL_PRESETS = {
-  tiktok: { label: '🎵 TikTok Glitch', cfg: { box_mode: 'fit_text', font_color: '#ffffff', bg_color: '#000000', corner_radius: 12, font_size: 0.075, bg_opacity: 100, glitch: true } },
-  banner_full: { label: '📺 Banner Full-Width', cfg: { box_mode: 'full_width', font_color: '#ffffff', bg_color: '#fe2c55', corner_radius: 0, font_size: 0.08, bg_opacity: 95, glitch: false } },
-  half_dark: { label: '⬛ Setengah Layar Gelap', cfg: { box_mode: 'half_screen', font_color: '#ffe600', bg_color: '#000000', corner_radius: 0, font_size: 0.09, bg_opacity: 85, glitch: true } },
-  half_blur: { label: '🟦 Setengah Neon', cfg: { box_mode: 'half_screen', font_color: '#ffffff', bg_color: '#111118', corner_radius: 16, font_size: 0.085, bg_opacity: 75, glitch: false } },
-  sadboy: { label: '💛 Kuning Bold', cfg: { box_mode: 'fit_text', font_color: '#000000', bg_color: '#ffd166', corner_radius: 6, font_size: 0.075, bg_opacity: 100, glitch: false } },
-  hype_banner: { label: '🟥 Merah Banner', cfg: { box_mode: 'full_width', font_color: '#ffffff', bg_color: '#e11d48', corner_radius: 0, font_size: 0.085, bg_opacity: 100, glitch: true } },
+  tiktok: { label: '<i class="bi bi-music-note-beamed"></i> TikTok Glitch', cfg: { box_mode: 'fit_text', font_color: '#ffffff', bg_color: '#000000', corner_radius: 12, font_size: 0.075, bg_opacity: 100, glitch: true } },
+  banner_full: { label: '<i class="bi bi-tv"></i> Banner Full-Width', cfg: { box_mode: 'full_width', font_color: '#ffffff', bg_color: '#fe2c55', corner_radius: 0, font_size: 0.08, bg_opacity: 95, glitch: false } },
+  half_dark: { label: 'Setengah Layar Gelap', cfg: { box_mode: 'half_screen', font_color: '#ffe600', bg_color: '#000000', corner_radius: 0, font_size: 0.09, bg_opacity: 85, glitch: true } },
+  half_blur: { label: '<i class="bi bi-square-fill"></i> Setengah Neon', cfg: { box_mode: 'half_screen', font_color: '#ffffff', bg_color: '#111118', corner_radius: 16, font_size: 0.085, bg_opacity: 75, glitch: false } },
+  sadboy: { label: '<i class="bi bi-heart-fill"></i> Kuning Bold', cfg: { box_mode: 'fit_text', font_color: '#000000', bg_color: '#ffd166', corner_radius: 6, font_size: 0.075, bg_opacity: 100, glitch: false } },
+  hype_banner: { label: '<i class="bi bi-stopwatch"></i> Merah Banner', cfg: { box_mode: 'full_width', font_color: '#ffffff', bg_color: '#e11d48', corner_radius: 0, font_size: 0.085, bg_opacity: 100, glitch: true } },
   toxic: { label: '☣️ Toxic Cyber', cfg: { box_mode: 'fit_text', font_color: '#000000', bg_color: '#ccff00', corner_radius: 8, font_size: 0.085, bg_opacity: 100, glitch: false } },
-  hotalert: { label: '🔥 Hot Alert Half', cfg: { box_mode: 'half_screen', font_color: '#ffffff', bg_color: '#ff3300', corner_radius: 0, font_size: 0.09, bg_opacity: 90, glitch: true } },
+  hotalert: { label: '<i class="bi bi-fire"></i> Hot Alert Half', cfg: { box_mode: 'half_screen', font_color: '#ffffff', bg_color: '#ff3300', corner_radius: 0, font_size: 0.09, bg_opacity: 90, glitch: true } },
 };
 
 function applyThumbnailPreset(k) {
@@ -595,7 +596,7 @@ function applyTemplate(k) {
 
   const m = $('#tplMsg');
   m.classList.remove('hidden');
-  m.textContent = `✅ Template "${t.label}" diterapkan! (${t.desc})`;
+  m.textContent = ` Template "${t.label}" diterapkan! (${t.desc})`;
   setTimeout(() => m.classList.add('hidden'), 5000);
 }
 
@@ -750,10 +751,10 @@ async function saveAll() {
     if (!res.ok) throw new Error(await res.text());
     const m = $('#saveMsg');
     m.classList.add('show');
-    m.textContent = '✅ Config tersimpan!';
+    m.textContent = ' Config tersimpan!';
     setTimeout(() => m.classList.remove('show'), 3000);
     const toast=document.getElementById('toast');
-    if(toast){ toast.textContent='✅ Config tersimpan!'; toast.classList.remove('hidden'); setTimeout(()=>toast.classList.add('hidden'),3000); }
+    if(toast){ toast.textContent=' Config tersimpan!'; toast.classList.remove('hidden'); setTimeout(()=>toast.classList.add('hidden'),3000); }
   } catch (e) {
     alert('Gagal menyimpan: ' + e.message);
   }
@@ -880,7 +881,7 @@ async function fetchModels(){
     sel.innerHTML='<option value="AUTO">AUTO</option>'+models.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
     if(cur) sel.value=cur;
     modelBadge();
-    $('#connMsg').textContent='✅ '+models.length+' model dimuat'; $('#connMsg').className='text-[11px] text-emerald-400';
+    $('#connMsg').textContent='+models.length+' model dimuat'; $('#connMsg').className='text-[11px] text-emerald-400';
     // tampilkan model aktif di input filter
     pickModel(sel.value);
     checkHfStatus();
@@ -889,14 +890,14 @@ async function fetchModels(){
     MODEL_LIST = [];
     modelBadge();
     MODEL_LIST_EL().classList.add('hidden');
-    $('#connMsg').textContent='❌ '+e.message; $('#connMsg').className='text-[11px] text-red-400';
+    $('#connMsg').textContent='+e.message; $('#connMsg').className='text-[11px] text-red-400';
   }
 }
 async function testConnection() {
   await fetchModels();
 }
 
-// toggle tampil/sembunyi API key (tombol 👁)
+// toggle tampil/sembunyi API key (tombol <i class="bi bi-eye"></i>)
 function toggleApiKey() {
   const inp = document.getElementById('s_hf_api_key');
   const btn = document.querySelector('button[onclick="toggleApiKey()"]');
@@ -919,10 +920,10 @@ async function uploadWm() {
   try {
     const res = await fetch('/api/upload-watermark', { method: 'POST', body: fd });
     if (!res.ok) throw new Error(await res.text());
-    msg.textContent = '✅ Watermark berhasil diunggah!';
+    msg.textContent = ' Watermark berhasil diunggah!';
     msg.className = 'text-[10px] text-emerald-400 font-mono italic';
   } catch (e) {
-    msg.textContent = '❌ Gagal upload: ' + e.message;
+    msg.textContent = ' Gagal upload: ' + e.message;
     msg.className = 'text-[10px] text-red-400 font-mono italic';
   }
 }
@@ -934,7 +935,7 @@ async function checkFwModels(){
     const r=await fetch('/api/whisper/models'); const list=await r.json();
     const cur=list.find(x=>x.size===sel);
     if(badge){ badge.textContent=cur&&cur.installed?'✓ installed '+cur.mb:'✗ belum download'; badge.className='text-[9px] px-1 py-0.5 rounded font-mono ml-1 '+(cur&&cur.installed?'bg-emerald-900 text-emerald-300':'bg-red-900 text-red-300'); }
-    box.innerHTML=list.map(x=>`<span class="inline-block mr-2 ${x.installed?'text-emerald-400':'text-zinc-400'}">${x.installed?'✓':'○'} ${x.size}${x.mb?' '+x.mb:''}</span>`).join('') + (cur&&!cur.installed?` <button onclick="downloadFwModel('${sel}')" class="ml-2 px-2 py-0.5 bg-[var(--accent)] text-[var(--accent-text)] rounded text-[10px] font-bold">⬇ Download ${sel}</button>`:'');
+    box.innerHTML=list.map(x=>`<span class="inline-block mr-2 ${x.installed?'text-emerald-400':'text-zinc-400'}">${x.installed?'✓':'○'} ${x.size}${x.mb?' '+x.mb:''}</span>`).join('') + (cur&&!cur.installed?` <button onclick="downloadFwModel('${sel}')" class="ml-2 px-2 py-0.5 bg-[var(--accent)] text-[var(--accent-text)] rounded text-[10px] font-bold"><i class="bi bi-download"></i> Download ${sel}</button>`:'');
   }catch(e){ box.textContent='Gagal cek: '+e.message; }
 }
 async function downloadFwModel(size){
@@ -942,9 +943,9 @@ async function downloadFwModel(size){
   try{
     const r=await fetch('/api/whisper/download',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({size})});
     const d=await r.json(); if(!d.ok) throw new Error(d.error||'gagal');
-    box.textContent='⏳ Download berjalan… refresh cek lagi dalam 30s';
+    box.innerHTML='<i class="bi bi-hourglass-split text-blue-400"></i> Download berjalan… refresh cek lagi dalam 30s';
     setTimeout(checkFwModels, 5000);
-  }catch(e){ box.textContent='❌ '+e.message; }
+  }catch(e){ box.textContent='+e.message; }
 }
 loadConfig();
 </script>
