@@ -18,21 +18,44 @@ const isWin = process.platform === 'win32';
 const { execFileSync } = require('child_process');
 function resolvePy() {
   if (process.env.CLIPPER_PY) return process.env.CLIPPER_PY;
-  const cands = isWin ? ['py', 'python', 'python3'] : ['/usr/bin/python3', 'python3', 'python'];
+  // 1) venv first — works on both Debian & Ubuntu, isolates deps from system python
+  const venvCands = [
+    path.join(ROOT, 'venv', 'bin', 'python'),
+    path.join(ROOT, 'venv', 'bin', 'python3'),
+    path.join(ROOT, '.venv', 'bin', 'python'),
+    path.join(ROOT, '.venv', 'bin', 'python3'),
+  ];
+  for (const vc of venvCands) {
+    if (fs.existsSync(vc)) {
+      try { execFileSync(vc, ['-c', 'import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)'], { stdio: 'ignore' }); return vc; } catch {}
+    }
+  }
+  // 2) system candidates — Debian (/usr/bin/python3.11) vs Ubuntu (/usr/bin/python3.10/3.12)
+  // prefer one with full deps (cv2+yt_dlp), fallback to any python >=3.8
+  const cands = isWin ? ['py', 'python', 'python3'] : ['/usr/bin/python3', '/usr/local/bin/python3', 'python3', 'python'];
+  let fallback = null;
   for (const c of cands) {
     try {
-      execFileSync(c, ['-c', 'import cv2, sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)'], { stdio: 'ignore' });
+      execFileSync(c, ['-c', 'import cv2, yt_dlp; import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)'], { stdio: 'ignore' });
       return c;
     } catch {}
+    try {
+      execFileSync(c, ['-c', 'import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)'], { stdio: 'ignore' });
+      if (!fallback) fallback = c;
+    } catch {}
   }
-  return cands[0]; // fallback: let the script surface the real error
+  // 3) venv exists but didn't pass version check — still return it (better than system without deps)
+  for (const vc of venvCands) if (fs.existsSync(vc)) return vc;
+  return fallback || cands[0];
 }
 const PY = resolvePy();
 
-// Resolve bundled/system ffmpeg: <ROOT>/ffmpeg/ffmpeg[.exe] first, then PATH, else 'ffmpeg'.
+// Resolve bundled/system ffmpeg: <ROOT>/ffmpeg/ffmpeg[.exe] first, then PATH + common Debian/Ubuntu locations
 const FFMPEG = (() => {
   const bundled = path.join(ROOT, 'ffmpeg', isWin ? 'ffmpeg.exe' : 'ffmpeg');
   if (fs.existsSync(bundled)) return bundled;
+  const explicit = isWin ? [] : ['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg', '/bin/ffmpeg', '/snap/bin/ffmpeg'];
+  for (const p of explicit) if (fs.existsSync(p)) return p;
   for (const dir of (process.env.PATH || '').split(path.delimiter)) {
     const full = path.join(dir, isWin ? 'ffmpeg.exe' : 'ffmpeg');
     if (fs.existsSync(full)) return full;
