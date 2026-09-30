@@ -68,7 +68,7 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
 </script>
 
 </head>
-<body class="min-h-screen flex flex-col md:flex-row ">
+<body class="min-h-screen flex flex-col md:flex-row antialiased ">
 <div id="toast" class="fixed top-4 right-4 z-50 hidden px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded shadow-lg"></div>
 
 <!-- SIDEBAR -->
@@ -128,6 +128,13 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
 
 
   
+
+  <!-- Disk Space Widget (desktop & mobile) -->
+  <div class="disk-widget border-t border-zinc-800/80">
+    <div class="disk-label">💾 memuat...</div>
+    <div class="disk-bar"><div class="disk-fill" style="width:0%"></div></div>
+  </div>
+
 </aside>
 
 <!-- MAIN CONTENT WRAPPER -->
