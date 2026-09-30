@@ -49,7 +49,7 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
 </script>
 
 </head>
-<body class="min-h-screen flex flex-col md:flex-row ">
+<body class="min-h-screen flex flex-col md:flex-row antialiased ">
 
 <!-- SIDEBAR -->
 <aside class="w-full md:w-64 border-b md:border-b-0 md:border-r border-zinc-800  flex flex-col shrink-0">
@@ -108,6 +108,13 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
 
 
   
+
+  <!-- Disk Space Widget (desktop & mobile) -->
+  <div class="disk-widget border-t border-zinc-800/80">
+    <div class="disk-label">💾 memuat...</div>
+    <div class="disk-bar"><div class="disk-fill" style="width:0%"></div></div>
+  </div>
+
 </aside>
 
 <!-- MAIN CONTENT WRAPPER -->
