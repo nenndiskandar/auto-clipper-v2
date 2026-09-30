@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="id" class="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TernakKlip Campaigns | Auto Clipper</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#0d9488">
+  <script src="/templates.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+  tailwind.config = { darkMode: 'class', theme: { extend: { colors: {
+    surface: { 0:'var(--bg-page)', 1:'var(--bg-surface)', 2:'var(--bg-surface-2)', 3:'var(--border)' },
+    zinc: { 450: '#8b8b96', 650: '#43434c' },
+    accent: 'var(--accent)',
+  }}}
+  </script>
+  <style>
+  a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid #facc15 !important; outline-offset: 2px !important; }
+  details.cfg-group summary{cursor:pointer;user-select:none;list-style:none}
+  details.cfg-group summary::before{content:'▸';display:inline-block;width:1em;margin-right:.5rem;transition:transform .15s}
+  details.cfg-group[open] summary::before{transform:rotate(90deg)}
+  .hl-item{border-color:var(--border)!important;background:transparent}
+  .hl-item:hover{background:var(--bg-surface-2)}
+  .card-panel{border:1px solid var(--border);background:var(--bg-surface-1)}
+  </style>
+  <link rel="stylesheet" href="/app.css?v=20260921_1">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body class="min-h-screen flex flex-col md:flex-row">
+
+<aside class="w-full md:w-64 border-b md:border-b-0 md:border-r border-zinc-800  flex flex-col shrink-0">
+  <div class="p-4 border-b border-zinc-800 flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <span class="w-7 h-7 rounded-lg logo-mark flex items-center justify-center font-black text-sm">⚡</span>
+      <span class="font-bold text-sm tracking-wide text-white font-heading">AUTO<span class="text-[var(--accent)]">CLIPPER</span></span>
+    </div>
+    <div class="flex items-center gap-2"><button class="darkmode-btn darkmode-compact" aria-label="Toggle dark mode">🌙</button><a href="/logout" class="min-h-[32px] min-w-[44px] flex items-center justify-center text-xs text-zinc-400 hover:text-white transition md:hidden">Logout</a></div>
+  </div>
+  <nav aria-label="Menu Utama" class="p-2 md:p-3 flex flex-row md:flex-col gap-1.5 flex-wrap" id="sidebarLinks">
+    <a href="/" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i data-lb="🏠"></i><span>Library Sesi</span></a>
+    <a href="/ternaklip.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition bg-[var(--accent)] text-[var(--accent-text)] font-bold shadow-sm"><i data-lb="🎯"></i><span>TernakKlip</span></a>
+    <a href="/create.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i data-lb="➕"></i><span>Create Clip</span></a>
+    <a href="/settings.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i data-lb="⚙️"></i><span>Settings & AI</span></a>
+  </nav>
+
+  <div class="mt-auto px-4 py-3 border-t border-zinc-800/80 hidden md:flex flex-col gap-2 text-xs text-zinc-400 bg-zinc-950/40">
+    <span class="font-semibold text-[10px] uppercase tracking-wider text-zinc-400"><i data-lb="⚡"></i> Engine Status</span>
+    <div class="flex items-center justify-between"><span>FFmpeg</span><span id="st_ffmpeg" class="w-2.5 h-2.5 rounded-full bg-zinc-600" title="Checking..."></span></div>
+    <div class="flex items-center justify-between"><span>yt-dlp</span><span id="st_ytdlp" class="w-2.5 h-2.5 rounded-full bg-zinc-600" title="Checking..."></span></div>
+    <div class="flex items-center justify-between"><span>Deno</span><span id="st_deno" class="w-2.5 h-2.5 rounded-full bg-zinc-600" title="Checking..."></span></div>
+    <div class="flex items-center justify-between"><span>AI Proxy</span><span id="st_ai" class="w-2.5 h-2.5 rounded-full bg-zinc-600" title="Checking..."></span></div>
+  </div>
+
+  <div class="p-4 border-t border-zinc-800 hidden md:flex items-center justify-between text-xs">
+    <span class="text-zinc-400 truncate max-w-[130px]" id="whoami"></span>
+    <div class="flex items-center gap-2"><button class="darkmode-btn darkmode-compact" aria-label="Toggle dark mode">🌙</button><a href="/logout" class="text-zinc-400 hover:text-white transition">Logout</a></div>
+  </div>
+
+  <div class="md:hidden flex items-center justify-around px-4 py-2.5 border-t border-b border-zinc-800/80 bg-zinc-950/60 text-[10px] text-zinc-300">
+    <div class="flex items-center gap-1.5"><span id="st_ffmpeg_mob" class="w-2 h-2 rounded-full bg-zinc-600" title="Checking..."></span><span>FFmpeg</span></div>
+    <div class="flex items-center gap-1.5"><span id="st_ytdlp_mob" class="w-2 h-2 rounded-full bg-zinc-600" title="Checking..."></span><span>yt-dlp</span></div>
+    <div class="flex items-center gap-1.5"><span id="st_deno_mob" class="w-2 h-2 rounded-full bg-zinc-600" title="Checking..."></span><span>Deno</span></div>
+    <div class="flex items-center gap-1.5"><span id="st_ai_mob" class="w-2 h-2 rounded-full bg-zinc-600" title="Checking..."></span><span>AI</span></div>
+  </div>
+
+  <div class="disk-widget border-t border-zinc-800/80">
+    <div class="disk-label">📁 memuat...</div>
+    <div class="disk-bar"><div class="disk-fill" style="width:0%"></div></div>
+  </div>
+</aside>
+
+<div class="flex-1 flex flex-col min-w-0 overflow-y-auto">
+  <div class="flex flex-col lg:flex-row max-w-[1400px] w-full mx-auto gap-4 p-4">
+    <main class="flex-1 min-w-0 space-y-3">
+
+      <div class="bg-surface-1 border border-zinc-800 rounded-lg">
+        <div class="px-4 py-2.5 border-b border-zinc-800"><span class="text-xs font-medium text-zinc-400 uppercase tracking-wider"><i data-lb="🎯"></i> TernakKlip Campaigns</span></div>
+        <div class="p-4" id="ternakArea">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+            <div class="flex gap-2">
+              <input id="tkSearch" type="text" placeholder="Cari campaign..." class="flex-1 min-w-[200px] bg-surface-2 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[var(--accent)]">
+              <button onclick="loadTernakKlip(1)" class="px-3 py-1.5 bg-surface-2 border border-zinc-700 rounded-lg text-xs text-zinc-300 hover:text-white hover:border-zinc-500 transition"><i data-lb="🔄"></i> Refresh</button>
+            </div>
+            <span id="tkPageInfo" class="text-[10px] text-zinc-500"></span>
+          </div>
+          <div id="tkStatus"></div>
+          <div id="tkGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3"></div>
+          <div id="tkPagination" class="flex justify-center gap-1.5 mt-3"></div>
+        </div>
+      </div>
+
+      <!-- Modal Detail -->
+      <div id="tkDetailModal" role="dialog" aria-hidden="true" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <div class="bg-surface-1 border border-zinc-800 rounded-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
+          <div class="flex items-center justify-between px-4 py-2.5 border-b border-zinc-800">
+            <h3 id="tkModalTitle" class="text-xs font-bold text-zinc-200 truncate max-w-[300px]">Campaign Detail</h3>
+            <button onclick="Modal.hide('tkDetailModal')" class="text-zinc-400 hover:text-white text-xl">&times;</button>
+          </div>
+          <div class="p-4 overflow-y-auto" id="tkModalBody">
+            <div class="text-center py-4 text-zinc-500">Muat...</div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+    <aside class="w-full lg:w-[380px] lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto space-y-3 flex-shrink-0">
+      <div class="bg-surface-1 border border-zinc-800 rounded-lg p-3">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-medium text-zinc-400 uppercase tracking-wider"><i data-lb="📊"></i> Statistik</span>
+        </div>
+        <div class="grid grid-cols-2 gap-3 p-3" id="tkStats">
+          <div class="text-center p-3 bg-zinc-900/50 rounded">
+            <div id="statTotal" class="text-xl font-bold text-teal-400">0</div>
+            <div class="text-[10px] text-zinc-400">Total Campaign</div>
+          </div>
+          <div class="text-center p-3 bg-zinc-900/50 rounded">
+            <div id="statActive" class="text-xl font-bold text-amber-400">0</div>
+            <div class="text-[10px] text-zinc-400">Aktif</div>
+          </div>
+          <div class="text-center p-3 bg-zinc-900/50 rounded">
+            <div id="statTotalPrize" class="text-lg font-bold text-teal-300">0</div>
+            <div class="text-[10px] text-zinc-400">Total Hadiah</div>
+          </div>
+          <div class="text-center p-3 bg-zinc-900/50 rounded">
+            <div id="statParticipants" class="text-lg font-bold text-amber-300">0</div>
+            <div class="text-[10px] text-zinc-400">Total Peserta</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+const $=document.querySelector.bind(document);
+const $$=document.querySelectorAll.bind(document);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+let TERNK_DATA=[];
+let TERNK_META={page:1,limit:36,total:0,total_pages:0};
+
+async function loadTernakKlip(page=1){
+  const status=$('#tkStatus'),grid=$('#tkGrid'),pagination=$('#tkPagination'),pageInfo=$('#tkPageInfo');
+  pageInfo.textContent=`Halaman ${page}`;
+  if(page===1){
+    status.innerHTML='<div class="bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2 text-xs text-blue-300">⏳ Mengambil data campaign...</div>';
+    grid.innerHTML='';
+    pagination.innerHTML='';
+  }else{
+    status.innerHTML='';
+  }
+
+  try{
+    const r=await fetch(`/api/ternakklip-campaigns?page=${page}&limit=36`);
+    const j=await r.json();
+    if(!r.ok || j.status!=='success') throw new Error(j.message||j.error||'Gagal fetch');
+    
+    if(page===1) TERNK_DATA=[];
+    TERNK_DATA=TERNK_DATA.concat(j.data||[]);
+    TERNK_META=j.meta||TERNK_META;
+    
+    renderTK(TERNK_DATA);
+    renderPagination();
+    updateStats();
+  }catch(e){
+    if(page===1){
+      status.innerHTML='<div class="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 text-xs text-red-300">❌ '+esc(e.message)+'</div>';
+    }
+  }
+}
+
+function renderTK(items){
+  const filter=($('#tkSearch')?.value||'').toLowerCase();
+  const filtered=items.filter(c=>
+    (c.title||'').toLowerCase().includes(filter) ||
+    (c.client_name||'').toLowerCase().includes(filter)
+  );
+  if(!filtered.length){
+    $('#tkGrid').innerHTML='<div class="col-span-full text-center py-8 text-zinc-500 text-xs">Tidak ada campaign ditemukan.</div>';
+    return;
+  }
+  $('#tkGrid').innerHTML=filtered.map(c=>`
+    <div class="bg-surface-2 border border-zinc-800 rounded-xl overflow-hidden flex flex-col hover:shadow-lg transition cursor-pointer" onclick="showDetail('${c.public_id}')">
+      <div class="relative">
+        <div class="aspect-video w-full bg-zinc-950 overflow-hidden">
+          <img src="${c.thumbnail_url||''}" class="w-full h-full object-cover" loading="lazy" alt="${esc(c.title||'')}">
+        </div>
+        <div class="absolute top-2 right-2 flex flex-wrap gap-1">
+          ${(c.platform_rewards||[]).filter(p=>p.provider).map(p=>`<span class="px-2 py-0.5 bg-black/70 text-white text-[10px] font-bold rounded">${p.provider}</span>`).join('')||''}
+        </div>
+      </div>
+      <div class="p-3 flex-1 flex flex-col">
+        <div class="flex items-center gap-2 mb-1.5">
+          <span class="w-5 h-5 rounded-full overflow-hidden bg-zinc-800 flex-shrink-0">${c.client_avatar_url?`<img src="${c.client_avatar_url}" class="w-full h-full object-cover">`:'👤'}</span>
+          <span class="text-[11px] text-zinc-400 truncate flex-1">${esc(c.client_name||'Client')}</span>
+        </div>
+        <h3 class="text-xs font-bold text-white line-clamp-2 mb-2">${esc(c.title||'')}</h3>
+        <div class="text-xs space-y-1">
+          <div class="flex justify-between"><span class="text-zinc-500">Hadiah</span><span class="font-mono text-teal-400">Rp ${(c.current_prize||0).toLocaleString('id-ID')}</span></div>
+          <div class="flex justify-between"><span class="text-zinc-500">Peserta</span><span class="font-mono text-zinc-200">${c.total_participants||0}</span></div>
+        </div>
+        <button onclick="event.stopPropagation(); createFromTK('${c.public_id}',this)" class="mt-2 w-full py-1.5 bg-[var(--accent)] text-[var(--accent-text)] text-xs font-bold rounded-lg transition flex items-center justify-center gap-1">
+          <i data-lb="⚡"></i><span>Buat Sesi</span>
+        </button>
+      </div>
+    </div>
+  `).join('')||'<div class="col-span-full text-center py-8 text-zinc-500 text-xs">Tidak ada campaign.</div>';
+}
+
+function renderPagination(){
+  const pagination=$('#tkPagination');
+  pagination.innerHTML='';
+  const totalPages=TERNK_META.total_pages||Math.ceil(TERNK_DATA.length/36);
+  const curPage=TERNK_META.page||1;
+  
+  if(totalPages<=1) return;
+
+  for(let i=Math.max(1,curPage-2);i<=Math.min(totalPages,curPage+2);i++){
+    const btn=document.createElement('button');
+    btn.textContent=i;
+    btn.className=`px-2 py-1 text-xs rounded-lg ${i===curPage?'bg-[var(--accent)] text-[var(--accent-text)] font-bold':'bg-surface-2 text-zinc-300 hover:bg-zinc-700'}`;
+    btn.onclick=()=>loadTernakKlip(i);
+    pagination.appendChild(btn);
+  }
+}
+
+function updateStats(){
+  const total=TERNK_DATA.length;
+  const active=TERNK_DATA.filter(c=>c.status===2).length;
+  const totalPrize=TERNK_DATA.reduce((a,c)=>a+(c.current_prize||0),0);
+  const totalParticipants=TERNK_DATA.reduce((a,c)=>a+(c.total_participants||0),0);
+  $('#statTotal').textContent=total;
+  $('#statActive').textContent=active;
+  $('#statTotalPrize').textContent='Rp '+(totalPrize/1000000).toFixed(0)+'M';
+  $('#statParticipants').textContent=totalParticipants;
+}
+
+async function showDetail(publicId){
+  const modal=$('#tkDetailModal'), body=$('#tkModalBody'), title=$('#tkModalTitle');
+  title.textContent='Memuat...'; body.innerHTML='<div class="text-center py-4">⏳</div>';
+  modal.classList.remove('hidden'), modal.classList.add('flex');
+  document.body.classList.add('overflow-hidden');
+  
+  try{
+    const r=await fetch(`/api/ternakklip-campaign-detail/${publicId}`);
+    const j=await r.json();
+    if(!r.ok || j.status!=='success') throw new Error(j.message||j.error||'Gagal fetch detail');
+    const c=j.data;
+    title.textContent=c.title||'Campaign Detail';
+    body.innerHTML=`
+      <div class="space-y-3">
+        <div class="flex items-center gap-3">
+          <span class="w-10 h-10 rounded-full overflow-hidden bg-zinc-800 flex-shrink-0">${c.client_avatar_url?`<img src="${c.client_avatar_url}" class="w-full h-full object-cover">`:'👤'}</span>
+          <div>
+            <div class="font-bold text-sm text-white">${c.client_name||'Client'}</div>
+            <div class="text-[11px] text-zinc-400">${(c.platform||[]).join(', ')}</div>
+          </div>
+        </div>
+        ${c.description?`<details class="cfg-group"><summary class="text-xs font-medium text-zinc-300 hover:text-white cursor-pointer">Deskripsi</summary><p class="text-xs text-zinc-300 mt-2 whitespace-pre-line">${esc(c.description)}</p></details>`:''}
+        ${c.file_brief_url?`<div class="pt-2 border-t border-zinc-800"><a href="${c.file_brief_url}" target="_blank" class="text-xs text-teal-400 hover:underline flex items-center gap-1"><i data-lb="📄"></i>Brief PDF</a></div>`:''}
+        ${c.source_links?.length?`<details open class="cfg-group"><summary class="text-xs font-medium text-zinc-300 hover:text-white cursor-pointer">Sumber Video</summary><div class="space-y-1.5 mt-2">
+          ${c.source_links.map(s=>`<a href="${s.url}" target="_blank" class="block text-xs text-zinc-200 hover:text-teal-400 break-all">${s.label||s.url}</a>`).join('')}
+        </div></details>`:''}
+        <button onclick="event.target.closest('#tkDetailModal').classList.add('hidden');document.body.classList.remove('overflow-hidden'); event.preventDefault();" class="mt-2 w-full py-1.5 bg-zinc-800 text-zinc-300 text-xs rounded-lg hover:bg-zinc-700 transition">
+          Tutup
+        </button>
+      </div>
+    `;
+  }catch(e){
+    title.textContent='Error';
+    body.innerHTML='<div class="text-red-400 text-xs p-2">Gagal memuat detail: '+esc(e.message)+'</div>';
+  }
+}
+
+async function createFromTK(publicId,btn){
+  btn.disabled=true; btn.innerHTML='<i data-lb="⏳"></i> Memproses...';
+  try{
+    // Dulu dapat source URL dulu
+    const r=await fetch(`/api/ternakklip-campaign-detail/${publicId}`);
+    const j=await r.json();
+    if(!r.ok || j.status!=='success') throw new Error(j.message||j.error||'Gagal fetch');
+    const source=j.data?.source_links?.[0]?.url;
+    if(!source) throw new Error('Tidak ada source video');
+    
+    // Buat sesi pakai source URL
+    const cr=await fetch('/api/create',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({url:source, num_clips:'auto'})
+    });
+    const cj=await cr.json();
+    if(!cr.ok||!cj.ok) throw new Error(cj.error||cj.message||'Create gagal');
+    
+    btn.innerHTML='<i data-lb="✅"></i> Buat...';
+    setTimeout(()=>{
+      window.location.href='/session.html?id='+encodeURIComponent(cj.session_id||cj.session_dir||'');
+    },800);
+  }catch(e){
+    alert('Gagal: '+(e.message||'Unknown'));
+    btn.disabled=false; btn.innerHTML='<i data-lb="⚡"></i> Buat Sesi';
+  }
+}
+
+$('#tkSearch')?.addEventListener('input',()=>renderTK(TERNK_DATA));
+loadTernakKlip();
+</script>
+<script src="/engine_status.js"></script>
+<script src="/ui.js"></script>
+</body>
+</html>
