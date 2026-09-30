@@ -195,10 +195,11 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
                 <th class="py-2.5 px-4 font-semibold">Name</th>
                 <th class="py-2.5 px-4 font-semibold">Version / Detail</th>
                 <th class="py-2.5 px-4 font-semibold hidden md:table-cell">Path</th>
+                <th class="py-2.5 px-4 font-semibold text-right">Action</th>
               </tr>
             </thead>
             <tbody id="binBody" class="divide-y divide-zinc-800/60">
-              <tr><td colspan="4" class="py-6 text-center text-zinc-500">memuat…</td></tr>
+              <tr><td colspan="5" class="py-6 text-center text-zinc-500">memuat…</td></tr>
             </tbody>
           </table>
         </div>
@@ -225,10 +226,11 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
                 <th class="py-2.5 px-4 font-semibold">Status</th>
                 <th class="py-2.5 px-4 font-semibold">Package</th>
                 <th class="py-2.5 px-4 font-semibold">Version</th>
+                <th class="py-2.5 px-4 font-semibold text-right">Action</th>
               </tr>
             </thead>
             <tbody id="pkgBody" class="divide-y divide-zinc-800/60">
-              <tr><td colspan="3" class="py-6 text-center text-zinc-500">memuat…</td></tr>
+              <tr><td colspan="4" class="py-6 text-center text-zinc-500">memuat…</td></tr>
             </tbody>
           </table>
         </div>
@@ -284,6 +286,12 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
           </div>
         </div>
       </div>
+    </section>
+
+    <!-- Dependency Logs -->
+    <section id="depLogWrap" class="space-y-3 hidden">
+      <h2 class="text-[11px] font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5"><i class="bi bi-terminal text-zinc-400"></i> Logs</h2>
+      <div id="depLogs" class="space-y-3"></div>
     </section>
 
   </main>
@@ -376,15 +384,24 @@ async function loadBinaries(){
       const ic = iconMap[b.name] || 'bi-box text-zinc-400';
       const ver = esc(b.version || b.detail || '');
       const pathVal = esc(b.path || (b.detail && b.detail.includes('/') ? b.detail : '—'));
+      const isDL = ['ffmpeg','deno','mediapipe','yt-dlp'].includes(b.name);
+      let act='';
+      if (isDL) {
+        const busy = DEP_RUNNING && DEP_RUNNING[b.name];
+        if (busy) act='<span class="inline-flex items-center gap-1 text-amber-400 text-xs"><i class="bi bi-hourglass-split animate-spin"></i> Running…</span>';
+        else if (!b.ok) act='<button onclick="depInstall(\''+esc(b.name)+'\',this)" class="px-2.5 py-1 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text)] text-[11px] font-bold rounded-lg flex items-center gap-1"><i class="bi bi-download"></i> Download</button>';
+        else act='<button onclick="depInstall(\''+esc(b.name)+'\',this)" class="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 text-[11px] font-semibold rounded-lg flex items-center gap-1"><i class="bi bi-arrow-repeat"></i> Update</button>';
+      }
       return '<tr class="hover:bg-zinc-800/30 transition">'
         + '<td class="py-2.5 px-4"><span class="inline-flex items-center gap-1.5">' + '<span class="w-2 h-2 rounded-full ' + dot(!!b.ok) + '"></span>' + badge(!!b.ok, 'Ready', 'Missing') + '</span></td>'
         + '<td class="py-2.5 px-4 font-semibold text-white"><span class="inline-flex items-center gap-1.5"><i class="bi ' + ic + '"></i> ' + esc(b.name) + '</span></td>'
         + '<td class="py-2.5 px-4 font-mono text-[11px] text-zinc-300 max-w-[360px] truncate" title="' + ver + '">' + ver + '</td>'
         + '<td class="py-2.5 px-4 font-mono text-[11px] text-zinc-500 hidden md:table-cell max-w-[260px] truncate" title="' + pathVal + '">' + pathVal + '</td>'
+        + '<td class="py-2.5 px-4 text-right"><div class="flex justify-end">' + act + '</div></td>'
         + '</tr>';
     }).join('');
   }catch(e){
-    $('#binBody').innerHTML = '<tr><td colspan="4" class="py-6 text-center text-rose-400">gagal memuat binaries</td></tr>';
+    $('#binBody').innerHTML = '<tr><td colspan="5" class="py-6 text-center text-rose-400">gagal memuat binaries</td></tr>';
   }
 }
 
@@ -395,7 +412,7 @@ async function loadPackages(){
     PKG_CACHE = Array.isArray(list) ? list : [];
     renderPackages();
   }catch(e){
-    $('#pkgBody').innerHTML = '<tr><td colspan="3" class="py-6 text-center text-rose-400">gagal memuat packages</td></tr>';
+    $('#pkgBody').innerHTML = '<tr><td colspan="4" class="py-6 text-center text-rose-400">gagal memuat packages</td></tr>';
   }
 }
 function renderPackages(){
@@ -403,14 +420,20 @@ function renderPackages(){
   const filtered = q ? PKG_CACHE.filter(p => p.name.toLowerCase().includes(q)) : PKG_CACHE;
   $('#pkgCount').textContent = filtered.length + ' / ' + PKG_CACHE.length;
   if(!filtered.length){
-    $('#pkgBody').innerHTML = '<tr><td colspan="3" class="py-6 text-center text-zinc-500">tidak ada hasil untuk "' + esc(q) + '"</td></tr>';
+    $('#pkgBody').innerHTML = '<tr><td colspan="4" class="py-6 text-center text-zinc-500">tidak ada hasil untuk "' + esc(q) + '"</td></tr>';
     return;
   }
   $('#pkgBody').innerHTML = filtered.map(p => {
+    const busy = DEP_RUNNING && DEP_RUNNING['pip:'+p.name];
+    let act='';
+    if (busy) act='<span class="inline-flex items-center gap-1 text-amber-400 text-xs"><i class="bi bi-hourglass-split animate-spin"></i> Running…</span>';
+    else if (!p.ok) act='<button onclick="depInstall(\'pip:'+esc(p.name)+'\',this)" class="px-2.5 py-1 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text)] text-[11px] font-bold rounded-lg flex items-center gap-1"><i class="bi bi-download"></i> Install</button>';
+    else act='<button onclick="depInstall(\'pip:'+esc(p.name)+'\',this)" class="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 text-[11px] font-semibold rounded-lg flex items-center gap-1"><i class="bi bi-arrow-repeat"></i> Update</button>';
     return '<tr class="hover:bg-zinc-800/30 transition">'
       + '<td class="py-2 px-4">' + badge(!!p.ok, 'Installed', 'Missing') + '</td>'
       + '<td class="py-2 px-4 font-mono text-white">' + esc(p.name) + '</td>'
       + '<td class="py-2 px-4 font-mono text-zinc-300">' + esc(p.version || '—') + '</td>'
+      + '<td class="py-2 px-4 text-right"><div class="flex justify-end">' + act + '</div></td>'
       + '</tr>';
   }).join('');
 }
@@ -423,9 +446,12 @@ async function loadWhisper(){
     $('#whisperBody').innerHTML = list.map(m => {
       const ok = !!m.installed;
       const sizeLabel = m.mb || '—';
-      const btn = ok
-        ? '<span class="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-semibold"><i class="bi bi-check-circle-fill"></i> Terpasang</span>'
-        : '<button onclick="downloadWhisper(\'' + esc(m.size) + '\', this)" class="px-3 py-1.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text)] text-xs font-bold rounded-lg transition flex items-center gap-1 ml-auto"><i class="bi bi-download"></i> Download</button>';
+      const target = 'whisper:'+m.size;
+      const busyW = DEP_RUNNING && DEP_RUNNING[target];
+      let btn='';
+      if (busyW) btn='<span class="inline-flex items-center gap-1 text-amber-400 text-xs"><i class="bi bi-hourglass-split animate-spin"></i> Running…</span>';
+      else if (ok) btn='<button onclick="depInstall(\''+esc(target)+'\',this)" class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 text-xs font-semibold rounded-lg flex items-center gap-1 ml-auto"><i class="bi bi-arrow-repeat"></i> Update</button>';
+      else btn='<button onclick="depInstall(\''+esc(target)+'\',this)" class="px-3 py-1.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text)] text-xs font-bold rounded-lg flex items-center gap-1 ml-auto"><i class="bi bi-download"></i> Download</button>';
       return '<tr class="hover:bg-zinc-800/30 transition">'
         + '<td class="py-2.5 px-4">' + badge(ok, 'Ready', 'Belum') + '</td>'
         + '<td class="py-2.5 px-4 font-mono font-bold text-white">' + esc(m.size) + '</td>'
@@ -490,6 +516,71 @@ async function testAiProxy(){
   btn.disabled = false;
 }
 
+let DEP_RUNNING = {};
+let DEP_POLL = null;
+async function depInstall(target, btn){
+  const orig = btn ? btn.innerHTML : '';
+  if(btn){ btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split animate-spin"></i> Memulai…'; }
+  try{
+    const r = await fetch('/api/dependencies/install', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({target})});
+    const j = await r.json();
+    if(!r.ok) throw new Error(j.error||'gagal');
+    DEP_RUNNING[target]=true;
+    showDepLog(target);
+    startDepPoll();
+    if(btn){ btn.innerHTML = '<i class="bi bi-hourglass-split animate-spin"></i> Running…'; btn.className = 'px-2.5 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[11px] font-semibold rounded-lg flex items-center gap-1'; }
+  }catch(e){
+    if(btn){ btn.innerHTML = orig; btn.disabled = false; }
+    alert('Gagal ' + target + ': ' + e.message);
+  }
+}
+function startDepPoll(){
+  if (DEP_POLL) return;
+  DEP_POLL = setInterval(async ()=>{
+    const targets = Object.keys(DEP_RUNNING);
+    if(!targets.length){ clearInterval(DEP_POLL); DEP_POLL=null; refreshAll(); return; }
+    let any=false;
+    for(const tt of targets){
+      try{
+        const r = await fetch('/api/dependencies/status?target='+encodeURIComponent(tt));
+        const j = await r.json();
+        if(!j.running){ delete DEP_RUNNING[tt]; await depLogPoll(tt); }
+        else any=true;
+      }catch{}
+    }
+    if(!any && !Object.keys(DEP_RUNNING).length){ clearInterval(DEP_POLL); DEP_POLL=null; refreshAll(); }
+    else { loadBinaries(); loadPackages(); loadWhisper(); }
+  }, 2500);
+}
+async function depLogPoll(target){
+  try{
+    const r = await fetch('/api/dependencies/log?target='+encodeURIComponent(target));
+    const j = await r.json();
+    const id='depLog-'+target.replace(/[:\/]/g,'_');
+    const el = document.getElementById(id);
+    if(el) el.textContent = (j.log||'').slice(-6000) || '(log kosong)';
+  }catch{}
+}
+function showDepLog(target){
+  const wrap = document.getElementById('depLogWrap');
+  if(!wrap) return;
+  wrap.classList.remove('hidden');
+  const id='depLog-'+target.replace(/[:\/]/g,'_');
+  let el=document.getElementById(id);
+  if(!el){
+    const card=document.createElement('div');
+    card.className='card-panel p-3';
+    card.innerHTML='<div class="flex items-center justify-between mb-2"><span class="text-[11px] font-bold text-white flex items-center gap-1"><i class="bi bi-terminal"></i> '+esc(target)+'</span><button onclick="this.closest(\'.card-panel\').remove()" class="text-zinc-500 hover:text-white"><i class="bi bi-x-lg"></i></button></div><pre id="'+esc(id)+'" class="bg-zinc-950 border border-zinc-800 rounded p-2.5 text-[11px] font-mono text-zinc-300 max-h-[220px] overflow-auto whitespace-pre-wrap">memuat log…</pre>';
+    document.getElementById('depLogs').appendChild(card);
+    el=document.getElementById(id);
+  }
+  el.textContent='memulai…';
+  setTimeout(()=>depLogPoll(target), 800);
+  const int=setInterval(()=>{
+    if(!DEP_RUNNING[target]){ clearInterval(int); depLogPoll(target); }
+    else depLogPoll(target);
+  }, 2000);
+}
 async function refreshAll(){
   const btn = $('#btnRefresh');
   const orig = btn.innerHTML;
