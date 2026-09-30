@@ -1055,28 +1055,122 @@ except Exception as e:
       });
       return;
     }
-    // GET /api/binaries — status dependensi
+    // GET /api/system — host & runtime overview untuk halaman Dependencies
+    if (p === '/api/system' && req.method === 'GET') {
+      const si = {
+        host: os.hostname(),
+        platform: os.platform(),
+        arch: os.arch(),
+        release: os.release(),
+        uptime_s: Math.round(os.uptime()),
+        loadavg: os.loadavg(),
+        cpu_model: (os.cpus()[0] && os.cpus()[0].model) ? os.cpus()[0].model : '',
+        cpu_count: os.cpus().length,
+        mem_total: os.totalmem(),
+        mem_free: os.freemem(),
+        mem_used: os.totalmem() - os.freemem(),
+        node: process.version,
+        py: PY,
+      };
+      // disk + python version + pip packages parallel
+      Promise.all([
+        getDiskStats(),
+        new Promise(r => execFile(PY, ['--version'], (e, so, se) => r(((so || se || '').toString().trim() || (e ? String(e.message) : 'unknown'))))),
+        new Promise(r => execFile(PY, ['-m', 'pip', '--version'], (e, so) => r(e ? '' : (so || '').toString().split('\n')[0].trim()))),
+      ]).then(([disk, pyVer, pipVer]) => {
+        si.disk = disk;
+        si.python = pyVer;
+        si.pip = pipVer;
+        // systemd service status (best-effort, non-blocking)
+        execFile('systemctl', ['is-active', 'auto-clipper-v2-web.service'], { timeout: 2000 }, (e1, o1) => {
+          execFile('systemctl', ['is-active', 'auto-clipper-v2-bot.service'], { timeout: 2000 }, (e2, o2) => {
+            si.services = {
+              web: (o1 || '').toString().trim() || (e1 ? 'unknown' : 'inactive'),
+              bot: (o2 || '').toString().trim() || (e2 ? 'unknown' : 'inactive'),
+            };
+            json(res, 200, si);
+          });
+        });
+      }).catch(() => json(res, 200, si));
+      return;
+    }
+    // GET /api/python/packages — pip package versions untuk Dependencies
+    if (p === '/api/python/packages' && req.method === 'GET') {
+      const PYLIST = `import importlib.metadata as m, json; pkgs=["openai","opencv-python","numpy","Pillow","mediapipe","requests","yt-dlp","curl_cffi","faster-whisper","silero-vad","onnxruntime","google-api-python-client","google-auth-oauthlib","python-telegram-bot","telethon","huggingface_hub","certifi","onnxruntime","Pillow"]; out={}; 
+for p in ["openai","opencv-python","numpy","Pillow","mediapipe","requests","yt-dlp","curl_cffi","faster-whisper","silero-vad","onnxruntime","google-api-python-client","python-telegram-bot","telethon","huggingface_hub","certifi"]:
+ try: out[p]=m.version(p)
+ except: out[p]=None
+print(json.dumps(out))`;
+      execFile(PY, ['-c', PYLIST], (err, stdout) => {
+        let map = {};
+        try { map = JSON.parse((stdout || '').toString().trim().split('\n').pop() || '{}'); } catch {}
+        if (err && !Object.keys(map).length) return json(res, 500, { error: String(err.message || err) });
+        const rows = Object.entries(map).map(([name, ver]) => ({ name, version: ver || null, ok: !!ver }));
+        json(res, 200, rows);
+      });
+      return;
+    }
+    // GET /api/binaries — status dependensi (diperluas untuk Dependencies)
     if (p === '/api/binaries') {
-          // Cross-platform binary probe: bundled first (with .exe on Windows), then PATH.
-          const findBin = (name, rel) => {
-            const probe = isWin ? [rel + '.exe', rel] : [rel];
-            for (const p of probe) if (fs.existsSync(p)) return { ok: true, detail: p + ' (bundled)' };
-            for (const dir of (process.env.PATH || '').split(path.delimiter)) {
-              for (const p of probe) {
-                const full = path.join(dir, path.basename(p));
-                if (fs.existsSync(full)) return { ok: true, detail: full + ' (PATH)' };
-              }
-            }
-            return { ok: false, detail: 'tidak terdeteksi' };
-          };
-          const bin = [
-            { name: 'ffmpeg', ...findBin('ffmpeg', path.join(ROOT, 'ffmpeg', 'ffmpeg')) },
-            { name: 'deno', ...findBin('deno', path.join(ROOT, 'bin', 'deno')) },
-          ];
-      // ponytail: versi yt-dlp dicek tiap request (~300ms); cache kalau jadi bottleneck
-      execFile(PY, ['-c', 'import yt_dlp;print(yt_dlp.version.__version__)'], (err, stdout) => {
-        bin.push({ name: 'yt-dlp', ok: !err, detail: err ? 'tidak terdeteksi' : 'v' + stdout.trim() + ' (module)' });
-        json(res, 200, bin);
+      const findBin = (name, rel) => {
+        const probe = isWin ? [rel + '.exe', rel] : [rel];
+        for (const cand of probe) if (fs.existsSync(cand)) return { ok: true, detail: cand + ' (bundled)', path: cand };
+        for (const dir of (process.env.PATH || '').split(path.delimiter)) {
+          for (const cand of probe) {
+            const full = path.join(dir, path.basename(cand));
+            if (fs.existsSync(full)) return { ok: true, detail: full + ' (PATH)', path: full };
+          }
+        }
+        return { ok: false, detail: 'tidak terdeteksi', path: null };
+      };
+      const bin = [
+        { name: 'ffmpeg', ...findBin('ffmpeg', path.join(ROOT, 'ffmpeg', 'ffmpeg')) },
+        { name: 'ffprobe', ...findBin('ffprobe', path.join(ROOT, 'ffmpeg', 'ffprobe')) },
+        { name: 'deno', ...findBin('deno', path.join(ROOT, 'bin', 'deno')) },
+      ];
+      // enrich with version strings (best-effort, never fail the endpoint)
+      const verOf = (binPath, args) => new Promise(r => {
+        if (!binPath) return r('');
+        execFile(binPath, args, { timeout: 4000 }, (e, so) => {
+          if (e) return r('');
+          const line = (so || '').toString().split('\n')[0].trim();
+          r(line.slice(0, 120));
+        });
+      });
+      Promise.all([
+        verOf(bin.find(b => b.name === 'ffmpeg')?.path, ['-version']),
+        verOf(bin.find(b => b.name === 'ffprobe')?.path, ['-version']),
+        verOf(bin.find(b => b.name === 'deno')?.path, ['--version']),
+        new Promise(r => execFile(PY, ['-c', 'import yt_dlp;print(yt_dlp.version.__version__)'], (e, so) => r(e ? '' : 'v' + (so || '').toString().trim()))),
+        new Promise(r => execFile(PY, ['-c', 'import sys;print(sys.version.split()[0])'], (e, so) => r(e ? '' : (so || '').toString().trim()))),
+        new Promise(r => {
+          const PYCHK = `from pathlib import Path;from utils.dependency_manager import check_dependency;import json;app=Path(r'${ROOT.replace(/\\/g,'\\\\')}');print(json.dumps(check_dependency('mediapipe_model', app)))`;
+          execFile(PY, ['-c', PYCHK], (e, so) => {
+            let ok = false; try { ok = JSON.parse((so || '').toString().trim().split('\n').pop() || 'false'); } catch {}
+            r(ok);
+          });
+        }),
+      ]).then(([ffVer, fpVer, denoVer, ytdlpVer, pyVer, mpOk]) => {
+        const byName = Object.fromEntries(bin.map(b => [b.name, b]));
+        if (byName.ffmpeg) byName.ffmpeg.version = ffVer || (byName.ffmpeg.ok ? byName.ffmpeg.detail : '');
+        if (byName.ffprobe) byName.ffprobe.version = fpVer || (byName.ffprobe.ok ? byName.ffprobe.detail : '');
+        if (byName.deno) byName.deno.version = denoVer ? denoVer.split('\n')[0] : (byName.deno.ok ? byName.deno.detail : '');
+        // yt-dlp as module (not a binary file)
+        const ytdlp = { name: 'yt-dlp', ok: !!ytdlpVer, detail: ytdlpVer ? ytdlpVer + ' (module)' : 'tidak terdeteksi', path: null, version: ytdlpVer || '' };
+        const py = { name: 'python', ok: !!pyVer, detail: PY + (pyVer ? ' v' + pyVer : ''), path: PY, version: pyVer ? 'v' + pyVer : '' };
+        const node = { name: 'node', ok: true, detail: process.version + ' (' + process.execPath + ')', path: process.execPath, version: process.version };
+        let mpDetail = 'tidak terdeteksi';
+        let mpPath = path.join(ROOT, 'bin', 'face_landmarker.task');
+        try { const st = fs.statSync(mpPath); mpDetail = mpOk ? (st.size / 1048576).toFixed(1) + ' MB — ' + mpPath : 'tidak terdeteksi'; } catch { mpDetail = mpOk ? mpPath : 'tidak terdeteksi'; }
+        const mp = { name: 'mediapipe', ok: !!mpOk, detail: mpDetail, path: mpOk ? mpPath : null, version: mpOk ? mpDetail : '' };
+        const out = [byName.ffmpeg, byName.ffprobe, byName.deno, ytdlp, py, node, mp].filter(Boolean);
+        json(res, 200, out);
+      }).catch(() => {
+        // fallback minimal
+        execFile(PY, ['-c', 'import yt_dlp;print(yt_dlp.version.__version__)'], (err, stdout) => {
+          bin.push({ name: 'yt-dlp', ok: !err, detail: err ? 'tidak terdeteksi' : 'v' + (stdout || '').toString().trim() + ' (module)', path: null, version: err ? '' : 'v' + (stdout || '').toString().trim() });
+          json(res, 200, bin);
+        });
       });
       return;
     }
