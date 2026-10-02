@@ -183,6 +183,12 @@ tailwind.config = {
           <option value="downloading">Downloading</option>
           <option value="error">Error</option>
         </select>
+        <select id="filterCampaignSel" onchange="filterCampaign=this.value; curPage=1; render()" class="min-h-[36px] md:min-h-[44px] bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-xs text-white focus:border-[var(--accent)]">
+          <option value="all">Semua sumber</option>
+          <option value="ternakklip">TernakKlip</option>
+          <option value="manual">Manual</option>
+          <option value="accumulation">Akumulasi</option>
+        </select>
         <select id="sortBy" onchange="sortBy=this.value; render()" class="min-h-[36px] md:min-h-[44px] bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-xs text-white focus:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-teal-500">
           <option value="newest">Terbaru</option>
           <option value="oldest">Terlama</option>
@@ -324,22 +330,35 @@ async function loadDash() {
 setInterval(loadDash, 30000);
 
 function esc(s) { return (s ?? '').toString().replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+const fmtRp = n => 'Rp ' + Number(n||0).toLocaleString('id-ID');
+const fmtCompact = n => { n=Number(n||0); if(n>=1e9) return (n/1e9).toFixed(1).replace(/\.0$/,'')+'B'; if(n>=1e6) return (n/1e6).toFixed(1).replace(/\.0$/,'')+' jt'; if(n>=1e3) return (n/1e3).toFixed(1).replace(/\.0$/,'')+' rb'; return String(n); };
+function sourceIcon(url){ url=String(url||'').toLowerCase(); if(url.includes('drive.google')||url.includes('docs.google')) return '<i class="bi bi-google text-red-500"></i>'; if(url.includes('youtu.be')||url.includes('youtube.com')) return '<i class="bi bi-youtube text-red-600"></i>'; if(url.includes('tiktok.com')||url.includes('vt.tiktok')) return '<i class="bi bi-tiktok"></i>'; if(url.includes('instagram.com')) return '<i class="bi bi-instagram text-pink-500"></i>'; return '<i class="bi bi-link-45deg text-[var(--text-muted)]"></i>'; }
+function campaignChip(c){ if(!c) return ''; const m=c.is_accumulation?'<span class="px-1.5 py-0.5 text-[10px] font-bold bg-emerald-500 text-white rounded-full">Akumulasi</span>':'<span class="px-1.5 py-0.5 text-[10px] font-bold bg-sky-500 text-white rounded-full">Single</span>'; const um=c.is_umkm?'<span class="px-1.5 py-0.5 text-[10px] font-bold bg-violet-600 text-white rounded-full">UMKM</span>':''; const sp=c.is_special_collab?'<span class="px-1.5 py-0.5 text-[10px] font-bold bg-amber-500 text-white rounded-full">Special</span>':''; return m+um+sp; }
 
 const STATUS_BADGE = {
   completed: '<span class="px-2 py-0.5 text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full">selesai</span>',
   processing: '<span class="px-2 py-0.5 text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full animate-pulse">processing</span>',
   downloading: '<span class="px-2 py-0.5 text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 rounded-full animate-pulse">downloading</span>',
+  idle: '<span class="px-2 py-0.5 text-[10px] font-bold bg-zinc-800 text-zinc-300 border border-zinc-700 rounded-full">idle</span>',
+  error: '<span class="px-2 py-0.5 text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-full">error</span>',
+  highlights_ready: '<span class="px-2 py-0.5 text-[10px] font-bold bg-violet-500/20 text-violet-300 border border-violet-500/30 rounded-full">siap</span>',
 };
 
 const PER_PAGE = 20;
 let curPage = 1;
 let filterStatus = 'all';
+let filterCampaign = 'all';
 let sortBy = 'newest';
 let selectedSessions = new Set();
 
 function applyFilters() {
   let list = [...DATA];
   if (filterStatus !== 'all') list = list.filter(s => s.status === filterStatus);
+  if (filterCampaign !== 'all') {
+    if (filterCampaign === 'ternakklip') list = list.filter(s => s.has_campaign);
+    else if (filterCampaign === 'manual') list = list.filter(s => !s.has_campaign);
+    else if (filterCampaign === 'accumulation') list = list.filter(s => s.campaign && s.campaign.is_accumulation);
+  }
   switch (sortBy) {
     case 'oldest': list.sort((a, b) => new Date(a.created) - new Date(b.created)); break;
     case 'most_clips': list.sort((a, b) => (b.total || 0) - (a.total || 0)); break;
@@ -351,8 +370,12 @@ function applyFilters() {
 
 function render() {
   const q = $('#search').value.toLowerCase();
-  const list = applyFilters().filter(s =>
-    !q || (s.title + ' ' + (s.channel || '') + ' ' + s.id).toLowerCase().includes(q));
+  const list = applyFilters().filter(s => {
+    if (!q) return true;
+    const camp = s.campaign || {};
+    const hay = [s.title, s.channel||'', s.id, camp.title||'', camp.client_name||'', (camp.tags||[]).join(' '), camp.description||'', (camp.platform||[]).join(' ')].join(' ').toLowerCase();
+    return hay.includes(q);
+  });
   const totalPages = Math.max(1, Math.ceil(list.length / PER_PAGE));
   if (curPage > totalPages) curPage = totalPages;
   const pageItems = list.slice((curPage - 1) * PER_PAGE, curPage * PER_PAGE);
@@ -360,6 +383,46 @@ function render() {
   $('#sessions').innerHTML = pageItems.map(s => {
     const checked = selectedSessions.has(s.id) ? 'checked' : '';
     const detailUrl = `/session.html?id=${encodeURIComponent(s.id)}`;
+    const camp = s.campaign || null;
+    const hasCamp = !!s.has_campaign && !!camp;
+    const prize = camp ? (camp.current_prize ?? camp.total_prize) : null;
+    const rewards = camp && Array.isArray(camp.platform_rewards) ? camp.platform_rewards.filter(p=> p.reward_per_item!=null || p.reward_rate!=null).slice(0,3).map(p=> `<span class="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--accent)] text-[var(--accent-text)] font-bold">${esc(p.provider)}${p.reward_per_item!=null? ' '+fmtCompact(p.reward_per_item):''}</span>`).join(' ') : '';
+    const tags = camp && Array.isArray(camp.tags) && camp.tags.length ? camp.tags.slice(0,3).map(tag=> `<span class="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--bg-surface-2)] border border-[var(--border)] text-[var(--text-muted)]">${esc(tag)}</span>`).join(' ') : '';
+    const sources = camp && Array.isArray(camp.source_links) && camp.source_links.length ? camp.source_links.slice(0,2).map(sl=> `<a href="${esc(sl.url)}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-[11px] text-[var(--accent)] hover:underline truncate max-w-[220px]">${sourceIcon(sl.url)}<span class="truncate">${esc(sl.label||'Sumber')}</span></a>`).join(' ') : (s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-[11px] text-[var(--accent)] hover:underline truncate">${sourceIcon(s.url)}<span class="truncate">${esc(s.url.slice(0,48))}</span></a>` : '<span class="text-[11px] text-[var(--text-muted)]">-</span>');
+    const campHeader = hasCamp ? `
+      <div class="flex items-center gap-2 mt-2 p-2 rounded-xl border border-violet-500/20 bg-violet-500/5">
+        <span class="w-7 h-7 rounded-full overflow-hidden bg-white border border-violet-500/20 shrink-0 flex items-center justify-center">${camp.client_avatar_url?`<img src="${esc(camp.client_avatar_url)}" class="w-full h-full object-cover">`:`<i class="bi bi-bullseye text-violet-500"></i>`}</span>
+        <div class="min-w-0 flex-1">
+          <div class="text-xs font-bold text-[var(--text-primary)] truncate">${esc(camp.client_name||'Client')} ${camp.is_show_budget===false?'<span class="text-[10px] font-normal text-[var(--text-muted)]">(budget tertutup)</span>':''}</div>
+          <div class="text-[11px] text-[var(--text-muted)] truncate">${esc(camp.title||s.title)} ${camp.platform && camp.platform.length? ' - '+esc(camp.platform.join(', ')):''}</div>
+        </div>
+        <span class="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full bg-violet-600 text-white shrink-0"><i class="bi bi-bullseye"></i>TernakKlip</span>
+      </div>
+      <div class="grid grid-cols-3 gap-1.5 mt-2">
+        <div class="rounded-lg border border-[var(--border)] bg-[var(--bg-surface-2)] px-2 py-1.5 text-center">
+          <div class="text-[9px] font-bold tracking-widest uppercase text-[var(--text-muted)]">Hadiah</div>
+          <div class="text-xs font-extrabold text-emerald-600 leading-none mt-0.5">${prize!=null? fmtRp(prize):'-'}</div>
+          <div class="text-[9px] text-[var(--text-muted)]">${camp.min_threshold!=null? fmtCompact(camp.min_threshold)+' - '+fmtCompact(camp.max_threshold):''}</div>
+        </div>
+        <div class="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-1.5 text-center">
+          <div class="text-[9px] font-bold tracking-widest uppercase text-[var(--text-muted)]">Peserta</div>
+          <div class="text-xs font-extrabold text-[var(--text-primary)] leading-none mt-0.5">${camp.total_participants!=null? Number(camp.total_participants).toLocaleString('id-ID'):'-'}</div>
+          <div class="text-[9px] text-[var(--text-muted)]">${campaignChip(camp)}</div>
+        </div>
+        <div class="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-1.5 text-center">
+          <div class="text-[9px] font-bold tracking-widest uppercase text-[var(--text-muted)]">Reward</div>
+          <div class="text-[10px] font-bold mt-0.5 truncate">${rewards || '<span class="text-[var(--text-muted)]">-</span>'}</div>
+          <div class="text-[9px] text-[var(--text-muted)] truncate">${tags || ''}</div>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-1.5 mt-2 text-[11px]">
+        <span class="text-[var(--text-muted)]">Sumber:</span>${sources}
+        ${camp.file_brief_url?`<a href="${esc(camp.file_brief_url)}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-[11px] text-rose-600 hover:underline"><i class="bi bi-file-earmark-pdf"></i>Brief PDF</a>`:''}
+        ${camp.share_url?`<button onclick="navigator.clipboard.writeText('${esc(camp.share_url)}'); showToast('Link share disalin','success')" class="inline-flex items-center gap-1 text-[11px] text-[var(--text-muted)] hover:text-[var(--text-primary)]"><i class="bi bi-share"></i>Share</button>`:''}
+      </div>` : `
+      <div class="flex flex-wrap items-center gap-1.5 mt-2 text-[11px]">
+        <span class="text-[var(--text-muted)]">Sumber:</span>${sources}
+      </div>`;
     return `
     <div class="card-panel p-4 shadow-sm" data-id="${s.id}">
       <div class="flex flex-col md:flex-row gap-4">
@@ -380,9 +443,11 @@ function render() {
               <button class="min-h-[36px] md:min-h-[44px] px-3 py-1.5 text-xs text-rose-400 hover:text-rose-300 bg-rose-950/20 border border-rose-900/30 rounded-lg hover:bg-rose-900/20 transition flex-shrink-0" onclick="deleteSession('${esc(s.id)}', this)"><i class="bi bi-trash"></i> Hapus</button>
             </div>
             <div class="text-xs text-zinc-400 flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span>${s.channel ? esc(s.channel) + ' · ' : ''}${new Date(s.created).toLocaleString('id-ID')}</span>
+              <span>${s.channel ? esc(s.channel) + ' · ' : ''}${new Date(s.created).toLocaleString('id-ID')}${s.duration? '  · '+Math.round(s.duration)+'s':''}${hasCamp && camp.updated_at? '  · '+new Date(camp.updated_at).toLocaleDateString('id-ID'):""}</span>
               <span class="bg-zinc-800 text-zinc-300 px-1.5 py-0.5 rounded font-mono text-[11px]">${esc(s.id)}</span>
+              ${hasCamp?'<span class="px-1.5 py-0.5 text-[10px] font-bold bg-violet-600 text-white rounded-full">TernakKlip</span>':''}
             </div>
+            ${campHeader}
           </div>
           <div class="mt-3 pt-3 border-t border-zinc-800/60 flex flex-wrap items-center justify-between gap-2 text-xs">
             <div class="flex items-center gap-2">

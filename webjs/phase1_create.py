@@ -7,12 +7,24 @@ import sys, os, json, traceback
 from pathlib import Path
 
 if len(sys.argv) < 4:
-    print(f"Error: argumen kurang. Usage: {sys.argv[0]} <url> <num_clips> <result_file>", file=sys.stderr)
+    print(f"Error: argumen kurang. Usage: {sys.argv[0]} <url> <num_clips> <result_file> [session_dir]", file=sys.stderr)
     sys.exit(1)
 
 URL = sys.argv[1]
-NUM_CLIPS = int(sys.argv[2])
+NUM_CLIPS_RAW = sys.argv[2]
 RESULT_FILE = sys.argv[3]
+SESSION_DIR_OVERRIDE = sys.argv[4] if len(sys.argv) >= 5 else None
+
+def _parse_num_clips(raw):
+    raw = str(raw or "").strip().lower()
+    if raw in ("", "0", "auto", "none"):
+        return "auto"
+    try:
+        n = int(float(raw))
+        return n if n > 0 else "auto"
+    except Exception:
+        return "auto"
+NUM_CLIPS = _parse_num_clips(NUM_CLIPS_RAW)
 
 APP_DIR = str(Path(__file__).resolve().parents[1])
 sys.path.insert(0, APP_DIR)
@@ -74,14 +86,17 @@ def main():
         subtitle_language=cfg.get("subtitle_language", "id"),
         subtitle_sync_offset=cfg.get("subtitle_sync_offset", -0.3),
     )
-    # GPU selalu aktif, gagal -> fallback CPU (clipper_core)
-    core.enable_gpu_acceleration(True)
+    # GPU dimatikan (Xeon Ivy Bridge iHD VAAPI gagal) -> CPU medium crf18 high
+    core.enable_gpu_acceleration(False)
     if cfg.get("face_detector_model"):
         core.face_detector_model = cfg.get("face_detector_model")
 
-    num_clips = "auto"
+    num_clips = NUM_CLIPS
     debug_log(f"[progress] Starting Phase1 analyze (overall: 0.0%)", flush=True)
-    sd = core.find_highlights_only(URL, num_clips, progress_callback=_progress_cb)
+    sd = core.find_highlights_only(URL, num_clips, session_dir=Path(SESSION_DIR_OVERRIDE) if SESSION_DIR_OVERRIDE else None, progress_callback=_progress_cb)
+    if sd is None:
+        write_result({"ok": False, "error": "Cancelled"})
+        sys.exit(1)
     highlights = sd.get("highlights") or []
     if not highlights:
         write_result({"ok": False, "error": "AI tidak menemukan highlight dari video ini."})

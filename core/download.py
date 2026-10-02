@@ -12,6 +12,7 @@ import cv2
 import numpy as np
 import tempfile
 import sys
+import pathlib
 import time
 
 # MediaPipe Tasks API (used only when face_tracking_mode == "mediapipe").
@@ -867,10 +868,24 @@ class DownloadMixin:
                 if _loc.exists():
                     _cookies = str(_loc)
                     break
-            # TikTok: simple best, no youtube extractor args
-            ydl_opts={'outtmpl': out_path, 'format': 'best', 'quiet': False, 'ffmpeg_location': self.ffmpeg_path}
+            # TikTok: impersonate chrome via curl_cffi biar ga 403, GDrive/YouTube best
+            ydl_opts={'outtmpl': out_path, 'format': 'best', 'quiet': False, 'ffmpeg_location': self.ffmpeg_path, 'noplaylist': True}
+            # YouTube n-sig: deno + ejs (anti-gagal dYn6Cv0heD4 challenge)
+            if 'youtube.com' in url or 'youtu.be' in url:
+                try:
+                    from utils.helpers import get_deno_path as _gdp_f
+                    _deno_f = _gdp_f()
+                    if _deno_f and pathlib.Path(_deno_f).exists():
+                        ydl_opts['js_runtimes'] = {'deno': {'path': _deno_f}}
+                        ydl_opts['remote_components'] = ['ejs:github']
+                except Exception:
+                    pass
             if 'tiktok.com' in url:
-                ydl_opts={'outtmpl': out_path, 'quiet': False, 'ffmpeg_location': self.ffmpeg_path}
+                try:
+                    import curl_cffi
+                    ydl_opts['impersonate'] = 'chrome'
+                except Exception:
+                    pass
             if _cookies:
                 ydl_opts['cookiefile'] = _cookies
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -965,7 +980,7 @@ class DownloadMixin:
             # token). Use clients that don't require one.
             ydl_opts['extractor_args'] = {
                 'youtube': {
-                    'player_client': ['web', 'web_embedded', 'web_safari', 'mweb']
+                    'player_client': ['web', 'web_embedded', 'web_safari']
                 }
             }
         
@@ -1101,7 +1116,7 @@ class DownloadMixin:
             # token). Use clients that don't require one.
             cmd.extend([
                 "--extractor-args",
-                                "youtube:player_client=web,web_embedded,web_safari,mweb"
+                                "youtube:player_client=web,web_embedded,web_safari"
             ])
         
             cmd.append(url)
@@ -1193,7 +1208,7 @@ class DownloadMixin:
             # token). Use clients that don't require one.
             opts['extractor_args'] = {
                 'youtube': {
-                    'player_client': ['web', 'web_embedded', 'web_safari', 'mweb']
+                    'player_client': ['web', 'web_embedded', 'web_safari']
                 }
             }
 
@@ -1236,7 +1251,7 @@ class DownloadMixin:
             # token). Use clients that don't require one.
             opts['extractor_args'] = {
                 'youtube': {
-                    'player_client': ['web', 'web_embedded', 'web_safari', 'mweb']
+                    'player_client': ['web', 'web_embedded', 'web_safari']
                 }
             }
         
@@ -1370,6 +1385,14 @@ class DownloadMixin:
                 f"best[height<={target_h}]/bestvideo+bestaudio/best"
             )
         
+            # js runtime for n-sig (deno + ejs)
+            try:
+                _deno_mod = deno_path
+                if _deno_mod and Path(_deno_mod).exists():
+                    # will add after dict
+                    pass
+            except Exception:
+                _deno_mod = None
             ydl_opts = {
                 'format': format_selector,
                 'format_sort': ['res', 'br'],
@@ -1388,10 +1411,13 @@ class DownloadMixin:
                 # token). Use clients that don't require one.
                 'extractor_args': {
                     'youtube': {
-                        'player_client': ['web', 'web_embedded', 'web_safari', 'mweb']
+                        'player_client': ['web', 'web_embedded', 'web_safari']
                     }
                 },
             }
+            if deno_path and Path(deno_path).exists():
+                ydl_opts['js_runtimes'] = {'deno': {'path': deno_path}}
+                ydl_opts['remote_components'] = ['ejs:github']
 
             # Inject aria2c as external downloader - DISABLED
             # aria2_path = shutil.which("aria2c")
@@ -1554,9 +1580,18 @@ class DownloadMixin:
                     cmd.extend(["--cookies", cookies_path])
                 # With cookies yt-dlp defaults to web_creator which 403s (needs PO
                 # token). Use clients that don't require one.
+                # js runtime for n-challenge (deno + ejs:github for YouTube n-sig)
+                try:
+                    from utils.helpers import get_deno_path as _gdp
+                    _deno = _gdp()
+                    if _deno and pathlib.Path(_deno).exists():
+                        cmd.extend(["--js-runtimes", f"deno:{_deno}"])
+                        cmd.extend(["--remote-components", "ejs:github"])
+                except Exception:
+                    pass
                 cmd.extend([
                     "--extractor-args",
-                                    "youtube:player_client=web,web_embedded,web_safari,mweb"
+                                    "youtube:player_client=web,web_embedded,web_safari"
                 ])
                 cmd.append(url)
 
@@ -1685,6 +1720,13 @@ class DownloadMixin:
                     break
 
             self.log("  Downloading full video for trimming...")
+            # js runtime for n-sig (deno + ejs)
+            _deno2 = None
+            try:
+                from utils.helpers import get_deno_path as _gdp2
+                _deno2 = _gdp2()
+            except Exception:
+                pass
             dl_opts = {
                 'format': format_selector,
                 'format_sort': ['res', 'br'],
@@ -1696,10 +1738,13 @@ class DownloadMixin:
                 # (needs PO token). Use clients that don't require one.
                 'extractor_args': {
                     'youtube': {
-                        'player_client': ['web', 'web_embedded', 'web_safari', 'mweb']
+                        'player_client': ['web', 'web_embedded', 'web_safari']
                     }
                 },
             }
+            if _deno2 and pathlib.Path(_deno2).exists():
+                dl_opts['js_runtimes'] = {'deno': {'path': _deno2}}
+                dl_opts['remote_components'] = ['ejs:github']
             if cookies_path:
                 dl_opts['cookiefile'] = cookies_path
             if ffmpeg_path and Path(ffmpeg_path).exists():
@@ -1836,7 +1881,7 @@ class DownloadMixin:
                 # need one. tv/android/ios/web_safari are safe choices.
                 'extractor_args': {
                     'youtube': {
-                        'player_client': ['web', 'web_embedded', 'web_safari', 'mweb']
+                        'player_client': ['web', 'web_embedded', 'web_safari']
                     }
                 },
             }
