@@ -27,10 +27,41 @@ def main():
     sel_idx = [int(x) for x in os.environ.get("SELECTED", "").split(",") if x.strip()]
     add_hook = os.environ.get("ADD_HOOK", "1") == "1"
     add_caps = os.environ.get("ADD_CAPS", "1") == "1"
+    _preset_name = os.environ.get("PRESET", "").strip() or os.environ.get("preset", "").strip()
 
     app_dir = Path(APP_DIR)
     cfg_mgr = ConfigManager(app_dir / "config.json", app_dir / "output")
     cfg = cfg_mgr.config
+    # Apply preset overrides from UNIFIED_TEMPLATES (auto-render 1b) so 9:16/pop/crop tetap konsisten
+    if _preset_name:
+        try:
+            from pathlib import Path as _P
+            # preset cfg map mirrored from webjs/public/templates.js UNIFIED_TEMPLATES
+            _PRESETS = {
+                "tiktok_viral": {"aspect_ratio": "9:16", "portrait_mode": "crop", "subtitle_style": "pop", "face_tracking_mode": "mediapipe", "pan_speed_limit": 1.5, "center_weight": 0.6, "switch_threshold": 0.35, "min_shot_duration": 30},
+                "gaming_action": {"aspect_ratio": "9:16", "portrait_mode": "crop", "subtitle_style": "pop", "face_tracking_mode": "mediapipe", "pan_speed_limit": 3.0, "center_weight": 0.15, "switch_threshold": 0.15, "min_shot_duration": 20},
+                "education_clean": {"aspect_ratio": "9:16", "portrait_mode": "crop", "subtitle_style": "pop", "face_tracking_mode": "mediapipe", "pan_speed_limit": 1.0, "center_weight": 0.20, "switch_threshold": 0.30, "min_shot_duration": 60},
+                "news_formal": {"aspect_ratio": "9:16", "portrait_mode": "crop", "subtitle_style": "karaoke", "face_tracking_mode": "mediapipe", "pan_speed_limit": 1.3, "center_weight": 0.15, "switch_threshold": 0.30, "min_shot_duration": 60},
+                "vlog_dynamic": {"aspect_ratio": "9:16", "portrait_mode": "crop", "subtitle_style": "pop", "face_tracking_mode": "mediapipe", "pan_speed_limit": 1.8, "center_weight": 0.4, "switch_threshold": 0.35, "min_shot_duration": 45},
+                "square_feed": {"aspect_ratio": "1:1", "portrait_mode": "crop", "subtitle_style": "karaoke"},
+                "reels_34": {"aspect_ratio": "3:4", "portrait_mode": "crop", "subtitle_style": "pop"},
+                "story_time": {"aspect_ratio": "9:16", "portrait_mode": "crop", "subtitle_style": "pop"},
+            }
+            _pcfg = _PRESETS.get(_preset_name)
+            if _pcfg:
+                for _k, _v in _pcfg.items():
+                    cfg[_k] = _v
+                # mediapipe_settings sync
+                if "mediapipe_settings" not in cfg or not isinstance(cfg["mediapipe_settings"], dict):
+                    cfg["mediapipe_settings"] = {}
+                for _mk in ("pan_speed_limit", "center_weight", "switch_threshold", "min_shot_duration"):
+                    if _mk in _pcfg:
+                        cfg["mediapipe_settings"][_mk] = _pcfg[_mk]
+                debug_log(f"[preset] Applied { _preset_name } -> aspect {cfg.get('aspect_ratio')} style {cfg.get('subtitle_style')}")
+            else:
+                debug_log(f"[preset] Unknown preset { _preset_name }, using config defaults")
+        except Exception as _e:
+            debug_log(f"[preset] Failed to apply { _preset_name }: { _e}")
     prov = cfg.get("ai_providers") or {}
     hf = prov.get("highlight_finder") or {}
     client = OpenAI(
@@ -70,8 +101,8 @@ def main():
         core.auto_bgm_settings["mood"] = mod
     if bq:
         core.auto_broll_settings["query"] = bq
-    # GPU selalu aktif
-    core.enable_gpu_acceleration(True)
+    # iGPU Ivy Bridge gagal VAAPI — matiin biar langsung CPU kualitas terbaik medium crf 18
+    core.enable_gpu_acceleration(False)
     if cfg.get("face_detector_model"):
         core.face_detector_model = cfg.get("face_detector_model")
 

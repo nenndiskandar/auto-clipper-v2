@@ -1,4 +1,4 @@
-// auto-clipper result viewer — zero deps, node >= 16
+// auto-clipper result viewer - zero deps, node >= 16
 const http = require('http');
 const crypto = require('crypto');
 const fs = require('fs');
@@ -18,7 +18,7 @@ const isWin = process.platform === 'win32';
 const { execFileSync } = require('child_process');
 function resolvePy() {
   if (process.env.CLIPPER_PY) return process.env.CLIPPER_PY;
-  // 1) venv first — works on both Debian & Ubuntu, isolates deps from system python
+  // 1) venv first - works on both Debian & Ubuntu, isolates deps from system python
   const venvCands = [
     path.join(ROOT, 'venv', 'bin', 'python'),
     path.join(ROOT, 'venv', 'bin', 'python3'),
@@ -30,7 +30,7 @@ function resolvePy() {
       try { execFileSync(vc, ['-c', 'import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)'], { stdio: 'ignore' }); return vc; } catch {}
     }
   }
-  // 2) system candidates — Debian (/usr/bin/python3.11) vs Ubuntu (/usr/bin/python3.10/3.12)
+  // 2) system candidates - Debian (/usr/bin/python3.11) vs Ubuntu (/usr/bin/python3.10/3.12)
   // prefer one with full deps (cv2+yt_dlp), fallback to any python >=3.8
   const cands = isWin ? ['py', 'python', 'python3'] : ['/usr/bin/python3', '/usr/local/bin/python3', 'python3', 'python'];
   let fallback = null;
@@ -44,7 +44,7 @@ function resolvePy() {
       if (!fallback) fallback = c;
     } catch {}
   }
-  // 3) venv exists but didn't pass version check — still return it (better than system without deps)
+  // 3) venv exists but didn't pass version check - still return it (better than system without deps)
   for (const vc of venvCands) if (fs.existsSync(vc)) return vc;
   return fallback || cands[0];
 }
@@ -203,6 +203,7 @@ let TRANS_JOB = null;
 let STORY_JOBS = new Map(); // key "run" -> job (biar /api/tasks legible)
 const FB_JOBS = new Map();
 const DEP_JOBS = new Map(); // dependency download/update jobs: target -> {proc,code,startedAt,logPath}  // key "run" -> job
+const CAMPAIGN_JOBS = new Map(); // campaign auto 1-click: campId -> {proc, code, startedAt, logPath, resultFile, session_id, stage, child}
 
 function safe(seg) {
   const decoded = decodeURIComponent(seg || '');
@@ -328,6 +329,14 @@ const SESSIONS_CACHE = { t: 0, data: null };
 const invalidateSessions = () => { SESSIONS_CACHE.t = 0; };
 const DASH_STORY_CACHE = { t: 0, data: [] };
 
+function readCampaignBrief(sd, data) {
+  try {
+    const cfp = path.join(sd, 'campaign_brief.json');
+    if (fs.existsSync(cfp)) return JSON.parse(fs.readFileSync(cfp, 'utf8'));
+    if (data && data.campaign) return data.campaign;
+  } catch {}
+  return null;
+}
 function _listSessions() {
   return fs.readdirSync(SESSIONS)
     .filter(d => fs.existsSync(path.join(SESSIONS, d, 'session_data.json')))
@@ -336,16 +345,42 @@ function _listSessions() {
         const sd = path.join(SESSIONS, d);
         const data = JSON.parse(fs.readFileSync(path.join(sd, 'session_data.json')));
         const hlCount = Array.isArray(data.highlights) ? data.highlights.length : 0;
+        const campaign = readCampaignBrief(sd, data);
+        const clips = listClips(sd, data.highlights);
         return {
           id: d,
           url: data.url || null,
           status: data.status || 'unknown',
-          title: (data.video_info && data.video_info.title) || d,
-          channel: (data.video_info && data.video_info.channel) || '',
+          title: (data.video_info && data.video_info.title) || (campaign && campaign.title) || d,
+          channel: (data.video_info && data.video_info.channel) || (campaign && campaign.client_name) || '',
           created: fs.statSync(sd).mtime,
-          total: listClips(sd, data.highlights).length,
+          updated: (data.completed_at || data.processing_started_at || null),
+          duration: (data.video_info && data.video_info.duration) || null,
+          total: clips.length,
           total_highlights: hlCount,
-          clips: listClips(sd, data.highlights),
+          clips,
+          has_campaign: !!campaign,
+          campaign: campaign ? {
+            campaign_id: campaign.campaign_id || campaign.public_id || d.replace(/^tk_/, ''),
+            title: campaign.title || null,
+            client_name: campaign.client_name || null,
+            client_avatar_url: campaign.client_avatar_url || null,
+            thumbnail_url: campaign.thumbnail_url || null,
+            total_prize: campaign.total_prize ?? null,
+            current_prize: campaign.current_prize ?? campaign.total_prize ?? null,
+            platform_rewards: campaign.platform_rewards || [],
+            min_threshold: campaign.min_threshold ?? null,
+            max_threshold: campaign.max_threshold ?? null,
+            tags: campaign.tags || [],
+            source_links: campaign.source_links || [],
+            share_url: campaign.share_url || null,
+            file_brief_url: campaign.file_brief_url || null,
+            description: campaign.description || null,
+            is_accumulation: !!campaign.is_accumulation,
+            is_umkm: !!campaign.is_umkm,
+            is_special_collab: !!campaign.is_special_collab,
+            is_show_budget: campaign.is_show_budget ?? true,
+          } : null,
         };
       } catch { return null; }
     })
@@ -462,7 +497,7 @@ const server = http.createServer((req, res) => {
       });
       return;
     }
-    // GET /api/disk — statistik disk (total/used/free/usedPercent dalam byte) untuk widget sidebar
+    // GET /api/disk - statistik disk (total/used/free/usedPercent dalam byte) untuk widget sidebar
     if (p === '/api/disk' && req.method === 'GET') {
       getDiskStats().then(st => json(res, st.error ? 500 : 200, st));
       return;
@@ -496,15 +531,19 @@ const server = http.createServer((req, res) => {
       return;
     }
 
-    // GET /api/ternakklip-campaigns?page=1&limit=36 - paginated proxy untuk ternaklip.html
+    // GET /api/ternakklip-campaigns?page=1&limit=36&search=...&category=... - paginated proxy untuk ternaklip.html
     if (p.startsWith('/api/ternakklip-campaigns') && req.method === 'GET') {
-      const qPage = parseInt(u.searchParams.get('page') || '1', 10);
-      const qLimit = parseInt(u.searchParams.get('limit') || '36', 10);
-      const offset = (qPage - 1) * qLimit;
+      const qPage = Math.max(1, parseInt(u.searchParams.get('page') || '1', 10));
+      const qLimit = Math.max(1, Math.min(100, parseInt(u.searchParams.get('limit') || '36', 10)));
+      const qSearch = (u.searchParams.get('search') || u.searchParams.get('q') || '').trim().slice(0, 80);
+      const qCategory = (u.searchParams.get('category') || '').trim().slice(0, 20);
       const https = require('https');
+      let upstreamPath = `/api/v1/public/campaigns?limit=${qLimit}&page=${qPage}`;
+      if (qSearch) upstreamPath += `&search=${encodeURIComponent(qSearch)}`;
+      if (qCategory) upstreamPath += `&category=${encodeURIComponent(qCategory)}`;
       const reqOpts = {
         hostname: 'api.ternakklip.com',
-        path: `/api/v1/public/campaigns?limit=100&page=1`,
+        path: upstreamPath,
         method: 'GET',
         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
       };
@@ -514,16 +553,14 @@ const server = http.createServer((req, res) => {
         proxyRes.on('end', () => {
           try {
             const jsonParsed = JSON.parse(resBody);
-            const allData = jsonParsed.data || [];
-            const paged = allData.slice(offset, offset + qLimit);
             json(res, 200, {
               status: 'success',
-              data: paged,
+              data: jsonParsed.data || [],
               meta: {
                 page: qPage,
                 limit: qLimit,
-                total: jsonParsed.meta?.total_data || allData.length,
-                total_pages: Math.ceil((jsonParsed.meta?.total_data || allData.length) / qLimit)
+                total: jsonParsed.meta?.total_data ?? jsonParsed.meta?.total ?? (jsonParsed.data || []).length,
+                total_pages: jsonParsed.meta?.total_pages ?? Math.ceil((jsonParsed.meta?.total_data ?? (jsonParsed.data || []).length) / qLimit)
               }
             });
           } catch (e) {
@@ -536,7 +573,7 @@ const server = http.createServer((req, res) => {
       return;
     }
 
-    // GET /api/ternakklip-campaign-detail/:id — full campaign detail (brief, source_links, dll)
+    // GET /api/ternakklip-campaign-detail/:id - full campaign detail (brief, source_links, dll)
     const mDetail = p.match(/^\/api\/ternakklip-campaign-detail\/([^/]+)$/);
     if (mDetail && req.method === 'GET') {
       const campId = encodeURI(mDetail[1]);
@@ -577,7 +614,7 @@ const server = http.createServer((req, res) => {
       if (!fp) { res.writeHead(404, { 'Content-Type': 'video/mp4' }); return res.end(); }
       return sendFile(req, res, fp, mVidPub[1] === 'download');
     }
-    // /video/story/:clip/:file — stream hasil Story Clip (output/story_clips)
+    // /video/story/:clip/:file - stream hasil Story Clip (output/story_clips)
     const mVidStory = p.match(/^\/video\/story\/([^/]+)\/(.+)$/);
     if (mVidStory) {
       const clipDir = path.join(ROOT, 'output', 'story_clips', safe(mVidStory[1]));
@@ -608,7 +645,87 @@ const server = http.createServer((req, res) => {
       return json(res, 401, { error: 'unauthorized' });
     }
     if (p === '/api/sessions') return json(res, 200, listSessions());
-    // GET /api/sessions/:session/clip/:clipDir — detail 1 klip (ringan, tanpa scan semua sesi)
+    // GET /api/sessions/:id - detail satu sesi + campaign brief (sinkron ternakklip)
+    const mSess = p.match(/^\/api\/sessions\/([^/]+)$/);
+    if (mSess && req.method === 'GET') {
+      const sid = safe(mSess[1]);
+      const sd = path.join(SESSIONS, sid);
+      if (!sd.startsWith(SESSIONS) || !fs.existsSync(path.join(sd, 'session_data.json'))) return json(res, 404, { error: 'session not found' });
+      try {
+        const data = JSON.parse(fs.readFileSync(path.join(sd, 'session_data.json'), 'utf8'));
+        const campaign = readCampaignBrief(sd, data);
+        const clips = listClips(sd, data.highlights);
+        // ringkasan log (tail) biar frontend bisa tampil tanpa fetch terpisah
+        let procLog = '', refindLog = '';
+        try { procLog = tailFile(path.join(sd, 'process.log'), 6000); } catch {}
+        try { refindLog = tailFile(path.join(sd, 'refind.log'), 3000); } catch {}
+        // coba cari campaign log auto
+        let campaignLog = '';
+        try {
+          const outDir = path.join(ROOT, 'output');
+          const cands = fs.readdirSync(outDir).filter(f => f.startsWith('campaign_auto_') && f.includes(sid.replace(/^tk_/, '')));
+          if (cands.length) campaignLog = tailFile(path.join(outDir, cands.sort().pop()), 6000);
+        } catch {}
+        const hlCount = Array.isArray(data.highlights) ? data.highlights.length : 0;
+        // estimasi durasi & stats
+        const srtFile = fs.readdirSync(sd).find(f => f.endsWith('.srt'));
+        let srtExists = !!srtFile, srtSize = 0;
+        try { if (srtFile) srtSize = fs.statSync(path.join(sd, srtFile)).size; } catch {}
+        // file sumber original bila GDrive cache
+        let hasTempVideo = false;
+        try { hasTempVideo = fs.existsSync(path.join(sd, '_temp')) && fs.readdirSync(path.join(sd, '_temp')).some(f => /\.(mp4|mkv|webm)$/i.test(f)); } catch {}
+        return json(res, 200, {
+          id: sid,
+          url: data.url || null,
+          srt_path: data.srt_path || (srtFile ? path.join(sd, srtFile) : null),
+          status: data.status || 'unknown',
+          title: (data.video_info && data.video_info.title) || (campaign && campaign.title) || sid,
+          channel: (data.video_info && data.video_info.channel) || (campaign && campaign.client_name) || '',
+          video_info: data.video_info || null,
+          created_at: data.created_at || null,
+          processing_started_at: data.processing_started_at || null,
+          completed_at: data.completed_at || null,
+          created: (() => { try { return fs.statSync(sd).mtime; } catch { return null; } })(),
+          total: clips.length,
+          total_highlights: hlCount,
+          highlights: data.highlights || [],
+          clips,
+          campaign: campaign ? {
+            campaign_id: campaign.campaign_id || campaign.public_id || sid.replace(/^tk_/, ''),
+            public_id: campaign.public_id || campaign.campaign_id || sid.replace(/^tk_/, ''),
+            title: campaign.title || null,
+            client_name: campaign.client_name || null,
+            client_avatar_url: campaign.client_avatar_url || null,
+            thumbnail_url: campaign.thumbnail_url || null,
+            description: campaign.description || null,
+            file_brief_url: campaign.file_brief_url || null,
+            share_url: campaign.share_url || null,
+            total_prize: campaign.total_prize ?? null,
+            current_prize: campaign.current_prize ?? campaign.total_prize ?? null,
+            platform_rewards: campaign.platform_rewards || [],
+            min_threshold: campaign.min_threshold ?? null,
+            max_threshold: campaign.max_threshold ?? null,
+            tags: campaign.tags || [],
+            tags_raw: campaign.tags_raw || [],
+            source_links: campaign.source_links || [],
+            platform: campaign.platform || [],
+            language: campaign.language || [],
+            is_accumulation: !!campaign.is_accumulation,
+            is_umkm: !!campaign.is_umkm,
+            is_special_collab: !!campaign.is_special_collab,
+            is_show_budget: campaign.is_show_budget ?? true,
+            total_participants: campaign.total_participants ?? null,
+            created_at: campaign.created_at || null,
+            updated_at: campaign.updated_at || null,
+          } : null,
+          has_campaign: !!campaign,
+          srt_exists: srtExists, srt_size: srtSize,
+          has_temp_video: hasTempVideo,
+          logs: { process: procLog.slice(-4000), refind: refindLog.slice(-3000), campaign: campaignLog.slice(-4000) },
+        });
+      } catch (e) { return json(res, 500, { error: 'read error: ' + String(e.message || e) }); }
+    }
+    // GET /api/sessions/:session/clip/:clipDir - detail 1 klip (ringan, tanpa scan semua sesi)
     const mClip = p.match(/^\/api\/sessions\/([^/]+)\/clip\/([^/]+)$/);
     if (mClip) {
       const sessId = safe(mClip[1]), clipId = safe(mClip[2]);
@@ -630,8 +747,8 @@ const server = http.createServer((req, res) => {
         });
       } catch { return json(res, 500, { error: 'read error' }); }
     }
-    // POST /api/campaign/process/:id — Inisialisasi Master Sesi TernakKlip
-    if (p.startsWith('/api/campaign/process/') && req.method === 'POST') {
+    // POST /api/campaign/process/:id - Inisialisasi Master Sesi TernakKlip (legacy, cepat)
+    if (p.startsWith('/api/campaign/process/') && req.method === 'POST' && !p.startsWith('/api/campaign/auto')) {
       const campId = p.split('/')[4];
       const proc = spawn(PY, [path.join(__dirname, 'phase1_campaign.py'), campId]);
       let out = '';
@@ -650,8 +767,318 @@ const server = http.createServer((req, res) => {
       });
       return;
     }
+    // POST /api/campaign/auto/:id - One-click TernakKlip -> campaign + highlight + auto-render (1b)
+    if (p.startsWith('/api/campaign/auto/') && req.method === 'POST' && !p.includes('/status') && !p.includes('/cancel')) {
+      const segs = p.split('/').filter(Boolean);
+      const campId = segs[3]; // api/campaign/auto/:id
+      if (!campId) return json(res, 400, { error: 'campaign id required' });
+      const prev = CAMPAIGN_JOBS.get(campId);
+      if (prev && prev.code === undefined) return json(res, 409, { error: 'Campaign ini masih diproses', stage: prev.stage });
+      let body = '';
+      req.on('data', c => body += c);
+      req.on('end', () => {
+        let o = {};
+        try { o = JSON.parse(body || '{}'); } catch {}
+        const preset = String(o.preset || o.template || 'tiktok_viral').trim() || 'tiktok_viral';
+        const numClipsRaw = String(o.num_clips ?? o.numClips ?? 'auto').trim();
+        const numClips = numClipsRaw;
+        const autoRender = o.auto_render !== false && o.autoRender !== false;
+        const topN = Math.max(1, Math.min(10, parseInt(o.top_n ?? o.topN ?? '3', 10) || 3));
+        const logPath = path.join(ROOT, 'output', `campaign_auto_${campId}_${Date.now()}.log`);
+        const resultFile = path.join(ROOT, 'output', `.campaign_auto_${campId}_${Date.now()}.json`);
+        try {
+          const olds = fs.readdirSync(path.join(ROOT, 'output')).filter(f => /^campaign_auto_.*\.log$/.test(f)).sort();
+          while (olds.length >= 20) fs.unlinkSync(path.join(ROOT, 'output', olds.shift()));
+        } catch {}
+        try { fs.mkdirSync(path.join(ROOT, 'output'), { recursive: true }); } catch {}
+        fs.writeFileSync(logPath, `===== campaign auto ${campId} preset=${preset} num_clips=${numClips} topN=${topN} autoRender=${autoRender} ${new Date().toISOString()} =====\n`);
+        const job = { campId, preset, numClips, topN, autoRender, stage: 'campaign', code: undefined, startedAt: Date.now(), logPath, resultFile, session_id: `tk_${campId}`, sessionDir: path.join(SESSIONS, `tk_${campId}`), proc: null, count: 0 };
+        CAMPAIGN_JOBS.set(campId, job);
+        const campProc = spawn(PY, [path.join(__dirname, 'phase1_campaign.py'), campId]);
+        job.proc = campProc;
+        let outBuf = '';
+        campProc.stdout.on('data', d => { outBuf += d; try { fs.appendFileSync(logPath, d); } catch {} });
+        campProc.stderr.on('data', d => { try { fs.appendFileSync(logPath, d); } catch {} });
+        campProc.on('close', code => {
+          if (code !== 0) {
+            job.code = code; job.finishedAt = Date.now(); job.stage = 'failed';
+            try { fs.writeFileSync(resultFile, JSON.stringify({ ok: false, stage: 'campaign', error: (outBuf || '').slice(-1500) || 'Campaign setup gagal' })); } catch {}
+            return;
+          }
+          let j = null;
+          let jsonLine = null;
+          try {
+            const lines = outBuf.split('\n').map(l=>l.trim()).filter(l=>l.startsWith('{') && l.endsWith('}'));
+            if (lines.length) jsonLine = lines[lines.length-1];
+            else {
+              const m = outBuf.match(/\{[\s\S]*"ok"[\s\S]*\}/);
+              if (m) jsonLine = m[0];
+            }
+            if (jsonLine) j = JSON.parse(jsonLine);
+            else {
+              // try last JSON object via bracket counting (fallback)
+              const lastBrace = outBuf.lastIndexOf('}');
+              const firstBrace = outBuf.indexOf('{');
+              if (firstBrace!==-1 && lastBrace!==-1) {
+                const cand = outBuf.slice(firstBrace, lastBrace+1);
+                // find the last complete JSON starting from the end that parses
+                for (let i=cand.lastIndexOf('{'); i>=0; i=cand.lastIndexOf('{', i-1)) {
+                  try { const c=JSON.parse(cand.slice(i)); if (c && typeof c.ok!=='undefined') { jsonLine=cand.slice(i); j=c; break; } } catch {}
+                  if (i<=0) break;
+                }
+              }
+            }
+          } catch { j = null; }
+          if (!j || !j.ok) {
+            job.code = 1; job.stage = 'failed'; job.finishedAt = Date.now();
+            const errPreview = (outBuf || '').replace(/\n/g,' | ').slice(-700);
+            const errMsg = (j && j.error) || (jsonLine ? 'Campaign JSON ok!=true' : ('No JSON in output: ' + errPreview));
+            try { fs.writeFileSync(resultFile, JSON.stringify({ ok: false, stage: 'campaign', error: errMsg })); } catch {}
+            try { fs.appendFileSync(logPath, `\n[ERROR] Campaign JSON invalid: ${errPreview}\n`); } catch {}
+            return;
+          }
+          const sessionId = j.session_id || `tk_${campId}`;
+          const sessionDir = path.join(SESSIONS, sessionId);
+          job.session_id = sessionId; job.sessionDir = sessionDir; job.stage = 'highlight';
+          let sourceUrl = '';
+          let _allSources = [];
+          const isGDriveFolder = (u)=> /\/drive\/folders\//.test(String(u));
+          const isExcludedLabel = (lb)=> /poster|thumbnail|cover|image|foto|banner|sample|mockup/i.test(String(lb||'').toLowerCase());
+          const isFileUrl = (u)=> !isGDriveFolder(u);
+          // helper: coba expand GDrive folder jadi daftar file video (flat-playlist) - pakai yt-dlp dry run
+          const tryExpandFolder = (folderUrl)=>{
+            try {
+              const cookiesPath = (()=>{ const c1=path.join(ROOT,'cookies.txt'); if (fs.existsSync(c1)) return c1; const c2=path.join(ROOT,'output','cookies.txt'); if (fs.existsSync(c2)) return c2; return null; })();
+              const args = ['-m','yt_dlp','--flat-playlist','--skip-download','-J', folderUrl];
+              if (cookiesPath) { args.splice(args.length-1,0,'--cookies',cookiesPath); }
+              const out = require('child_process').execFileSync(PY, args, {encoding:'utf-8', timeout:18000, maxBuffer:1024*1024*8});
+              const j = JSON.parse(out);
+              const entries = Array.isArray(j.entries) ? j.entries : (Array.isArray(j) ? j : []);
+              // entries: array of {id,title,ext,mimeType} - map ke file url
+              const fileUrls = entries.map(e=>{
+                const id = e.id || e.url || '';
+                if (!id) return null;
+                // yt-dlp folder entries id adalah fileId GDrive
+                if (/^[\w-]{25,}/.test(String(id)) && !String(id).startsWith('http')) return `https://drive.google.com/file/d/${id}/view`;
+                if (String(id).startsWith('http')) return String(id);
+                return null;
+              }).filter(Boolean);
+              // filter image by title/ext
+              const isImageEntry = (e)=> /\.(jpg|jpeg|png|webp|gif|bmp|pdf)$/i.test(String(e.title||'')) || String(e.ext||'').match(/^(jpg|jpeg|png|webp|gif|bmp|pdf)$/i) || isExcludedLabel(String(e.title||''));
+              const videoEntries = entries.filter(e=> !isImageEntry(e));
+              const videoUrls = videoEntries.map(e=>{
+                const id = e.id || '';
+                if (/^[\w-]{25,}/.test(String(id)) && !String(id).startsWith('http')) return `https://drive.google.com/file/d/${id}/view`;
+                return null;
+              }).filter(Boolean);
+              return videoUrls.length ? videoUrls : fileUrls;
+            } catch (e) {
+              try { fs.appendFileSync(logPath, `[WARN] Expand folder gagal: ${String(folderUrl).slice(0,60)} -> ${String(e.message||e).slice(0,180)}\n`); } catch {}
+              return [];
+            }
+          };
+          const getRanked = (arr)=>{
+            const norm = (arr||[]).map(x=> typeof x==='string' ? {url:x,label:''} : {url:x.url||x,label:x.label||''}).filter(o=>o.url);
+            if (!norm.length) return [];
+            let candidates = norm.filter(o=> !isExcludedLabel(o.label));
+            if (!candidates.length) candidates = norm;
+            const score = (o)=>{
+              const u=o.url; const l=u.toLowerCase();
+              if (isExcludedLabel(o.label)) return -50;
+              if (l.includes('youtu.be')||l.includes('youtube.com')) return 100;
+              if (l.includes('drive.google.com') && isFileUrl(u)) return 90;
+              if (l.includes('drive.google.com') && isGDriveFolder(u)) return 75;
+              if (/tiktok\.com\/@[^/]+\/video\/\d+/.test(l) || /\/video\/\d+/.test(l)) return 80;
+              if (l.includes('tiktok.com')) return 20;
+              if (l.includes('instagram.com')) return 70;
+              if (l.includes('facebook.com')||l.includes('fb.watch')) return 70;
+              if (l.startsWith('http')) return 50;
+              return 0;
+            };
+            return candidates.map(o=> ({...o, _score: score(o)})).sort((a,b)=> b._score - a._score);
+          };
+          try {
+            const brief = JSON.parse(fs.readFileSync(path.join(sessionDir, 'campaign_brief.json'), 'utf8'));
+            _allSources = (brief.source_links || []).map(s=> typeof s==='string' ? s : {url:s.url,label:s.label||''}).filter(x=> typeof x==='string' ? x : x.url);
+            const ranked = getRanked(_allSources);
+            if (ranked.length) {
+              try { fs.appendFileSync(logPath, `[INFO] Sources ranked ${ranked.length}: ${ranked.map(r=> r.label||r.url.slice(0,40)+' score='+r._score).join(' | ').slice(0,400)}\n`); } catch {}
+              // coba dari skor tertinggi: kalau folder, expand dulu; kalau file, pakai langsung (skip poster)
+              for (const cand of ranked) {
+                const u = cand.url;
+                if (isGDriveFolder(u)) {
+                  try { fs.appendFileSync(logPath, `[INFO] Folder detected, expanding: ${cand.label||''} ${u.slice(0,70)}\n`); } catch {}
+                  const expanded = tryExpandFolder(u);
+                  if (expanded.length) {
+                    // expanded dapat beberapa file - pilih pertama (yt-dlp folder sudah sortir natural)
+                    // filter image sudah di tryExpandFolder
+                    sourceUrl = expanded[0];
+                    try { fs.appendFileSync(logPath, `[INFO] Folder expanded ${expanded.length} files -> picked ${sourceUrl.slice(0,80)}\n`); } catch {}
+                    break;
+                  } else {
+                    try { fs.appendFileSync(logPath, `[WARN] Folder ${cand.label||u.slice(0,40)} kosong/private, coba sumber berikutnya\n`); } catch {}
+                    continue;
+                  }
+                } else {
+                  // file/video url - skip kalau label poster dan masih ada kandidat lain
+                  if (isExcludedLabel(cand.label) && ranked.length>1) continue;
+                  sourceUrl = u;
+                  try { fs.appendFileSync(logPath, `[INFO] Picked file: ${cand.label||''} ${u.slice(0,80)} score=${cand._score}\n`); } catch {}
+                  break;
+                }
+              }
+              // fallback jika semua folder gagal dan tidak ada file terpilih
+              if (!sourceUrl && ranked.length) {
+                const fallback = ranked.find(r=> isFileUrl(r.url) && !isExcludedLabel(r.label)) || ranked.find(r=> isFileUrl(r.url)) || ranked[0];
+                if (fallback) sourceUrl = fallback.url;
+              }
+            }
+            if (!_allSources.length) sourceUrl = (brief.source_links && brief.source_links[0] && brief.source_links[0].url) || '';
+            if (sourceUrl) try { fs.appendFileSync(logPath, `[INFO] Final source: ${sourceUrl.slice(0,90)}\n`); } catch {}
+          } catch (e) { try { fs.appendFileSync(logPath, `[WARN] pick error: ${String(e.message||e).slice(0,200)}\n`); } catch {} }
+          if (!sourceUrl && j.campaign && j.campaign.source_links) {
+            const raw = j.campaign.source_links.map(s=> typeof s==='string' ? {url:s,label:''} : {url:s.url||s,label:s.label||''}).filter(o=>o.url);
+            if (raw.length) {
+              const isExcluded2 = (lb)=>/poster|thumbnail|cover|image|foto|banner|sample|mockup/i.test(String(lb||'').toLowerCase());
+              const ranked2 = getRanked(raw);
+              if (ranked2.length) {
+                for (const cand of ranked2) {
+                  const u = cand.url;
+                  if (isGDriveFolder(u)) {
+                    const expanded2 = tryExpandFolder(u);
+                    if (expanded2.length) { sourceUrl = expanded2[0]; break; }
+                    else continue;
+                  } else {
+                    if (isExcluded2(cand.label) && ranked2.length>1) continue;
+                    sourceUrl = u; break;
+                  }
+                }
+                if (!sourceUrl && ranked2.length) {
+                  const fb2 = ranked2.find(r=> isFileUrl(r.url) && !isExcluded2(r.label)) || ranked2.find(r=> isFileUrl(r.url)) || ranked2[0];
+                  if (fb2) sourceUrl = fb2.url;
+                }
+              }
+            }
+          }
+          if (!sourceUrl) {
+            try { const sd0 = JSON.parse(fs.readFileSync(path.join(sessionDir, 'session_data.json'), 'utf8')); sourceUrl = sd0.url || ''; } catch {}
+          }
+          if (!sourceUrl) {
+            const err = 'Tidak ada source video di campaign ini (source_links kosong)';
+            try { fs.appendFileSync(logPath, `\n[ERROR] ${err}\n`); } catch {}
+            job.code = 1; job.stage = 'failed'; job.finishedAt = Date.now();
+            try { fs.writeFileSync(resultFile, JSON.stringify({ ok: false, stage: 'highlight', error: err })); } catch {}
+            return;
+          }
+          try {
+            const sdPath = path.join(sessionDir, 'session_data.json');
+            if (fs.existsSync(sdPath)) {
+              let sd = JSON.parse(fs.readFileSync(sdPath, 'utf8'));
+              sd.campaign = sd.campaign || {};
+              sd.campaign.preset = preset;
+              sd.campaign.num_clips = numClips;
+              sd.preset = preset;
+              fs.writeFileSync(sdPath, JSON.stringify(sd, null, 2));
+            }
+          } catch {}
+          try { fs.appendFileSync(logPath, `\n[INFO] Source: ${sourceUrl}\n[INFO] Starting highlight num_clips=${numClips} -> ${sessionId}\n`); } catch {}
+          const child2 = spawn(PY, [path.join(__dirname, 'phase1_create.py'), String(sourceUrl), String(numClips), resultFile, sessionDir], { env: { ...process.env, PYTHONIOENCODING: 'utf-8' } });
+          job.proc = child2;
+          const out2 = fs.createWriteStream(logPath, { flags: 'a' });
+          child2.stdout.pipe(out2); child2.stderr.pipe(out2);
+          child2.on('close', code2 => {
+            try { out2.end(); } catch {}
+            if (code2 !== 0) {
+              job.code = code2; job.finishedAt = Date.now(); job.stage = 'failed';
+              try { const r = JSON.parse(fs.readFileSync(resultFile, 'utf8')); job.error = r.error; } catch {}
+              try { fs.appendFileSync(logPath, `\n[ERROR] Highlight failed code ${code2}\n`); } catch {}
+              return;
+            }
+            let r2 = null;
+            try { r2 = JSON.parse(fs.readFileSync(resultFile, 'utf8')); } catch { r2 = null; }
+            if (!r2 || !r2.ok) {
+              job.code = 1; job.stage = 'failed'; job.finishedAt = Date.now();
+              try { fs.appendFileSync(logPath, `\n[ERROR] Highlight result not ok: ${JSON.stringify(r2).slice(0, 600)}\n`); } catch {}
+              return;
+            }
+            const count = r2.count || 0;
+            job.count = count;
+            if (!autoRender) {
+              job.code = 0; job.finishedAt = Date.now(); job.stage = 'done';
+              invalidateSessions();
+              return;
+            }
+            job.stage = 'render';
+            try { fs.appendFileSync(logPath, `\n[INFO] Highlight OK ${count} clips, auto-render top ${topN} preset=${preset}\n`); } catch {}
+            let highlights = [];
+            try { const sd2 = JSON.parse(fs.readFileSync(path.join(sessionDir, 'session_data.json'), 'utf8')); highlights = sd2.highlights || []; } catch {}
+            highlights.sort((a, b) => (b.virality_score || 0) - (a.virality_score || 0));
+            const selIdx = highlights.slice(0, topN).map((_, i) => i);
+            if (!selIdx.length) {
+              job.code = 0; job.stage = 'done'; job.finishedAt = Date.now();
+              try { fs.writeFileSync(resultFile, JSON.stringify({ ok: true, stage: 'done', session_id: sessionId, session_dir: sessionDir, count, rendered: 0 })); } catch {}
+              invalidateSessions();
+              return;
+            }
+            const selStr = selIdx.join(',');
+            const env = { ...process.env, SELECTED: selStr, ADD_HOOK: '1', ADD_CAPS: '1', PRESET: preset, PYTHONIOENCODING: 'utf-8' };
+            const renderLog = path.join(sessionDir, 'process.log');
+            try { fs.mkdirSync(path.dirname(renderLog), { recursive: true }); } catch {}
+            try { fs.appendFileSync(renderLog, `\n===== auto-render start ${new Date().toISOString()} preset=${preset} selected=${selStr} =====\n`); } catch {}
+            const procChild = spawn(PY, [path.join(__dirname, 'process_session.py'), sessionDir], { env });
+            job.proc = procChild;
+            const outRender = fs.createWriteStream(renderLog, { flags: 'a' });
+            const campAppend = fs.createWriteStream(logPath, { flags: 'a' });
+            procChild.stdout.on('data', d => { try { outRender.write(d); campAppend.write(d); } catch {} });
+            procChild.stderr.on('data', d => { try { outRender.write(d); campAppend.write(d); } catch {} });
+            procChild.on('close', code3 => {
+              try { outRender.end(); campAppend.end(); } catch {}
+              job.code = code3; job.finishedAt = Date.now();
+              if (code3 === 0) {
+                job.stage = 'done';
+                try {
+                  const sdFinal = JSON.parse(fs.readFileSync(path.join(sessionDir, 'session_data.json'), 'utf8'));
+                  const clipsCount = (sdFinal.highlights || []).length;
+                  // count actual mp4 files
+                  let renderedFiles = 0;
+                  try { renderedFiles = fs.readdirSync(path.join(sessionDir, 'clips')).filter(f => fs.statSync(path.join(sessionDir, 'clips', f)).isDirectory()).length; } catch {}
+                  fs.writeFileSync(resultFile, JSON.stringify({ ok: true, stage: 'done', session_id: sessionId, session_dir: sessionDir, count, rendered: selIdx.length, clips: renderedFiles }));
+                } catch { try { fs.writeFileSync(resultFile, JSON.stringify({ ok: true, stage: 'done', session_id: sessionId, count, rendered: selIdx.length })); } catch {} }
+                invalidateSessions();
+              } else {
+                job.stage = 'failed';
+                try { fs.writeFileSync(resultFile, JSON.stringify({ ok: false, stage: 'render', error: `Render gagal code ${code3}`, session_id: sessionId, count })); } catch {}
+                try { fs.appendFileSync(logPath, `\n[ERROR] Render failed code ${code3}\n`); } catch {}
+              }
+            });
+          });
+        });
+        json(res, 200, { ok: true, started: true, campId, session_id: `tk_${campId}` });
+      });
+      return;
+    }
+    // GET /api/campaign/auto/status/:id
+    if (p.startsWith('/api/campaign/auto/status/') && req.method === 'GET') {
+      const campId = p.split('/').filter(Boolean).pop();
+      const job = CAMPAIGN_JOBS.get(campId);
+      if (!job) return json(res, 404, { error: 'no job', campId });
+      let result = null;
+      try { if (job.code !== undefined && fs.existsSync(job.resultFile)) result = JSON.parse(fs.readFileSync(job.resultFile, 'utf8')); } catch {}
+      const log = job.logPath ? tailFile(job.logPath, 12000) : '';
+      return json(res, 200, { campId, stage: job.stage, running: job.code === undefined, code: job.code, startedAt: job.startedAt, finishedAt: job.finishedAt || null, elapsed_s: Math.round(((job.code !== undefined && job.finishedAt ? job.finishedAt : Date.now()) - job.startedAt) / 1000), count: job.count || 0, session_id: job.session_id, log, progress: parseOverall(log), result });
+    }
+    // POST /api/campaign/auto/cancel/:id
+    if (p.startsWith('/api/campaign/auto/cancel/') && req.method === 'POST') {
+      const campId = p.split('/').filter(Boolean).pop();
+      const job = CAMPAIGN_JOBS.get(campId);
+      if (!job || job.code !== undefined) return json(res, 404, { error: 'Tidak ada job berjalan', campId });
+      try { if (job.proc && !job.proc.killed) { try { process.kill(-job.proc.pid, 'SIGKILL'); } catch { try { job.proc.kill('SIGKILL'); } catch {} } } } catch {}
+      job.code = 130; job.finishedAt = Date.now(); job.stage = 'cancelled';
+      try { fs.appendFileSync(job.logPath, '\n[CANCELLED by user]\n'); } catch {}
+      return json(res, 200, { ok: true, cancelled: true, campId });
+    }
 
-    // GET/POST /api/sessions/:session/subtitle — ambil & simpan editan subtitle SRT
+    // GET/POST /api/sessions/:session/subtitle - ambil & simpan editan subtitle SRT
     const mSub = p.match(/^\/api\/sessions\/([^/]+)\/subtitle$/);
     if (mSub) {
       const dir = path.join(SESSIONS, safe(mSub[1]));
@@ -677,7 +1104,7 @@ const server = http.createServer((req, res) => {
         return;
       }
     }
-    // GET/POST /api/presets — simpan & ambil custom presets
+    // GET/POST /api/presets - simpan & ambil custom presets
     if (p === '/api/presets') {
       const pFile = path.join(ROOT, 'config', 'custom_presets.json');
       if (req.method === 'GET') {
@@ -710,7 +1137,7 @@ const server = http.createServer((req, res) => {
         return;
       }
     }
-    // POST /api/delete/:session/:clipDir — hapus folder klip (trash bila ada, fallback rm)
+    // POST /api/delete/:session/:clipDir - hapus folder klip (trash bila ada, fallback rm)
     const mDel = p.match(/^\/api\/delete\/([^/]+)\/([^/]+)$/);
     if (mDel && req.method === 'POST') {
       const dir = path.join(SESSIONS, safe(mDel[1]), 'clips', safe(mDel[2]));
@@ -725,7 +1152,7 @@ const server = http.createServer((req, res) => {
             } catch { fs.rmSync(dir, { recursive: true, force: true }); json(res, 200, { ok: true, method: 'rm' }); }
             return;
     }
-    // POST /api/delete-session/:session — hapus seluruh folder sesi (trash bila ada, fallback rm)
+    // POST /api/delete-session/:session - hapus seluruh folder sesi (trash bila ada, fallback rm)
     const mDelS = p.match(/^\/api\/delete-session\/([^/]+)$/);
     if (mDelS && req.method === 'POST') {
       const dir = path.join(SESSIONS, safe(mDelS[1]));
@@ -740,7 +1167,7 @@ const server = http.createServer((req, res) => {
             } catch { fs.rmSync(dir, { recursive: true, force: true }); json(res, 200, { ok: true, method: 'rm' }); }
             return;
     }
-    // GET /api/config — konfigurasi aktif (satu sumber dengan bot /config)
+    // GET /api/config - konfigurasi aktif (satu sumber dengan bot /config)
     if (p === '/api/config' && req.method === 'GET') {
       try {
         const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'config.json')));
@@ -794,7 +1221,7 @@ const server = http.createServer((req, res) => {
         });
       } catch { return json(res, 500, { error: 'config.json tidak terbaca' }); }
     }
-    // POST /api/config — simpan perubahan parameter (merge; key lain tidak disentuh)
+    // POST /api/config - simpan perubahan parameter (merge; key lain tidak disentuh)
     if (p === '/api/config' && req.method === 'POST') {
       let body = '';
       req.on('data', c => body += c);
@@ -916,7 +1343,7 @@ const server = http.createServer((req, res) => {
       });
       return;
     }
-    // POST /api/test-connection — cek reachable + valid API key (list models, OpenAI-compatible)
+    // POST /api/test-connection - cek reachable + valid API key (list models, OpenAI-compatible)
 const TC_SRC = `import os, json
 from openai import OpenAI
 u=os.environ.get('TC_URL','').strip()
@@ -1061,7 +1488,7 @@ except Exception as e:
   });
   return;
 }
-// GET /api/whisper/models — cek semua faster-whisper model (installed/ size)
+// GET /api/whisper/models - cek semua faster-whisper model (installed/ size)
     if (p === '/api/whisper/models') {
       const sizes = ['tiny','base','small','medium','large-v3'];
       const PYCHK = `from pathlib import Path;import sys;sys.path.insert(0,r'${ROOT.replace(/\\/g,'\\\\')}');from utils.dependency_manager import check_dependency;import json;app=Path(r'${ROOT.replace(/\\/g,'\\\\')}');print(json.dumps({s: check_dependency(f'faster_whisper_model_'+s, app) for s in ['tiny','base','small','medium','large-v3']}))`;
@@ -1076,7 +1503,7 @@ except Exception as e:
       });
       return;
     }
-    // POST /api/whisper/download {size} — download model async
+    // POST /api/whisper/download {size} - download model async
     if (p === '/api/whisper/download' && req.method === 'POST') {
       let body=''; req.on('data',c=>body+=c); req.on('end',()=>{
         let o={}; try{o=JSON.parse(body||'{}')}catch{}
@@ -1092,7 +1519,7 @@ except Exception as e:
       });
       return;
     }
-    // POST /api/dependencies/install — unified download/update for binaries & pip packages
+    // POST /api/dependencies/install - unified download/update for binaries & pip packages
     // body: {target: 'ffmpeg'|'deno'|'mediapipe'|'yt-dlp'|'pip:<pkg>'|'whisper:tiny'|'whisper:base'|'whisper:small'|'whisper:medium'|'whisper:large-v3'}
     if (p === '/api/dependencies/install' && req.method === 'POST') {
       let body=''; req.on('data',c=>body+=c); req.on('end',()=>{
@@ -1129,7 +1556,7 @@ except Exception as e:
           const size=target.split(':')[1];
           // for update: remove old dir first if exists (force re-download)
           child=spawn(PY, ['-c', `${pyPrefix}from pathlib import Path, shutil;from utils.dependency_manager import setup_faster_whisper_model, get_faster_whisper_model_dir;app=Path(r'${ROOT.replace(/\\/g,'\\\\')}');d=get_faster_whisper_model_dir(app,'${size}');\nif d.exists() and (d/'model.bin').exists():\n  import time; print('existing '+str(d)+' will be refreshed');\nok=setup_faster_whisper_model(app,'${size}');print('DONE:'+str(ok));sys.exit(0 if ok else 1)`.replace('${size}', size)], {cwd: ROOT, env});
-          // fix spawn arg interpolation — need size variable
+          // fix spawn arg interpolation - need size variable
         } else if (isPip) {
           child=spawn(PY, ['-m','pip','install','--upgrade', pipPkg], {cwd: ROOT, env});
         }
@@ -1173,7 +1600,7 @@ except Exception as e:
       json(res,200,{log: txt, target});
       return;
     }
-    // GET /api/system — host & runtime overview untuk halaman Dependencies
+    // GET /api/system - host & runtime overview untuk halaman Dependencies
     if (p === '/api/system' && req.method === 'GET') {
       const si = {
         host: os.hostname(),
@@ -1212,7 +1639,7 @@ except Exception as e:
       }).catch(() => json(res, 200, si));
       return;
     }
-    // GET /api/python/packages — pip package versions untuk Dependencies
+    // GET /api/python/packages - pip package versions untuk Dependencies
     if (p === '/api/python/packages' && req.method === 'GET') {
       const PYLIST = `import importlib.metadata as m, json; pkgs=["openai","opencv-python","numpy","Pillow","mediapipe","requests","yt-dlp","curl_cffi","faster-whisper","silero-vad","onnxruntime","google-api-python-client","google-auth-oauthlib","python-telegram-bot","telethon","huggingface_hub","certifi","onnxruntime","Pillow"]; out={}; 
 for p in ["openai","opencv-python","numpy","Pillow","mediapipe","requests","yt-dlp","curl_cffi","faster-whisper","silero-vad","onnxruntime","google-api-python-client","python-telegram-bot","telethon","huggingface_hub","certifi"]:
@@ -1228,7 +1655,7 @@ print(json.dumps(out))`;
       });
       return;
     }
-    // GET /api/binaries — status dependensi (diperluas untuk Dependencies)
+    // GET /api/binaries - status dependensi (diperluas untuk Dependencies)
     if (p === '/api/binaries') {
       const findBin = (name, rel) => {
         const probe = isWin ? [rel + '.exe', rel] : [rel];
@@ -1279,7 +1706,7 @@ print(json.dumps(out))`;
         const node = { name: 'node', ok: true, detail: process.version + ' (' + process.execPath + ')', path: process.execPath, version: process.version };
         let mpDetail = 'tidak terdeteksi';
         let mpPath = path.join(ROOT, 'bin', 'face_landmarker.task');
-        try { const st = fs.statSync(mpPath); mpDetail = mpOk ? (st.size / 1048576).toFixed(1) + ' MB — ' + mpPath : 'tidak terdeteksi'; } catch { mpDetail = mpOk ? mpPath : 'tidak terdeteksi'; }
+        try { const st = fs.statSync(mpPath); mpDetail = mpOk ? (st.size / 1048576).toFixed(1) + ' MB - ' + mpPath : 'tidak terdeteksi'; } catch { mpDetail = mpOk ? mpPath : 'tidak terdeteksi'; }
         const mp = { name: 'mediapipe', ok: !!mpOk, detail: mpDetail, path: mpOk ? mpPath : null, version: mpOk ? mpDetail : '' };
         const out = [byName.ffmpeg, byName.ffprobe, byName.deno, ytdlp, py, node, mp].filter(Boolean);
         json(res, 200, out);
@@ -1292,13 +1719,13 @@ print(json.dumps(out))`;
       });
       return;
     }
-    // POST /api/render/:session/:clipDir — re-render klip dgn config aktif (async + log)
+    // POST /api/render/:session/:clipDir - re-render klip dgn config aktif (async + log)
     const mRen = p.match(/^\/api\/render\/([^/]+)\/([^/]+)$/);
     if (mRen && req.method === 'POST') {
       const sessDir = path.join(SESSIONS, safe(mRen[1]));
       const clipDir = path.join(sessDir, 'clips', safe(mRen[2]));
       if (!clipDir.startsWith(SESSIONS) || !fs.existsSync(clipDir)) return json(res, 404, { error: 'not found' });
-      if (!fs.existsSync(path.join(clipDir, 'landscape.mp4'))) return json(res, 400, { error: 'landscape.mp4 tidak ada — sumber render hilang' });
+      if (!fs.existsSync(path.join(clipDir, 'landscape.mp4'))) return json(res, 400, { error: 'landscape.mp4 tidak ada - sumber render hilang' });
       const key = `${mRen[1]}/${mRen[2]}`;
       const prev = RENDER_JOBS.get(key);
       if (prev && !prev.proc.killed && prev.code === undefined) return json(res, 409, { error: 'render untuk klip ini masih berjalan' });
@@ -1321,7 +1748,7 @@ print(json.dumps(out))`;
       });
       return;
     }
-    // GET /api/render/status/:session/:clipDir — status + tail log
+    // GET /api/render/status/:session/:clipDir - status + tail log
     const mRst = p.match(/^\/api\/render\/status\/([^/]+)\/([^/]+)$/);
     if (mRst) {
       const clipDir = path.join(SESSIONS, safe(mRst[1]), 'clips', safe(mRst[2]));
@@ -1348,7 +1775,7 @@ print(json.dumps(out))`;
         progress: parseOverall(log),
       });
     }
-    // POST /api/create — phase 1: subtitle + AI highlights (seperti bot)
+    // POST /api/create - phase 1: subtitle + AI highlights (seperti bot)
     if (p === '/api/create' && req.method === 'POST') {
       if (CREATE_JOB && CREATE_JOB.code === undefined) return json(res, 409, { error: 'Analisis masih berjalan' });
       let body = '';
@@ -1388,14 +1815,14 @@ print(json.dumps(out))`;
         result,
       });
     }
-    // POST /api/create/cancel — hentikan analisis berjalan
+    // POST /api/create/cancel - hentikan analisis berjalan
     if (p === '/api/create/cancel' && req.method === 'POST') {
       const j = CREATE_JOB;
       if (!j || j.code !== undefined) return json(res, 404, { error: 'Tidak ada analisis berjalan' });
       try { process.kill(-j.proc.pid, 'SIGKILL'); } catch { try { j.proc.kill('SIGKILL'); } catch {} }
       return json(res, 200, { ok: true, cancelled: true });
     }
-    // POST /api/upload/watermark — simpan gambar watermark ke assets/watermarks + set config
+    // POST /api/upload/watermark - simpan gambar watermark ke assets/watermarks + set config
     if (p === '/api/upload/watermark' && req.method === 'POST') {
       let body = '';
       req.on('data', c => body += c);
@@ -1436,7 +1863,7 @@ print(json.dumps(out))`;
           domains: [...new Set(txt.split('\n').map(l => l.trim().split('\t')[0]).filter(d => d && !d.startsWith('#') && !d.startsWith('http')))].slice(0, 10) };
       } catch { return { exists: false }; }
     };
-    // POST /api/cookies — upload cookies.txt (base64 content)
+    // POST /api/cookies - upload cookies.txt (base64 content)
     if (p === '/api/cookies' && req.method === 'POST') {
       let body = '';
       req.on('data', c => body += c); req.on('error', () => {});
@@ -1459,17 +1886,17 @@ print(json.dumps(out))`;
       });
       return;
     }
-    // GET /api/cookies — status cookies
+    // GET /api/cookies - status cookies
     if (p === '/api/cookies' && req.method === 'GET') {
       return json(res, 200, cookiesInfo());
     }
-    // DELETE /api/cookies — hapus cookies
+    // DELETE /api/cookies - hapus cookies
     if (p === '/api/cookies' && req.method === 'DELETE') {
       try { if (fs.existsSync(COOKIES_FILE)) fs.rmSync(COOKIES_FILE); json(res, 200, { ok: true, exists: false }); }
       catch (e) { json(res, 500, { error: String(e) }); }
       return;
     }
-    // POST /api/cookies/test — uji cookies terhadap video YouTube
+    // POST /api/cookies/test - uji cookies terhadap video YouTube
     if (p === '/api/cookies/test' && req.method === 'POST') {
       let body = '';
       req.on('data', c => body += c); req.on('end', () => {
@@ -1485,7 +1912,7 @@ print(json.dumps(out))`;
               ok: false,
               auth: needsAuth ? 'gagal' : 'tidak-yakin',
               message: needsAuth
-                ? 'Cookies TIDAK valid — yt-dlp butuh login (YouTube minta verifikasi). Export cookies baru dari browser yang sudah login.'
+                ? 'Cookies TIDAK valid - yt-dlp butuh login (YouTube minta verifikasi). Export cookies baru dari browser yang sudah login.'
                 : 'yt-dlp gagal menjalankan test: ' + msg.split('\n').slice(-3).join(' '),
               detail: msg.split('\n').slice(-8),
             });
@@ -1524,7 +1951,7 @@ print(json.dumps(out))`;
       }
       return out;
     };
-    // GET /api/bgm — daftar file BGM per mood + toggle status config
+    // GET /api/bgm - daftar file BGM per mood + toggle status config
     if (p === '/api/bgm' && req.method === 'GET') {
       try {
         const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'config.json'), 'utf8'));
@@ -1532,7 +1959,7 @@ print(json.dumps(out))`;
       } catch (e) { json(res, 500, { error: String(e) }); }
       return;
     }
-    // POST /api/bgm — upload file BGM { mood, name, data(base64) }
+    // POST /api/bgm - upload file BGM { mood, name, data(base64) }
     if (p === '/api/bgm' && req.method === 'POST') {
       let body = '';
       req.on('data', c => body += c); req.on('error', () => {});
@@ -1558,7 +1985,7 @@ print(json.dumps(out))`;
       });
       return;
     }
-    // DELETE /api/bgm/:mood/:file — hapus file BGM
+    // DELETE /api/bgm/:mood/:file - hapus file BGM
     const mBgmDel = p.match(/^\/api\/bgm\/([^/]+)\/([^/]+)$/);
     if (mBgmDel && req.method === 'DELETE') {
       try {
@@ -1588,7 +2015,7 @@ print(json.dumps(out))`;
       try { return fs.readdirSync(TRANS_CACHE).filter(f => /\.(mp4|webm|mkv)$/i.test(f)).map(f => { let s=0; try{s=fs.statSync(path.join(TRANS_CACHE,f)).size;}catch{}; return {name:f, size:s}; }); }
       catch { return []; }
     };
-    // GET /api/transitions — daftar pool + status cache + config
+    // GET /api/transitions - daftar pool + status cache + config
     if (p === '/api/transitions' && req.method === 'GET') {
       try {
         const cache = listTransCache();
@@ -1599,7 +2026,7 @@ print(json.dumps(out))`;
       } catch (e) { json(res, 500, { error: String(e) }); }
       return;
     }
-    // POST /api/transitions/download — download semua transisi ke cache (async)
+    // POST /api/transitions/download - download semua transisi ke cache (async)
     if (p === '/api/transitions/download' && req.method === 'POST') {
       fs.mkdirSync(TRANS_CACHE, { recursive: true });
       const logPath = path.join(ROOT, 'output', 'transitions_download.log');
@@ -1613,7 +2040,7 @@ print(json.dumps(out))`;
       json(res, 200, { ok: true, started: true });
       return;
     }
-    // GET /api/transitions/status — status download + log
+    // GET /api/transitions/status - status download + log
     if (p === '/api/transitions/status' && req.method === 'GET') {
       return json(res, 200, {
         running: !!(TRANS_JOB && TRANS_JOB.code === undefined),
@@ -1622,7 +2049,7 @@ print(json.dumps(out))`;
         cache: listTransCache(),
       });
     }
-    // DELETE /api/transitions/cache — bersihkan cache transisi
+    // DELETE /api/transitions/cache - bersihkan cache transisi
     if (p === '/api/transitions/cache' && req.method === 'DELETE') {
       try {
         if (fs.existsSync(TRANS_CACHE)) { for (const f of fs.readdirSync(TRANS_CACHE)) fs.rmSync(path.join(TRANS_CACHE, f), { force: true }); }
@@ -1640,7 +2067,7 @@ print(json.dumps(out))`;
         });
       } catch { return []; }
     };
-    // GET /api/thumbnails — daftar + config
+    // GET /api/thumbnails - daftar + config
     if (p === '/api/thumbnails' && req.method === 'GET') {
       try {
         const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'config.json'), 'utf8'));
@@ -1649,7 +2076,7 @@ print(json.dumps(out))`;
       } catch (e) { json(res, 500, { error: String(e) }); }
       return;
     }
-    // POST /api/thumbnails/generate — { session, clipDir }
+    // POST /api/thumbnails/generate - { session, clipDir }
     if (p === '/api/thumbnails/generate' && req.method === 'POST') {
       let body = '';
       req.on('data', c => body += c); req.on('end', () => {
@@ -1673,7 +2100,7 @@ print(json.dumps(out))`;
       });
       return;
     }
-    // GET /api/thumbnails/file/:name — sajikan file thumbnail
+    // GET /api/thumbnails/file/:name - sajikan file thumbnail
     const mThumbFile = p.match(/^\/api\/thumbnails\/file\/([^/]+)$/);
     if (mThumbFile) {
       const name = path.basename(safe(mThumbFile[1]));
@@ -1684,7 +2111,7 @@ print(json.dumps(out))`;
       fs.createReadStream(fp).pipe(res);
       return;
     }
-    // DELETE /api/thumbnails/file/:name — hapus thumbnail
+    // DELETE /api/thumbnails/file/:name - hapus thumbnail
     const mThumbDel = p.match(/^\/api\/thumbnails\/file\/([^/]+)$/);
     if (mThumbDel && req.method === 'DELETE') {
       try {
@@ -1695,7 +2122,7 @@ print(json.dumps(out))`;
       } catch (e) { json(res, 500, { error: String(e) }); }
       return;
     }
-    // POST /api/refind/:session — regenerate highlights sesi ada (async + log)
+    // POST /api/refind/:session - regenerate highlights sesi ada (async + log)
     const mRef = p.match(/^\/api\/refind\/([^/]+)$/);
     if (mRef && req.method === 'POST') {
       const sid = safe(mRef[1]);
@@ -1737,7 +2164,7 @@ print(json.dumps(out))`;
         result,
       });
     }
-    // GET /api/dashboard — ringkasan agregat: total klip, viral tertinggi, story outputs, klip terbaru
+    // GET /api/dashboard - ringkasan agregat: total klip, viral tertinggi, story outputs, klip terbaru
         if (p === '/api/dashboard') {
           try {
             const sessions = listSessions(); // pakai cache 1.5s, bukan _listSessions raw scan
@@ -1787,7 +2214,7 @@ print(json.dumps(out))`;
             });
           } catch (e) { return json(res, 500, { error: String(e) }); }
         }
-    // POST /api/story/run — jalankan Story Clip pipeline (multi-source) async
+    // POST /api/story/run - jalankan Story Clip pipeline (multi-source) async
     if (p === '/api/story/run' && req.method === 'POST') {
       const prev = STORY_JOBS.get('run');
       if (prev && prev.code === undefined) return json(res, 409, { error: 'Story pipeline masih berjalan' });
@@ -1848,7 +2275,7 @@ print(json.dumps(out))`;
       try { process.kill(-j.proc.pid, 'SIGKILL'); } catch { try { j.proc.kill('SIGKILL'); } catch {} }
       return json(res, 200, { ok: true, cancelled: true });
     }
-    // GET /api/story/outputs — daftar hasil dari output/story_clips
+    // GET /api/story/outputs - daftar hasil dari output/story_clips
     if (p === '/api/story/outputs') {
       try {
         const base = path.join(ROOT, 'output', 'story_clips');
@@ -1865,7 +2292,7 @@ print(json.dumps(out))`;
         return json(res, 200, list);
       } catch (e) { return json(res, 500, { error: String(e) }); }
     }
-    // POST /api/fb/upload — jalankan Facebook Reels uploader async
+    // POST /api/fb/upload - jalankan Facebook Reels uploader async
     if (p === '/api/fb/upload' && req.method === 'POST') {
       const prev = FB_JOBS.get('run');
       if (prev && prev.code === undefined) return json(res, 409, { error: 'Facebook upload masih berjalan' });
@@ -1908,7 +2335,7 @@ print(json.dumps(out))`;
       try { process.kill(-j.proc.pid, 'SIGKILL'); } catch { try { j.proc.kill('SIGKILL'); } catch {} }
       return json(res, 200, { ok: true, cancelled: true });
     }
-    // GET /api/story/sources | /api/story/recipe — baca JSON input (untuk editor UI)
+    // GET /api/story/sources | /api/story/recipe - baca JSON input (untuk editor UI)
     if (p === '/api/story/read' && req.method === 'GET') {
       const url = new URL(req.url, 'http://x');
       const file = String(url.searchParams.get('file') || '').replace(/[^a-z_]/gi, '');
@@ -1919,7 +2346,7 @@ print(json.dumps(out))`;
         return json(res, 200, { ok: true, content: fs.readFileSync(fp, 'utf8') });
       } catch (e) { return json(res, 500, { error: String(e) }); }
     }
-    // POST /api/story/save {file:'sources'|'recipe', content} — simpan JSON input ke output/story
+    // POST /api/story/save {file:'sources'|'recipe', content} - simpan JSON input ke output/story
     if (p === '/api/story/save' && req.method === 'POST') {
       let body = ''; req.on('data', c => body += c); req.on('end', () => {
         let o = {}; try { o = JSON.parse(body || '{}'); } catch {}
@@ -1938,7 +2365,7 @@ print(json.dumps(out))`;
       });
       return;
     }
-    // GET /api/fb/manifests — daftar render_manifest*.json di output/
+    // GET /api/fb/manifests - daftar render_manifest*.json di output/
     if (p === '/api/fb/manifests') {
       try {
         const outDir = path.join(ROOT, 'output');
@@ -1946,7 +2373,7 @@ print(json.dumps(out))`;
         return json(res, 200, files.map(f => ({ name: f, rel: path.join('output', f), abs: path.join(outDir, f), size: (() => { try { return fs.statSync(path.join(outDir, f)).size; } catch { return 0; } })() })));
       } catch (e) { return json(res, 500, { error: String(e) }); }
     }
-    // POST /api/tasks/stop — hentikan job berjalan (SIGTERM → SIGKILL tree)
+    // POST /api/tasks/stop - hentikan job berjalan (SIGTERM → SIGKILL tree)
     if (p === '/api/tasks/stop' && req.method === 'POST') {
       let body = '';
       req.on('data', c => body += c);
@@ -1959,13 +2386,19 @@ print(json.dumps(out))`;
         else if (kind === 'refind') { job = REFIND_JOBS.get(qs); label = `re-find ${qs}`; }
         else if (kind === 'process') { job = PROCESS_JOBS.get(qs); label = `process ${qs}`; }
         else if (kind === 'render') { job = RENDER_JOBS.get(`${qs}/${qc}`); label = `render ${qs}/${qc}`; }
+        else if (kind === 'campaign') { 
+          let campId = qs.startsWith('tk_') ? qs.slice(3) : qs;
+          job = CAMPAIGN_JOBS.get(campId) || CAMPAIGN_JOBS.get(qs);
+          if (!job) { for (const [cid, cj] of CAMPAIGN_JOBS) if (cj.session_id === qs) { job = cj; break; } }
+          label = `campaign ${campId || qs}`;
+        }
         else if (kind === 'story') { job = STORY_JOBS.get('run'); label = 'story clip'; }
         else if (kind === 'fb') { job = FB_JOBS.get('run'); label = 'facebook upload'; }
         if (!job) return json(res, 404, { error: 'job tidak ditemukan' });
         if (job.code !== undefined) return json(res, 409, { error: 'job sudah selesai' });
         try {
           const pid = job.proc.pid;
-                    // bunuh subtree (python bisa spawn ffmpeg) — pkill di Unix, taskkill /T di Windows
+                    // bunuh subtree (python bisa spawn ffmpeg) - pkill di Unix, taskkill /T di Windows
                     if (isWin) {
                       try { execFileSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore' }); } catch {}
                     } else {
@@ -1978,7 +2411,7 @@ print(json.dumps(out))`;
       });
       return;
     }
-    // GET /api/tasks — daftar semua job per sesi (buat halaman tasks)
+    // GET /api/tasks - daftar semua job per sesi (buat halaman tasks)
     if (p === '/api/tasks') {
       const jobs = [];
       if (CREATE_JOB) {
@@ -1996,6 +2429,7 @@ print(json.dumps(out))`;
         const [sid, clip] = key.split('/');
         jobs.push({ kind: 'render', type: '⚙️ Render', session: sid, detail: clip, running: j.code === undefined, code: j.code, elapsed_s: Math.round(((j.code !== undefined && j.finishedAt ? j.finishedAt : Date.now()) - j.startedAt) / 1000), logPath: path.join(SESSIONS, sid, 'clips', clip, 'render.log') });
       }
+      for (const [campId, j] of CAMPAIGN_JOBS) jobs.push({ kind: 'campaign', type: '🚀 Campaign Auto', session: j.session_id || `tk_${campId}`, detail: `${campId} - ${j.stage} ${j.preset || ''}`.trim(), running: j.code === undefined, code: j.code, elapsed_s: Math.round(((j.code !== undefined && j.finishedAt ? j.finishedAt : Date.now()) - j.startedAt) / 1000), logPath: j.logPath });
       const storyJ = STORY_JOBS.get('run');
       if (storyJ) jobs.push({ kind: 'story', type: '🎬 Story Clip', session: '-', detail: '', running: storyJ.code === undefined, code: storyJ.code, elapsed_s: Math.round(((storyJ.code !== undefined && storyJ.finishedAt ? storyJ.finishedAt : Date.now()) - storyJ.startedAt) / 1000), logPath: storyJ.logPath });
       const fbJ = FB_JOBS.get('run');
@@ -2007,7 +2441,7 @@ print(json.dumps(out))`;
       }
       return json(res, 200, jobs);
     }
-    // GET /api/tasks/log?kind=&session=&clip= — log/debug satu job
+    // GET /api/tasks/log?kind=&session=&clip= - log/debug satu job
     if (p === '/api/tasks/log') {
       const kind = u.searchParams.get('kind');
       const qs = u.searchParams.get('session') || '';
@@ -2018,6 +2452,17 @@ print(json.dumps(out))`;
         else if (kind === 'refind') { job = REFIND_JOBS.get(qs); logPath = qs ? path.join(SESSIONS, safe(qs), 'refind.log') : null; }
         else if (kind === 'process') { job = PROCESS_JOBS.get(qs); logPath = qs ? path.join(SESSIONS, safe(qs), 'process.log') : null; }
         else if (kind === 'render') { job = RENDER_JOBS.get(`${qs}/${qc}`); logPath = qs && qc ? path.join(SESSIONS, safe(qs), 'clips', safe(qc), 'render.log') : null; }
+        else if (kind === 'campaign') { 
+          // qs is campaign public_id (e.g. 4273c29e-...) or tk_xxx; support both
+          let key = qs || (qc ? qc.split('/').pop() : '');
+          // strip tk_ prefix if present
+          let campId = key.startsWith('tk_') ? key.slice(3) : key;
+          job = CAMPAIGN_JOBS.get(campId) || CAMPAIGN_JOBS.get(key);
+          if (!job) {
+            for (const [cid, cj] of CAMPAIGN_JOBS) if (cj.session_id === key) { job = cj; break; }
+          }
+          logPath = job && job.logPath;
+        }
         else if (kind === 'story') { job = STORY_JOBS.get('run'); logPath = job && job.logPath; }
         else if (kind === 'fb') { job = FB_JOBS.get('run'); logPath = job && job.logPath; }
         else return json(res, 400, { error: 'bad kind' });
@@ -2030,7 +2475,7 @@ print(json.dumps(out))`;
         log: logPath ? tailFile(logPath) : '',
       });
     }
-    // GET /api/highlights/:session — daftar highlight utk picker
+    // GET /api/highlights/:session - daftar highlight utk picker
     const mHl = p.match(/^\/api\/highlights\/([^/]+)$/);
     if (mHl) {
       try {
@@ -2042,7 +2487,7 @@ print(json.dumps(out))`;
         })));
       } catch { return json(res, 404, { error: 'not found' }); }
     }
-    // POST /api/process/:session — phase 2: download section + render terpilih
+    // POST /api/process/:session - phase 2: download section + render terpilih
     const mProc = p.match(/^\/api\/process\/([^/]+)$/);
     if (mProc && req.method === 'POST') {
       const sessDir = path.join(SESSIONS, safe(mProc[1]));
@@ -2088,7 +2533,7 @@ print(json.dumps(out))`;
         progress: parseOverall(tailFile(path.join(SESSIONS, sid, 'process.log'))),
       });
     }
-    // POST /api/process/cancel/:session — hentikan render sesi berjalan
+    // POST /api/process/cancel/:session - hentikan render sesi berjalan
     const mPcx = p.match(/^\/api\/process\/cancel\/([^/]+)$/);
     if (mPcx && req.method === 'POST') {
       const job = PROCESS_JOBS.get(safe(mPcx[1]));
@@ -2096,7 +2541,7 @@ print(json.dumps(out))`;
       try { process.kill(-job.proc.pid, 'SIGKILL'); } catch { try { job.proc.kill('SIGKILL'); } catch {} }
       return json(res, 200, { ok: true, cancelled: true });
     }
-    // /thumb/:session/:clipDir — frame @3s, cached ke thumb.jpg (opsional :file = file gambar asli di folder clip)
+    // /thumb/:session/:clipDir - frame @3s, cached ke thumb.jpg (opsional :file = file gambar asli di folder clip)
     const mThumb = p.match(/^\/thumb\/([^/]+)\/([^/]+)(?:\/([^/]+))?$/);
     if (mThumb) {
       const dir = path.join(SESSIONS, safe(mThumb[1]), 'clips', safe(mThumb[2]));

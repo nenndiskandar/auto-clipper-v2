@@ -26,6 +26,7 @@ except ImportError:
     vision = None
 
 from pathlib import Path
+import pathlib
 from datetime import datetime
 from openai import OpenAI, APIError, APIConnectionError, RateLimitError, APIStatusError
 from utils.logger import debug_log
@@ -636,14 +637,24 @@ class HighlightMixin:
                     h["description"] = h.get("title", "No description")
                     self.log(f"  ⚠ Missing description for '{h.get('title', 'Unknown')}', using title")
             
-                if 58 <= duration <= 120:
+                # Anti-gagal short video: kalau video <60s, izin klip sepanjang video (80% durasi)
+                _vid_dur = (video_info or {}).get('duration') or 0
+                _min_dur = 58
+                _max_dur = 120
+                if _vid_dur and _vid_dur < 60:
+                    _min_dur = max(12, int(_vid_dur * 0.8))
+                    _max_dur = int(_vid_dur)
+                elif _vid_dur and _vid_dur < 90:
+                    _min_dur = 28
+                    _max_dur = int(_vid_dur)
+                if _min_dur <= duration <= _max_dur:
                     valid.append(h)
                     virality = h.get("virality_score", 5)
                     self.log(f"  ✓ {h['title']} ({duration:.0f}s) [🔥 {virality}/10]")
-                elif duration > 120:
-                    self.log(f"  ✗ {h['title']} ({duration:.0f}s) - Too long, skipped")
-                elif duration < 58:
-                    self.log(f"  ✗ {h['title']} ({duration:.0f}s) - Too short, skipped")
+                elif duration > _max_dur:
+                    self.log(f"  ✗ {h['title']} ({duration:.0f}s) - Too long (>{_max_dur}s), skipped")
+                elif duration < _min_dur:
+                    self.log(f"  ✗ {h['title']} ({duration:.0f}s) - Too short (<{_min_dur}s), skipped")
             
                 if not auto_mode and len(valid) >= num_clips:
                     break
@@ -716,14 +727,17 @@ class HighlightMixin:
             if progress_callback is not None:
                 self.set_progress = progress_callback
             # Use video ID (from URL) as session folder name instead of timestamp+title
+            video_id = extract_video_id(url)
+            if not video_id:
+                # non-youtube (GDrive/TikTok) has no yt ID → use safe slug
+                video_id = re.sub(r'[^a-zA-Z0-9_-]', '_', url.split('?')[0].split('/')[-1])[:24] or "unknown"
+                if len(video_id) < 4:
+                    video_id = "unknown"
             if session_dir:
                 # Retry: reuse existing session directory
                 session_dir = Path(session_dir)
                 session_dir.mkdir(parents=True, exist_ok=True)
             else:
-                video_id = extract_video_id(url)
-                if not video_id:
-                    video_id = "unknown"
                 session_dir = self.output_dir / "sessions" / video_id
                 session_dir.mkdir(parents=True, exist_ok=True)
         
@@ -762,9 +776,7 @@ class HighlightMixin:
         
             is_youtube = 'youtube.com' in url or 'youtu.be' in url
             if not is_youtube:
-                # Non-YouTube: jika video sumber sudah ada (hasil phase 2 / re-generate),
-                # pakai transkripsi Whisper + AI highlight supaya Re-generate menghasilkan
-                # beberapa momen, bukan cuma 1 klip penuh.
+                # Non-YouTube: coba AI highlight via transkripsi (TikTok, GDrive, IG, FB)
                 source_video = self._find_source_video(session_dir)
                 if source_video:
                     try:
@@ -776,10 +788,29 @@ class HighlightMixin:
                         if sd and sd.get("highlights"):
                             return sd
                     except Exception as e:
-                        self.log(f"  Transkripsi/AI gagal, fallback 1 klip penuh: {e}")
+                        self.log(f"  Transkripsi/AI gagal, fallback coba download: {e}")
+                # First run: download video lalu transkripsi lokal (anti-gagal 1b)
+                if FASTER_WHISPER_AVAILABLE:
+                    try:
+                        self.log("  Non-YouTube URL — download video untuk transkripsi + AI highlight...")
+                        self.set_progress("Downloading video for transcription...", 0.2)
+                        video_path_ny, _, vid_info_ny = self.download_video(url)
+                        if video_path_ny and vid_info_ny:
+                            video_info = vid_info_ny
+                            session_data["video_info"] = video_info
+                            self._save_session_data(session_data_file, session_data)
+                            self.log("  Transcribing with Faster-Whisper locally (no API)...")
+                            self.set_progress("Transcribing with Faster-Whisper...", 0.4)
+                            sd2 = self.find_highlights_with_transcription(
+                                video_path_ny, video_info, num_clips, str(session_dir), url=url
+                            )
+                            if sd2 and sd2.get("highlights"):
+                                return sd2
+                    except Exception as e:
+                        self.log(f"  Download/transkripsi non-YouTube gagal: {e} — fallback 1 klip")
 
-                # Fallback: 1 highlight full video (tanpa AI) — menjaga phase-1 create tetap ringan
-                self.log("  Non-YouTube URL — skip subtitle/AI, 1 highlight full video.")
+                # Fallback: 1 highlight full video (tanpa AI)
+                self.log("  Non-YouTube URL — fallback 1 highlight full video.")
                 video_info = self._get_non_youtube_info(url, video_id)
                 dur = int(video_info.get('duration') or 60)
                 highlights=[{"start_time":"00:00:00,000","end_time": f"{dur//3600:02d}:{(dur%3600)//60:02d}:{dur%60:02d},000", "title": video_info["title"][:50], "description":"Full video (non-YouTube)", "virality_score": 8, "hook_text": video_info["title"][:40], "duration_seconds": dur, "transcript_text": ""}]
@@ -821,15 +852,54 @@ class HighlightMixin:
                 # Step 2: Find highlights
                 self.set_progress("Finding highlights with AI...", 0.5)
                 if not srt_path:
-                    # Video tanpa subtitle bahasa target -> stop proses (tanpa fallback)
-                    session_data["status"] = "failed"
-                    self._save_session_data(session_data_file, session_data)
-                    raise Exception(
-                        f"\u274c Video ini tidak punya subtitle '{self.subtitle_language}' "
-                        "(manual maupun otomatis). Proses dihentikan."
-                    )
-                transcript = self.parse_srt(srt_path)
-                highlights = self.find_highlights(transcript, video_info, num_clips)
+                    # No subtitle -> fallback: download video + Faster-Whisper (lokal, anti-gagal)
+                    self.log(f"  No subtitle '{self.subtitle_language}' found, trying Faster-Whisper fallback...")
+                    if not FASTER_WHISPER_AVAILABLE:
+                        session_data["status"] = "failed"
+                        self._save_session_data(session_data_file, session_data)
+                        raise Exception(
+                            f"\u274c Video ini tidak punya subtitle '{self.subtitle_language}' "
+                            "dan Faster-Whisper tidak tersedia. Install faster-whisper atau coba video lain."
+                        )
+                    try:
+                        self.log("  Downloading video for local transcription (fallback)...")
+                        self.set_progress("Downloading video for transcription...", 0.35)
+                        video_path_fb, _, vid_info_fb = self.download_video(url)
+                        if vid_info_fb:
+                            # merge fallback info if primary was empty
+                            if not video_info:
+                                video_info = vid_info_fb
+                            else:
+                                for k in ["title","channel","duration"]:
+                                    if not video_info.get(k) and vid_info_fb.get(k):
+                                        video_info[k]=vid_info_fb[k]
+                            session_data["video_info"] = video_info
+                            self._save_session_data(session_data_file, session_data)
+                        self.log("  Transcribing with Faster-Whisper locally (no API)...")
+                        self.set_progress("Transcribing with Faster-Whisper...", 0.45)
+                        transcript = self._transcribe_full_faster_whisper(video_path_fb)
+                        word_count = len((transcript or "").split())
+                        if not transcript or word_count < 15:
+                            raise ValueError(f"Transcript too short ({word_count} words) - not enough speech")
+                        self.log(f"  Transcript ready ({word_count} words), finding highlights...")
+                        highlights = self.find_highlights(transcript, video_info, num_clips)
+                        # save transcript fallback as srt-like for debugging
+                        try:
+                            fallback_srt = self._srt_output_dir() / f"source.{self.subtitle_language}.srt"
+                            fallback_srt.parent.mkdir(parents=True, exist_ok=True)
+                            with open(fallback_srt, "w", encoding="utf-8") as f:
+                                f.write(transcript)
+                            srt_path = str(fallback_srt)
+                        except Exception:
+                            pass
+                    except Exception as e:
+                        session_data["status"] = "failed"
+                        session_data["error"] = str(e)[:400]
+                        self._save_session_data(session_data_file, session_data)
+                        raise Exception(f"Fallback transcription failed: {e}") from e
+                else:
+                    transcript = self.parse_srt(srt_path)
+                    highlights = self.find_highlights(transcript, video_info, num_clips)
             
                 if self.is_cancelled():
                     session_data["status"] = "cancelled"
@@ -973,26 +1043,32 @@ class HighlightMixin:
                                 resolution
                             )
                     except Exception as e:
-                        if not is_youtube:
-                            self.log(f"  ⚠ Section download failed for non-YouTube, fallback ke full download + ffmpeg cut")
-                            try:
-                                full_tmp = str(session_dir / f"_full_{i}.mp4")
+                        # Anti-gagal: semua sumber fallback ke full download + ffmpeg cut (YouTube n-challenge sering 403)
+                        self.log(f"  ⚠ Section download failed ({'YouTube' if is_youtube else 'non-YouTube'}), fallback full download + ffmpeg cut: {str(e)[:200]}")
+                        try:
+                            full_tmp = str(session_dir / f"_full_{i}.mp4")
+                            # pakai cache full video kalau sudah ada
+                            if not pathlib.Path(full_tmp).exists() or pathlib.Path(full_tmp).stat().st_size < 1024*100:
+                                self.log(f"  Downloading full video for fallback cut...")
                                 self._download_full_video(url, full_tmp)
-                                s=self._srt_to_sec(highlight["start_time"]); ee=self._srt_to_sec(highlight["end_time"])
-                                dur=ee-s if (ee>s) else 60
-                                cut_cmd=[self.ffmpeg_path,"-y","-ss",str(max(0,s)),"-i",full_tmp,"-t",str(dur),"-c","copy",section_path]
-                                subprocess.run(cut_cmd, check=True, creationflags=SUBPROCESS_FLAGS)
-                                video_path=section_path
-                            except Exception as e2:
-                                self.log(f"  ✗ Fallback also failed: {e2}")
-                                raise e
-                        else:
-                            self.log(f"  ✗ Failed to download section: {e}")
+                            else:
+                                self.log(f"  Reusing cached full video {full_tmp}")
+                            s=self._srt_to_sec(highlight["start_time"]); ee=self._srt_to_sec(highlight["end_time"])
+                            dur=ee-s if (ee>s) else 60
+                            # re-encode cut biar keyframe pas ( -c copy kadang blank di awal )
+                            cut_cmd=[self.ffmpeg_path,"-y","-ss",str(max(0,s)),"-i",full_tmp,"-t",str(dur),"-c:v","libx264","-preset","ultrafast","-crf","18","-c:a","aac","-b:a","128k",section_path]
+                            self.log(f"  Cutting {s:.1f}s->{ee:.1f}s ({dur:.1f}s) -> {section_path}")
+                            subprocess.run(cut_cmd, check=True, creationflags=SUBPROCESS_FLAGS, capture_output=True, text=True)
+                            video_path=section_path
+                            self.log(f"  ✓ Fallback cut OK {dur:.1f}s")
+                        except Exception as e2:
+                            self.log(f"  ✗ Fallback also failed: {e2}")
+                            # kalau fallback gagal juga, baru raise asli
                             raise Exception(
                                 f"Failed to download video section for clip {i}!\n\n"
                                 f"Title: {highlight.get('title', 'Untitled')}\n"
                                 f"Time: {highlight['start_time']} → {highlight['end_time']}\n\n"
-                                f"Error: {str(e)}"
+                                f"Error: {str(e)} | Fallback: {str(e2)}"
                             )
                 
                     # Step B: Process the downloaded section

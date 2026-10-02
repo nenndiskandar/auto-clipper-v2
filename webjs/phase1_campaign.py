@@ -25,11 +25,11 @@ def setup_campaign_session(campaign_id):
         with urllib.request.urlopen(req, timeout=15) as res:
             data = json.loads(res.read().decode('utf-8'))
             if data.get('status') != 'success' or not data.get('data'):
-                print(json.dumps({'ok': False, 'error': 'Campaign tidak ditemukan atau API error'}))
+                print(json.dumps({'ok': False, 'error': 'Campaign tidak ditemukan atau API error'}, ensure_ascii=False), flush=True)
                 return
             camp = data['data']
     except Exception as e:
-        print(json.dumps({'ok': False, 'error': f"Fetch error: {str(e)}"}))
+        print(json.dumps({'ok': False, 'error': f"Fetch error: {str(e)}"}, ensure_ascii=False), flush=True)
         return
 
     # 2. Setup direktori sesi tk_<id>
@@ -39,12 +39,14 @@ def setup_campaign_session(campaign_id):
     os.makedirs(session_dir, exist_ok=True)
     os.makedirs(raw_dir, exist_ok=True)
 
-    # 3. Format payload brief
+    # 3. Format payload brief (sinkron ternakklip.html - biar session ngerti semua)
     brief_data = {
         "campaign_id": camp.get("public_id"),
+        "public_id": camp.get("public_id"),
         "title": camp.get("title", ""),
         "client_name": camp.get("client_name", ""),
         "client_avatar_url": camp.get("client_avatar_url"),
+        "thumbnail_url": camp.get("thumbnail_url"),
         "description": camp.get("description", ""),
         "file_brief_url": camp.get("file_brief_url"),
         "share_url": camp.get("share_url"),
@@ -54,7 +56,17 @@ def setup_campaign_session(campaign_id):
         "min_threshold": camp.get("min_threshold"),
         "max_threshold": camp.get("max_threshold"),
         "tags": [t.get("label") for t in camp.get("tags", []) if isinstance(t, dict) and "label" in t],
-        "source_links": camp.get("source_links", [])
+        "tags_raw": camp.get("tags", []),
+        "source_links": camp.get("source_links", []),
+        "platform": camp.get("platform", []),
+        "language": camp.get("language", []),
+        "is_accumulation": bool(camp.get("is_accumulation")),
+        "is_umkm": bool(camp.get("is_umkm")),
+        "is_special_collab": bool(camp.get("is_special_collab")),
+        "is_show_budget": bool(camp.get("is_show_budget", True)),
+        "total_participants": camp.get("total_participants", 0),
+        "created_at": camp.get("created_at"),
+        "updated_at": camp.get("updated_at"),
     }
 
     # Simpan campaign_brief.json
@@ -80,15 +92,11 @@ def setup_campaign_session(campaign_id):
             json.dump(base_session_data, f, indent=2, ensure_ascii=False)
 
     debug_log(f"[+] Master Sesi {session_id} siap. Menampung {len(brief_data['source_links'])} sumber bahan.")
-    print(json.dumps({
-        'ok': True,
-        'session_id': session_id,
-        'session_dir': session_dir,
-        'campaign': brief_data
-    }))
+    # compact single-line JSON ke stdout (server parse), debug ke stderr via logger
+    print(json.dumps({'ok': True, 'session_id': session_id, 'session_dir': session_dir, 'campaign': brief_data}, ensure_ascii=False), flush=True)
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
-        print(json.dumps({'ok': False, 'error': 'Campaign ID required'}))
+        print(json.dumps({'ok': False, 'error': 'Campaign ID required'}, ensure_ascii=False), flush=True)
         sys.exit(1)
     setup_campaign_session(sys.argv[1])

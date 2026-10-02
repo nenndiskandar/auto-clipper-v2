@@ -13,7 +13,7 @@
     surface: { 0:'var(--bg-page)', 1:'var(--bg-surface)', 2:'var(--bg-surface-2)', 3:'var(--border)' },
     zinc: { 450: '#8b8b96', 650: '#43434c' },
     accent: 'var(--accent)',
-  }}}
+  }}}}
   </script>
   <style>
   a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid #facc15 !important; outline-offset: 2px !important; }
@@ -23,13 +23,25 @@
   .hl-item{border-color:var(--border)!important;background:transparent}
   .hl-item:hover{background:var(--bg-surface-2)}
   .card-panel{border:1px solid var(--border);background:var(--bg-surface-1)}
+  /* antislop ternakklip specific */
+  .tk-card{border:1px solid var(--border);background:var(--bg-surface);border-radius:12px;overflow:hidden;transition:border-color .2s, box-shadow .2s, transform .2s}
+  .tk-card:hover{border-color:var(--accent);box-shadow:0 4px 20px rgba(0,0,0,.08)}
+  html.dark .tk-card:hover{box-shadow:0 8px 24px rgba(0,0,0,.35)}
+  .tk-card.featured{border-color:var(--accent);background:var(--accent-bg-subtle)}
+  .chip{border:1px solid var(--border);background:var(--bg-surface);color:var(--text-secondary);border-radius:9999px;padding:.32rem .72rem;font-size:11px;font-weight:600;transition:all .15s;min-height:30px;display:inline-flex;align-items:center;gap:.35rem;cursor:pointer}
+  .chip:hover{border-color:var(--border-hover);color:var(--text-primary)}
+  .chip.active{border-color:var(--accent);background:var(--accent);color:var(--accent-text)}
+  .chip-count{font-size:10px;opacity:.7;font-weight:500}
+  .tk-skeleton{background:linear-gradient(90deg,var(--bg-surface-2) 25%,var(--border) 37%,var(--bg-surface-2) 63%);background-size:400% 100%;animation:shimmer 1.2s ease infinite}
+  @keyframes shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}
+  .line-clamp-2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
   </style>
   <link rel="stylesheet" href="/app.css?v=20260921_1">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
 <body class="min-h-screen flex flex-col md:flex-row antialiased">
 
-<aside class="w-full md:w-64 border-b md:border-b-0 md:border-r border-zinc-800  flex flex-col shrink-0">
+<aside class="w-full md:w-64 border-b md:border-b-0 md:border-r border-zinc-800 flex flex-col shrink-0">
   <div class="p-4 border-b border-zinc-800 flex items-center justify-between">
     <div class="flex items-center gap-2">
       <span class="w-7 h-7 rounded-lg logo-mark flex items-center justify-center font-black text-sm"><i class="bi bi-lightning-charge-fill text-amber-400"></i></span>
@@ -76,239 +88,926 @@
 </aside>
 
 <div class="flex-1 flex flex-col min-w-0 overflow-y-auto">
-  <div class="flex flex-col lg:flex-row max-w-[1400px] w-full mx-auto gap-4 p-4">
-    <main class="flex-1 min-w-0 space-y-3">
+  <div class="max-w-[1480px] w-full mx-auto">
+    <!-- Page header: one focal point -->
+    <div class="px-4 pt-4 pb-3">
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div class="min-w-0">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="w-1 h-5 rounded-full bg-[var(--accent)]"></span>
+            <h1 class="text-[15px] md:text-[18px] font-extrabold tracking-tight text-[var(--text-primary)] font-heading">TernakKlip Campaigns</h1>
+            <span id="tkLiveDot" class="hidden items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Live 174</span>
+          </div>
+          <p class="text-xs text-[var(--text-muted)] leading-relaxed max-w-[640px]">Pilih campaign, ambil sumber video, langsung jadi sesi clip. Hadiah dan peserta update real time dari TernakKlip. Search sinkron ke server, filter dan sort lokal instan.</p>
+        </div>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <a href="https://app.ternakklip.com" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 min-h-[36px] px-3 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-hover)] transition"><i class="bi bi-box-arrow-up-right"></i>Buka TernakKlip</a>
+          <button onclick="loadTernakKlip(TERNK_META.page||1)" class="inline-flex items-center gap-1.5 min-h-[36px] px-3 rounded-lg bg-[var(--bg-surface-2)] border border-[var(--border)] text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition" title="Refresh"><i class="bi bi-arrow-clockwise"></i><span class="hidden sm:inline">Refresh</span></button>
+        </div>
+      </div>
+    </div>
 
-      <div class="bg-surface-1 border border-zinc-800 rounded-lg">
-        <div class="px-4 py-2.5 border-b border-zinc-800"><span class="text-xs font-medium text-zinc-400 uppercase tracking-wider"><i class="bi bi-bullseye text-teal-400"></i> TernakKlip Campaigns</span></div>
-        <div class="p-4" id="ternakArea">
-          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-            <div class="flex gap-2">
-              <input id="tkSearch" type="text" placeholder="Cari campaign..." class="flex-1 min-w-[200px] bg-surface-2 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[var(--accent)]">
-              <button onclick="loadTernakKlip(1)" class="px-3 py-1.5 bg-surface-2 border border-zinc-700 rounded-lg text-xs text-zinc-300 hover:text-white hover:border-zinc-500 transition"><i class="bi bi-arrow-clockwise text-sky-400"></i> Refresh</button>
+    <div class="flex flex-col xl:flex-row gap-4 px-4 pb-4">
+      <main class="flex-1 min-w-0 space-y-3">
+        <!-- Filter bar -->
+        <div class="card-panel p-3 space-y-3">
+          <div class="flex flex-col sm:flex-row gap-2">
+            <div class="relative flex-1 min-w-0">
+              <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] text-xs"></i>
+              <input id="tkSearch" type="text" placeholder="Cari judul atau client, mis. Labore, DBS, Glow FX..." class="w-full pl-9 pr-9 py-2 rounded-lg border text-xs bg-[var(--bg-surface)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)]" autocomplete="off">
+              <button id="tkClearSearch" class="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 hidden items-center justify-center rounded-full bg-[var(--bg-surface-2)] text-[var(--text-muted)] hover:text-[var(--text-primary)] text-[10px]" aria-label="Hapus pencarian"><i class="bi bi-x-lg"></i></button>
             </div>
-            <span id="tkPageInfo" class="text-[10px] text-zinc-500"></span>
+            <div class="flex items-center gap-2 shrink-0">
+              <select id="tkSort" class="min-h-[36px] rounded-lg border px-2.5 text-xs bg-[var(--bg-surface)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]">
+                <option value="newest">Terbaru</option>
+                <option value="prize_high">Hadiah tertinggi</option>
+                <option value="prize_low">Hadiah terendah</option>
+                <option value="participants_high">Peserta terbanyak</option>
+                <option value="title_az">Judul A ke Z</option>
+              </select>
+              <div class="flex rounded-lg border border-[var(--border)] overflow-hidden">
+                <button id="btnGrid" onclick="setView('grid')" class="w-9 h-[36px] flex items-center justify-center bg-[var(--accent)] text-[var(--accent-text)]" aria-label="Grid view" title="Grid"><i class="bi bi-grid-3x3-gap"></i></button>
+                <button id="btnList" onclick="setView('list')" class="w-9 h-[36px] flex items-center justify-center bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text-primary)]" aria-label="List view" title="List"><i class="bi bi-view-stacked"></i></button>
+              </div>
+            </div>
           </div>
-          <div id="tkStatus"></div>
-          <div id="tkGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3"></div>
-          <div id="tkPagination" class="flex justify-center gap-1.5 mt-3"></div>
-        </div>
-      </div>
 
-      <!-- Modal Detail -->
-      <div id="tkDetailModal" role="dialog" aria-hidden="true" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-        <div class="bg-surface-1 border border-zinc-800 rounded-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
-          <div class="flex items-center justify-between px-4 py-2.5 border-b border-zinc-800">
-            <h3 id="tkModalTitle" class="text-xs font-bold text-zinc-200 truncate max-w-[300px]">Campaign Detail</h3>
-            <button onclick="Modal.hide('tkDetailModal')" class="text-zinc-400 hover:text-white text-xl">&times;</button>
+          <div class="flex flex-wrap items-center gap-1.5">
+            <span class="text-[10px] font-bold tracking-widest uppercase text-[var(--text-muted)] mr-1">Filter:</span>
+            <button data-filter="all" class="chip active" onclick="setChip('all')"><i class="bi bi-stars"></i>Semua</button>
+            <button data-filter="accumulation" class="chip" onclick="setChip('accumulation')"><i class="bi bi-graph-up-arrow"></i>Akumulasi</button>
+            <button data-filter="single" class="chip" onclick="setChip('single')"><i class="bi bi-trophy"></i>Single Prize</button>
+            <button data-filter="umkm" class="chip" onclick="setChip('umkm')"><i class="bi bi-shop"></i>UMKM</button>
+            <button data-filter="special" class="chip" onclick="setChip('special')"><i class="bi bi-patch-check"></i>Special Collab</button>
+            <button data-filter="bookmarked" class="chip" onclick="setChip('bookmarked')"><i class="bi bi-bookmark-star"></i>Tersimpan <span id="chipSavedCount" class="chip-count hidden"></span></button>
+            <span class="mx-1 h-4 w-px bg-[var(--border)] hidden sm:inline-block"></span>
+            <span id="tkFilterInfo" class="text-[11px] text-[var(--text-muted)]"></span>
+            <button id="btnClearChip" onclick="clearFilters()" class="hidden text-[11px] font-semibold text-[var(--accent)] hover:underline ml-auto">Reset filter</button>
           </div>
-          <div class="p-4 overflow-y-auto" id="tkModalBody">
-            <div class="text-center py-4 text-zinc-500">Muat...</div>
-          </div>
-        </div>
-      </div>
 
-    </main>
-    <aside class="w-full lg:w-[380px] lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto space-y-3 flex-shrink-0">
-      <div class="bg-surface-1 border border-zinc-800 rounded-lg p-3">
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-xs font-medium text-zinc-400 uppercase tracking-wider"><i class="bi bi-bar-chart text-fuchsia-400"></i> Statistik</span>
-        </div>
-        <div class="grid grid-cols-2 gap-3 p-3" id="tkStats">
-          <div class="text-center p-3 bg-zinc-900/50 rounded">
-            <div id="statTotal" class="text-xl font-bold text-teal-400">0</div>
-            <div class="text-[10px] text-zinc-400">Total Campaign</div>
-          </div>
-          <div class="text-center p-3 bg-zinc-900/50 rounded">
-            <div id="statActive" class="text-xl font-bold text-amber-400">0</div>
-            <div class="text-[10px] text-zinc-400">Aktif</div>
-          </div>
-          <div class="text-center p-3 bg-zinc-900/50 rounded">
-            <div id="statTotalPrize" class="text-lg font-bold text-teal-300">0</div>
-            <div class="text-[10px] text-zinc-400">Total Hadiah</div>
-          </div>
-          <div class="text-center p-3 bg-zinc-900/50 rounded">
-            <div id="statParticipants" class="text-lg font-bold text-amber-300">0</div>
-            <div class="text-[10px] text-zinc-400">Total Peserta</div>
+          <div class="flex flex-wrap items-center gap-2 text-[11px] text-[var(--text-muted)]">
+            <span id="tkPageInfo" class="font-medium"></span>
+            <span class="hidden sm:inline text-[var(--border)]">|</span>
+            <span id="tkCountInfo" class=""></span>
+            <span id="tkSearchBadge" class="hidden inline-flex items-center gap-1 px-2 py-1 rounded-full bg-[var(--accent-bg-subtle)] border border-[var(--accent)]/20 text-[var(--accent)] font-semibold"><i class="bi bi-search"></i><span></span><button onclick="clearSearch()" class="ml-1 w-4 h-4 rounded-full bg-[var(--accent)] text-[var(--accent-text)] flex items-center justify-center text-[9px]"><i class="bi bi-x"></i></button></span>
           </div>
         </div>
+
+        <div id="tkStatus" class="space-y-2"></div>
+        <div id="tkGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+        <div id="tkPagination" class="flex flex-wrap items-center justify-center gap-1.5"></div>
+        <div id="tkEmpty" class="hidden card-panel p-8 text-center">
+          <div class="w-12 h-12 rounded-full bg-[var(--bg-surface-2)] flex items-center justify-center mx-auto mb-3 text-[var(--text-muted)]"><i class="bi bi-inbox text-xl"></i></div>
+          <div class="text-sm font-bold text-[var(--text-primary)]">Tidak ada campaign</div>
+          <div class="text-xs text-[var(--text-muted)] mt-1 max-w-[420px] mx-auto">Coba ubah kata kunci atau reset filter. Pencarian kosong akan menampilkan semua campaign terbaru.</div>
+          <button onclick="clearFilters(); clearSearch(); loadTernakKlip(1)" class="mt-3 min-h-[36px] px-4 rounded-lg bg-[var(--accent)] text-[var(--accent-text)] text-xs font-bold">Tampilkan semua</button>
+        </div>
+      </main>
+
+      <aside class="w-full xl:w-[340px] xl:shrink-0 space-y-3 xl:sticky xl:top-4 xl:self-start xl:max-h-[calc(100vh-1rem)] xl:overflow-y-auto">
+        <div class="card-panel p-3">
+          <div class="flex items-center justify-between mb-2.5">
+            <span class="text-[11px] font-bold tracking-widest uppercase text-[var(--text-muted)]"><i class="bi bi-bar-chart-line text-[var(--accent)]"></i> Ringkasan</span>
+            <span id="tkMetaBadge" class="text-[10px] px-2 py-1 rounded-full bg-[var(--bg-surface-2)] border border-[var(--border)] text-[var(--text-muted)] font-medium">page 1 dari 5</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2" id="tkStats">
+            <div class="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-2)] p-3">
+              <div class="text-[10px] font-bold tracking-widest uppercase text-[var(--text-muted)]">Total di server</div>
+              <div id="statTotal" class="text-[22px] font-extrabold leading-none mt-1 text-[var(--text-primary)]">0</div>
+              <div class="text-[11px] text-[var(--text-muted)] mt-1">campaign live</div>
+            </div>
+            <div class="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-2)] p-3">
+              <div class="text-[10px] font-bold tracking-widest uppercase text-[var(--text-muted)]">Di halaman ini</div>
+              <div id="statVisible" class="text-[22px] font-extrabold leading-none mt-1 text-[var(--accent)]">0</div>
+              <div id="statVisibleSub" class="text-[11px] text-[var(--text-muted)] mt-1">terfilter</div>
+            </div>
+            <div class="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3">
+              <div class="text-[10px] font-bold tracking-widest uppercase text-[var(--text-muted)]">Total hadiah (halaman)</div>
+              <div id="statTotalPrize" class="text-[15px] font-extrabold leading-none mt-1 text-emerald-600">Rp 0</div>
+              <div class="text-[11px] text-[var(--text-muted)] mt-1">akumulasi prize</div>
+            </div>
+            <div class="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3">
+              <div class="text-[10px] font-bold tracking-widest uppercase text-[var(--text-muted)]">Total peserta (halaman)</div>
+              <div id="statParticipants" class="text-[15px] font-extrabold leading-none mt-1 text-amber-600">0</div>
+              <div class="text-[11px] text-[var(--text-muted)] mt-1">creator ikut</div>
+            </div>
+          </div>
+          <div class="mt-3 flex items-center gap-2 text-[11px] text-[var(--text-muted)]">
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Akumulasi
+            <span class="w-2 h-2 rounded-full bg-sky-500"></span> Single Prize
+            <span class="w-2 h-2 rounded-full bg-violet-500 ml-2"></span> UMKM / Special
+          </div>
+        </div>
+
+                <div class="card-panel p-3" id="tkRecoPanel">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[11px] font-bold tracking-widest uppercase text-[var(--text-muted)]"><i class="bi bi-stars text-amber-500"></i> Rekomendasi Clip</span>
+            <span class="text-[10px] px-2 py-1 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/20 font-bold">AI Pilihan</span>
+          </div>
+          <p class="text-[11px] leading-relaxed text-[var(--text-muted)] mb-2.5">Dipilih dari halaman ini berdasarkan hadiah, kompetisi, dan model akumulasi. Klik untuk buka detail.</p>
+          <div class="flex gap-1.5 mb-2.5 flex-wrap">
+            <button data-reco="cuan" onclick="setRecoTab('cuan')" class="chip active text-[11px]" id="recoTab_cuan">Paling Cuan</button>
+            <button data-reco="sepi" onclick="setRecoTab('sepi')" class="chip text-[11px]" id="recoTab_sepi">Paling Sepi</button>
+            <button data-reco="akumulasi" onclick="setRecoTab('akumulasi')" class="chip text-[11px]" id="recoTab_akumulasi">Akumulasi</button>
+          </div>
+          <div id="tkRecoList" class="space-y-2"></div>
+          <div id="tkRecoEmpty" class="hidden text-xs text-[var(--text-muted)] py-3 text-center">Belum ada rekomendasi untuk filter ini.</div>
+          <button onclick="scanGlobalReco()" id="tkRecoScanBtn" class="w-full mt-2.5 min-h-[36px] rounded-lg border border-[var(--border)] bg-[var(--bg-surface-2)] text-xs font-semibold hover:border-[var(--accent)] hover:text-[var(--accent)] transition flex items-center justify-center gap-1.5"><i class="bi bi-radar"></i>Scan semua 174 campaign</button>
+          <div id="tkRecoStatus" class="text-[11px] text-[var(--text-muted)] mt-1.5 hidden"></div>
+        </div>
+
+        <div class="card-panel p-3">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[11px] font-bold tracking-widest uppercase text-[var(--text-muted)]"><i class="bi bi-fire text-orange-500"></i> Top Hadiah (halaman ini)</span>
+            <span class="text-[10px] text-[var(--text-muted)]">sort hadiah</span>
+          </div>
+          <div id="tkTopList" class="space-y-2"></div>
+          <div id="tkTopEmpty" class="hidden text-xs text-[var(--text-muted)] py-4 text-center">Belum ada data.</div>
+        </div>
+
+        <div class="card-panel p-3">
+          <div class="text-[11px] font-bold tracking-widest uppercase text-[var(--text-muted)] mb-2"><i class="bi bi-lightbulb text-amber-500"></i> Tips cepat</div>
+          <ul class="space-y-2 text-xs leading-relaxed text-[var(--text-secondary)] list-disc pl-4">
+            <li><b>Pencarian</b> langsung ke server (pakai <code class="px-1 py-0.5 rounded bg-[var(--bg-surface-2)] border border-[var(--border)] text-[11px]">search</code>), jadi total dan halaman ikut berubah.</li>
+            <li><b>Filter chip</b> lokal di halaman ini saja, instan tanpa reload.</li>
+            <li>Klik <b>Detail</b> untuk baca brief PDF dan ambil link sumber, lalu <b>Buat Sesi</b> langsung jadi sesi clip.</li>
+            <li>Simpan dengan <i class="bi bi-bookmark"></i> untuk kumpulin campaign favorit, filter <b>Tersimpan</b> untuk fokus.</li>
+          </ul>
+          <div class="mt-3 grid grid-cols-2 gap-2">
+            <button onclick="document.getElementById('tkSearch')?.focus()" class="min-h-[36px] rounded-lg border border-[var(--border)] bg-[var(--bg-surface-2)] text-xs font-semibold">Fokus cari</button>
+            <button onclick="window.scrollTo({top:0,behavior:'smooth'})" class="min-h-[36px] rounded-lg bg-[var(--accent)] text-[var(--accent-text)] text-xs font-bold">Ke atas</button>
+          </div>
+        </div>
+
+        <div id="tkHistoryBox" class="card-panel p-3 hidden">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[11px] font-bold tracking-widest uppercase text-[var(--text-muted)]"><i class="bi bi-clock-history"></i> Terakhir dilihat</span>
+            <button onclick="clearHistory()" class="text-[11px] text-[var(--text-muted)] hover:text-[var(--text-primary)]">Hapus</button>
+          </div>
+          <div id="tkHistoryList" class="space-y-1.5"></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div id="tkDetailModal" role="dialog" aria-modal="true" aria-hidden="true" class="fixed inset-0 z-50 hidden items-center justify-center p-3 md:p-4 bg-black/60 backdrop-blur-sm">
+  <div class="bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl max-w-[760px] w-full max-h-[92vh] flex flex-col shadow-[0_20px_60px_rgba(0,0,0,.35)] overflow-hidden">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] shrink-0">
+      <div class="min-w-0">
+        <div id="tkModalKicker" class="text-[10px] font-bold tracking-widest uppercase text-[var(--text-muted)]">Campaign Detail</div>
+        <h3 id="tkModalTitle" class="text-[13px] md:text-sm font-extrabold text-[var(--text-primary)] truncate max-w-[42ch]">Memuat...</h3>
       </div>
-    </aside>
+      <button onclick="closeTkModal()" class="w-9 h-9 rounded-xl border border-[var(--border)] bg-[var(--bg-surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center shrink-0" aria-label="Tutup"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="overflow-y-auto flex-1 p-0" id="tkModalBody">
+      <div class="p-6 text-center text-sm text-[var(--text-muted)]"><i class="bi bi-hourglass-split animate-pulse"></i> Memuat detail...</div>
+    </div>
   </div>
 </div>
 
 <script>
 const $=document.querySelector.bind(document);
 const $$=document.querySelectorAll.bind(document);
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const esc=s=>String(s??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));
+const fmtRp=n=> 'Rp ' + Number(n||0).toLocaleString('id-ID');
+const fmtCompact=n=>{ n=Number(n||0); if(n>=1e9) return (n/1e9).toFixed(1).replace(/\.0$/,'')+'B'; if(n>=1e6) return (n/1e6).toFixed(1).replace(/\.0$/,'')+' jt'; if(n>=1e3) return (n/1e3).toFixed(1).replace(/\.0$/,'')+' rb'; return String(n); };
 
 let TERNK_DATA=[];
 let TERNK_META={page:1,limit:36,total:0,total_pages:0};
+let CURRENT_FILTER={search:'', chip:'all', sort:'newest', view: localStorage.getItem('tk_view')||'grid'};
+let BOOKMARKS={};
+try{ BOOKMARKS=JSON.parse(localStorage.getItem('tk_bookmarks')||'{}'); }catch{ BOOKMARKS={}; }
+let LAST_SEARCH='';
+
+function isBookmarked(id){ return !!BOOKMARKS[id]; }
+function toggleBookmark(id){
+  if(BOOKMARKS[id]) delete BOOKMARKS[id]; else BOOKMARKS[id]=Date.now();
+  localStorage.setItem('tk_bookmarks', JSON.stringify(BOOKMARKS));
+  updateBookmarkChip();
+  renderTK(getFilteredSorted());
+  renderTop();
+  renderReco();
+}
+function updateBookmarkChip(){
+  const n=Object.keys(BOOKMARKS).length;
+  const el=$('#chipSavedCount');
+  if(el){ el.textContent=n?`(${n})`:''; el.classList.toggle('hidden', !n); }
+}
+function setView(v){
+  CURRENT_FILTER.view=v;
+  localStorage.setItem('tk_view', v);
+  $('#btnGrid').className = v==='grid' ? 'w-9 h-[36px] flex items-center justify-center bg-[var(--accent)] text-[var(--accent-text)]' : 'w-9 h-[36px] flex items-center justify-center bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text-primary)]';
+  $('#btnList').className = v==='list' ? 'w-9 h-[36px] flex items-center justify-center bg-[var(--accent)] text-[var(--accent-text)]' : 'w-9 h-[36px] flex items-center justify-center bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text-primary)]';
+  renderTK(getFilteredSorted());
+}
+function setChip(c){
+  CURRENT_FILTER.chip=c;
+  $$('.chip').forEach(b=>{
+    const isActive=b.getAttribute('data-filter')===c;
+    b.classList.toggle('active', isActive);
+  });
+  $('#btnClearChip').classList.toggle('hidden', c==='all');
+  renderTK(getFilteredSorted());
+  renderTop();
+  updateStats(getFilteredSorted());
+  renderReco();
+}
+function clearFilters(){
+  setChip('all');
+}
+function clearSearch(){
+  const inp=$('#tkSearch'); if(inp) inp.value='';
+  CURRENT_FILTER.search=''; LAST_SEARCH='';
+  $('#tkClearSearch').classList.add('hidden'); $('#tkClearSearch').classList.remove('flex');
+  $('#tkSearchBadge').classList.add('hidden');
+  loadTernakKlip(1);
+}
+function getFilteredSorted(){
+  let items=[...TERNK_DATA];
+  // chip filter (local)
+  const chip=CURRENT_FILTER.chip;
+  if(chip==='accumulation') items=items.filter(c=>c.is_accumulation);
+  else if(chip==='single') items=items.filter(c=>!c.is_accumulation);
+  else if(chip==='umkm') items=items.filter(c=>c.is_umkm);
+  else if(chip==='special') items=items.filter(c=>c.is_special_collab);
+  else if(chip==='bookmarked') items=items.filter(c=>isBookmarked(c.public_id));
+  // local search fallback (if server search not used, still filter client)
+  const q=(CURRENT_FILTER.search||'').toLowerCase();
+  if(q && LAST_SEARCH!==CURRENT_FILTER.search){
+    // when search is server-driven, data already filtered; still apply local to be safe for title/client
+  }
+  // sort
+  const s=CURRENT_FILTER.sort||$('#tkSort')?.value||'newest';
+  if(s==='prize_high') items.sort((a,b)=> (Number(b.current_prize||0)-Number(a.current_prize||0)));
+  else if(s==='prize_low') items.sort((a,b)=> (Number(a.current_prize||0)-Number(b.current_prize||0)));
+  else if(s==='participants_high') items.sort((a,b)=> (Number(b.total_participants||0)-Number(a.total_participants||0)));
+  else if(s==='title_az') items.sort((a,b)=> String(a.title||'').localeCompare(String(b.title||'')));
+  else if(s==='newest') items.sort((a,b)=> new Date(b.created_at||0) - new Date(a.created_at||0));
+  return items;
+}
+
+function renderSkeleton(){
+  const grid=$('#tkGrid');
+  const count=6;
+  grid.className = CURRENT_FILTER.view==='list' ? 'grid grid-cols-1 gap-3' : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3';
+  grid.innerHTML = Array.from({length:count}).map(()=>`
+    <div class="tk-card p-0 overflow-hidden">
+      <div class="aspect-video tk-skeleton"></div>
+      <div class="p-3 space-y-2">
+        <div class="h-3 rounded tk-skeleton w-2/3"></div>
+        <div class="h-4 rounded tk-skeleton w-full"></div>
+        <div class="h-3 rounded tk-skeleton w-1/2"></div>
+        <div class="flex gap-2 pt-2"><div class="h-8 rounded tk-skeleton flex-1"></div><div class="h-8 rounded tk-skeleton flex-1"></div></div>
+      </div>
+    </div>
+  `).join('');
+}
 
 async function loadTernakKlip(page=1){
-  const status=$('#tkStatus'),grid=$('#tkGrid'),pagination=$('#tkPagination'),pageInfo=$('#tkPageInfo');
-  pageInfo.textContent=`Halaman ${page}`;
-  if(page===1){
-    status.innerHTML='<div class="bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2 text-xs text-blue-300"><i class="bi bi-hourglass-split text-blue-400"></i> Mengambil data campaign...</div>';
-    grid.innerHTML='';
-    pagination.innerHTML='';
-  }else{
-    status.innerHTML='';
-  }
+  const status=$('#tkStatus'), grid=$('#tkGrid'), pagination=$('#tkPagination'), pageInfo=$('#tkPageInfo'), countInfo=$('#tkCountInfo'), badge=$('#tkSearchBadge');
+  const searchVal=($('#tkSearch')?.value||'').trim().slice(0,80);
+  CURRENT_FILTER.search=searchVal;
+  if(searchVal) badge.classList.remove('hidden'); else badge.classList.add('hidden');
+  if(badge && searchVal) badge.querySelector('span').textContent = `"${searchVal}"`;
+  const clearBtn=$('#tkClearSearch');
+  if(clearBtn){ if(searchVal){ clearBtn.classList.remove('hidden'); clearBtn.classList.add('flex'); } else { clearBtn.classList.add('hidden'); clearBtn.classList.remove('flex'); } }
+
+  // debounce guard: if search changed, reset to page 1 handled by caller
+  LAST_SEARCH=searchVal;
+  pageInfo.textContent=`Memuat halaman ${page}...`;
+  countInfo.textContent='';
+  $('#tkEmpty').classList.add('hidden');
+  status.innerHTML='';
+  renderSkeleton();
+  pagination.innerHTML='';
 
   try{
-    const r=await fetch(`/api/ternakklip-campaigns?page=${page}&limit=36`);
+    let url=`/api/ternakklip-campaigns?page=${page}&limit=36`;
+    if(searchVal) url+=`&search=${encodeURIComponent(searchVal)}`;
+    const r=await fetch(url);
     const j=await r.json();
     if(!r.ok || j.status!=='success') throw new Error(j.message||j.error||'Gagal fetch');
-    
-    if(page===1) TERNK_DATA=[];
-    TERNK_DATA=TERNK_DATA.concat(j.data||[]);
-    TERNK_META=j.meta||TERNK_META;
-    
-    renderTK(TERNK_DATA);
+
+    TERNK_DATA=j.data||[];
+    TERNK_META=j.meta||{page, limit:36, total: TERNK_DATA.length, total_pages:1};
+
+    // update header live
+    const liveDot=$('#tkLiveDot');
+    if(liveDot){ liveDot.classList.remove('hidden'); liveDot.classList.add('inline-flex'); liveDot.innerHTML=`<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Live ${TERNK_META.total}`; }
+    $('#tkMetaBadge').textContent=`page ${TERNK_META.page} dari ${TERNK_META.total_pages} • ${TERNK_META.total} total`;
+
+    const filtered=getFilteredSorted();
+    renderTK(filtered);
     renderPagination();
-    updateStats();
-  }catch(e){
-    if(page===1){
-      status.innerHTML='<div class="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 text-xs text-red-300"><i class="bi bi-x-circle text-rose-400"></i> '+esc(e.message)+'</div>';
+    updateStats(filtered);
+    renderTop();
+    renderReco();
+
+    // status line
+    pageInfo.textContent=`Halaman ${TERNK_META.page} dari ${TERNK_META.total_pages}`;
+    if(searchVal) countInfo.textContent=`• pencarian "${searchVal}" → ${TERNK_META.total} hasil di server • tampil ${filtered.length} di halaman ini`;
+    else countInfo.textContent=`• menampilkan ${filtered.length} dari ${TERNK_DATA.length} di halaman ini • total ${TERNK_META.total} campaign`;
+
+    if(!filtered.length){
+      $('#tkEmpty').classList.remove('hidden');
+      grid.innerHTML='';
+    } else {
+      $('#tkEmpty').classList.add('hidden');
     }
+  }catch(e){
+    grid.innerHTML='';
+    pagination.innerHTML='';
+    pageInfo.textContent='';
+    countInfo.textContent='';
+    status.innerHTML=`<div class="rounded-xl border border-rose-200 bg-rose-50 text-rose-700 px-3 py-2.5 text-xs flex items-start justify-between gap-3"><span class="flex gap-2"><i class="bi bi-exclamation-triangle mt-0.5"></i><span>${esc(e.message)}</span></span><button onclick="loadTernakKlip(${page})" class="shrink-0 min-h-[32px] px-3 rounded-lg bg-rose-600 text-white font-bold text-xs">Coba lagi</button></div>`;
+    updateStats([]);
+    renderReco();
   }
+}
+
+function rewardBadges(c){
+  const rewards=c.platform_rewards||[];
+  const paid=rewards.filter(p=> p.reward_per_item!=null || p.reward_rate!=null);
+  if(paid.length){
+    return paid.slice(0,3).map(p=>`<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-[var(--accent)] text-[var(--accent-text)] text-[10px] font-bold leading-none"><i class="bi bi-coin"></i>${esc(p.provider)} ${p.reward_per_item!=null?fmtCompact(p.reward_per_item):''}</span>`).join('');
+  }
+  // fallback: show generic platform hint if any reward exists empty (server returns 6 with null) - hide to avoid noise
+  return '';
+}
+function modelBadge(c){
+  if(c.is_accumulation) return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-500 text-white text-[10px] font-bold"><i class="bi bi-graph-up-arrow"></i>Akumulasi</span>`;
+  return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-sky-500 text-white text-[10px] font-bold"><i class="bi bi-trophy"></i>Single</span>`;
+}
+function extraBadges(c){
+  let s='';
+  if(c.is_umkm) s+=`<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-violet-600 text-white text-[10px] font-bold"><i class="bi bi-shop"></i>UMKM</span>`;
+  if(c.is_special_collab) s+=`<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-amber-500 text-white text-[10px] font-bold"><i class="bi bi-patch-check"></i>Special</span>`;
+  return s;
+}
+function prizePerView(c){
+  const prize=Number(c.current_prize||0);
+  const per = (c.platform_rewards||[]).find(p=> p.provider==='tiktok' && p.reward_per_item!=null);
+  if(per && Number(per.reward_per_item)>0) return `Rp ${Number(per.reward_per_item).toLocaleString('id-ID')}/view`;
+  if(prize && Number(c.total_participants)>0) return `~${fmtCompact(Math.round(prize/Math.max(1, Number(c.total_participants)*5)))} / est. view`;
+  return '';
 }
 
 function renderTK(items){
-  const filter=($('#tkSearch')?.value||'').toLowerCase();
-  const filtered=items.filter(c=>
-    (c.title||'').toLowerCase().includes(filter) ||
-    (c.client_name||'').toLowerCase().includes(filter)
-  );
-  if(!filtered.length){
-    $('#tkGrid').innerHTML='<div class="col-span-full text-center py-8 text-zinc-500 text-xs">Tidak ada campaign ditemukan.</div>';
+  const grid=$('#tkGrid');
+  const isList=CURRENT_FILTER.view==='list';
+  grid.className = isList ? 'grid grid-cols-1 gap-3' : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3';
+  if(!items.length){
+    grid.innerHTML='';
     return;
   }
-  $('#tkGrid').innerHTML=filtered.map(c=>`
-    <div class="bg-surface-2 border border-zinc-800 rounded-xl overflow-hidden flex flex-col hover:shadow-lg transition cursor-pointer" onclick="showDetail('${c.public_id}')">
+  // featured: highest prize gets featured style (only in grid, first item after sort prize_high? we highlight top1 anyway visually)
+  const maxPrize=Math.max(...items.map(c=>Number(c.current_prize||0)));
+  grid.innerHTML = items.map(c=>{
+    const isMax = Number(c.current_prize||0)===maxPrize && maxPrize>0 && !isList;
+    const bookmarkIcon=isBookmarked(c.public_id) ? 'bi-bookmark-fill text-amber-500' : 'bi-bookmark text-[var(--text-muted)]';
+    const cardCls = isMax ? 'tk-card featured' : 'tk-card';
+    if(isList){
+      return `
+      <div class="${cardCls} flex gap-0 overflow-hidden">
+        <div class="w-[200px] sm:w-[240px] shrink-0 relative bg-[var(--bg-surface-2)]">
+          <div class="aspect-video w-full overflow-hidden"><img src="${esc(c.thumbnail_url||'')}" class="w-full h-full object-cover" loading="lazy" alt=""></div>
+          <div class="absolute top-2 left-2 flex flex-wrap gap-1">${modelBadge(c)}</div>
+          <button onclick="event.stopPropagation(); toggleBookmark('${c.public_id}')" class="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/90 backdrop-blur border border-black/10 flex items-center justify-center shadow-sm" title="Simpan"><i class="bi ${bookmarkIcon} text-xs"></i></button>
+        </div>
+        <div class="flex-1 min-w-0 p-3 flex flex-col">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="w-6 h-6 rounded-full overflow-hidden bg-[var(--bg-surface-2)] flex items-center justify-center shrink-0">${c.client_avatar_url?`<img src="${esc(c.client_avatar_url)}" class="w-full h-full object-cover">`:`<i class="bi bi-person text-[var(--text-muted)]"></i>`}</span>
+            <span class="text-[11px] font-semibold text-[var(--text-secondary)] truncate">${esc(c.client_name||'Client')}</span>
+            <span class="text-[10px] text-[var(--text-muted)]">• ${new Date(c.created_at).toLocaleDateString('id-ID',{day:'2-digit',month:'short'})}</span>
+            <span class="ml-auto hidden sm:inline-flex items-center gap-1 text-[10px] text-[var(--text-muted)]"><i class="bi bi-people"></i>${c.total_participants||0}</span>
+          </div>
+          <h3 class="text-[13px] font-extrabold leading-tight text-[var(--text-primary)] line-clamp-2">${esc(c.title||'')}</h3>
+          <div class="mt-2 flex flex-wrap gap-1">${rewardBadges(c)} ${extraBadges(c)}</div>
+          <div class="mt-auto pt-2 flex items-center justify-between gap-2">
+            <div>
+              <div class="text-[11px] font-bold tracking-widest uppercase text-[var(--text-muted)]">Hadiah</div>
+              <div class="text-[14px] font-extrabodd text-emerald-600 font-mono">${fmtRp(c.current_prize||0)}</div>
+              <div class="text-[10px] text-[var(--text-muted)]">${esc(prizePerView(c))}</div>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button onclick="showDetail('${c.public_id}')" class="min-h-[36px] px-3 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] text-xs font-semibold hover:border-[var(--border-hover)]">Detail</button>
+              <button onclick="createFromTK('${c.public_id}', this)" class="min-h-[36px] px-3 rounded-lg bg-[var(--accent)] text-[var(--accent-text)] text-xs font-bold inline-flex items-center gap-1.5"><i class="bi bi-lightning-charge-fill"></i>Buat Sesi</button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    }
+    return `
+    <div class="${cardCls} flex flex-col group cursor-pointer" onclick="showDetail('${c.public_id}')">
       <div class="relative">
-        <div class="aspect-video w-full bg-zinc-950 overflow-hidden">
-          <img src="${c.thumbnail_url||''}" class="w-full h-full object-cover" loading="lazy" alt="${esc(c.title||'')}">
+        <div class="aspect-video w-full bg-[var(--bg-surface-2)] overflow-hidden">
+          <img src="${esc(c.thumbnail_url||'')}" class="w-full h-full object-cover group-hover:scale-[1.02] transition duration-300" loading="lazy" alt="">
         </div>
-        <div class="absolute top-2 right-2 flex flex-wrap gap-1">
-          ${(c.platform_rewards||[]).filter(p=>p.provider).map(p=>`<span class="px-2 py-0.5 bg-black/70 text-white text-[10px] font-bold rounded">${p.provider}</span>`).join('')||''}
+        <div class="absolute top-2 left-2 flex flex-wrap gap-1">${modelBadge(c)}</div>
+        <div class="absolute top-2 right-2 flex items-center gap-1">
+          <button onclick="event.stopPropagation(); toggleBookmark('${c.public_id}')" class="w-7 h-7 rounded-full bg-white/90 backdrop-blur border border-black/10 flex items-center justify-center shadow-sm" title="Simpan"><i class="bi ${bookmarkIcon} text-xs"></i></button>
         </div>
+        ${isMax?`<div class="absolute bottom-2 left-2 inline-flex items-center gap-1 px-2 py-1 rounded-full bg-amber-500 text-white text-[10px] font-extrabold shadow"><i class="bi bi-fire"></i>Top Hadiah</div>`:''}
+        <div class="absolute bottom-2 right-2 flex flex-wrap gap-1 justify-end max-w-[60%]">${rewardBadges(c)}</div>
       </div>
       <div class="p-3 flex-1 flex flex-col">
         <div class="flex items-center gap-2 mb-1.5">
-          <span class="w-5 h-5 rounded-full overflow-hidden bg-zinc-800 flex-shrink-0">${c.client_avatar_url?`<img src="${c.client_avatar_url}" class="w-full h-full object-cover">`:'<i class="bi bi-person"></i>'}</span>
-          <span class="text-[11px] text-zinc-400 truncate flex-1">${esc(c.client_name||'Client')}</span>
+          <span class="w-6 h-6 rounded-full overflow-hidden bg-[var(--bg-surface-2)] flex items-center justify-center shrink-0">${c.client_avatar_url?`<img src="${esc(c.client_avatar_url)}" class="w-full h-full object-cover">`:`<i class="bi bi-person text-[var(--text-muted)]"></i>`}</span>
+          <span class="text-[11px] font-semibold text-[var(--text-secondary)] truncate flex-1">${esc(c.client_name||'Client')}</span>
+          <span class="text-[10px] text-[var(--text-muted)] shrink-0">${new Date(c.created_at).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'})}</span>
         </div>
-        <h3 class="text-xs font-bold text-white line-clamp-2 mb-2">${esc(c.title||'')}</h3>
-        <div class="text-xs space-y-1">
-          <div class="flex justify-between"><span class="text-zinc-500">Hadiah</span><span class="font-mono text-teal-400">Rp ${(c.current_prize||0).toLocaleString('id-ID')}</span></div>
-          <div class="flex justify-between"><span class="text-zinc-500">Peserta</span><span class="font-mono text-zinc-200">${c.total_participants||0}</span></div>
+        <h3 class="text-[13px] font-extrabold leading-tight text-[var(--text-primary)] line-clamp-2 min-h-[36px]">${esc(c.title||'')}</h3>
+        <div class="mt-1 flex flex-wrap gap-1 min-h-[22px]">${extraBadges(c)}</div>
+        <div class="mt-2 grid grid-cols-2 gap-2">
+          <div class="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-2)] px-2.5 py-2">
+            <div class="text-[10px] font-bold tracking-widest uppercase text-[var(--text-muted)]">Hadiah</div>
+            <div class="text-[13px] font-extrabold text-emerald-600 leading-none mt-1">${fmtRp(c.current_prize||0)}</div>
+            <div class="text-[10px] text-[var(--text-muted)] mt-1 truncate">${esc(prizePerView(c))||'&nbsp;'}</div>
+          </div>
+          <div class="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-2.5 py-2">
+            <div class="text-[10px] font-bold tracking-widest uppercase text-[var(--text-muted)]">Peserta</div>
+            <div class="text-[13px] font-extrabold text-[var(--text-primary)] leading-none mt-1">${Number(c.total_participants||0).toLocaleString('id-ID')}</div>
+            <div class="text-[10px] text-[var(--text-muted)] mt-1">creator</div>
+          </div>
         </div>
-        <button onclick="event.stopPropagation(); createFromTK('${c.public_id}',this)" class="mt-2 w-full py-1.5 bg-[var(--accent)] text-[var(--accent-text)] text-xs font-bold rounded-lg transition flex items-center justify-center gap-1">
-          <i class="bi bi-lightning-charge-fill text-amber-400"></i><span>Buat Sesi</span>
-        </button>
+        <div class="mt-3 flex gap-1.5">
+          <button onclick="event.stopPropagation(); showDetail('${c.public_id}')" class="flex-1 min-h-[36px] rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] text-xs font-semibold hover:bg-[var(--bg-surface-2)] transition">Detail</button>
+          <button onclick="event.stopPropagation(); createFromTK('${c.public_id}', this)" class="flex-1 min-h-[36px] rounded-lg bg-[var(--accent)] text-[var(--accent-text)] text-xs font-extrabold inline-flex items-center justify-center gap-1.5 hover:opacity-95 transition"><i class="bi bi-lightning-charge-fill"></i>Buat Sesi</button>
+        </div>
       </div>
-    </div>
-  `).join('')||'<div class="col-span-full text-center py-8 text-zinc-500 text-xs">Tidak ada campaign.</div>';
+    </div>`;
+  }).join('');
 }
 
 function renderPagination(){
-  const pagination=$('#tkPagination');
-  pagination.innerHTML='';
-  const totalPages=TERNK_META.total_pages||Math.ceil(TERNK_DATA.length/36);
-  const curPage=TERNK_META.page||1;
-  
-  if(totalPages<=1) return;
+  const el=$('#tkPagination');
+  el.innerHTML='';
+  const total=TERNK_META.total_pages||1;
+  const cur=TERNK_META.page||1;
+  if(total<=1) return;
+  const makeBtn=(label,page,active,disabled)=>{
+    const b=document.createElement('button');
+    b.textContent=label;
+    b.disabled=!!disabled;
+    b.className = active ? 'min-w-[36px] min-h-[36px] px-3 rounded-lg bg-[var(--accent)] text-[var(--accent-text)] text-xs font-extrabold' : 'min-w-[36px] min-h-[36px] px-3 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-hover)] disabled:opacity-40 disabled:cursor-not-allowed';
+    if(!disabled) b.onclick=()=>{ window.scrollTo({top:0,behavior:'smooth'}); loadTernakKlip(page); };
+    return b;
+  };
+  el.appendChild(makeBtn('«',1,false,cur===1));
+  el.appendChild(makeBtn('‹',Math.max(1,cur-1),false,cur===1));
+  let start=Math.max(1,cur-2), end=Math.min(total,cur+2);
+  if(start>1){
+    el.appendChild(makeBtn('1',1,cur===1,false));
+    if(start>2){ const d=document.createElement('span'); d.textContent='...'; d.className='px-1 text-[var(--text-muted)] text-xs'; el.appendChild(d); }
+  }
+  for(let i=start;i<=end;i++) el.appendChild(makeBtn(String(i),i,i===cur,false));
+  if(end<total){
+    if(end<total-1){ const d=document.createElement('span'); d.textContent='...'; d.className='px-1 text-[var(--text-muted)] text-xs'; el.appendChild(d); }
+    el.appendChild(makeBtn(String(total),total,cur===total,false));
+  }
+  el.appendChild(makeBtn('›',Math.min(total,cur+1),false,cur===total));
+  el.appendChild(makeBtn('»',total,false,cur===total));
+}
 
-  for(let i=Math.max(1,curPage-2);i<=Math.min(totalPages,curPage+2);i++){
-    const btn=document.createElement('button');
-    btn.textContent=i;
-    btn.className=`px-2 py-1 text-xs rounded-lg ${i===curPage?'bg-[var(--accent)] text-[var(--accent-text)] font-bold':'bg-surface-2 text-zinc-300 hover:bg-zinc-700'}`;
-    btn.onclick=()=>loadTernakKlip(i);
-    pagination.appendChild(btn);
+function updateStats(filtered){
+  const totalServer=TERNK_META.total||0;
+  const visible=filtered.length;
+  const totalOnPage=TERNK_DATA.length;
+  $('#statTotal').textContent=String(totalServer);
+  $('#statVisible').textContent=String(visible);
+  const sub=$('#statVisibleSub');
+  if(CURRENT_FILTER.chip!=='all' || CURRENT_FILTER.search) sub.textContent=`dari ${totalOnPage} di halaman`;
+  else sub.textContent=`dari ${totalOnPage} di halaman`;
+  const prize=filtered.reduce((a,c)=>a+Number(c.current_prize||0),0);
+  const parts=filtered.reduce((a,c)=>a+Number(c.total_participants||0),0);
+  $('#statTotalPrize').textContent=fmtRp(prize);
+  $('#statParticipants').textContent=String(parts);
+  const info=$('#tkFilterInfo');
+  if(CURRENT_FILTER.chip!=='all'){
+    const map={accumulation:'Akumulasi', single:'Single', umkm:'UMKM', special:'Special', bookmarked:'Tersimpan'};
+    info.textContent=`Filter: ${map[CURRENT_FILTER.chip]||CURRENT_FILTER.chip} • ${visible} hasil`;
+  } else if(CURRENT_FILTER.search){
+    info.textContent=`Pencarian aktif • ${visible} tampil`;
+  } else {
+    info.textContent=`${visible} campaign di halaman ini`;
   }
 }
 
-function updateStats(){
-  const total=TERNK_DATA.length;
-  const active=TERNK_DATA.filter(c=>c.status===2).length;
-  const totalPrize=TERNK_DATA.reduce((a,c)=>a+(c.current_prize||0),0);
-  const totalParticipants=TERNK_DATA.reduce((a,c)=>a+(c.total_participants||0),0);
-  $('#statTotal').textContent=total;
-  $('#statActive').textContent=active;
-  $('#statTotalPrize').textContent='Rp '+(totalPrize/1000000).toFixed(0)+'M';
-  $('#statParticipants').textContent=totalParticipants;
+function renderTop(){
+  const list=$('#tkTopList'), empty=$('#tkTopEmpty');
+  const sorted=[...getFilteredSorted()].sort((a,b)=> Number(b.current_prize||0)-Number(a.current_prize||0)).slice(0,3);
+  if(!sorted.length){ list.innerHTML=''; empty.classList.remove('hidden'); return; }
+  empty.classList.add('hidden');
+  list.innerHTML=sorted.map((c,i)=>`
+    <button onclick="showDetail('${c.public_id}')" class="w-full text-left flex gap-2.5 p-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface-2)] hover:border-[var(--accent)]/30 hover:bg-[var(--accent-bg-subtle)] transition">
+      <span class="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-extrabold shrink-0 ${i===0?'bg-amber-500 text-white':i===1?'bg-zinc-500 text-white':'bg-amber-700/70 text-white'}">${i+1}</span>
+      <span class="w-10 h-10 rounded-lg overflow-hidden bg-[var(--bg-surface)] border border-[var(--border)] shrink-0"><img src="${esc(c.thumbnail_url||'')}" class="w-full h-full object-cover" loading="lazy"></span>
+      <span class="min-w-0 flex-1">
+        <span class="block text-xs font-bold leading-tight text-[var(--text-primary)] line-clamp-2">${esc(c.title||'')}</span>
+        <span class="block text-[11px] text-[var(--text-muted)] truncate">${esc(c.client_name||'')}</span>
+        <span class="block text-[11px] font-bold text-emerald-600">${fmtRp(c.current_prize)}</span>
+      </span>
+    </button>
+  `).join('');
 }
 
+// ---- Rekomendasi: scoring ringan tanpa AI, jelas alasan ----
+let RECO_TAB='cuan';
+function scoreReco(c){
+  const prize=Number(c.current_prize||0);
+  const people=Math.max(1, Number(c.total_participants||0));
+  // kompetisi: hadiah per peserta, bonus akumulasi (potensi naik)
+  const perCapita = prize / people;
+  const accBonus = c.is_accumulation ? 1.18 : 1;
+  const umkmBonus = c.is_umkm ? 1.05 : 1;
+  const specialBonus = c.is_special_collab ? 1.03 : 1;
+  // reward_per_item bila ada, boost cuan
+  let coinBoost=1;
+  try{ const r=(c.platform_rewards||[]).find(p=>p.provider==='tiktok' && p.reward_per_item!=null); if(r) coinBoost = 1 + Math.min(0.25, Number(r.reward_per_item)/20000); }catch{}
+  return perCapita * accBonus * umkmBonus * specialBonus * coinBoost;
+}
+function reasonReco(c, tab){
+  if(tab==='sepi'){
+    const p=Number(c.total_participants||0);
+    if(p<=10) return 'Sepi, peluang naik view tinggi';
+    if(p<=30) return 'Kompetitor masih sedikit';
+    return 'Relatif sepi';
+  }
+  if(tab==='akumulasi') return c.is_accumulation ? 'Akumulasi, hadiah bisa nambah' : 'Potensi akumulasi';
+  // cuan
+  const sc=scoreReco(c);
+  if(sc>500000) return 'Rasio hadiah/peserta tinggi';
+  if(sc>150000) return 'Cuan per peserta oke';
+  return 'Hadiah oke untuk effort';
+}
+function setRecoTab(tab){
+  RECO_TAB=tab;
+  document.querySelectorAll('[data-reco]').forEach(b=> b.classList.toggle('active', b.getAttribute('data-reco')===tab));
+  renderReco();
+}
+function recoCandidates(){
+  const pool = GLOBAL_RECO_DATA.length ? GLOBAL_RECO_DATA : [...TERNK_DATA];
+  let items=[...pool];
+  // hormati chip bookmark bila aktif: reco dari pool bookmark saja
+  if(CURRENT_FILTER.chip==='bookmarked') items=items.filter(c=> isBookmarked(c.public_id));
+  if(RECO_TAB==='akumulasi') items=items.filter(c=> c.is_accumulation);
+  return items;
+}
+function renderReco(){
+  const list=$('#tkRecoList'), empty=$('#tkRecoEmpty');
+  let items=recoCandidates();
+  if(RECO_TAB==='sepi') items.sort((a,b)=> Number(a.total_participants||0)-Number(b.total_participants||0));
+  else if(RECO_TAB==='akumulasi') items.sort((a,b)=> Number(b.current_prize||0)-Number(a.current_prize||0));
+  else items.sort((a,b)=> scoreReco(b)-scoreReco(a));
+  items=items.slice(0,3);
+  if(!items.length){ list.innerHTML=''; empty.classList.remove('hidden'); return; }
+  empty.classList.add('hidden');
+  list.innerHTML=items.map((c,i)=>{
+    const badge = RECO_TAB==='sepi' ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-sky-500 text-white">${c.total_participants} peserta</span>` : RECO_TAB==='akumulasi' ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500 text-white">${fmtRp(c.current_prize)}</span>` : `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500 text-white">#${i+1} skor</span>`;
+    return `<button onclick="showDetail('${c.public_id}')" class="w-full text-left flex gap-2.5 p-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] hover:border-[var(--accent)]/30 hover:bg-[var(--accent-bg-subtle)] transition">
+      <span class="w-10 h-10 rounded-lg overflow-hidden bg-[var(--bg-surface-2)] border border-[var(--border)] shrink-0"><img src="${esc(c.thumbnail_url||'')}" class="w-full h-full object-cover" loading="lazy"></span>
+      <span class="min-w-0 flex-1">
+        <span class="block text-xs font-bold leading-tight text-[var(--text-primary)] line-clamp-2">${esc(c.title||'')}</span>
+        <span class="block text-[11px] text-[var(--text-muted)] truncate">${esc(c.client_name||'')} - ${reasonReco(c, RECO_TAB)}</span>
+        <span class="flex items-center gap-1 mt-1 flex-wrap">${badge} <span class="text-[11px] text-[var(--text-muted)]">${c.is_accumulation?'Akumulasi':'Single'} - ${fmtRp(c.current_prize)}</span></span>
+      </span>
+    </button>`;
+  }).join('');
+}
+let GLOBAL_RECO_DATA=[];
+async function scanGlobalReco(){
+  const btn=$('#tkRecoScanBtn'), st=$('#tkRecoStatus');
+  btn.disabled=true; const old=btn.innerHTML; btn.innerHTML='<i class="bi bi-hourglass-split animate-spin"></i> Scan 174...';
+  st.classList.remove('hidden'); st.textContent='Mengambil semua campaign (beberapa halaman) untuk rekomendasi global...';
+  try{
+    let all=[]; let pages=Math.ceil((TERNK_META.total||174)/36); pages=Math.min(pages, 8);
+    for(let p=1;p<=pages;p++){
+      const searchVal=(CURRENT_FILTER.search||'').trim();
+      let url=`/api/ternakklip-campaigns?page=${p}&limit=36`;
+      if(searchVal) url+=`&search=${encodeURIComponent(searchVal)}`;
+      const r=await fetch(url); const j=await r.json();
+      if(j.data) all=all.concat(j.data);
+      st.textContent=`Scan ${p}/${pages} - ${all.length} campaign terkumpul...`;
+      if(j.data && j.data.length<36) break;
+    }
+    GLOBAL_RECO_DATA=all;
+    st.textContent=`Selesai: ${all.length} campaign di-scan. Rekomendasi sekarang global, bukan halaman ini saja.`;
+    renderReco();
+    setTimeout(()=> st.classList.add('hidden'), 2500);
+  }catch(e){
+    st.textContent='Gagal scan: '+(e.message||'error');
+  }finally{
+    btn.disabled=false; btn.innerHTML=old;
+  }
+}
+
+
+function pushHistory(c){
+  try{
+    let h=JSON.parse(localStorage.getItem('tk_history')||'[]');
+    h=h.filter(x=>x.id!==c.public_id);
+    h.unshift({id:c.public_id, title:c.title, thumb:c.thumbnail_url, client:c.client_name, at:Date.now()});
+    h=h.slice(0,6);
+    localStorage.setItem('tk_history', JSON.stringify(h));
+    renderHistory();
+  }catch{}
+}
+function renderHistory(){
+  try{
+    const h=JSON.parse(localStorage.getItem('tk_history')||'[]');
+    const box=$('#tkHistoryBox'), list=$('#tkHistoryList');
+    if(!h.length){ box.classList.add('hidden'); return; }
+    box.classList.remove('hidden');
+    list.innerHTML=h.map(x=>`<button onclick="showDetail('${x.id}')" class="w-full text-left flex items-center gap-2 p-2 rounded-lg hover:bg-[var(--bg-surface-2)] transition"><span class="w-8 h-8 rounded-lg overflow-hidden bg-[var(--bg-surface-2)] shrink-0"><img src="${esc(x.thumb||'')}" class="w-full h-full object-cover"></span><span class="min-w-0 flex-1"><span class="block text-xs font-semibold truncate text-[var(--text-primary)]">${esc(x.title||'')}</span><span class="block text-[11px] text-[var(--text-muted)] truncate">${esc(x.client||'')}</span></span></button>`).join('');
+  }catch{}
+}
+function clearHistory(){ localStorage.removeItem('tk_history'); renderHistory(); }
+
 async function showDetail(publicId){
-  const modal=$('#tkDetailModal'), body=$('#tkModalBody'), title=$('#tkModalTitle');
-  title.textContent='Memuat...'; body.innerHTML='<div class="text-center py-4"><i class="bi bi-hourglass-split"></i></div>';
-  modal.classList.remove('hidden'), modal.classList.add('flex');
+  const modal=$('#tkDetailModal'), body=$('#tkModalBody'), title=$('#tkModalTitle'), kicker=$('#tkModalKicker');
+  title.textContent='Memuat...'; kicker.textContent='Campaign Detail';
+  body.innerHTML='<div class="p-6 text-center text-sm text-[var(--text-muted)]"><i class="bi bi-hourglass-split animate-pulse"></i> Memuat detail campaign...</div>';
+  modal.classList.remove('hidden'); modal.classList.add('flex');
+  modal.setAttribute('aria-hidden','false');
   document.body.classList.add('overflow-hidden');
-  
+  const onEsc=(e)=>{ if(e.key==='Escape') closeTkModal(); };
+  document.addEventListener('keydown', onEsc, {once:true});
+
   try{
     const r=await fetch(`/api/ternakklip-campaign-detail/${publicId}`);
     const j=await r.json();
     if(!r.ok || j.status!=='success') throw new Error(j.message||j.error||'Gagal fetch detail');
     const c=j.data;
+    pushHistory(c);
     title.textContent=c.title||'Campaign Detail';
+    kicker.textContent=c.client_name||'Campaign';
+
+    const rewards=(c.platform_rewards||[]).map(p=>{
+      const hasVal=p.reward_per_item!=null || p.reward_rate!=null;
+      return `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[11px] font-bold ${hasVal?'bg-[var(--accent)] text-[var(--accent-text)] border-[var(--accent)]':'bg-[var(--bg-surface-2)] text-[var(--text-muted)] border-[var(--border)]'}"><i class="bi ${p.provider==='tiktok'?'bi-music-note-beamed':p.provider==='instagram'?'bi-instagram':p.provider==='youtube'?'bi-youtube':p.provider==='facebook'?'bi-facebook':'bi-hash'}"></i>${esc(p.provider)} ${p.reward_per_item!=null?`• ${fmtRp(p.reward_per_item)}/view`:p.reward_rate!=null?`• ${p.reward_rate}%`:''}</span>`;
+    }).join('');
+
+    const tags=(c.tags||[]).map(t=>`<button onclick="navigator.clipboard.writeText('${esc(t.label)}'); showToast('Tag disalin: ${esc(t.label)}','success')" class="px-2.5 py-1 rounded-full bg-[var(--bg-surface-2)] border border-[var(--border)] text-[11px] font-medium text-[var(--text-secondary)] hover:border-[var(--accent)] hover:text-[var(--text-primary)] transition">${esc(t.label)}</button>`).join('');
+    const sources=(c.source_links||[]).map(s=>`<div class="flex items-center gap-2 p-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] hover:border-[var(--border-hover)] transition"><i class="bi bi-link-45deg text-[var(--text-muted)]"></i><a href="${esc(s.url)}" target="_blank" rel="noopener" class="flex-1 min-w-0 text-xs font-medium text-[var(--accent)] hover:underline truncate">${esc(s.label||'Sumber')} - ${esc(s.url)}</a><button onclick="navigator.clipboard.writeText('${esc(s.url)}'); showToast('Link disalin','success')" class="shrink-0 w-8 h-8 rounded-lg border border-[var(--border)] bg-[var(--bg-surface-2)] flex items-center justify-center hover:bg-[var(--bg-surface)]" title="Salin link"><i class="bi bi-copy text-xs"></i></button><a href="${esc(s.url)}" target="_blank" class="shrink-0 w-8 h-8 rounded-lg bg-[var(--accent)] text-[var(--accent-text)] flex items-center justify-center" title="Buka"><i class="bi bi-box-arrow-up-right text-xs"></i></a></div>`).join('') || '<div class="text-xs text-[var(--text-muted)]">Tidak ada link sumber.</div>';
+
+    // preset options
+    const presetOpts = window.UNIFIED_TEMPLATES ? Object.entries(window.UNIFIED_TEMPLATES).map(([k,v])=> `<option value="${esc(k)}">${esc(v.label||k)}</option>`).join('') : '<option value="tiktok_viral">TikTok Viral Thumbnail</option>';
+    const shareUrl=c.share_url||`https://app.ternakklip.com/campaign/share/${c.public_id}`;
+
     body.innerHTML=`
-      <div class="space-y-3">
-        <div class="flex items-center gap-3">
-          <span class="w-10 h-10 rounded-full overflow-hidden bg-zinc-800 flex-shrink-0">${c.client_avatar_url?`<img src="${c.client_avatar_url}" class="w-full h-full object-cover">`:'<i class="bi bi-person"></i>'}</span>
-          <div>
-            <div class="font-bold text-sm text-white">${c.client_name||'Client'}</div>
-            <div class="text-[11px] text-zinc-400">${(c.platform||[]).join(', ')}</div>
+      <div class="relative h-[180px] md:h-[220px] overflow-hidden bg-[var(--bg-surface-2)] border-b border-[var(--border)]">
+        <img src="${esc(c.thumbnail_url||'')}" class="w-full h-full object-cover" alt="">
+        <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent"></div>
+        <div class="absolute bottom-0 left-0 right-0 p-4 flex items-end justify-between gap-3">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <span class="w-10 h-10 rounded-full overflow-hidden bg-white border border-white/30 shrink-0">${c.client_avatar_url?`<img src="${esc(c.client_avatar_url)}" class="w-full h-full object-cover">`:`<span class="w-full h-full flex items-center justify-center bg-zinc-900 text-white"><i class="bi bi-person"></i></span>`}</span>
+            <div class="min-w-0">
+              <div class="text-white font-extrabold text-sm leading-tight drop-shadow">${esc(c.client_name||'Client')}</div>
+              <div class="text-white/80 text-xs">${(c.platform||[]).join(' • ')||'Platform tidak tercatat'} • ${new Date(c.created_at).toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'})}</div>
+            </div>
+          </div>
+          <div class="hidden sm:flex items-center gap-1.5">${c.is_accumulation?`<span class="px-2.5 py-1 rounded-full bg-emerald-500 text-white text-[11px] font-bold">Akumulasi</span>`:`<span class="px-2.5 py-1 rounded-full bg-sky-500 text-white text-[11px] font-bold">Single</span>`}${c.is_umkm?`<span class="px-2.5 py-1 rounded-full bg-violet-600 text-white text-[11px] font-bold">UMKM</span>`:''}</div>
+        </div>
+      </div>
+
+      <div class="p-4 space-y-4">
+        <div class="grid grid-cols-3 gap-2">
+          <div class="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-2)] p-3 text-center">
+            <div class="text-[10px] font-bold tracking-widest uppercase text-[var(--text-muted)]">Hadiah</div>
+            <div class="text-sm font-extrabold text-emerald-600 mt-1">${fmtRp(c.current_prize)}</div>
+            <div class="text-[10px] text-[var(--text-muted)]">dari ${fmtRp(c.total_prize)}</div>
+          </div>
+          <div class="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 text-center">
+            <div class="text-[10px] font-bold tracking-widest uppercase text-[var(--text-muted)]">Peserta</div>
+            <div class="text-sm font-extrabold text-[var(--text-primary)] mt-1">${Number(c.total_participants||0).toLocaleString('id-ID')}</div>
+            <div class="text-[10px] text-[var(--text-muted)]">creator</div>
+          </div>
+          <div class="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 text-center">
+            <div class="text-[10px] font-bold tracking-widest uppercase text-[var(--text-muted)]">Model</div>
+            <div class="text-xs font-bold mt-1 ${c.is_accumulation?'text-emerald-600':'text-sky-600'}">${c.is_accumulation?'Akumulasi':'Single Prize'}</div>
+            <div class="text-[10px] text-[var(--text-muted)]">${c.is_show_budget?'Budget terbuka':'Budget tertutup'}</div>
           </div>
         </div>
-        ${c.description?`<details class="cfg-group"><summary class="text-xs font-medium text-zinc-300 hover:text-white cursor-pointer">Deskripsi</summary><p class="text-xs text-zinc-300 mt-2 whitespace-pre-line">${esc(c.description)}</p></details>`:''}
-        ${c.file_brief_url?`<div class="pt-2 border-t border-zinc-800"><a href="${c.file_brief_url}" target="_blank" class="text-xs text-teal-400 hover:underline flex items-center gap-1"><i class="bi bi-file-earmark-text text-zinc-400"></i>Brief PDF</a></div>`:''}
-        ${c.source_links?.length?`<details open class="cfg-group"><summary class="text-xs font-medium text-zinc-300 hover:text-white cursor-pointer">Sumber Video</summary><div class="space-y-1.5 mt-2">
-          ${c.source_links.map(s=>`<a href="${s.url}" target="_blank" class="block text-xs text-zinc-200 hover:text-teal-400 break-all">${s.label||s.url}</a>`).join('')}
-        </div></details>`:''}
-        <button onclick="event.target.closest('#tkDetailModal').classList.add('hidden');document.body.classList.remove('overflow-hidden'); event.preventDefault();" class="mt-2 w-full py-1.5 bg-zinc-800 text-zinc-300 text-xs rounded-lg hover:bg-zinc-700 transition">
-          Tutup
-        </button>
+
+        <div>
+          <div class="text-[11px] font-bold tracking-widest uppercase text-[var(--text-muted)] mb-2">Reward per platform</div>
+          <div class="flex flex-wrap gap-1.5">${rewards||'<span class="text-xs text-[var(--text-muted)]">Tidak ada detail reward.</span>'}</div>
+        </div>
+
+        ${c.description?`<div class="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-2)] p-3">
+          <details class="cfg-group" open><summary class="text-xs font-bold text-[var(--text-primary)]">Deskripsi dan brief campaign</summary><p class="text-xs leading-relaxed text-[var(--text-secondary)] mt-2 whitespace-pre-line">${esc(c.description)}</p></details>
+        </div>`:''}
+
+        ${(c.tags||[]).length?`<div>
+          <div class="flex items-center justify-between mb-2">
+            <div class="text-[11px] font-bold tracking-widest uppercase text-[var(--text-muted)]">Tags</div>
+            <button onclick="navigator.clipboard.writeText('${esc((c.tags||[]).map(t=>t.label).join(' '))}'); showToast('Semua tag disalin','success')" class="text-[11px] font-semibold text-[var(--accent)] hover:underline">Salin semua</button>
+          </div>
+          <div class="flex flex-wrap gap-1.5">${tags}</div>
+        </div>`:''}
+
+        <div class="grid sm:grid-cols-2 gap-2">
+          ${c.file_brief_url?`<a href="${esc(c.file_brief_url)}" target="_blank" rel="noopener" class="flex items-center gap-2.5 p-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] hover:border-[var(--accent)]/30 hover:bg-[var(--accent-bg-subtle)] transition"><span class="w-9 h-9 rounded-xl bg-rose-500 text-white flex items-center justify-center shrink-0"><i class="bi bi-file-earmark-pdf"></i></span><span class="min-w-0 flex-1"><span class="block text-xs font-bold text-[var(--text-primary)]">Brief PDF</span><span class="block text-[11px] text-[var(--text-muted)] truncate">Buka brief resmi campaign</span></span><i class="bi bi-box-arrow-up-right text-[var(--text-muted)]"></i></a>`:''}
+          <div class="flex items-center gap-2 p-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]">
+            <span class="w-9 h-9 rounded-xl bg-[var(--accent)] text-[var(--accent-text)] flex items-center justify-center shrink-0"><i class="bi bi-share"></i></span>
+            <span class="min-w-0 flex-1"><span class="block text-xs font-bold text-[var(--text-primary)]">Share link</span><span class="block text-[11px] text-[var(--text-muted)] truncate">${esc(shareUrl)}</span></span>
+            <button onclick="navigator.clipboard.writeText('${esc(shareUrl)}'); showToast('Link share disalin','success')" class="w-8 h-8 rounded-lg border border-[var(--border)] bg-[var(--bg-surface-2)] flex items-center justify-center"><i class="bi bi-copy text-xs"></i></button>
+          </div>
+        </div>
+
+        <div>
+          <div class="text-[11px] font-bold tracking-widest uppercase text-[var(--text-muted)] mb-2">Sumber video</div>
+          <div class="space-y-1.5">${sources}</div>
+          <div class="text-[11px] text-[var(--text-muted)] mt-2">Sumber dipakai untuk membuat sesi clip. Satu campaign bisa punya beberapa asset, yang dipakai adalah sumber pertama.</div>
+        </div>
+
+        <div class="rounded-2xl border border-[var(--accent)]/30 bg-[var(--accent-bg-subtle)] p-3 space-y-3">
+          <div class="flex items-center gap-2">
+            <span class="w-7 h-7 rounded-full bg-[var(--accent)] text-[var(--accent-text)] flex items-center justify-center"><i class="bi bi-lightning-charge-fill text-xs"></i></span>
+            <div>
+              <div class="text-xs font-extrabold text-[var(--text-primary)]">Buat sesi clip dari campaign ini</div>
+              <div class="text-[11px] text-[var(--text-muted)]">Pakai template favoritmu, langsung masuk antrean.</div>
+            </div>
+          </div>
+          <div class="grid sm:grid-cols-[1.2fr_.8fr] gap-2">
+            <label class="space-y-1">
+              <span class="text-[11px] font-semibold text-[var(--text-secondary)]">Template</span>
+              <select id="tkCreatePreset" class="w-full min-h-[40px] rounded-xl border px-3 text-xs bg-[var(--bg-surface)] focus:outline-none focus:border-[var(--accent)]">${presetOpts}</select>
+            </label>
+            <label class="space-y-1">
+              <span class="text-[11px] font-semibold text-[var(--text-secondary)]">Jumlah clip</span>
+              <select id="tkCreateNum" class="w-full min-h-[40px] rounded-xl border px-3 text-xs bg-[var(--bg-surface)] focus:outline-none focus:border-[var(--accent)]">
+                <option value="auto">Auto (AI tentukan)</option>
+                <option value="3">3 clip</option>
+                <option value="5">5 clip</option>
+                <option value="7">7 clip</option>
+                <option value="10">10 clip</option>
+              </select>
+            </label>
+          </div>
+          <div class="flex gap-2">
+            <button id="tkCreateBtn" onclick="createFromTK('${c.public_id}', this)" class="flex-1 min-h-[44px] rounded-xl bg-[var(--accent)] text-[var(--accent-text)] text-sm font-extrabold inline-flex items-center justify-center gap-2"><i class="bi bi-lightning-charge-fill"></i>Buat Sesi Sekarang</button>
+            <button onclick="closeTkModal()" class="min-h-[44px] px-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] text-sm font-semibold">Nanti</button>
+          </div>
+          <div id="tkCreateStatus" class="text-xs text-[var(--text-muted)]"></div>
+        </div>
       </div>
     `;
+    // wire preset from last used
+    try{
+      const last=localStorage.getItem('tk_last_preset');
+      if(last && $('#tkCreatePreset')) $('#tkCreatePreset').value=last;
+    }catch{}
   }catch(e){
-    title.textContent='Error';
-    body.innerHTML='<div class="text-red-400 text-xs p-2">Gagal memuat detail: '+esc(e.message)+'</div>';
+    title.textContent='Gagal memuat';
+    body.innerHTML=`<div class="p-6 text-center"><div class="w-10 h-10 rounded-full bg-rose-500/10 text-rose-600 flex items-center justify-center mx-auto mb-2"><i class="bi bi-x-circle"></i></div><div class="text-sm font-bold text-[var(--text-primary)]">Gagal memuat detail</div><div class="text-xs text-[var(--text-muted)] mt-1">${esc(e.message)}</div><button onclick="showDetail('${publicId}')" class="mt-3 min-h-[36px] px-4 rounded-lg bg-[var(--accent)] text-[var(--accent-text)] text-xs font-bold">Coba lagi</button></div>`;
   }
 }
 
-async function createFromTK(publicId,btn){
-  btn.disabled=true; btn.innerHTML='<i class="bi bi-hourglass-split text-amber-400"></i> Memproses...';
+async function createFromTK(publicId, btn){
+  const origHtml=btn.innerHTML;
+  const presetSel=$('#tkCreatePreset');
+  const numSel=$('#tkCreateNum');
+  const preset=presetSel?presetSel.value:'tiktok_viral';
+  const numClips=numSel?numSel.value:'auto';
+  try{ localStorage.setItem('tk_last_preset', preset); }catch{}
+  const statusEl=$('#tkCreateStatus');
+  const tkBtn=btn;
+  let poll=null; let startMs=Date.now(); let curStage='campaign';
+  function stageLabel(s){ return {campaign:'Menyiapkan brief', highlight:'Analisis AI', render:'Render clip', done:'Selesai', failed:'Gagal', cancelled:'Dibatalkan'}[s]||s; }
+  function renderProgress(job){
+    const pct = job && job.progress!=null ? Math.round(job.progress) : (job.stage==='render'?85: job.stage==='highlight'?45: job.stage==='campaign'?10: 0);
+    const stage = job.stage||curStage;
+    const elapsed = job.elapsed_s!=null? job.elapsed_s : Math.round((Date.now()-startMs)/1000);
+    const count = job.count||0;
+    const logTail = (job.log||'').split('\n').slice(-8).join('\n').slice(-600);
+    const isRunning = job.running;
+    const barColor = job.stage==='failed' ? 'bg-red-500' : job.stage==='done' ? 'bg-emerald-500' : 'bg-[var(--accent)]';
+    if(statusEl){
+      statusEl.innerHTML = `
+        <div class="space-y-2">
+          <div class="flex items-center justify-between text-[11px]">
+            <span class="font-bold text-[var(--text-primary)]"><i class="bi bi-hourglass-split animate-pulse"></i> ${esc(stageLabel(stage))} ${isRunning?'<span class="font-normal text-[var(--text-muted)]">- '+elapsed+'s</span>':''}</span>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${job.stage==='failed'?'bg-red-500/10 text-red-600 border border-red-500/20': job.stage==='done'?'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20':'bg-zinc-800 text-zinc-300 border border-zinc-700'}">${isRunning?'Proses':'Selesai'}</span>
+          </div>
+          <div class="h-2 rounded-full bg-zinc-800 overflow-hidden border border-zinc-700">
+            <div class="h-full ${barColor} transition-all duration-700" style="width:${Math.min(100,Math.max(4,pct))}%"></div>
+          </div>
+          <div class="flex items-center justify-between text-[10px] text-[var(--text-muted)]"><span>${pct}%${count? ' - '+count+' highlight':''}</span><span>${elapsed}s</span></div>
+          ${logTail? `<pre class="max-h-[96px] overflow-auto bg-black/40 border border-zinc-800 rounded-lg p-2 text-[10px] leading-tight text-zinc-300 whitespace-pre-wrap break-words">${esc(logTail)}</pre>`:''}
+          <div class="flex gap-2">
+            ${job.stage==='done' && job.result && job.result.ok ? `<a href="/session.html?id=${encodeURIComponent(job.session_id||publicId)}" class="flex-1 min-h-[40px] rounded-xl bg-emerald-600 text-white text-xs font-extrabold inline-flex items-center justify-center gap-2"><i class="bi bi-play-circle"></i>Lihat Sesi & Clip</a><a href="/tasks.html" class="min-h-[40px] px-3 rounded-xl border border-zinc-700 bg-zinc-900 text-xs font-semibold inline-flex items-center gap-1.5"><i class="bi bi-list-task"></i>Antrean</a>` : ''}
+            ${job.stage==='failed' ? `<button onclick="location.reload()" class="flex-1 min-h-[40px] rounded-xl bg-zinc-900 border border-zinc-700 text-xs font-bold">Tutup</button><button onclick="createFromTK('${publicId}', document.getElementById('tkCreateBtn'))" class="flex-1 min-h-[40px] rounded-xl bg-[var(--accent)] text-[var(--accent-text)] text-xs font-extrabold">Coba Lagi</button>` : ''}
+            ${isRunning ? `<button id="tkCancelBtn" class="w-full min-h-[36px] rounded-xl border border-red-500/30 bg-red-500/10 text-red-600 text-xs font-bold">Batalkan</button>` : ''}
+          </div>
+        </div>`;
+      const cb=$('#tkCancelBtn');
+      if(cb) cb.onclick=async()=>{ try{ await fetch(`/api/campaign/auto/cancel/${encodeURIComponent(publicId)}`,{method:'POST'});}catch{} };
+    }
+    if(tkBtn){
+      if(job.stage==='done') { tkBtn.innerHTML='<i class="bi bi-check-circle-fill text-emerald-500"></i> Selesai'; tkBtn.disabled=true; tkBtn.classList.add('opacity-60','cursor-not-allowed'); }
+      else if(job.stage==='failed') { tkBtn.innerHTML='<i class="bi bi-x-circle text-red-500"></i> Gagal'; tkBtn.disabled=false; }
+      else { tkBtn.innerHTML='<i class="bi bi-hourglass-split animate-spin"></i> '+esc(stageLabel(job.stage))+' '+pct+'%'; tkBtn.disabled=true; }
+    }
+  }
+  function hardFail(msg){
+    if(statusEl) statusEl.innerHTML=`<div class="rounded-xl border border-red-500/20 bg-red-500/10 p-3 flex items-start gap-2 text-xs text-red-700"><i class="bi bi-exclamation-triangle mt-0.5"></i><span>${esc(msg)}</span></div>`;
+    if(tkBtn){ tkBtn.disabled=false; tkBtn.innerHTML=origHtml; }
+  }
+  if(statusEl) statusEl.innerHTML='<div class="rounded-xl border border-[var(--accent)]/30 bg-[var(--accent-bg-subtle)] p-3 text-xs text-[var(--text-muted)]"><i class="bi bi-lightning-charge-fill"></i> Mengirim 1-click auto (brief + highlight + render 3 teratas)...</div>';
+  tkBtn.disabled=true; tkBtn.innerHTML='<i class="bi bi-hourglass-split animate-pulse"></i> Mengirim...';
   try{
-    // Dulu dapat source URL dulu
-    const r=await fetch(`/api/ternakklip-campaign-detail/${publicId}`);
-    const j=await r.json();
-    if(!r.ok || j.status!=='success') throw new Error(j.message||j.error||'Gagal fetch');
-    const source=j.data?.source_links?.[0]?.url;
-    if(!source) throw new Error('Tidak ada source video');
-    
-    // Buat sesi pakai source URL
-    const cr=await fetch('/api/create',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({url:source, num_clips:'auto'})
-    });
-    const cj=await cr.json();
-    if(!cr.ok||!cj.ok) throw new Error(cj.error||cj.message||'Create gagal');
-    
-    btn.innerHTML='<i class="bi bi-check-circle text-emerald-400"></i> Buat...';
-    setTimeout(()=>{
-      window.location.href='/session.html?id='+encodeURIComponent(cj.session_id||cj.session_dir||'');
-    },800);
+    const r=await fetch(`/api/campaign/auto/${encodeURIComponent(publicId)}`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({preset, num_clips: numClips, auto_render: true, top_n: 3})});
+    let j; try{ j=await r.json(); }catch{ j={}; }
+    if(!r.ok || !j.ok){
+      // already running 409 -> poll instead
+      if(r.status===409){
+        showToast('Campaign ini masih diproses, menampilkan progres','info');
+      } else {
+        throw new Error(j.error||j.message||('HTTP '+r.status));
+      }
+    } else {
+      showToast('1-click jalan - highlight + render 3 clip','success');
+    }
+    // poll
+    poll=setInterval(async()=>{
+      try{
+        const pr=await fetch(`/api/campaign/auto/status/${encodeURIComponent(publicId)}`);
+        const pj=await pr.json();
+        if(!pr.ok){ return; }
+        renderProgress(pj);
+        if(!pj.running){
+          clearInterval(poll);
+          if(pj.stage==='done' && pj.result && pj.result.ok){
+            const cnt=pj.result.count||pj.count||0;
+            const rendered=pj.result.rendered||0;
+            showToast(`Selesai ${cnt} highlight, ${rendered} clip jadi`,'success');
+            // stay in modal, user klik Lihat Sesi
+            try{ invalidateReco && invalidateReco(); }catch{}
+          } else if(pj.stage==='failed' || (pj.result && !pj.result.ok)){
+            const err=(pj.result&&pj.result.error)||pj.log.slice(-500)||'Gagal';
+            showToast('Gagal: '+err.slice(0,120),'error');
+          }
+        }
+      }catch(e){}
+    }, 1300);
+    // first tick immediately after 1s
+    setTimeout(async()=>{
+      try{
+        const pr=await fetch(`/api/campaign/auto/status/${encodeURIComponent(publicId)}`);
+        const pj=await pr.json();
+        if(pr.ok) renderProgress(pj);
+      }catch{}
+    }, 900);
   }catch(e){
-    alert('Gagal: '+(e.message||'Unknown'));
-    btn.disabled=false; btn.innerHTML='<i class="bi bi-lightning-charge-fill text-amber-400"></i> Buat Sesi';
+    if(poll) clearInterval(poll);
+    hardFail(e.message||'Unknown');
+    showToast('Gagal: '+(e.message||'Unknown'),'error');
   }
 }
 
-$('#tkSearch')?.addEventListener('input',()=>renderTK(TERNK_DATA));
-loadTernakKlip();
+// search wiring: debounce 450ms, server-driven
+let searchTimer=null;
+$('#tkSearch')?.addEventListener('input',()=>{
+  const v=$('#tkSearch').value;
+  const clearBtn=$('#tkClearSearch');
+  if(clearBtn){ if(v.trim()){ clearBtn.classList.remove('hidden'); clearBtn.classList.add('flex'); } else { clearBtn.classList.add('hidden'); clearBtn.classList.remove('flex'); } }
+  clearTimeout(searchTimer);
+  searchTimer=setTimeout(()=> loadTernakKlip(1), 450);
+});
+$('#tkSearch')?.addEventListener('keydown',e=>{ if(e.key==='Enter'){ clearTimeout(searchTimer); loadTernakKlip(1); } if(e.key==='Escape'){ clearSearch(); } });
+$('#tkClearSearch')?.addEventListener('click', clearSearch);
+$('#tkSort')?.addEventListener('change',()=>{
+  // client sort only, no server reload
+  CURRENT_FILTER.sort=$('#tkSort').value;
+  const filtered=getFilteredSorted();
+  renderTK(filtered);
+  renderTop();
+  updateStats(filtered);
+  renderReco();
+});
+
+/* ---- Modal helper (standalone, no dependency) ---- */
+const Modal = {
+  show(id){ const el=document.getElementById(id); if(!el) return; el.classList.remove('hidden'); el.classList.add('flex'); el.setAttribute('aria-hidden','false'); document.body.classList.add('overflow-hidden'); },
+  hide(id){ const el=document.getElementById(id); if(!el) return; el.classList.add('hidden'); el.classList.remove('flex'); el.setAttribute('aria-hidden','true'); document.body.classList.remove('overflow-hidden'); }
+};
+function closeTkModal(){ Modal.hide('tkDetailModal'); }
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeTkModal(); });
+$('#tkDetailModal')?.addEventListener('click', e=>{ if(e.target===$('#tkDetailModal')) closeTkModal(); });
+
+// initial
+updateBookmarkChip();
+setView(CURRENT_FILTER.view);
+renderHistory();
+loadTernakKlip(1);
+
+// expose for pagination retry
+window.loadTernakKlip=loadTernakKlip;
+window.clearSearch=clearSearch;
+window.clearFilters=clearFilters;
 </script>
 <script src="/engine_status.js"></script>
 <script src="/ui.js"></script>

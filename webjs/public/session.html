@@ -1,68 +1,37 @@
-<!DOCTYPE html>
-<html lang="id">
+<!doctype html>
+<html lang="id" class="dark">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Auto Clipper</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Detail Sesi  -  Auto Clipper</title>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0d9488">
 <script src="/templates.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
-tailwind.config = {
-  darkMode: 'class',
-  theme: {
-    extend: {
-      colors: {
-        accent: 'var(--accent)',
-        surface: { 0:'var(--bg-page)', 1:'var(--bg-surface)', 2:'var(--bg-surface-2)', 3:'var(--border)' },
-        zinc: { 450: '#8b8b96', 650: '#43434c' }
-      }
-    }
-  }
-}
+tailwind.config={darkMode:'class',theme:{extend:{colors:{accent:'var(--accent)',surface:{0:'var(--bg-page)',1:'var(--bg-surface)',2:'var(--bg-surface-2)',3:'var(--border)'}}}}}
 </script>
 <style>
-a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible {
-  outline: 2px solid #facc15 !important;
-  outline-offset: 2px !important;
-}
-
-
-
-
-
-
-
-
+a:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid #facc15!important;outline-offset:2px!important}
+.tk-card{border:1px solid var(--border);background:var(--bg-surface);border-radius:12px;overflow:hidden;transition:border-color .2s,box-shadow .2s}
+.tk-card:hover{border-color:var(--border-hover)}
+.chip{border:1px solid var(--border);background:var(--bg-surface);color:var(--text-secondary);border-radius:9999px;padding:.28rem .68rem;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:.35rem}
+.chip-accent{border-color:var(--accent);background:var(--accent);color:var(--accent-text)}
+.tk-skeleton{background:linear-gradient(90deg,var(--bg-surface-2) 25%,var(--border) 37%,var(--bg-surface-2) 63%);background-size:400% 100%;animation:shimmer 1.2s ease infinite}
+@keyframes shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}
+.line-clamp-2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+details.cfg-group summary{cursor:pointer;user-select:none;list-style:none}
+details.cfg-group summary::before{content:'▸';display:inline-block;width:1em;margin-right:.5rem;transition:transform .15s}
+details.cfg-group[open] summary::before{transform:rotate(90deg)}
+.hl-item{border:1px solid var(--border);border-radius:10px}
+.hl-item:hover{border-color:var(--border-hover)}
 </style>
-<link rel="stylesheet" href="/app.css">
+<link rel="stylesheet" href="/app.css?v=20260921_1">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-
-<script>
-// FORCE CACHE CLEAR AND SW UNREGISTER
-(async function() {
-  if (localStorage.getItem('force_cleared_v11')) return;
-  try {
-    if ('serviceWorker' in navigator) {
-      const regs = await navigator.serviceWorker.getRegistrations();
-      for (let r of regs) await r.unregister();
-    }
-    if ('caches' in window) {
-      const keys = await caches.keys();
-      for (let k of keys) await caches.delete(k);
-    }
-    localStorage.setItem('force_cleared_v11', '1');
-    window.location.reload(true);
-  } catch (e) {}
-})();
-</script>
-
 </head>
-<body class="min-h-screen flex flex-col md:flex-row antialiased ">
+<body class="min-h-screen flex flex-col md:flex-row antialiased">
 
-<!-- SIDEBAR -->
-<aside class="w-full md:w-64 border-b md:border-b-0 md:border-r border-zinc-800  flex flex-col shrink-0">
+<aside class="w-full md:w-64 border-b md:border-b-0 md:border-r border-zinc-800 flex flex-col shrink-0">
   <div class="p-4 border-b border-zinc-800 flex items-center justify-between">
     <div class="flex items-center gap-2">
       <span class="w-7 h-7 rounded-lg logo-mark flex items-center justify-center font-black text-sm"><i class="bi bi-lightning-charge-fill text-amber-400"></i></span>
@@ -70,450 +39,744 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
     </div>
     <div class="flex items-center gap-2"><button class="darkmode-btn darkmode-compact" aria-label="Toggle dark mode"><i class="bi bi-moon-stars"></i></button><a href="/logout" class="min-h-[32px] min-w-[44px] flex items-center justify-center text-xs text-zinc-400 hover:text-white transition md:hidden">Logout</a></div>
   </div>
-
   <nav aria-label="Menu Utama" class="p-2 md:p-3 flex flex-row md:flex-col gap-1.5 flex-wrap" id="sidebarLinks">
-    <a href="/" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition bg-[var(--accent)] text-[var(--accent-text)] font-bold shadow-sm"><i class="bi bi-house-door"></i><span>Library Sesi</span></a>
-    <a href="/create.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-plus-square text-emerald-400"></i><span>Create Clip</span></a>
-    <a href="/tasks.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-list-task text-amber-400"></i><span>Antrean Tasks</span></a>
-    <a href="/story.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-film text-fuchsia-400"></i><span>AI Story</span></a>
-    <a href="/facebook.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-facebook text-blue-400"></i><span>FB Auto Upload</span></a>
-    <a href="/cookies.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-shield-lock text-orange-400"></i><span>Cookies YouTube</span></a>
-    <a href="/ternaklip.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-bullseye text-teal-400"></i><span>TernakKlip</span></a>
-    <a href="/dependencies.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-box-seam text-violet-400"></i><span>Dependencies</span></a>
-    <a href="/settings.html" class="flex items-center gap-1.5 md:gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-gear text-zinc-400"></i><span>Settings & AI</span></a>
+    <a href="/" class="flex items-center gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition bg-[var(--accent)] text-[var(--accent-text)] font-bold shadow-sm"><i class="bi bi-house-door"></i><span>Library Sesi</span></a>
+    <a href="/create.html" class="flex items-center gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-plus-square text-emerald-400"></i><span>Create Clip</span></a>
+    <a href="/tasks.html" class="flex items-center gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-list-task text-amber-400"></i><span>Antrean Tasks</span></a>
+    <a href="/story.html" class="flex items-center gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-film text-fuchsia-400"></i><span>AI Story</span></a>
+    <a href="/facebook.html" class="flex items-center gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-facebook text-blue-400"></i><span>FB Auto Upload</span></a>
+    <a href="/cookies.html" class="flex items-center gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-shield-lock text-orange-400"></i><span>Cookies YouTube</span></a>
+    <a href="/ternaklip.html" class="flex items-center gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-bullseye text-teal-400"></i><span>TernakKlip</span></a>
+    <a href="/dependencies.html" class="flex items-center gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-box-seam text-violet-400"></i><span>Dependencies</span></a>
+    <a href="/settings.html" class="flex items-center gap-1.5 md:gap-2.5 min-h-[28px] md:min-h-[40px] px-2 md:px-3.5 py-1 md:py-2.5 text-[10px] md:text-xs rounded-lg transition text-zinc-300 hover:text-white hover:bg-zinc-900 font-medium"><i class="bi bi-gear text-zinc-400"></i><span>Settings & AI</span></a>
   </nav>
-
-  <!-- Engine Status Indication -->
   <div class="mt-auto px-4 py-3 border-t border-zinc-800/80 hidden md:flex flex-col gap-2 text-xs text-zinc-400 bg-zinc-950/40">
     <span class="font-semibold text-[10px] uppercase tracking-wider text-zinc-400"><i class="bi bi-cpu text-emerald-400"></i> Engine Status</span>
-    <div class="flex items-center justify-between"><span>FFmpeg</span><span id="st_ffmpeg" class="w-2.5 h-2.5 rounded-full bg-zinc-600" title="Checking..."></span></div>
-    <div class="flex items-center justify-between"><span>yt-dlp</span><span id="st_ytdlp" class="w-2.5 h-2.5 rounded-full bg-zinc-600" title="Checking..."></span></div>
-    <div class="flex items-center justify-between"><span>Deno</span><span id="st_deno" class="w-2.5 h-2.5 rounded-full bg-zinc-600" title="Checking..."></span></div>
-    <div class="flex items-center justify-between"><span>AI Proxy</span><span id="st_ai" class="w-2.5 h-2.5 rounded-full bg-zinc-600" title="Checking..."></span></div>
+    <div class="flex items-center justify-between"><span>FFmpeg</span><span id="st_ffmpeg" class="w-2.5 h-2.5 rounded-full bg-zinc-600"></span></div>
+    <div class="flex items-center justify-between"><span>yt-dlp</span><span id="st_ytdlp" class="w-2.5 h-2.5 rounded-full bg-zinc-600"></span></div>
+    <div class="flex items-center justify-between"><span>Deno</span><span id="st_deno" class="w-2.5 h-2.5 rounded-full bg-zinc-600"></span></div>
+    <div class="flex items-center justify-between"><span>AI Proxy</span><span id="st_ai" class="w-2.5 h-2.5 rounded-full bg-zinc-600"></span></div>
   </div>
-
   <div class="p-4 border-t border-zinc-800 hidden md:flex items-center justify-between text-xs">
     <span class="text-zinc-400 truncate max-w-[130px]" id="whoami"></span>
     <div class="flex items-center gap-2"><button class="darkmode-btn darkmode-compact" aria-label="Toggle dark mode"><i class="bi bi-moon-stars"></i></button><a href="/logout" class="text-zinc-400 hover:text-white transition">Logout</a></div>
   </div>
-
-  <!-- Engine Status Mobile -->
   <div class="md:hidden flex items-center justify-around px-4 py-2.5 border-t border-b border-zinc-800/80 bg-zinc-950/60 text-[10px] text-zinc-300">
-    <div class="flex items-center gap-1.5"><span id="st_ffmpeg_mob" class="w-2 h-2 rounded-full bg-zinc-600" title="Checking..."></span><span>FFmpeg</span></div>
-    <div class="flex items-center gap-1.5"><span id="st_ytdlp_mob" class="w-2 h-2 rounded-full bg-zinc-600" title="Checking..."></span><span>yt-dlp</span></div>
-    <div class="flex items-center gap-1.5"><span id="st_deno_mob" class="w-2 h-2 rounded-full bg-zinc-600" title="Checking..."></span><span>Deno</span></div>
-    <div class="flex items-center gap-1.5"><span id="st_ai_mob" class="w-2 h-2 rounded-full bg-zinc-600" title="Checking..."></span><span>AI</span></div>
+    <div class="flex items-center gap-1.5"><span id="st_ffmpeg_mob" class="w-2 h-2 rounded-full bg-zinc-600"></span><span>FFmpeg</span></div>
+    <div class="flex items-center gap-1.5"><span id="st_ytdlp_mob" class="w-2 h-2 rounded-full bg-zinc-600"></span><span>yt-dlp</span></div>
+    <div class="flex items-center gap-1.5"><span id="st_deno_mob" class="w-2 h-2 rounded-full bg-zinc-600"></span><span>Deno</span></div>
+    <div class="flex items-center gap-1.5"><span id="st_ai_mob" class="w-2 h-2 rounded-full bg-zinc-600"></span><span>AI</span></div>
   </div>
-
-
-  
-
-  <!-- Disk Space Widget (desktop & mobile) -->
   <div class="disk-widget border-t border-zinc-800/80">
     <div class="disk-label"><i class="bi bi-hdd-stack text-sky-400"></i> memuat...</div>
     <div class="disk-bar"><div class="disk-fill" style="width:0%"></div></div>
   </div>
-
 </aside>
 
-<!-- MAIN CONTENT WRAPPER -->
 <div class="flex-1 flex flex-col min-w-0 overflow-y-auto">
-  <!-- MAIN CONTENT -->
-  <main class="max-w-5xl w-full mx-auto p-4 md:p-6 space-y-6 flex-1">
-    <div class="text-center text-zinc-400 py-12 text-sm" id="loadingState">Memuat detail sesi…</div>
-    
-    <div id="contentState" class="hidden space-y-6">
-      
-      <!-- INFO SESI -->
-      <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 md:p-5 shadow-sm space-y-3">
-        <div class="flex flex-wrap justify-between items-start gap-2">
-          <div>
-            <h1 class="text-base md:text-lg font-bold text-white" id="s_title">-</h1>
-            <p class="text-xs text-zinc-400 mt-0.5" id="s_meta">-</p>
+  <div class="max-w-[1480px] w-full mx-auto">
+    <!-- header focal -->
+    <div class="px-4 pt-4 pb-3">
+      <div class="flex items-center gap-2 text-[11px] text-[var(--text-muted)] mb-2">
+        <a href="/" class="hover:text-[var(--text-primary)] hover:underline"><i class="bi bi-house-door"></i> Library</a>
+        <span class="opacity-40">/</span>
+        <span class="font-semibold text-[var(--text-primary)] truncate" id="crumbTitle">Detail Sesi</span>
+        <span class="ml-auto hidden sm:inline-flex items-center gap-1.5 text-[10px] px-2 py-1 rounded-full border" id="statusBadge"><span class="w-1.5 h-1.5 rounded-full bg-zinc-400"></span><span>-</span></span>
+      </div>
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div class="min-w-0">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="w-1 h-5 rounded-full bg-[var(--accent)] shrink-0"></span>
+            <h1 id="s_title" class="text-[15px] md:text-[17px] font-extrabold tracking-tight text-[var(--text-primary)] font-heading truncate">Memuat sesi…</h1>
+            <span id="campaignPill" class="hidden items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full bg-violet-600 text-white"><i class="bi bi-bullseye"></i>TernakKlip</span>
           </div>
-          <span class="bg-zinc-800 text-zinc-300 text-xs px-2.5 py-1 rounded font-mono" id="s_id"></span>
+          <p id="s_meta" class="text-xs text-[var(--text-muted)] leading-relaxed max-w-[720px]">Menyiapkan data campaign, highlight, dan clip…</p>
         </div>
-        <div id="sourceBox" class="text-xs bg-surface-2 border border-zinc-800 rounded-lg p-3 hidden">
-          <span class="font-medium text-zinc-400 mr-2">Sumber Video:</span>
-          <a id="s_url" class="text-accent hover:underline break-all font-mono" target="_blank" rel="noopener" href="#"></a>
-        </div>
-      </div>
-
-      <!-- HIGHLIGHTS -->
-      <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 md:p-5 shadow-sm space-y-3">
-        <div class="flex flex-wrap justify-between items-center gap-2 pb-3 border-b border-zinc-800">
-          <h2 class="text-sm font-semibold text-white flex items-center gap-2">
-            <span><i class="bi bi-bullseye text-teal-400"></i> Highlight</span>
-            <span class="text-xs text-zinc-400 font-normal" id="hlCountInfo"></span>
-          </h2>
-          <div class="flex items-center gap-2">
-            <input type="number" id="refindCount" min="1" max="20" placeholder="auto" class="w-16 bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs text-white">
-            <button onclick="doRefind()" class="px-3 py-1.5 text-xs font-semibold bg-zinc-800 text-zinc-200 border border-zinc-700 rounded-lg hover:bg-zinc-700 transition"><i class="bi bi-search text-sky-400"></i> Cari Ulang</button>
-            <button onclick="toggleAllCheck()" class="px-3 py-1.5 text-xs font-semibold bg-zinc-800 text-zinc-200 border border-zinc-700 rounded-lg hover:bg-zinc-700 transition"><i class="bi bi-check2-square"></i> Pilih Semua</button>
-          </div>
-        </div>
-        <div id="tplBar" class="flex flex-wrap gap-1.5"></div>
-        <div id="tplMsg" class="hidden text-xs px-2 py-1"></div>
-        <div id="hlListContainer" class="divide-y divide-zinc-800/50"></div>
-        <div class="flex items-center justify-between pt-2">
-          <span class="text-xs text-zinc-400" id="selCount"></span>
-          <button onclick="startProcess()" class="px-4 py-2 text-xs font-semibold bg-[var(--accent)] text-[var(--accent-text)] rounded-lg hover:bg-[var(--accent-hover)] transition"><i class="bi bi-play-fill"></i> Proses Terpilih</button>
+        <div class="flex items-center gap-1.5 shrink-0 flex-wrap">
+          <a id="btnOpenTernak" href="/ternaklip.html" class="hidden min-h-[36px] px-3 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-hover)] transition inline-flex items-center gap-1.5"><i class="bi bi-bullseye text-teal-500"></i>Kampanye</a>
+          <button onclick="goCreate()" class="min-h-[36px] px-3 rounded-lg bg-[var(--accent)] text-[var(--accent-text)] text-xs font-bold inline-flex items-center gap-1.5"><i class="bi bi-plus-square"></i>Create</button>
+          <a id="btnTasks" href="/tasks.html" class="min-h-[36px] px-3 rounded-lg bg-[var(--bg-surface-2)] border border-[var(--border)] text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] inline-flex items-center gap-1.5"><i class="bi bi-list-task"></i>Tasks</a>
         </div>
       </div>
-
-      <!-- DAFTAR KLIP HASIL RENDER -->
-      <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 md:p-5 shadow-sm space-y-4">
-        <div class="flex flex-wrap justify-between items-center gap-2 pb-3 border-b border-zinc-800">
-          <h2 class="text-sm font-semibold text-white flex items-center gap-2">
-            <span><i class="bi bi-film"></i> Klip Hasil Render</span>
-            <span class="text-xs text-zinc-400 font-normal" id="clipCountInfo"></span>
-          </h2>
-        </div>
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3" id="clipsGrid"></div>
-      </div>
-
-      <!-- RENDER ULANG -->
-      <div class="bg-surface-1 border border-zinc-800 rounded-xl p-4 md:p-5 shadow-sm space-y-3">
-        <div class="flex items-center justify-between">
-          <div>
-            <h2 class="text-sm font-semibold text-white">🔁 Render Ulang</h2>
-            <p class="text-[11px] text-zinc-400">Buka Create untuk pilih momen &amp; render ulang</p>
-          </div>
-          <button onclick="goCreate()" class="px-4 py-2 text-xs font-semibold bg-[var(--accent)] text-[var(--accent-text)] rounded-lg hover:bg-[var(--accent-hover)] transition"><i class="bi bi-play-fill text-emerald-400"></i> Render Ulang → Create</button>
-        </div>
-        <div id="actionStatus"></div>
-        <pre class="log hidden mt-2" id="actionLog" style="max-height:250px;overflow:auto;display:none"></pre>
-      </div>
-      </div>
-
     </div>
-  </main>
+
+    <div id="loadingState" class="px-4 pb-6">
+      <div class="card-panel p-4 space-y-3">
+        <div class="h-5 rounded tk-skeleton w-2/3"></div>
+        <div class="h-3 rounded tk-skeleton w-full"></div>
+        <div class="h-3 rounded tk-skeleton w-1/2"></div>
+        <div class="grid grid-cols-2 gap-2 pt-2"><div class="h-16 rounded tk-skeleton"></div><div class="h-16 rounded tk-skeleton"></div></div>
+      </div>
+    </div>
+
+    <div id="contentState" class="hidden px-4 pb-6">
+      <div class="flex flex-col xl:flex-row gap-4">
+        <main class="flex-1 min-w-0 space-y-3">
+
+          <!-- Campaign sync card  -  sinkron ternakklip full info -->
+          <div id="campaignCard" class="hidden card-panel overflow-hidden">
+            <div class="relative h-[132px] md:h-[156px] bg-[var(--bg-surface-2)] border-b border-[var(--border)] overflow-hidden">
+              <img id="campThumb" src="" alt="" class="w-full h-full object-cover" loading="lazy">
+              <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-transparent"></div>
+              <div class="absolute bottom-0 left-0 right-0 p-3 md:p-4 flex items-end justify-between gap-3">
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <span id="campAvatar" class="w-9 h-9 md:w-10 md:h-10 rounded-full overflow-hidden bg-white border border-white/30 shrink-0 flex items-center justify-center"></span>
+                  <div class="min-w-0">
+                    <div id="campClient" class="text-white font-extrabold text-sm leading-tight drop-shadow truncate">-</div>
+                    <div id="campPlatform" class="text-white/80 text-xs truncate">-</div>
+                  </div>
+                </div>
+                <div class="hidden sm:flex items-center gap-1.5 shrink-0" id="campModelPills"></div>
+              </div>
+              <div class="absolute top-2 left-2 flex flex-wrap gap-1" id="campTopBadges"></div>
+            </div>
+            <div class="p-3 space-y-3">
+              <div class="flex flex-wrap items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <h2 id="campTitle" class="text-[13px] md:text-sm font-extrabold leading-tight text-[var(--text-primary)] line-clamp-2">-</h2>
+                  <div class="text-[11px] text-[var(--text-muted)] mt-1 flex flex-wrap items-center gap-2">
+                    <span id="campDate" class="inline-flex items-center gap-1"><i class="bi bi-calendar3"></i>-</span>
+                    <span class="hidden sm:inline opacity-30">•</span>
+                    <span id="campIdPill" class="font-mono text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface-2)] border border-[var(--border)]">-</span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <button id="btnShareCopy" class="w-8 h-8 rounded-lg border border-[var(--border)] bg-[var(--bg-surface-2)] flex items-center justify-center hover:bg-[var(--bg-surface)]" title="Salin share link"><i class="bi bi-share text-xs"></i></button>
+                  <a id="btnShareOpen" href="#" target="_blank" rel="noopener" class="w-8 h-8 rounded-lg bg-[var(--accent)] text-[var(--accent-text)] flex items-center justify-center" title="Buka share"><i class="bi bi-box-arrow-up-right text-xs"></i></a>
+                </div>
+              </div>
+              <div class="grid grid-cols-3 gap-2">
+                <div class="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-2)] p-3 text-center">
+                  <div class="text-[10px] font-bold tracking-widest uppercase text-[var(--text-muted)]">Hadiah</div>
+                  <div id="campPrize" class="text-[13px] font-extrabold text-emerald-600 mt-1 leading-none">-</div>
+                  <div id="campPrizeSub" class="text-[10px] text-[var(--text-muted)] mt-1 truncate">-</div>
+                </div>
+                <div class="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 text-center">
+                  <div class="text-[10px] font-bold tracking-widest uppercase text-[var(--text-muted)]">Peserta</div>
+                  <div id="campParticipants" class="text-[13px] font-extrabold text-[var(--text-primary)] mt-1 leading-none">-</div>
+                  <div id="campThreshold" class="text-[10px] text-[var(--text-muted)] mt-1">-</div>
+                </div>
+                <div class="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 text-center">
+                  <div class="text-[10px] font-bold tracking-widest uppercase text-[var(--text-muted)]">Rasio</div>
+                  <div id="campRatio" class="text-xs font-bold mt-1">-</div>
+                  <div id="campRatioSub" class="text-[10px] text-[var(--text-muted)] mt-1">-</div>
+                </div>
+              </div>
+              <div>
+                <div class="text-[11px] font-bold tracking-widest uppercase text-[var(--text-muted)] mb-1.5">Reward per platform</div>
+                <div id="campRewards" class="flex flex-wrap gap-1.5"></div>
+              </div>
+              <div id="campDescWrap" class="hidden rounded-xl border border-[var(--border)] bg-[var(--bg-surface-2)] p-3">
+                <details class="cfg-group" open><summary class="text-xs font-bold text-[var(--text-primary)]">Deskripsi dan brief campaign</summary><p id="campDesc" class="text-xs leading-relaxed text-[var(--text-secondary)] mt-2 whitespace-pre-line"></p></details>
+              </div>
+              <div id="campTagsWrap" class="hidden">
+                <div class="flex items-center justify-between mb-1.5">
+                  <div class="text-[11px] font-bold tracking-widest uppercase text-[var(--text-muted)]">Tags</div>
+                  <button id="btnCopyTags" class="text-[11px] font-semibold text-[var(--accent)] hover:underline">Salin semua</button>
+                </div>
+                <div id="campTags" class="flex flex-wrap gap-1.5"></div>
+              </div>
+              <div class="grid sm:grid-cols-2 gap-2" id="campLinksGrid"></div>
+              <div>
+                <div class="text-[11px] font-bold tracking-widest uppercase text-[var(--text-muted)] mb-1.5">Sumber video</div>
+                <div id="campSources" class="space-y-1.5"></div>
+                <div class="text-[11px] text-[var(--text-muted)] mt-1.5">Sumber dari campaign_brief.json  -  sinkron dengan TernakKlip. Sumber pertama dipakai untuk highlight dan render.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Session info  -  durasi, status, srt, file -->
+          <div class="card-panel p-3 space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-bold tracking-widest uppercase text-[var(--text-muted)]"><i class="bi bi-info-circle text-sky-500"></i> Info Sesi</span>
+              <span id="s_id" class="font-mono text-[10px] px-2 py-1 rounded-full bg-[var(--bg-surface-2)] border border-[var(--border)] text-[var(--text-muted)]">-</span>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <div class="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-2)] p-3">
+                <div class="text-[10px] font-bold tracking-widest uppercase text-[var(--text-muted)]">Status</div>
+                <div id="infoStatus" class="text-xs font-bold mt-1">-</div>
+                <div id="infoStatusSub" class="text-[10px] text-[var(--text-muted)] mt-1">-</div>
+              </div>
+              <div class="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3">
+                <div class="text-[10px] font-bold tracking-widest uppercase text-[var(--text-muted)]">Durasi sumber</div>
+                <div id="infoDuration" class="text-[13px] font-extrabold text-[var(--text-primary)] mt-1">-</div>
+                <div id="infoDurationSub" class="text-[10px] text-[var(--text-muted)] mt-1">-</div>
+              </div>
+              <div class="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3">
+                <div class="text-[10px] font-bold tracking-widest uppercase text-[var(--text-muted)]">Highlight / Clip</div>
+                <div class="text-[13px] font-extrabold mt-1"><span id="infoHlCount">0</span> <span class="text-[var(--text-muted)] font-normal">/</span> <span id="infoClipCount">0</span></div>
+                <div id="infoClipSub" class="text-[10px] text-[var(--text-muted)] mt-1">-</div>
+              </div>
+              <div class="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3">
+                <div class="text-[10px] font-bold tracking-widest uppercase text-[var(--text-muted)]">File</div>
+                <div id="infoFiles" class="text-[11px] font-semibold mt-1">-</div>
+                <div id="infoFilesSub" class="text-[10px] text-[var(--text-muted)] mt-1">-</div>
+              </div>
+            </div>
+            <div class="grid md:grid-cols-2 gap-2 text-xs">
+              <div class="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3">
+                <div class="text-[11px] font-bold tracking-widest uppercase text-[var(--text-muted)] mb-1">Sumber video</div>
+                <div id="sourceBox" class="hidden">
+                  <a id="s_url" class="text-[var(--accent)] hover:underline break-all font-mono text-xs" target="_blank" rel="noopener" href="#"></a>
+                  <div id="sourceMeta" class="text-[11px] text-[var(--text-muted)] mt-1"></div>
+                </div>
+                <div id="sourceEmpty" class="text-[var(--text-muted)]">Tidak ada URL sumber.</div>
+                <div class="mt-2 flex flex-wrap gap-1.5">
+                  <button onclick="navigator.clipboard.writeText(document.getElementById('s_url')?.href||''); showToast('Link sumber disalin','success')" class="min-h-[32px] px-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg-surface-2)] text-xs font-semibold">Salin link</button>
+                  <a id="btnOpenSource" href="#" target="_blank" rel="noopener" class="min-h-[32px] px-2.5 rounded-lg bg-[var(--accent)] text-[var(--accent-text)] text-xs font-bold inline-flex items-center gap-1">Buka <i class="bi bi-box-arrow-up-right text-[10px]"></i></a>
+                </div>
+              </div>
+              <div class="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="text-[11px] font-bold tracking-widest uppercase text-[var(--text-muted)]">Timeline</span>
+                  <button onclick="document.getElementById('timelineBox')?.classList.toggle('hidden')" class="text-[11px] font-semibold text-[var(--accent)]">Toggle</button>
+                </div>
+                <div class="space-y-1.5 text-[11px] text-[var(--text-secondary)]" id="timelineBox">
+                  <div class="flex justify-between"><span class="text-[var(--text-muted)]">Dibuat</span><span id="infoCreated" class="font-mono font-semibold">-</span></div>
+                  <div class="flex justify-between"><span class="text-[var(--text-muted)]">Mulai proses</span><span id="infoStarted" class="font-mono">-</span></div>
+                  <div class="flex justify-between"><span class="text-[var(--text-muted)]">Selesai</span><span id="infoCompleted" class="font-mono">-</span></div>
+                  <div class="flex justify-between"><span class="text-[var(--text-muted)]">SRT</span><span id="infoSrt" class="font-medium">-</span></div>
+                  <div class="flex justify-between"><span class="text-[var(--text-muted)]">_temp video</span><span id="infoTemp" class="font-medium">-</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Highlights  -  virality, hook, timed_title -->
+          <div class="card-panel p-3 space-y-3">
+            <div class="flex flex-wrap justify-between items-center gap-2">
+              <h2 class="text-xs font-extrabold tracking-tight text-[var(--text-primary)] flex items-center gap-2">
+                <span class="w-1 h-4 rounded-full bg-teal-500"></span>
+                <span>Highlight</span>
+                <span class="text-[11px] font-normal text-[var(--text-muted)]" id="hlCountInfo">(0 momen)</span>
+              </h2>
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <input type="number" id="refindCount" min="1" max="20" placeholder="auto" class="w-20 min-h-[36px] bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg px-2.5 text-xs focus:border-[var(--accent)]" title="Jumlah highlight baru (kosong = auto)">
+                <button onclick="doRefind()" class="min-h-[36px] px-3 text-xs font-bold bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-lg inline-flex items-center gap-1.5"><i class="bi bi-search text-sky-500"></i>Cari Ulang</button>
+                <button onclick="toggleAllCheck()" class="min-h-[36px] px-3 text-xs font-bold bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-lg inline-flex items-center gap-1.5"><i class="bi bi-check2-square"></i>Pilih Semua</button>
+              </div>
+            </div>
+            <div id="tplBar" class="flex flex-wrap gap-1.5"></div>
+            <div id="tplMsg" class="hidden text-xs px-3 py-2 rounded-lg"></div>
+            <div id="hlListContainer" class="space-y-2"></div>
+            <div class="flex items-center justify-between pt-2 border-t border-[var(--border)]">
+              <span class="text-xs text-[var(--text-muted)]" id="selCount">0 / 0 dipilih</span>
+              <button onclick="startProcess()" class="min-h-[40px] px-4 text-xs font-extrabold bg-[var(--accent)] text-[var(--accent-text)] rounded-xl hover:opacity-95 transition inline-flex items-center gap-1.5"><i class="bi bi-play-fill"></i>Proses Terpilih</button>
+            </div>
+            <div id="hlEmptyCta" class="hidden rounded-xl border border-dashed border-[var(--border)] bg-[var(--bg-surface-2)] p-4 text-center">
+              <div class="text-sm font-bold text-[var(--text-primary)]">Belum ada momen highlight</div>
+              <div class="text-xs text-[var(--text-muted)] mt-1">Sesi ini belum punya highlight (transkrip mungkin belum jadi atau AI belum jalan). Klik Cari Ulang untuk generate ulang</div>
+            </div>
+          </div>
+
+          <!-- Clips grid  -  portrait, flags, thumb -->
+          <div class="card-panel p-3 space-y-3">
+            <div class="flex flex-wrap justify-between items-center gap-2">
+              <h2 class="text-xs font-extrabold tracking-tight text-[var(--text-primary)] flex items-center gap-2">
+                <span class="w-1 h-4 rounded-full bg-fuchsia-500"></span>
+                <span>Klip Hasil Render</span>
+                <span class="text-[11px] font-normal text-[var(--text-muted)]" id="clipCountInfo">(0 klip)</span>
+              </h2>
+              <div class="flex items-center gap-1.5">
+                <span id="clipSortHint" class="text-[11px] text-[var(--text-muted)] hidden sm:inline">Urutan folder</span>
+                <button onclick="loadSession()" class="w-8 h-8 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] flex items-center justify-center" title="Refresh"><i class="bi bi-arrow-clockwise text-xs"></i></button>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-3" id="clipsGrid"></div>
+            <div id="clipsEmpty" class="hidden rounded-xl border border-dashed border-[var(--border)] bg-[var(--bg-surface-2)] p-6 text-center">
+              <div class="w-10 h-10 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] flex items-center justify-center mx-auto mb-2"><i class="bi bi-film text-[var(--text-muted)]"></i></div>
+              <div class="text-sm font-bold text-[var(--text-primary)]">Belum ada klip dirender</div>
+              <div class="text-xs text-[var(--text-muted)] mt-1 max-w-[420px] mx-auto">Pilih highlight di atas lalu Proses Terpilih, atau buka Create untuk render ulang dengan template lain</div>
+              <button onclick="goCreate()" class="mt-3 min-h-[40px] px-4 rounded-xl bg-[var(--accent)] text-[var(--accent-text)] text-xs font-extrabold">Buka Create → Render</button>
+            </div>
+          </div>
+
+          <!-- Render ulang + logs -->
+          <div class="card-panel p-3 space-y-3">
+            <div class="flex items-center justify-between">
+              <div>
+                <h2 class="text-xs font-extrabold text-[var(--text-primary)] flex items-center gap-1.5"><i class="bi bi-arrow-repeat text-emerald-500"></i>Render & Log</h2>
+                <p class="text-[11px] text-[var(--text-muted)]">Kontrol render dan lihat log proses tanpa buka Tasks</p>
+              </div>
+              <button onclick="goCreate()" class="min-h-[36px] px-3 text-xs font-bold bg-[var(--bg-surface-2)] border border-[var(--border)] rounded-xl inline-flex items-center gap-1.5"><i class="bi bi-box-arrow-up-right"></i>Create</button>
+            </div>
+            <div class="grid sm:grid-cols-3 gap-1.5">
+              <button onclick="startProcess()" class="min-h-[40px] rounded-xl bg-[var(--accent)] text-[var(--accent-text)] text-xs font-extrabold inline-flex items-center justify-center gap-1.5"><i class="bi bi-play-fill"></i>Proses Terpilih</button>
+              <button onclick="doRefind()" class="min-h-[40px] rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] text-xs font-bold inline-flex items-center justify-center gap-1.5"><i class="bi bi-stars text-amber-500"></i>Regenerate Highlight</button>
+              <a id="btnOpenCreateSession" href="#" class="min-h-[40px] rounded-xl border border-[var(--border)] bg-[var(--bg-surface-2)] text-xs font-bold inline-flex items-center justify-center gap-1.5"><i class="bi bi-pencil-square"></i>Buka di Create</a>
+            </div>
+            <div id="actionStatus"></div>
+            <details class="cfg-group rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]" open>
+              <summary class="px-3 py-2.5 text-xs font-bold text-[var(--text-primary)] flex items-center justify-between"><span><i class="bi bi-terminal text-sky-500"></i> Log proses</span><span class="text-[11px] font-normal text-[var(--text-muted)]" id="logHint">process.log + refind.log</span></summary>
+              <div class="px-3 pb-3 space-y-2">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <button onclick="switchLog('process')" id="tabLogProcess" class="chip chip-accent text-[11px]">process.log</button>
+                  <button onclick="switchLog('refind')" id="tabLogRefind" class="chip text-[11px]">refind.log</button>
+                  <button onclick="switchLog('campaign')" id="tabLogCampaign" class="chip text-[11px]">campaign.log</button>
+                  <button onclick="copyLog()" class="ml-auto min-h-[32px] px-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg-surface-2)] text-xs font-semibold inline-flex items-center gap-1"><i class="bi bi-copy"></i>Salin</button>
+                </div>
+                <pre class="log" id="actionLog" style="max-height:320px;overflow:auto;white-space:pre-wrap;word-break:break-word"></pre>
+                <div class="live-progress hidden"><div class="h-1.5 bg-[var(--bg-surface-2)] rounded-full overflow-hidden border border-[var(--border)]"><div class="h-full bg-[var(--accent)] transition-all duration-500" style="width:0%"></div></div><div class="text-[10px] text-[var(--text-muted)] mt-1 tabular-nums">0%</div></div>
+              </div>
+            </details>
+          </div>
+
+        </main>
+
+        <aside class="w-full xl:w-[340px] xl:shrink-0 space-y-3 xl:sticky xl:top-4 xl:self-start xl:max-h-[calc(100vh-1rem)] xl:overflow-y-auto">
+          <div class="card-panel p-3">
+            <div class="flex items-center justify-between mb-2.5">
+              <span class="text-[11px] font-bold tracking-widest uppercase text-[var(--text-muted)]"><i class="bi bi-speedometer2 text-emerald-500"></i> Ringkasan Sesi</span>
+              <span id="sideStatus" class="text-[10px] px-2 py-1 rounded-full border font-bold">-</span>
+            </div>
+            <div class="space-y-2 text-xs">
+              <div class="flex justify-between"><span class="text-[var(--text-muted)]">Sesi</span><span class="font-mono font-bold text-[var(--text-primary)] truncate max-w-[160px]" id="sideId">-</span></div>
+              <div class="flex justify-between"><span class="text-[var(--text-muted)]">Channel</span><span class="font-semibold truncate max-w-[150px]" id="sideChannel">-</span></div>
+              <div class="flex justify-between"><span class="text-[var(--text-muted)]">Dibuat</span><span class="font-mono text-[11px]" id="sideCreated">-</span></div>
+              <div class="flex justify-between"><span class="text-[var(--text-muted)]">Mulai</span><span class="font-mono text-[11px]" id="sideStarted">-</span></div>
+              <div class="flex justify-between"><span class="text-[var(--text-muted)]">Selesai</span><span class="font-mono text-[11px]" id="sideCompleted">-</span></div>
+            </div>
+            <div class="grid grid-cols-2 gap-2 mt-3">
+              <div class="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-2)] p-3 text-center">
+                <div class="text-[10px] font-bold tracking-widest uppercase text-[var(--text-muted)]">Highlight</div>
+                <div id="sideHl" class="text-[18px] font-extrabold leading-none mt-1 text-amber-600">0</div>
+                <div class="text-[10px] text-[var(--text-muted)] mt-1">momen</div>
+              </div>
+              <div class="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 text-center">
+                <div class="text-[10px] font-bold tracking-widest uppercase text-[var(--text-muted)]">Klip</div>
+                <div id="sideClips" class="text-[18px] font-extrabold leading-none mt-1 text-[var(--accent)]">0</div>
+                <div class="text-[10px] text-[var(--text-muted)] mt-1">rendered</div>
+              </div>
+            </div>
+            <div class="mt-3 flex flex-wrap gap-1.5" id="sideFlags"></div>
+          </div>
+
+          <div id="sideCampaign" class="hidden card-panel p-3 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-bold tracking-widest uppercase text-[var(--text-muted)]"><i class="bi bi-bullseye text-violet-500"></i> Campaign</span>
+              <a id="sideCampLink" href="#" target="_blank" class="text-[11px] font-bold text-[var(--accent)] hover:underline">Buka <i class="bi bi-box-arrow-up-right"></i></a>
+            </div>
+            <div id="sideCampTitle" class="text-xs font-extrabold leading-tight text-[var(--text-primary)] line-clamp-2">-</div>
+            <div id="sideCampClient" class="text-[11px] text-[var(--text-muted)]">-</div>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-2)] p-2.5 text-center">
+                <div class="text-[10px] font-bold tracking-widest uppercase text-[var(--text-muted)]">Hadiah</div>
+                <div id="sideCampPrize" class="text-xs font-extrabold text-emerald-600 mt-1">-</div>
+              </div>
+              <div class="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-2.5 text-center">
+                <div class="text-[10px] font-bold tracking-widest uppercase text-[var(--text-muted)]">Peserta</div>
+                <div id="sideCampParts" class="text-xs font-extrabold mt-1">-</div>
+              </div>
+            </div>
+            <div id="sideCampRewards" class="flex flex-wrap gap-1"></div>
+            <div id="sideCampTags" class="flex flex-wrap gap-1"></div>
+          </div>
+
+          <div class="card-panel p-3">
+            <div class="text-[11px] font-bold tracking-widest uppercase text-[var(--text-muted)] mb-2"><i class="bi bi-lightning-charge text-amber-500"></i> Aksi cepat</div>
+            <div class="grid grid-cols-2 gap-2">
+              <button onclick="goCreate()" class="min-h-[40px] rounded-xl bg-[var(--accent)] text-[var(--accent-text)] text-xs font-extrabold inline-flex items-center justify-center gap-1.5"><i class="bi bi-play-fill"></i>Render di Create</button>
+              <button onclick="doRefind()" class="min-h-[40px] rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] text-xs font-bold inline-flex items-center justify-center gap-1.5"><i class="bi bi-stars"></i>Refind</button>
+              <button onclick="startProcess()" class="min-h-[40px] rounded-xl border border-[var(--border)] bg-[var(--bg-surface-2)] text-xs font-bold inline-flex items-center justify-center gap-1.5"><i class="bi bi-gear"></i>Proses</button>
+              <a href="/tasks.html" class="min-h-[40px] rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] text-xs font-bold inline-flex items-center justify-center gap-1.5"><i class="bi bi-list-task"></i>Tasks</a>
+            </div>
+            <div class="mt-2 grid grid-cols-2 gap-2">
+              <button onclick="copySessionLink()" class="min-h-[36px] rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] text-xs font-semibold inline-flex items-center justify-center gap-1.5"><i class="bi bi-link-45deg"></i>Salin link sesi</button>
+              <button onclick="deleteSessionPrompt()" class="min-h-[36px] rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-xs font-bold inline-flex items-center justify-center gap-1.5"><i class="bi bi-trash"></i>Hapus sesi</button>
+            </div>
+          </div>
+
+          <div class="card-panel p-3">
+            <div class="text-[11px] font-bold tracking-widest uppercase text-[var(--text-muted)] mb-2"><i class="bi bi-lightbulb text-amber-500"></i> Tips</div>
+            <ul class="space-y-1.5 text-xs leading-relaxed text-[var(--text-secondary)] list-disc pl-4">
+              <li><b>Highlight</b> dari AI berdasarkan transkrip Faster-Whisper; skor virality 0-100 memprediksi potensi FYP</li>
+              <li><b>Hook & timed_title</b> dipakai untuk overlay thumbnail auto</li>
+              <li>Jika campaign, <b>tags & source_links</b> persis dari TernakKlip (campaign_brief.json)</li>
+              <li>Template <b>tiktok_viral 9:16</b> sudah medium crf18 high  -  kualitas terbaik</li>
+            </ul>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
-fetch('/api/me').then(r=>r.json()).then(d=>{if(d.name)document.getElementById('whoami').innerHTML='<i class="bi bi-person text-zinc-400"></i> '+d.name;});
+fetch('/api/me').then(r=>r.json()).then(d=>{if(d.name)document.getElementById('whoami').innerHTML='<i class="bi bi-person text-zinc-400"></i> '+esc(d.name);});
+const params=new URLSearchParams(location.search);
+const sid=params.get('id');
+const TEMPLATES=window.UNIFIED_TEMPLATES||{};
+let HIGHLIGHTS=[],ACTIVE_TPL=null,SESSION=null,CAMPAIGN=null,CLIPS=[];
+let CURRENT_LOG='process';
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function fmtRp(n){return 'Rp '+(Number(n||0).toLocaleString('id-ID'))}
+function fmtSize(b){if(!b) return '-'; if(b>=1048576) return (b/1048576).toFixed(1)+' MB'; return Math.round(b/1024)+' KB'}
+function fmtDur(s){s=Math.round(Number(s||0)); if(s<60) return s+'s'; return Math.floor(s/60)+'m'+(s%60? s%60+'s':'')}
+function fmtDate(s){try{return new Date(s).toLocaleString('id-ID',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}catch{return s||'-'}}
+function sourceIcon(url){
+  url=String(url||'').toLowerCase();
+  if(url.includes('drive.google')||url.includes('docs.google')) return '<i class="bi bi-google text-red-500"></i>';
+  if(url.includes('youtu.be')||url.includes('youtube.com')) return '<i class="bi bi-youtube text-red-600"></i>';
+  if(url.includes('tiktok.com')||url.includes('vt.tiktok')) return '<i class="bi bi-tiktok"></i>';
+  if(url.includes('instagram.com')) return '<i class="bi bi-instagram text-pink-500"></i>';
+  if(url.includes('facebook.com')||url.includes('fb.watch')) return '<i class="bi bi-facebook text-blue-600"></i>';
+  return '<i class="bi bi-link-45deg text-[var(--text-muted)]"></i>';
+}
+function statusBadge(st){
+  const m={completed:'selesai',idle:'idle',processing:'processing',downloading:'downloading',error:'error',highlights_ready:'siap',failed:'gagal'};
+  const label=m[st]||st||'-';
+  const cls=st==='completed'?'bg-emerald-500/10 text-emerald-700 border-emerald-500/20':st==='error'||st==='failed'?'bg-rose-500/10 text-rose-600 border-rose-500/20':st==='processing'||st==='downloading'?'bg-amber-500/10 text-amber-700 border-amber-500/20 animate-pulse':'bg-[var(--bg-surface-2)] text-[var(--text-muted)] border-[var(--border)]';
+  const dot=st==='completed'?'bg-emerald-500':st==='error'?'bg-rose-500':st==='processing'?'bg-amber-500':'bg-zinc-400';
+  return `<span class="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full border ${cls}"><span class="w-1.5 h-1.5 rounded-full ${dot}"></span>${esc(label)}</span>`;
+}
 
-const params = new URLSearchParams(window.location.search);
-const sid = params.get('id');
-
-const TEMPLATES = window.UNIFIED_TEMPLATES || {};
-
-let HIGHLIGHTS = [];
-let ACTIVE_TPL = null;
-
-function esc(s) { return (s ?? '').toString().replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-
-async function loadSession() {
-  if (!sid) {
-    document.getElementById('loadingState').textContent = 'ID Sesi tidak ditemukan di URL.';
+async function loadSession(){
+  if(!sid){
+    document.getElementById('loadingState').innerHTML='<div class="card-panel p-6 text-center text-sm text-rose-600">ID sesi tidak ada di URL (?id=...)</div>';
     return;
   }
-  try {
-    const rHls = await fetch(`/api/highlights/${encodeURIComponent(sid)}`);
-    HIGHLIGHTS = await rHls.json().catch(() => []);
-
-    const rSess = await fetch('/api/sessions');
-    const sessions = await rSess.json();
-    const s = sessions.find(x => x.id === sid);
-
-    document.getElementById('s_title').textContent = s ? s.title : sid;
-    document.getElementById('s_meta').textContent = `${s && s.channel ? s.channel + ' · ' : ''}${s ? new Date(s.created).toLocaleString('id-ID') : ''} · ${s ? s.total : 0} klip tersimpan`;
-    document.getElementById('s_id').textContent = sid;
-
-    if (s && s.url) {
-      document.getElementById('sourceBox').classList.remove('hidden');
-      const uEl = document.getElementById('s_url');
-      uEl.href = s.url;
-      uEl.textContent = s.url;
+  try{
+    // detail endpoint sinkron campaign + session + clips + logs
+    const r=await fetch(`/api/sessions/${encodeURIComponent(sid)}`);
+    if(!r.ok) throw new Error('HTTP '+r.status+'  -  sesi tidak ditemukan');
+    const s=await r.json();
+    SESSION=s; CAMPAIGN=s.campaign||null; CLIPS=s.clips||[];
+    // highlights from detail (if empty, fallback to /api/highlights)
+    HIGHLIGHTS=s.highlights||[];
+    if(!HIGHLIGHTS.length){
+      try{ const rh=await fetch(`/api/highlights/${encodeURIComponent(sid)}`); const j=await rh.json(); if(Array.isArray(j)) HIGHLIGHTS=j.map((h,i)=>({i,title:h.title,duration:h.duration,score:h.score,reason:h.reason,hook:h.hook,start:h.start,end:h.end,start_time:h.start,end_time:h.end,virality_score:h.score,hook_text:h.hook,description:h.reason,transcript_text:''})); }catch{}
+    } else {
+      HIGHLIGHTS=HIGHLIGHTS.map((h,i)=>({i,title:h.title,start:h.start_time||h.start,end:h.end_time||h.end,duration:h.duration_seconds||h.duration,score:h.virality_score??h.score??null,reason:h.virality_reason||h.description||'',hook:h.hook_text||h.hook||'',hook_text:h.hook_text||'',timed_title:h.timed_title||null,description:h.description||'',transcript_text:h.transcript_text||'',...h}));
     }
-
-    const hlEl=document.getElementById('hlListContainer'); if(hlEl) renderHighlights();
-    const tb=document.getElementById('tplBar'); if(tb) initTemplateBar();
-    
-    // Jika clip 0 → langsung arahkan ke create untuk render (opusclip-like)
-    if (!s || !s.clips || s.clips.length === 0) {
-      location.replace('/create.html?session=' + encodeURIComponent(sid));
-      return;
-    }
-    // Tampilkan klip hasil render
-    if (s && s.clips) renderClips(s.clips);
-
+    renderAll(s);
     document.getElementById('loadingState').classList.add('hidden');
     document.getElementById('contentState').classList.remove('hidden');
-  } catch (e) {
-    document.getElementById('loadingState').textContent = 'Gagal memuat sesi: ' + e;
+  }catch(e){
+    document.getElementById('loadingState').innerHTML=`<div class="card-panel p-6 text-center"><div class="text-sm font-bold text-rose-600">Gagal memuat sesi</div><div class="text-xs text-[var(--text-muted)] mt-1">${esc(e.message||e)}</div><a href="/" class="mt-3 inline-flex min-h-[36px] px-4 rounded-xl bg-[var(--accent)] text-[var(--accent-text)] text-xs font-bold items-center">Kembali ke Library</a></div>`;
   }
 }
 
-function fmtSize(b) {
-  if (!b) return '-';
-  if (b >= 1024 * 1024) return (b / 1048576).toFixed(1) + ' MB';
-  return Math.round(b / 1024) + ' KB';
-}
-
-function fmtDur(s) {
-  if (!s && s !== 0) return '';
-  s = Math.round(Number(s));
-  if (s < 60) return s + 's';
-  return Math.floor(s / 60) + 'm' + (s % 60 ? s % 60 + 's' : '');
-}
-
-function renderClips(clips) {
-  const container = document.getElementById('clipsGrid');
-  if (!clips || !clips.length) {
-    container.innerHTML = '<div class="col-span-full p-4 text-xs text-zinc-400 text-center">Belum ada klip yang dirender.</div>';
-    document.getElementById('clipCountInfo').textContent = '(0 klip)';
-    return;
+function renderAll(s){
+  const title=s.title||s.id||sid;
+  document.getElementById('s_title').textContent=title;
+  document.getElementById('crumbTitle').textContent=title;
+  document.title=title+'  -  Auto Clipper';
+  document.getElementById('s_meta').textContent=`${s.channel? s.channel+' · ':''}${fmtDate(s.created||s.created_at)} · ${s.total_highlights ?? HIGHLIGHTS.length} highlight · ${s.total ?? CLIPS.length} klip · ${s.duration? Math.round(s.duration)+'s':''}`;
+  document.getElementById('s_id').textContent=s.id;
+  document.getElementById('statusBadge').innerHTML=statusBadge(s.status);
+  document.getElementById('btnOpenCreateSession').href='/create.html?session='+encodeURIComponent(s.id);
+  document.getElementById('btnOpenSource').href=s.url||'#';
+  if(CAMPAIGN){
+    document.getElementById('campaignPill').classList.remove('hidden'); document.getElementById('campaignPill').classList.add('inline-flex');
+    document.getElementById('btnOpenTernak').classList.remove('hidden');
+    document.getElementById('btnOpenTernak').href=`/ternaklip.html#${encodeURIComponent(CAMPAIGN.public_id||CAMPAIGN.campaign_id)}`;
+    renderCampaign(CAMPAIGN, s);
+  } else {
+    document.getElementById('campaignPill').classList.add('hidden');
   }
-  document.getElementById('clipCountInfo').textContent = `(${clips.length} klip)`;
-  container.innerHTML = clips.map((c, ci) => {
-    const dl = `/download/${encodeURIComponent(sid)}/${encodeURIComponent(c.dir)}/${encodeURIComponent(c.file)}`;
-    const detailUrl = `/detail.html?session=${encodeURIComponent(sid)}&clip=${encodeURIComponent(c.dir)}`;
-    const tags = [
-      c.hook ? '<span class="text-[9px] px-1 bg-red-500/10 text-amber-400 border border-amber-500/20 rounded">thumbnail</span>' : '',
-      c.captions ? '<span class="text-[9px] px-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded">caption</span>' : '',
-      c.watermark ? '<span class="text-[9px] px-1 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 rounded">watermark</span>' : '',
-      c.credit ? '<span class="text-[9px] px-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded">credit</span>' : '',
-      c.has_bgm ? '<span class="text-[9px] px-1 bg-fuchsia-500/10 text-fuchsia-400 border border-fuchsia-500/20 rounded"><i class="bi bi-music-note-beamed"></i> bgm</span>' : '',
-      c.hook_v2 ? '<span class="text-[9px] px-1 bg-violet-500/10 text-violet-400 border border-violet-500/20 rounded"><i class="bi bi-lightning-charge text-amber-400"></i> hook-v2</span>' : '',
-      c.akun_tujuan ? `<span class="text-[9px] px-1 bg-orange-500/10 text-orange-400 border border-orange-500/20 rounded" title="Tipe: ${esc(c.tipe_akun||'')}"><i class="bi bi-person"></i> ${esc(c.akun_tujuan)}</span>` : '',
-      c.thumbnail ? `<a class="text-[9px] px-1 bg-teal-500/10 text-teal-400 border border-teal-500/20 rounded hover:underline" target="_blank" href="/thumb/${encodeURIComponent(sid)}/${encodeURIComponent(c.dir)}/thumbnail.jpg"><i class="bi bi-image text-sky-400"></i> thumb</a>` : '',
-    ].join(' ');
-    
-    return `
-    <div class="group bg-surface-2 border border-zinc-800 rounded-lg overflow-hidden flex flex-col hover:border-zinc-700 transition">
-      <a class="relative aspect-video bg-zinc-950 block overflow-hidden" href="${detailUrl}">
-        <img class="w-full h-full object-cover group-hover:scale-105 transition duration-300" loading="lazy" alt="${esc(c.title)}"
-             src="/thumb/${encodeURIComponent(sid)}/${encodeURIComponent(c.dir)}">
-        ${c.score != null ? `<span class="absolute top-1.5 right-1.5 px-1 py-0.5 text-[9px] font-bold bg-amber-400 text-black rounded shadow"><i class="bi bi-star-fill text-amber-400"></i> ${c.score}</span>` : ''}
-        ${c.duration ? `<span class="absolute top-1.5 left-1.5 px-1 py-0.5 text-[9px] font-bold bg-blue-600 text-white rounded shadow font-mono"><i class="bi bi-stopwatch"></i> ${fmtDur(c.duration)}</span>` : ''}
-      </a>
-      <div class="p-2 flex flex-col flex-1">
-        <a href="${detailUrl}" class="text-[11px] font-bold text-white line-clamp-2 mb-1 hover:text-accent transition" title="${esc(c.title)}">${esc(c.title)}</a>
-        ${c.hook_text ? `<p class="text-[10px] text-zinc-300 line-clamp-1 mb-0.5"><i class="bi bi-bullseye text-teal-400"></i> ${esc(c.hook_text)}</p>` : ''}
-        <p class="text-[10px] text-zinc-400 line-clamp-1 mb-1.5">${esc(c.desc)}</p>
-        
-        <div class="text-[9px] text-zinc-400 mb-2 flex items-center justify-between mt-auto">
-          <span><i class="bi bi-hdd text-sky-400"></i> ${fmtSize(c.size_bytes)}</span>
-          <span>${c.created ? new Date(c.created).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}</span>
-        </div>
-        <div class="flex flex-wrap gap-1 mb-3">${tags}</div>
-        
-        <div class="grid grid-cols-2 gap-1 mt-auto">
-          <a class="flex items-center justify-center py-1.5 text-xs font-semibold bg-zinc-800 text-zinc-200 hover:text-white rounded border border-zinc-700 hover:bg-zinc-700 transition" href="${dl}" download title="Download"><i class="bi bi-download"></i> Download</a>
-          <button class="flex items-center justify-center py-1.5 text-xs font-semibold bg-red-950/20 text-red-400 hover:text-red-300 rounded border border-red-900/30 hover:bg-red-900/20 transition" onclick="deleteClip('${esc(c.dir)}', '${esc(c.title)}', this)" title="Hapus"><i class="bi bi-trash"></i> Hapus</button>
-        </div>
-      </div>
-    </div>`;
+  // session info
+  document.getElementById('infoStatus').innerHTML=statusBadge(s.status);
+  document.getElementById('infoStatusSub').textContent=s.status==='completed'?'Siap ditonton dan dibagikan':s.status==='error'?'Cek log untuk detail error':'Menunggu proses';
+  document.getElementById('infoDuration').textContent=s.video_info?.duration? fmtDur(s.video_info.duration): s.duration? fmtDur(s.duration):'-';
+  document.getElementById('infoDurationSub').textContent=s.video_info?.duration? `${Math.round(s.video_info.duration)} detik sumber`:'-';
+  document.getElementById('infoHlCount').textContent=String(s.total_highlights ?? HIGHLIGHTS.length);
+  document.getElementById('infoClipCount').textContent=String(s.total ?? CLIPS.length);
+  document.getElementById('infoClipSub').textContent=CLIPS.length? `${CLIPS.length} folder di clips/`:'Belum ada folder';
+  document.getElementById('infoFiles').textContent=s.srt_exists? `SRT ${fmtSize(s.srt_size)}`:'SRT  - ';
+  document.getElementById('infoFilesSub').textContent=s.has_temp_video?'_temp video ada':'_temp kosong';
+  document.getElementById('infoCreated').textContent=fmtDate(s.created||s.created_at);
+  document.getElementById('infoStarted').textContent=s.processing_started_at? fmtDate(s.processing_started_at):'-';
+  document.getElementById('infoCompleted').textContent=s.completed_at? fmtDate(s.completed_at):'-';
+  document.getElementById('infoSrt').textContent=s.srt_exists? `ada (${fmtSize(s.srt_size)})`:'tidak ada';
+  document.getElementById('infoTemp').textContent=s.has_temp_video?'ada':'tidak';
+  const hasUrl=!!s.url;
+  document.getElementById('sourceBox').classList.toggle('hidden', !hasUrl);
+  document.getElementById('sourceEmpty').classList.toggle('hidden', hasUrl);
+  if(hasUrl){
+    const u=document.getElementById('s_url'); u.href=s.url; u.textContent=s.url;
+    document.getElementById('sourceMeta').textContent=`${s.video_info?.channel||s.channel||''} ${s.video_info?.duration? '· '+fmtDur(s.video_info.duration):''}`;
+    document.getElementById('btnOpenSource').href=s.url;
+  }
+  // sidebar
+  document.getElementById('sideId').textContent=s.id;
+  document.getElementById('sideChannel').textContent=s.channel||s.video_info?.channel||'-';
+  document.getElementById('sideCreated').textContent=fmtDate(s.created||s.created_at);
+  document.getElementById('sideStarted').textContent=s.processing_started_at? fmtDate(s.processing_started_at):'-';
+  document.getElementById('sideCompleted').textContent=s.completed_at? fmtDate(s.completed_at):'-';
+  document.getElementById('sideStatus').innerHTML=statusBadge(s.status);
+  document.getElementById('sideHl').textContent=String(HIGHLIGHTS.length);
+  document.getElementById('sideClips').textContent=String(CLIPS.length);
+  document.getElementById('sideFlags').innerHTML=[
+    s.srt_exists?'<span class="chip text-[10px]"><i class="bi bi-file-earmark-text text-sky-500"></i>SRT</span>':'',
+    s.has_temp_video?'<span class="chip text-[10px]"><i class="bi bi-camera-video text-emerald-500"></i>_temp</span>':'',
+    CAMPAIGN?'<span class="chip text-[10px] bg-violet-600 text-white border-violet-600"><i class="bi bi-bullseye"></i>TernakKlip</span>':'',
+    s.video_info?.duration?`<span class="chip text-[10px]"><i class="bi bi-stopwatch"></i>${fmtDur(s.video_info.duration)}</span>`:''
+  ].filter(Boolean).join('') || '<span class="text-[11px] text-[var(--text-muted)]">-</span>';
+
+  // highlights
+  renderHighlights();
+  initTemplateBar();
+  renderClips(CLIPS);
+  renderLogs(s.logs||{});
+}
+
+function renderCampaign(c, s){
+  const card=document.getElementById('campaignCard'); card.classList.remove('hidden');
+  document.getElementById('campThumb').src=c.thumbnail_url||'';
+  document.getElementById('campThumb').style.display=c.thumbnail_url?'':'none';
+  const av=document.getElementById('campAvatar');
+  av.innerHTML=c.client_avatar_url?`<img src="${esc(c.client_avatar_url)}" class="w-full h-full object-cover">`:`<i class="bi bi-person text-[var(--text-muted)]"></i>`;
+  document.getElementById('campClient').textContent=c.client_name||'-';
+  document.getElementById('campPlatform').textContent=(c.platform||[]).join('  • ')||'Platform tidak tercatat';
+  document.getElementById('campTitle').textContent=c.title||s.title||'-';
+  document.getElementById('campDate').innerHTML=`<i class="bi bi-calendar3"></i> ${c.created_at? new Date(c.created_at).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}):'-'}`;
+  document.getElementById('campIdPill').textContent=c.public_id||c.campaign_id||s.id;
+  document.getElementById('campPrize').textContent=fmtRp(c.current_prize ?? c.total_prize);
+  document.getElementById('campPrizeSub').textContent=`dari ${fmtRp(c.total_prize)}`;
+  document.getElementById('campParticipants').textContent=Number(c.total_participants||0).toLocaleString('id-ID');
+  document.getElementById('campThreshold').textContent=`${Number(c.min_threshold||0).toLocaleString('id-ID')}  -  ${Number(c.max_threshold||0).toLocaleString('id-ID')}`;
+  const perCap=c.total_participants? Number(c.current_prize||0)/Math.max(1,Number(c.total_participants)) : 0;
+  document.getElementById('campRatio').textContent=perCap? fmtRp(Math.round(perCap))+'/peserta':'-';
+  document.getElementById('campRatioSub').textContent=c.is_accumulation?'Akumulasi • hadiah bisa nambah':'Single prize';
+  const rewards=document.getElementById('campRewards');
+  const rw=(c.platform_rewards||[]).map(p=>{
+    const has=p.reward_per_item!=null||p.reward_rate!=null;
+    const val=p.reward_per_item!=null? `• ${fmtRp(p.reward_per_item)}/view`:p.reward_rate!=null? `• ${p.reward_rate}%`:'';
+    const icon=p.provider==='tiktok'?'bi-tiktok':p.provider==='instagram'?'bi-instagram':p.provider==='youtube'?'bi-youtube':p.provider==='facebook'?'bi-facebook':'bi-hash';
+    return `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[11px] font-bold ${has?'bg-[var(--accent)] text-[var(--accent-text)] border-[var(--accent)]':'bg-[var(--bg-surface-2)] text-[var(--text-muted)] border-[var(--border)]'}"><i class="bi ${icon}"></i>${esc(p.provider)} ${val}</span>`;
+  }).join('') || '<span class="text-xs text-[var(--text-muted)]">Tidak ada detail reward.</span>';
+  rewards.innerHTML=rw;
+  // model pills
+  document.getElementById('campModelPills').innerHTML=(c.is_accumulation?'<span class="px-2.5 py-1 rounded-full bg-emerald-500 text-white text-[11px] font-bold"><i class="bi bi-graph-up-arrow"></i> Akumulasi</span>':'<span class="px-2.5 py-1 rounded-full bg-sky-500 text-white text-[11px] font-bold"><i class="bi bi-trophy"></i> Single</span>') + (c.is_umkm?'<span class="px-2.5 py-1 rounded-full bg-violet-600 text-white text-[11px] font-bold"><i class="bi bi-shop"></i> UMKM</span>':'') + (c.is_special_collab?'<span class="px-2.5 py-1 rounded-full bg-amber-500 text-white text-[11px] font-bold"><i class="bi bi-patch-check"></i> Special</span>':'');
+  document.getElementById('campTopBadges').innerHTML=(c.is_accumulation?'<span class="px-2 py-1 rounded-full bg-emerald-500 text-white text-[10px] font-bold">Akumulasi</span>':'');
+  // description
+  if(c.description){
+    document.getElementById('campDescWrap').classList.remove('hidden');
+    document.getElementById('campDesc').textContent=c.description;
+  }
+  // tags
+  const tags=c.tags||[]; const tagsRaw=c.tags_raw||[];
+  if(tags.length){
+    document.getElementById('campTagsWrap').classList.remove('hidden');
+    const tagHtml=(tagsRaw.length? tagsRaw: tags.map(t=>({label:t}))).map(t=>`<button onclick="navigator.clipboard.writeText('${esc(t.label)}'); showToast('Tag disalin: ${esc(t.label)}','success')" class="px-2.5 py-1 rounded-full bg-[var(--bg-surface-2)] border border-[var(--border)] text-[11px] font-medium text-[var(--text-secondary)] hover:border-[var(--accent)]">${esc(t.label)}</button>`).join('');
+    document.getElementById('campTags').innerHTML=tagHtml;
+    document.getElementById('btnCopyTags').onclick=()=>{ navigator.clipboard.writeText(tags.join(' ')); showToast('Semua tag disalin','success'); };
+  }
+  // links grid
+  const linksGrid=document.getElementById('campLinksGrid');
+  linksGrid.innerHTML=[
+    c.file_brief_url?`<a href="${esc(c.file_brief_url)}" target="_blank" rel="noopener" class="flex items-center gap-2.5 p-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] hover:border-[var(--accent)]/30 transition"><span class="w-9 h-9 rounded-xl bg-rose-500 text-white flex items-center justify-center shrink-0"><i class="bi bi-file-earmark-pdf"></i></span><span class="min-w-0 flex-1"><span class="block text-xs font-bold text-[var(--text-primary)]">Brief PDF</span><span class="block text-[11px] text-[var(--text-muted)] truncate">Buka brief resmi</span></span><i class="bi bi-box-arrow-up-right text-[var(--text-muted)]"></i></a>`:'',
+    c.share_url||c.public_id?`<div class="flex items-center gap-2 p-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]"><span class="w-9 h-9 rounded-xl bg-[var(--accent)] text-[var(--accent-text)] flex items-center justify-center shrink-0"><i class="bi bi-share"></i></span><span class="min-w-0 flex-1"><span class="block text-xs font-bold text-[var(--text-primary)]">Share link</span><span class="block text-[11px] text-[var(--text-muted)] truncate">${esc(c.share_url||`https://app.ternakklip.com/campaign/share/${c.public_id}`)}</span></span><button onclick="navigator.clipboard.writeText('${esc(c.share_url||`https://app.ternakklip.com/campaign/share/${c.public_id}`)}'); showToast('Link share disalin','success')" class="w-8 h-8 rounded-lg border border-[var(--border)] bg-[var(--bg-surface-2)] flex items-center justify-center"><i class="bi bi-copy text-xs"></i></button></div>`:''
+  ].filter(Boolean).join('');
+  document.getElementById('btnShareCopy').onclick=()=>{ navigator.clipboard.writeText(c.share_url||`https://app.ternakklip.com/campaign/share/${c.public_id}`); showToast('Link share disalin','success'); };
+  document.getElementById('btnShareOpen').href=c.share_url||`https://app.ternakklip.com/campaign/share/${c.public_id}`;
+  // sources
+  const srcs=c.source_links||[];
+  document.getElementById('campSources').innerHTML=srcs.map(s=>`<div class="flex items-center gap-2 p-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] hover:border-[var(--border-hover)] transition">${sourceIcon(s.url)}<a href="${esc(s.url)}" target="_blank" rel="noopener" class="flex-1 min-w-0 text-xs font-medium text-[var(--accent)] hover:underline truncate">${esc(s.label||'Sumber')}  -  ${esc(s.url)}</a><button onclick="navigator.clipboard.writeText('${esc(s.url)}'); showToast('Link disalin','success')" class="shrink-0 w-8 h-8 rounded-lg border border-[var(--border)] bg-[var(--bg-surface-2)] flex items-center justify-center" title="Salin"><i class="bi bi-copy text-xs"></i></button><a href="${esc(s.url)}" target="_blank" class="shrink-0 w-8 h-8 rounded-lg bg-[var(--accent)] text-[var(--accent-text)] flex items-center justify-center" title="Buka"><i class="bi bi-box-arrow-up-right text-xs"></i></a></div>`).join('') || '<div class="text-xs text-[var(--text-muted)]">Tidak ada link sumber di campaign_brief.</div>';
+  // sidebar campaign
+  const sc=document.getElementById('sideCampaign'); sc.classList.remove('hidden');
+  document.getElementById('sideCampTitle').textContent=c.title||'-';
+  document.getElementById('sideCampClient').textContent=c.client_name||'-';
+  document.getElementById('sideCampPrize').textContent=fmtRp(c.current_prize ?? c.total_prize);
+  document.getElementById('sideCampParts').textContent=String(c.total_participants||0);
+  document.getElementById('sideCampRewards').innerHTML=(c.platform_rewards||[]).slice(0,4).map(p=>{
+    const has=p.reward_per_item!=null||p.reward_rate!=null; if(!has) return '';
+    return `<span class="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--accent)] text-[var(--accent-text)] font-bold">${esc(p.provider)}</span>`;
   }).join('');
+  document.getElementById('sideCampTags').innerHTML=(c.tags||[]).slice(0,4).map(t=>`<span class="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--bg-surface-2)] border border-[var(--border)]">${esc(t)}</span>`).join('');
+  document.getElementById('sideCampLink').href=c.share_url||`https://app.ternakklip.com/campaign/share/${c.public_id}`;
 }
 
-async function deleteClip(clipDir, title, btn) {
-  if (!confirm(`Hapus klip "${title || clipDir}"?\nFolder beserta semua file varian ikut terhapus.`)) return;
-  btn.disabled = true;
-  btn.textContent = '…';
-  try {
-    const r = await fetch(`/api/delete/${encodeURIComponent(sid)}/${encodeURIComponent(clipDir)}`, { method: 'POST' });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    await loadSession();
-  } catch (e) {
-    alert('Gagal hapus klip: ' + e.message);
-    btn.disabled = false;
-    btn.innerHTML = '<i class="bi bi-trash"></i> Hapus';
-  }
-}
-
-function renderHighlights() {
-  const container = document.getElementById('hlListContainer');
+function renderHighlights(){
+  const container=document.getElementById('hlListContainer');
+  const cta=document.getElementById('hlEmptyCta');
   if(!container) return;
-  if (!Array.isArray(HIGHLIGHTS) || !HIGHLIGHTS.length) {
-    container.innerHTML = '<div class="p-4 text-xs text-zinc-400 text-center">Belum ada highlight. Silakan klik Cari Ulang Highlight di bawah.</div>';
-    const a=document.getElementById('hlCountInfo'); if(a) a.textContent = '(0 momen)';
-    updateCount();
-    return;
+  if(!Array.isArray(HIGHLIGHTS)||!HIGHLIGHTS.length){
+    container.innerHTML='<div class="p-4 text-xs text-[var(--text-muted)] text-center border border-dashed border-[var(--border)] rounded-xl bg-[var(--bg-surface-2)]">Belum ada highlight  -  jalankan Cari Ulang untuk generate momen baru</div>';
+    const a=document.getElementById('hlCountInfo'); if(a) a.textContent='(0 momen)';
+    cta.classList.remove('hidden');
+    updateCount(); return;
   }
-  const b=document.getElementById('hlCountInfo'); if(b) b.textContent = `(${HIGHLIGHTS.length} momen siap)`;
-  container.innerHTML = HIGHLIGHTS.map(h => `
-    <label class="flex items-start gap-3 p-3 hover:bg-zinc-800/40 transition cursor-pointer">
-      <input class="rg-check mt-1 flex-shrink-0 w-4 h-4 accent-[#facc15]" type="checkbox" value="${h.i}" onchange="updateCount()">
+  cta.classList.add('hidden');
+  const b=document.getElementById('hlCountInfo'); if(b) b.textContent=`(${HIGHLIGHTS.length} momen siap)`;
+  container.innerHTML=HIGHLIGHTS.map(h=>`
+    <label class="hl-item flex items-start gap-3 p-3 bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-2)] transition cursor-pointer">
+      <input class="rg-check mt-1 flex-shrink-0 w-4 h-4 accent-[var(--accent)]" type="checkbox" value="${h.i}" onchange="updateCount()">
       <div class="flex-1 min-w-0">
-        <div class="flex items-center gap-2">
-          <span class="font-semibold text-xs text-white truncate">${esc(h.title)}</span>
-          ${h.score != null ? `<span class="px-1.5 py-0.5 text-[9px] font-bold ${h.score >= 80 ? 'bg-amber-400 text-black' : 'bg-zinc-800 text-zinc-300 border border-zinc-700'} rounded"><i class="bi bi-fire text-orange-400"></i> ${h.score}/100</span>` : ''}
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="font-bold text-xs text-[var(--text-primary)] line-clamp-2">${esc(h.title)}</span>
+          ${h.score!=null?`<span class="px-1.5 py-0.5 text-[10px] font-extrabold ${Number(h.score)>=80?'bg-amber-400 text-black':'bg-[var(--bg-surface-2)] text-[var(--text-secondary)] border border-[var(--border)]'} rounded-full"><i class="bi bi-fire text-orange-500"></i> ${h.score}/100</span>`:''}
+          ${h.timed_title&&h.timed_title.text?`<span class="px-1.5 py-0.5 text-[10px] font-bold bg-violet-600 text-white rounded-full"><i class="bi bi-type"></i> ${esc(h.timed_title.text)}</span>`:''}
+          ${h.duration?`<span class="px-1.5 py-0.5 text-[10px] font-mono bg-sky-500 text-white rounded-full"><i class="bi bi-stopwatch"></i> ${typeof h.duration==='number'? fmtDur(h.duration): esc(h.duration)}</span>`:''}
         </div>
-        <span class="text-[11px] text-zinc-400 mt-0.5 block">${esc(h.start)} → ${esc(h.end)} · ${h.duration}s</span>
-        ${h.hook_text ? `<p class="text-[10px] text-zinc-300 font-medium mt-0.5"><i class="bi bi-bullseye text-teal-400"></i> ${esc(h.hook_text)}</p>` : ''}
-        ${h.reason ? `<p class="text-[10px] text-zinc-400 italic mt-0.5"><i class="bi bi-lightbulb text-amber-400"></i> ${esc(h.reason)}</p>` : ''}
+        <span class="text-[11px] text-[var(--text-muted)] mt-0.5 block font-mono">${esc(h.start||h.start_time||'')} → ${esc(h.end||h.end_time||'')}</span>
+        ${h.hook_text||h.hook?`<p class="text-[11px] text-[var(--text-secondary)] font-semibold mt-1"><i class="bi bi-bullseye text-teal-500"></i> ${esc(h.hook_text||h.hook)}</p>`:''}
+        ${h.description?`<p class="text-[11px] text-[var(--text-muted)] leading-relaxed mt-1 line-clamp-2">${esc(h.description)}</p>`:''}
+        ${h.reason?`<p class="text-[11px] text-[var(--text-muted)] italic mt-1"><i class="bi bi-lightbulb text-amber-500"></i> ${esc(h.reason)}</p>`:''}
+        ${h.transcript_text?`<details class="cfg-group mt-1"><summary class="text-[11px] font-semibold text-[var(--text-secondary)]">Transkrip</summary><p class="text-[11px] leading-relaxed text-[var(--text-muted)] mt-1 whitespace-pre-line border-l-2 border-[var(--border)] pl-2">${esc(h.transcript_text.slice(0,600))}${h.transcript_text.length>600?'…':''}</p></details>`:''}
       </div>
     </label>
   `).join('');
   updateCount();
 }
-
-function initTemplateBar() {
-  const bar = document.getElementById('tplBar'); if(!bar) return;
-  bar.innerHTML = Object.entries(TEMPLATES).map(([k, t]) =>
-    `<button class="tpl-btn text-zinc-300 hover:text-white" title="${String(t.desc||'').replace(/"/g,'&quot;')}" onclick="applyTemplate('${k}')">${t.label}</button>`).join('');
+function initTemplateBar(){
+  const bar=document.getElementById('tplBar'); if(!bar) return;
+  bar.innerHTML=Object.entries(TEMPLATES).map(([k,t])=>`<button class="chip text-[11px]" title="${esc(t.desc||'')}" onclick="applyTemplate('${k}')">${esc(t.label)}</button>`).join('');
 }
-
-async function applyTemplate(key) {
-  const t = TEMPLATES[key];
-  if (!t) return;
-  ACTIVE_TPL = { ...t.cfg };
-  const m = document.getElementById('tplMsg');
-  m.classList.remove('hidden', 'text-emerald-400', 'text-red-400');
-  m.classList.add('text-amber-400');
-  m.innerHTML = `<i class="bi bi-hourglass-split text-blue-400"></i> Menyimpan setting template ${esc(t.label)}…`;
-  try {
-    const r = await fetch('/api/config', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(ACTIVE_TPL)
-    });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    m.classList.remove('text-amber-400');
-    m.classList.add('text-emerald-400');
-    m.textContent = `Template ${t.label} aktif & tersimpan otomatis.`;
-    setTimeout(() => m.classList.add('hidden'), 4000);
-  } catch (e) {
-    m.classList.remove('text-amber-400');
-    m.classList.add('text-red-400');
-    m.textContent = `Gagal menyimpan template (${e.message || e}).`;
-  }
+async function applyTemplate(key){
+  const t=TEMPLATES[key]; if(!t) return; ACTIVE_TPL={...t.cfg};
+  const m=document.getElementById('tplMsg'); m.classList.remove('hidden'); m.className='text-xs px-3 py-2 rounded-xl border border-amber-500/20 bg-amber-500/10 text-amber-700'; m.innerHTML=`<i class="bi bi-hourglass-split animate-pulse"></i> Menyimpan template ${esc(t.label)}…`;
+  try{ const r=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(ACTIVE_TPL)}); if(!r.ok) throw new Error('HTTP '+r.status); m.className='text-xs px-3 py-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-700'; m.textContent=`Template ${esc(t.label)} aktif & tersimpan`; setTimeout(()=>m.classList.add('hidden'),3500);}catch(e){ m.className='text-xs px-3 py-2 rounded-xl border border-rose-500/20 bg-rose-500/10 text-rose-700'; m.textContent=`Gagal: ${e.message}`;}
 }
+function toggleAllCheck(){ const boxes=[...document.querySelectorAll('.rg-check')]; const anyOff=boxes.some(x=>!x.checked); boxes.forEach(x=>x.checked=anyOff); updateCount(); }
+function updateCount(){ const all=document.querySelectorAll('.rg-check'); const el=document.getElementById('selCount'); if(!el) return; const sel=[...all].filter(x=>x.checked).length; el.innerHTML=`<i class="bi bi-film text-fuchsia-500"></i> ${sel} / ${all.length} dipilih`; }
 
-function toggleAllCheck() {
-  const boxes = [...document.querySelectorAll('.rg-check')];
-  const anyOff = boxes.some(x => !x.checked);
-  boxes.forEach(x => x.checked = anyOff);
-  updateCount();
-}
-
-function updateCount() {
-  const all = document.querySelectorAll('.rg-check');
-  const el=document.getElementById('selCount'); if(!el) return;
-  const sel = [...all].filter(x => x.checked).length;
-  el.innerHTML = `<i class="bi bi-film text-fuchsia-400"></i> ${sel} / ${all.length} klip dipilih`;
-}
-
-async function doRefind() {
-  const countEl = document.getElementById('refindCount');
-  const num_clips = countEl ? (countEl.value || 'auto') : 'auto';
-  const st = document.getElementById('actionStatus');
-  const logBox = document.getElementById('actionLog');
-  if (logBox) { logBox.classList.remove('hidden'); logBox.style.display = ''; }
-  if (st) st.innerHTML = `<div class="p-3 text-xs bg-zinc-950 border border-zinc-800 rounded-lg text-zinc-300"><i class="bi bi-hourglass-split text-blue-400"></i> AI sedang menganalisis transkrip &amp; mencari ${num_clips} highlight baru…</div>`;
-  try {
-    const r = await fetch(`/api/refind/${encodeURIComponent(sid)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ num_clips })
-    });
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok || !j.ok) throw new Error(j.error || ('HTTP ' + r.status));
-  } catch (e) {
-    st.innerHTML = `<div class="p-3 text-xs bg-red-950/20 border border-red-900/30 text-red-400 rounded-lg"> ${esc(String(e))}</div>`;
+function renderClips(clips){
+  const container=document.getElementById('clipsGrid');
+  const empty=document.getElementById('clipsEmpty');
+  if(!clips||!clips.length){
+    container.innerHTML='';
+    empty.classList.remove('hidden');
+    document.getElementById('clipCountInfo').textContent='(0 klip)';
     return;
   }
+  empty.classList.add('hidden');
+  document.getElementById('clipCountInfo').textContent=`(${clips.length} klip)`;
+  container.innerHTML=clips.map(c=>{
+    const dl=`/download/${encodeURIComponent(sid)}/${encodeURIComponent(c.dir)}/${encodeURIComponent(c.file)}`;
+    const detailUrl=`/detail.html?session=${encodeURIComponent(sid)}&clip=${encodeURIComponent(c.dir)}`;
+    const tags=[
+      c.hook?'<span class="text-[9px] px-1.5 py-0.5 bg-violet-600 text-white rounded-full">hook</span>':'',
+      c.captions?'<span class="text-[9px] px-1.5 py-0.5 bg-sky-500 text-white rounded-full">caption</span>':'',
+      c.watermark?'<span class="text-[9px] px-1.5 py-0.5 bg-cyan-600 text-white rounded-full">watermark</span>':'',
+      c.credit?'<span class="text-[9px] px-1.5 py-0.5 bg-emerald-600 text-white rounded-full">credit</span>':'',
+      c.has_bgm?'<span class="text-[9px] px-1.5 py-0.5 bg-fuchsia-600 text-white rounded-full"><i class="bi bi-music-note-beamed"></i> bgm</span>':'',
+      c.has_broll?'<span class="text-[9px] px-1.5 py-0.5 bg-orange-500 text-white rounded-full">b-roll</span>':'',
+      c.has_transition?'<span class="text-[9px] px-1.5 py-0.5 bg-teal-600 text-white rounded-full">transisi</span>':'',
+      c.hook_v2?'<span class="text-[9px] px-1.5 py-0.5 bg-amber-500 text-white rounded-full">hook-v2</span>':'',
+      c.akun_tujuan?`<span class="text-[9px] px-1.5 py-0.5 bg-zinc-600 text-white rounded-full"><i class="bi bi-person"></i> ${esc(c.akun_tujuan)}</span>`:'',
+    ].filter(Boolean).join(' ');
+    return `<div class="group tk-card flex flex-col hover:border-[var(--accent)]/40 transition">
+      <a class="relative aspect-[9/16] sm:aspect-video bg-black block overflow-hidden" href="${detailUrl}">
+        <img class="w-full h-full object-cover group-hover:scale-[1.02] transition duration-300" loading="lazy" alt="${esc(c.title)}" src="/thumb/${encodeURIComponent(sid)}/${encodeURIComponent(c.dir)}">
+        ${c.score!=null?`<span class="absolute top-1.5 right-1.5 px-1.5 py-0.5 text-[10px] font-extrabold bg-amber-400 text-black rounded-full shadow"><i class="bi bi-star-fill"></i> ${c.score}</span>`:''}
+        ${c.duration?`<span class="absolute top-1.5 left-1.5 px-1.5 py-0.5 text-[10px] font-bold bg-black/70 text-white rounded-full font-mono border border-white/20"><i class="bi bi-stopwatch"></i> ${fmtDur(c.duration)}</span>`:''}
+        <span class="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 text-[10px] font-bold bg-[var(--accent)] text-[var(--accent-text)] rounded-full">${esc(c.aspect||'9:16')}</span>
+      </a>
+      <div class="p-2.5 flex flex-col flex-1">
+        <a href="${detailUrl}" class="text-[11px] font-extrabold text-[var(--text-primary)] line-clamp-2 hover:text-[var(--accent)]" title="${esc(c.title)}">${esc(c.title)}</a>
+        ${c.hook_text?`<p class="text-[11px] text-[var(--text-secondary)] line-clamp-1 mt-1"><i class="bi bi-bullseye text-teal-500"></i> ${esc(c.hook_text)}</p>`:''}
+        <p class="text-[11px] text-[var(--text-muted)] line-clamp-2 mt-1 leading-relaxed">${esc(c.desc||c.post_title||'')}</p>
+        <div class="text-[10px] text-[var(--text-muted)] mt-2 flex items-center justify-between">
+          <span><i class="bi bi-hdd text-sky-500"></i> ${fmtSize(c.size_bytes)}</span>
+          <span class="font-mono">${c.created? new Date(c.created).toLocaleDateString('id-ID',{day:'2-digit',month:'short'}):'-'}</span>
+        </div>
+        <div class="flex flex-wrap gap-1 mt-2">${tags || '<span class="text-[10px] text-[var(--text-muted)]">-</span>'}</div>
+        <div class="grid grid-cols-2 gap-1.5 mt-3">
+          <a class="flex items-center justify-center py-1.5 text-xs font-bold bg-[var(--bg-surface-2)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-xl transition" href="${dl}" download><i class="bi bi-download"></i> Download</a>
+          <button class="flex items-center justify-center py-1.5 text-xs font-bold bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 rounded-xl transition" onclick="deleteClip('${esc(c.dir)}','${esc(c.title)}',this)"><i class="bi bi-trash"></i> Hapus</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+async function deleteClip(clipDir,title,btn){
+  const ok=await showConfirm('Hapus Klip',`Hapus klip "${title||clipDir}"? Folder beserta varian ikut terhapus.`);
+  if(!ok) return; btn.disabled=true; btn.textContent='…';
+  try{ const r=await fetch(`/api/delete/${encodeURIComponent(sid)}/${encodeURIComponent(clipDir)}`,{method:'POST'}); if(!r.ok) throw new Error('HTTP '+r.status); showToast('Klip dihapus','success'); await loadSession(); }catch(e){ showToast('Gagal hapus: '+e.message,'error'); btn.disabled=false; btn.innerHTML='<i class="bi bi-trash"></i> Hapus'; }
+}
+async function deleteSessionPrompt(){
+  const ok=await showConfirm('Hapus Sesi',`Hapus sesi ${sid} beserta semua klip dan file? Tidak bisa dibatalkan.`);
+  if(!ok) return;
+  try{ const r=await fetch(`/api/delete-session/${encodeURIComponent(sid)}`,{method:'POST'}); if(!r.ok) throw new Error('HTTP '+r.status); showToast('Sesi dihapus','success'); setTimeout(()=>location.href='/',900);}catch(e){ showToast('Gagal: '+e.message,'error');}
+}
+function copySessionLink(){ const u=location.href; navigator.clipboard.writeText(u); showToast('Link sesi disalin','success'); }
 
-  pollJob(`/api/refind/status/${encodeURIComponent(sid)}`, logBox, async j => {
-    if (j.code === 0 && j.result && j.result.ok) {
-      if (st) st.innerHTML = `<div class="p-3 text-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg"> ${j.result.count} momen baru berhasil ditemukan! Memuat ulang…</div>`;
-      setTimeout(async () => {
-        const rHls = await fetch(`/api/highlights/${encodeURIComponent(sid)}`);
-        HIGHLIGHTS = await rHls.json().catch(() => []);
-        renderHighlights();
-      }, 1000);
+function renderLogs(logs){
+  // logs dari detail API: {process, refind, campaign}
+  window._LOGS=logs||{};
+  switchLog(CURRENT_LOG);
+}
+function switchLog(which){
+  CURRENT_LOG=which;
+  document.getElementById('tabLogProcess').className=which==='process'?'chip chip-accent text-[11px]':'chip text-[11px]';
+  document.getElementById('tabLogRefind').className=which==='refind'?'chip chip-accent text-[11px]':'chip text-[11px]';
+  document.getElementById('tabLogCampaign').className=which==='campaign'?'chip chip-accent text-[11px]':'chip text-[11px]';
+  const box=document.getElementById('actionLog');
+  const txt=(window._LOGS[which]||'').trim();
+  box.textContent=txt || '(log kosong  -  belum ada proses untuk sesi ini)';
+  box.scrollTop=box.scrollHeight;
+}
+function copyLog(){ const t=document.getElementById('actionLog').textContent||''; navigator.clipboard.writeText(t); showToast('Log disalin','success'); }
+
+async function doRefind(){
+  const countEl=document.getElementById('refindCount');
+  const num_clips=countEl? (countEl.value||'auto'):'auto';
+  const st=document.getElementById('actionStatus');
+  const logBox=document.getElementById('actionLog');
+  if(st) st.innerHTML=`<div class="p-3 text-xs rounded-xl border border-[var(--border)] bg-[var(--bg-surface-2)] text-[var(--text-secondary)]"><i class="bi bi-hourglass-split animate-pulse text-sky-500"></i> AI menganalisis transkrip & mencari ${esc(num_clips)} highlight...</div>`;
+  try{
+    const r=await fetch(`/api/refind/${encodeURIComponent(sid)}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({num_clips})});
+    const j=await r.json().catch(()=>({})); if(!r.ok||!j.ok) throw new Error(j.error||'HTTP '+r.status);
+  }catch(e){ if(st) st.innerHTML=`<div class="p-3 text-xs rounded-xl border border-rose-200 bg-rose-50 text-rose-700">${esc(String(e))}</div>`; return; }
+  if(logBox){ logBox.textContent='Menunggu log...'; }
+  switchLog('refind');
+  pollJob(`/api/refind/status/${encodeURIComponent(sid)}`, logBox, async j=>{
+    if(j.code===0 && j.result && j.result.ok){
+      if(st) st.innerHTML=`<div class="p-3 text-xs rounded-xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-700">${j.result.count} momen baru ditemukan! Memuat ulang…</div>`;
+      showToast(`${j.result.count} highlight baru`,'success');
+      setTimeout(async()=>{ await loadSession(); }, 900);
     } else {
-      if (st) st.innerHTML = `<div class="p-3 text-xs bg-red-950/20 border border-red-900/30 text-red-400 rounded-lg"> Gagal mencari highlight : lihat log.</div>`;
+      if(st) st.innerHTML=`<div class="p-3 text-xs rounded-xl border border-rose-200 bg-rose-50 text-rose-700">Gagal cari highlight  -  cek log</div>`;
+      showToast('Gagal regenerate','error');
     }
   });
 }
-
-async function startProcess() {
-  const sel = [...document.querySelectorAll('.rg-check:checked')].map(b => parseInt(b.value));
-  if (!sel.length) {
-    alert('Pilih minimal 1 momen highlight terlebih dahulu.');
-    return;
-  }
-  let base = ACTIVE_TPL;
-  if (!base) {
-    try { base = await (await fetch('/api/config')).json(); } catch { base = {}; }
-  }
-  const hook = base.hook !== false;
-  const caps = base.captions !== false;
-
-  const st = document.getElementById('actionStatus');
-  const logBox = document.getElementById('actionLog');
-  if (logBox) { logBox.classList.remove('hidden'); logBox.style.display = ''; }
-  if (st) st.innerHTML = '<div class="p-3 text-xs bg-zinc-950 border border-zinc-800 text-zinc-300 rounded-lg"><i class="bi bi-hourglass-split text-blue-400"></i> Mengunduh &amp; merender klip terpilih ke format vertikal…</div>';
-
-  try {
-    const r = await fetch(`/api/process/${encodeURIComponent(sid)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ selected: sel, hook, captions: caps })
-    });
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok || !j.ok) throw new Error(j.error || ('HTTP ' + r.status));
-  } catch (e) {
-    if (st) st.innerHTML = `<div class="p-3 text-xs bg-red-950/20 border border-red-900/30 text-red-400 rounded-lg"> ${esc(String(e))}</div>`;
-    return;
-  }
-
-  pollJob(`/api/process/status/${encodeURIComponent(sid)}`, logBox, j => {
-    if (j.code === 0) {
-      if (st) st.innerHTML = '<div class="p-3 text-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg"> Render klip selesai! Hasilnya sudah masuk ke Library.</div>';
-    } else {
-      if (st) st.innerHTML = `<div class="p-3 text-xs bg-red-950/20 border border-red-900/30 text-red-400 rounded-lg"> Render gagal (exit ${j.code ?? '?'}) : cek log di bawah.</div>`;
-    }
+async function startProcess(){
+  const sel=[...document.querySelectorAll('.rg-check:checked')].map(b=>parseInt(b.value));
+  if(!sel.length){ showToast('Pilih minimal 1 momen dulu','error'); return; }
+  let base=ACTIVE_TPL; if(!base){ try{ base=await (await fetch('/api/config')).json(); }catch{ base={}; } }
+  const hook=base.hook!==false; const caps=base.captions!==false;
+  const st=document.getElementById('actionStatus'); const logBox=document.getElementById('actionLog');
+  if(st) st.innerHTML='<div class="p-3 text-xs rounded-xl border border-[var(--border)] bg-[var(--bg-surface-2)] text-[var(--text-secondary)]"><i class="bi bi-hourglass-split animate-pulse text-sky-500"></i> Mengunduh & merender klip terpilih...</div>';
+  try{
+    const r=await fetch(`/api/process/${encodeURIComponent(sid)}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({selected:sel, hook, captions:caps})});
+    const j=await r.json().catch(()=>({})); if(!r.ok||!j.ok) throw new Error(j.error||'HTTP '+r.status);
+    showToast(`${sel.length} klip masuk antrean render`,'success');
+  }catch(e){ if(st) st.innerHTML=`<div class="p-3 text-xs rounded-xl border border-rose-200 bg-rose-50 text-rose-700">${esc(String(e))}</div>`; return; }
+  switchLog('process');
+  pollJob(`/api/process/status/${encodeURIComponent(sid)}`, logBox, j=>{
+    if(j.code===0){ if(st) st.innerHTML='<div class="p-3 text-xs rounded-xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-700">Render selesai! Refresh untuk lihat klip baru</div>'; showToast('Render selesai','success'); setTimeout(()=>loadSession(),1200); }
+    else { if(st) st.innerHTML=`<div class="p-3 text-xs rounded-xl border border-rose-200 bg-rose-50 text-rose-700">Render gagal (exit ${j.code??'?'})  -  cek log</div>`; showToast('Render gagal','error'); }
   });
 }
-
-function ensureProgressBar(logBox) {
-  if (!logBox || !logBox.parentNode) return null;
-  let bar = logBox.parentNode.querySelector(':scope > .live-progress');
-  if (!bar) {
-    bar = document.createElement('div');
-    bar.className = 'live-progress mt-2';
-    bar.innerHTML = '<div class="h-1.5 bg-zinc-800 rounded-full overflow-hidden"><div class="h-full bg-accent transition-all duration-500" style="width:0%"></div></div><div class="text-[10px] text-zinc-400 mt-1 tabular-nums">0%</div>';
-    logBox.parentNode.insertBefore(bar, logBox);
-  }
+function ensureProgressBar(logBox){
+  if(!logBox||!logBox.parentNode) return null;
+  let bar=logBox.parentNode.querySelector(':scope > .live-progress');
+  if(!bar){ bar=document.createElement('div'); bar.className='live-progress mt-2'; bar.innerHTML='<div class="h-1.5 bg-[var(--bg-surface-2)] rounded-full overflow-hidden border border-[var(--border)]"><div class="h-full bg-[var(--accent)] transition-all duration-500" style="width:0%"></div></div><div class="text-[10px] text-[var(--text-muted)] mt-1 tabular-nums">0%</div>'; logBox.parentNode.insertBefore(bar, logBox); }
   return bar;
 }
-
-function updateProgressBar(logBox, p) {
-  const bar = ensureProgressBar(logBox);
-  if (!bar) return;
-  if (p == null) { bar.style.display = 'none'; return; }
-  bar.style.display = '';
-  bar.firstElementChild.firstElementChild.style.width = Math.round(p) + '%';
-  bar.lastElementChild.textContent = Math.round(p) + '%';
+function updateProgressBar(logBox,p){
+  const bar=ensureProgressBar(logBox); if(!bar) return;
+  if(p==null){ bar.classList.add('hidden'); return; }
+  bar.classList.remove('hidden'); bar.firstElementChild.firstElementChild.style.width=Math.round(p)+'%'; bar.lastElementChild.textContent=Math.round(p)+'%';
 }
-
-function pollJob(url, logBox, onDone) {
-  const poll = setInterval(async () => {
-    try {
-      const j = await (await fetch(url)).json();
-      if (logBox && j.log) {
-        const stick = logBox.scrollTop + logBox.clientHeight >= logBox.scrollHeight - 60;
-        logBox.textContent = j.log;
-        if (stick) logBox.scrollTop = logBox.scrollHeight;
+function pollJob(url, logBox, onDone){
+  const poll=setInterval(async()=>{
+    try{
+      const j=await (await fetch(url)).json();
+      if(logBox && j.log){
+        const stick=logBox.scrollTop+logBox.clientHeight >= logBox.scrollHeight-40;
+        logBox.textContent=j.log;
+        if(stick) logBox.scrollTop=logBox.scrollHeight;
+        window._LOGS[CURRENT_LOG]=j.log;
       }
       updateProgressBar(logBox, j.progress);
-      if (!j.running) {
-        clearInterval(poll);
-        updateProgressBar(logBox, null);
-        onDone(j);
-      }
-    } catch {}
+      if(!j.running){ clearInterval(poll); updateProgressBar(logBox, null); onDone(j); }
+    }catch{}
   }, 1000);
 }
-
-function goCreate(){
-  // simpan sesi ke create via query
-  location.href='/create.html?session='+encodeURIComponent(sid);
-}
+function goCreate(){ location.href='/create.html?session='+encodeURIComponent(sid); }
 loadSession();
 </script>
 <script src="/engine_status.js"></script>

@@ -59,6 +59,8 @@ if sys.platform == "win32":
 
 
 class PortraitMixin:
+        _CPU_FALLBACK_ARGS = ['-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-profile:v', 'high', '-pix_fmt', 'yuv420p']
+        _GPU_ENCODER_NAMES = ('h264_nvenc','hevc_nvenc','h264_qsv','hevc_qsv','h264_amf','hevc_amf','h264_videotoolbox','hevc_videotoolbox','h264_mf','hevc_mf',)
         @staticmethod
         def _hold_sampled_values(sampled_values: list, sampled_indices: list, total_frames: int) -> list:
             """Expand sparse samples to one value per frame via STEP-HOLD (no linear interp).
@@ -1274,6 +1276,7 @@ class PortraitMixin:
             text = stderr.lower()
             # Mention of any hardware encoder + a known option/init failure phrase
             mentions_hw = any(enc in text for enc in cls._GPU_ENCODER_NAMES)
+            mentions_vaapi = 'vaapi' in text
             failure_phrases = (
                 'error applying encoder options',
                 'error setting option',
@@ -1286,8 +1289,18 @@ class PortraitMixin:
                 'no device available',
                 'impossible to convert between',
                 'function not implemented',
+                'failed to initialise vaapi',
+                'failed to create a vaapi device',
+                'initialise vaapi',
+                'vaapi device',
+                'operation failed',
             )
             mentions_failure = any(p in text for p in failure_phrases)
+            # VAAPI/QSV specific: h264_qsv + any vaapi/operation failed = gpu error
+            if mentions_hw and mentions_vaapi:
+                return True
+            if mentions_hw and 'operation failed' in text:
+                return True
             return mentions_hw and mentions_failure
 
         @classmethod
