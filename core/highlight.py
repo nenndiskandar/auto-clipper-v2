@@ -1069,17 +1069,23 @@ Aturan: pilih highlight yang paling sesuai brief di atas, prioritas momen yang m
                     section_path = str(clip_dir / "landscape.mp4")
                 
                     is_youtube = 'youtube.com' in url or 'youtu.be' in url
-                    is_tiktok_fb = 'tiktok.com' in url or 'facebook.com' in url or 'fb.watch' in url
                     try:
-                        if is_tiktok_fb:
-                            # TikTok/FB: full res tanpa section, tanpa resolusi filter
-                            self.log(f"  TikTok/FB detected  -  full download tanpa section (auto res)")
+                        if not is_youtube:
+                            # SEMUA non-YouTube (GDrive/TikTok/FB/IG): full download dulu baru ffmpeg cut - jangan --download-sections
+                            self.log(f"  Non-YouTube detected - full download tanpa section (GDrive via rclone, lain via yt-dlp best)")
                             full_tmp = str(session_dir / f"_full_{i}.mp4")
-                            self._download_full_video(url, full_tmp)
+                            # pakai cache full video kalau sudah ada (hemat kuota)
+                            if not pathlib.Path(full_tmp).exists() or pathlib.Path(full_tmp).stat().st_size < 1024*100:
+                                self._download_full_video(url, full_tmp)
+                            else:
+                                self.log(f"  Reusing cached full video {full_tmp} ({pathlib.Path(full_tmp).stat().st_size//1024}KB)")
                             s=self._srt_to_sec(highlight["start_time"]); ee=self._srt_to_sec(highlight["end_time"])
                             dur=ee-s if (ee>s) else 60
-                            cut_cmd=[self.ffmpeg_path,"-y","-ss",str(max(0,s)),"-i",full_tmp,"-t",str(dur),"-c","copy",section_path]
-                            subprocess.run(cut_cmd, check=True, creationflags=SUBPROCESS_FLAGS)
+                            # re-encode cut biar keyframe pas (-c copy suka blank di awal non-YouTube)
+                            cut_cmd=[self.ffmpeg_path,"-y","-ss",str(max(0,s)),"-i",full_tmp,"-t",str(dur),"-c:v","libx264","-preset","ultrafast","-crf","18","-c:a","aac","-b:a","128k",section_path]
+                            self.log(f"  Cutting {s:.1f}s->{ee:.1f}s ({dur:.1f}s) -> {section_path}")
+                            subprocess.run(cut_cmd, check=True, creationflags=SUBPROCESS_FLAGS, capture_output=True, text=True)
+                            self.log(f"  Cut OK {dur:.1f}s")
                             video_path=section_path
                         else:
                             video_path = self.download_video_section(
