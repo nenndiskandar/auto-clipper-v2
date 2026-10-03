@@ -94,14 +94,21 @@ def main():
                 subtitle_language=cfg.get("subtitle_language", "id"),
         subtitle_sync_offset=cfg.get("subtitle_sync_offset", -0.3),
     )
-    # Per-clip override: BGM mood + B-roll query (dari UI)
+    # Per-clip override: BGM mood + B-roll query (dari UI) + BGM_PATH per-session (brief AI backsound)
     mod = os.environ.get("BGM_MOOD", "").strip()
     bq = os.environ.get("BROLL_QUERY", "").strip()
+    bgm_path = os.environ.get("BGM_PATH", "").strip()
     if mod:
         core.auto_bgm_settings["mood"] = mod
     if bq:
         core.auto_broll_settings["query"] = bq
-    # iGPU Ivy Bridge gagal VAAPI — matiin biar langsung CPU kualitas terbaik medium crf 18
+    if bgm_path and Path(bgm_path).exists():
+        core.auto_bgm_settings["enabled"] = True
+        core.auto_bgm_settings["path"] = str(Path(bgm_path).resolve())
+        core.auto_bgm_settings["mode"] = "ducking"
+        core.auto_bgm_settings["base_volume"] = 0.12
+        debug_log(f"[bgm] Using per-session BGM {bgm_path} vol 0.12")
+    # iGPU Ivy Bridge gagal VAAPI  -  matiin biar langsung CPU kualitas terbaik medium crf 18
     core.enable_gpu_acceleration(False)
     if cfg.get("face_detector_model"):
         core.face_detector_model = cfg.get("face_detector_model")

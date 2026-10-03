@@ -242,6 +242,28 @@ details.cfg-group[open] summary::before{transform:rotate(90deg)}
             </div>
           </div>
 
+          <!-- Mentahan / Bahan  -  file raw (_temp / _temp_gdrive / srt / source) -->
+          <div class="card-panel p-3 space-y-3" id="mentahanCard">
+            <div class="flex items-center justify-between">
+              <h2 class="text-xs font-extrabold tracking-tight text-[var(--text-primary)] flex items-center gap-2">
+                <span class="w-1 h-4 rounded-full bg-amber-500"></span>
+                <span>Bahan Mentahan</span>
+                <span class="text-[11px] font-normal text-[var(--text-muted)]" id="rawCountInfo">(0 file)</span>
+              </h2>
+              <div class="flex items-center gap-1.5">
+                <span id="rawTotalSize" class="hidden sm:inline text-[11px] text-[var(--text-muted)]"></span>
+                <button onclick="loadSession()" class="w-8 h-8 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] flex items-center justify-center" title="Refresh"><i class="bi bi-arrow-clockwise text-xs"></i></button>
+              </div>
+            </div>
+            <div id="rawList" class="space-y-2"></div>
+            <div id="rawEmpty" class="hidden rounded-xl border border-dashed border-[var(--border)] bg-[var(--bg-surface-2)] p-4 text-center">
+              <div class="w-9 h-9 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] flex items-center justify-center mx-auto mb-2"><i class="bi bi-folder2-open text-[var(--text-muted)]"></i></div>
+              <div class="text-xs font-bold text-[var(--text-primary)]">Belum ada file mentahan</div>
+              <div class="text-[11px] text-[var(--text-muted)] mt-1 max-w-[520px] mx-auto">File sumber muncul di <code class="px-1 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--border)]">_temp</code> / <code class="px-1 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--border)]">_temp_gdrive</code> setelah pipeline download. Cek sumber campaign di atas atau lihat log proses.</div>
+            </div>
+            <div id="rawHint" class="hidden text-[11px] text-[var(--text-muted)]"></div>
+          </div>
+
           <!-- Highlights  -  virality, hook, timed_title -->
           <div class="card-panel p-3 space-y-3">
             <div class="flex flex-wrap justify-between items-center gap-2">
@@ -513,6 +535,8 @@ function renderAll(s){
     s.video_info?.duration?`<span class="chip text-[10px]"><i class="bi bi-stopwatch"></i>${fmtDur(s.video_info.duration)}</span>`:''
   ].filter(Boolean).join('') || '<span class="text-[11px] text-[var(--text-muted)]">-</span>';
 
+  // mentahan
+  renderRawFiles(s.rawFiles || [], s);
   // highlights
   renderHighlights();
   initTemplateBar();
@@ -585,6 +609,66 @@ function renderCampaign(c, s){
   }).join('');
   document.getElementById('sideCampTags').innerHTML=(c.tags||[]).slice(0,4).map(t=>`<span class="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--bg-surface-2)] border border-[var(--border)]">${esc(t)}</span>`).join('');
   document.getElementById('sideCampLink').href=c.share_url||`https://app.ternakklip.com/campaign/share/${c.public_id}`;
+}
+
+function renderRawFiles(rawFiles, session){
+  rawFiles = Array.isArray(rawFiles) ? rawFiles : [];
+  const box = document.getElementById('rawList');
+  const empty = document.getElementById('rawEmpty');
+  const countInfo = document.getElementById('rawCountInfo');
+  const totalSizeEl = document.getElementById('rawTotalSize');
+  const hint = document.getElementById('rawHint');
+  if (!box || !empty || !countInfo) return;
+  if (countInfo) countInfo.textContent = `(${rawFiles.length} file${rawFiles.length!==1?'s':''})`;
+  if (totalSizeEl) {
+    const tot = rawFiles.reduce((a,f)=> a + (Number(f.size)||0), 0);
+    totalSizeEl.textContent = tot ? fmtSize(tot) + ' total' : '';
+  }
+  if (!rawFiles.length) {
+    box.innerHTML = '';
+    empty.classList.remove('hidden');
+    if (hint) { hint.classList.add('hidden'); hint.textContent=''; }
+    return;
+  }
+  empty.classList.add('hidden');
+  const sidEnc = encodeURIComponent(session?.id || sid || '');
+  box.innerHTML = rawFiles.map(f=>{
+    const relEnc = encodeURIComponent(f.rel).replace(/%2F/g,'/');
+    const href = `/raw/${sidEnc}/${relEnc}`;
+    const hrefDl = href + '?download=1';
+    const isVid = !!f.isVideo, isSrt = !!f.isSrt;
+    const icon = isVid ? '<i class="bi bi-camera-video text-emerald-600"></i>' : isSrt ? '<i class="bi bi-file-earmark-text text-sky-600"></i>' : '<i class="bi bi-file-earmark text-zinc-500"></i>';
+    const dirBadge = f.dir==='.' ? 'root' : esc(f.dir);
+    const sizeLabel = esc(f.sizeFmt || fmtSize(f.size));
+    const extLabel = esc((f.ext||'').replace('.','').toUpperCase()||'-');
+    const dateLabel = (()=>{ try{ return new Date(f.mtimeIso||f.mtime).toLocaleString('id-ID',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});}catch{return ''}})();
+    const preview = isVid ? `<video src="${esc(href)}" preload="metadata" muted playsinline class="w-full rounded-lg border border-[var(--border)] bg-black max-h-[220px] object-contain" controls></video>` : isSrt ? `<div class="rounded-lg border border-[var(--border)] bg-[var(--bg-surface-2)] p-2 max-h-[160px] overflow-auto"><a href="${esc(href)}" target="_blank" class="text-[11px] text-[var(--accent)] hover:underline inline-flex items-center gap-1">Buka SRT <i class="bi bi-box-arrow-up-right"></i></a><span class="text-[11px] text-[var(--text-muted)] ml-2">${dateLabel}</span></div>` : '';
+    return `<div class="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-2.5 space-y-2">
+      <div class="flex items-center gap-2 min-w-0">
+        <span class="w-8 h-8 rounded-lg bg-[var(--bg-surface-2)] border border-[var(--border)] flex items-center justify-center shrink-0">${icon}</span>
+        <div class="min-w-0 flex-1">
+          <div class="text-xs font-bold text-[var(--text-primary)] truncate" title="${esc(f.name)}">${esc(f.name)}</div>
+          <div class="flex flex-wrap items-center gap-1.5 mt-1">
+            <span class="px-1.5 py-0.5 rounded-full bg-[var(--bg-surface-2)] border border-[var(--border)] text-[10px] font-mono text-[var(--text-muted)]">${dirBadge}</span>
+            <span class="px-1.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-700 text-[10px] font-bold">${sizeLabel}</span>
+            <span class="px-1.5 py-0.5 rounded-full bg-[var(--bg-surface-2)] border border-[var(--border)] text-[10px] font-bold text-[var(--text-muted)]">${extLabel}</span>
+            <span class="text-[10px] text-[var(--text-muted)]">${dateLabel}</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <a href="${esc(href)}" target="_blank" rel="noopener" class="min-h-[32px] px-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg-surface-2)] text-xs font-semibold inline-flex items-center gap-1" title="Buka / Preview">${isVid?'<i class="bi bi-play-fill"></i>':'<i class="bi bi-eye"></i>'} Buka</a>
+          <a href="${esc(hrefDl)}" download class="min-h-[32px] px-2.5 rounded-lg bg-[var(--accent)] text-[var(--accent-text)] text-xs font-bold inline-flex items-center gap-1"><i class="bi bi-download"></i> Unduh</a>
+        </div>
+      </div>
+      ${preview}
+      <div class="flex items-center gap-1.5 text-[10px] text-[var(--text-muted)] break-all"><i class="bi bi-link-45deg"></i><code class="px-1 py-0.5 rounded bg-[var(--bg-surface-2)] border border-[var(--border)]">${esc(f.rel)}</code><button onclick="navigator.clipboard.writeText('${esc(href)}'); showToast('Link raw disalin','success')" class="ml-auto min-h-[28px] px-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface-2)] text-[11px] font-semibold hidden sm:inline-flex items-center gap-1"><i class="bi bi-copy"></i> Salin link</button></div>
+    </div>`;
+  }).join('');
+  if (hint) {
+    const vidCount = rawFiles.filter(f=>f.isVideo).length, srtCount = rawFiles.filter(f=>f.isSrt).length;
+    hint.textContent = `${vidCount} video mentahan, ${srtCount} SRT  -  stream via /raw/:id/:rel (Range OK). File di _temp dipindah ke cache setelah proses kalau ada.`;
+    hint.classList.remove('hidden');
+  }
 }
 
 function renderHighlights(){

@@ -117,10 +117,10 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
     <div class="flex flex-wrap items-start justify-between gap-3">
       <div>
         <h1 class="text-lg font-black tracking-tight text-white flex items-center gap-2"><i class="bi bi-box-seam text-violet-400"></i> Dependencies</h1>
-        <p class="text-xs text-zinc-400 mt-1">Kelola semua dependensi engine — binaries, Python packages, disk, services, dan model AI.</p>
+        <p class="text-xs text-zinc-400 mt-1">Kelola semua dependensi engine  -  binaries, Python packages, disk, services, dan model AI.</p>
       </div>
       <div class="flex items-center gap-2">
-        <span id="depUpdated" class="text-[10px] text-zinc-500 hidden md:inline">—</span>
+        <span id="depUpdated" class="text-[10px] text-zinc-500 hidden md:inline"> - </span>
         <button onclick="refreshAll()" id="btnRefresh" class="min-h-[36px] px-3 py-1.5 bg-surface-2 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
         <button onclick="testAiProxy()" id="btnTestAi" class="min-h-[36px] px-3 py-1.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text)] text-xs font-bold rounded-lg transition flex items-center gap-1.5"><i class="bi bi-plugin"></i> Test AI Proxy</button>
       </div>
@@ -132,48 +132,48 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="systemGrid">
         <div class="card-panel p-4">
           <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 flex items-center gap-1"><i class="bi bi-hdd"></i> Host</div>
-          <div class="text-sm font-bold text-white mt-1 truncate" id="sysHost">—</div>
-          <div class="text-[10px] text-zinc-400 mt-0.5" id="sysPlatform">—</div>
+          <div class="text-sm font-bold text-white mt-1 truncate" id="sysHost"> - </div>
+          <div class="text-[10px] text-zinc-400 mt-0.5" id="sysPlatform"> - </div>
         </div>
         <div class="card-panel p-4">
           <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 flex items-center gap-1"><i class="bi bi-stopwatch"></i> Uptime</div>
-          <div class="text-sm font-bold text-white mt-1" id="sysUptime">—</div>
-          <div class="text-[10px] text-zinc-400 mt-0.5" id="sysLoad">load —</div>
+          <div class="text-sm font-bold text-white mt-1" id="sysUptime"> - </div>
+          <div class="text-[10px] text-zinc-400 mt-0.5" id="sysLoad">load  - </div>
         </div>
         <div class="card-panel p-4">
           <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 flex items-center gap-1"><i class="bi bi-memory"></i> Memory</div>
-          <div class="text-sm font-bold text-white mt-1" id="sysMem">—</div>
-          <div class="text-[10px] text-zinc-400 mt-0.5" id="sysMemDetail">—</div>
+          <div class="text-sm font-bold text-white mt-1" id="sysMem"> - </div>
+          <div class="text-[10px] text-zinc-400 mt-0.5" id="sysMemDetail"> - </div>
         </div>
         <div class="card-panel p-4">
           <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 flex items-center gap-1"><i class="bi bi-cpu"></i> CPU</div>
-          <div class="text-sm font-bold text-white mt-1 truncate" id="sysCpu">—</div>
-          <div class="text-[10px] text-zinc-400 mt-0.5" id="sysCpuCount">—</div>
+          <div class="text-sm font-bold text-white mt-1 truncate" id="sysCpu"> - </div>
+          <div class="text-[10px] text-zinc-400 mt-0.5" id="sysCpuCount"> - </div>
         </div>
       </div>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div class="card-panel p-4">
           <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 flex items-center gap-1"><i class="bi bi-code-slash text-sky-400"></i> Runtime</div>
           <div class="space-y-1.5 mt-2 text-xs">
-            <div class="flex justify-between"><span class="text-zinc-400">Node.js</span><span class="font-mono text-white" id="sysNode">—</span></div>
-            <div class="flex justify-between"><span class="text-zinc-400">Python</span><span class="font-mono text-white" id="sysPython">—</span></div>
-            <div class="flex justify-between"><span class="text-zinc-400">pip</span><span class="font-mono text-zinc-300 text-[11px] truncate max-w-[160px]" id="sysPip" title="">—</span></div>
-            <div class="flex justify-between"><span class="text-zinc-400">Python bin</span><span class="font-mono text-zinc-300 text-[11px] truncate max-w-[160px]" id="sysPyBin" title="">—</span></div>
+            <div class="flex justify-between"><span class="text-zinc-400">Node.js</span><span class="font-mono text-white" id="sysNode"> - </span></div>
+            <div class="flex justify-between"><span class="text-zinc-400">Python</span><span class="font-mono text-white" id="sysPython"> - </span></div>
+            <div class="flex justify-between"><span class="text-zinc-400">pip</span><span class="font-mono text-zinc-300 text-[11px] truncate max-w-[160px]" id="sysPip" title=""> - </span></div>
+            <div class="flex justify-between"><span class="text-zinc-400">Python bin</span><span class="font-mono text-zinc-300 text-[11px] truncate max-w-[160px]" id="sysPyBin" title=""> - </span></div>
           </div>
         </div>
         <div class="card-panel p-4">
           <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 flex items-center gap-1"><i class="bi bi-hdd-stack text-sky-400"></i> Disk Usage</div>
           <div class="mt-2">
-            <div class="flex justify-between text-xs mb-1"><span class="text-zinc-400" id="diskLabelDep">—</span><span class="font-mono text-white" id="diskPctDep">—</span></div>
+            <div class="flex justify-between text-xs mb-1"><span class="text-zinc-400" id="diskLabelDep"> - </span><span class="font-mono text-white" id="diskPctDep"> - </span></div>
             <div class="h-2 bg-zinc-800 rounded-full overflow-hidden"><div id="diskBarDep" class="h-full bg-emerald-500 rounded-full transition-all duration-500" style="width:0%"></div></div>
-            <div class="text-[10px] text-zinc-500 mt-1" id="diskDetailDep">—</div>
+            <div class="text-[10px] text-zinc-500 mt-1" id="diskDetailDep"> - </div>
           </div>
         </div>
         <div class="card-panel p-4">
           <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 flex items-center gap-1"><i class="bi bi-gear text-zinc-400"></i> Services</div>
           <div class="space-y-2 mt-2" id="svcList">
-            <div class="flex items-center justify-between text-xs"><span class="text-zinc-400 flex items-center gap-1.5"><i class="bi bi-globe text-sky-400"></i> Web</span><span id="svcWeb" class="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-zinc-800 text-zinc-400 border-zinc-700">—</span></div>
-            <div class="flex items-center justify-between text-xs"><span class="text-zinc-400 flex items-center gap-1.5"><i class="bi bi-telegram text-sky-400"></i> Bot</span><span id="svcBot" class="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-zinc-800 text-zinc-400 border-zinc-700">—</span></div>
+            <div class="flex items-center justify-between text-xs"><span class="text-zinc-400 flex items-center gap-1.5"><i class="bi bi-globe text-sky-400"></i> Web</span><span id="svcWeb" class="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-zinc-800 text-zinc-400 border-zinc-700"> - </span></div>
+            <div class="flex items-center justify-between text-xs"><span class="text-zinc-400 flex items-center gap-1.5"><i class="bi bi-telegram text-sky-400"></i> Bot</span><span id="svcBot" class="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-zinc-800 text-zinc-400 border-zinc-700"> - </span></div>
             <div class="flex items-center justify-between text-xs"><span class="text-zinc-400 flex items-center gap-1.5"><i class="bi bi-robot text-violet-400"></i> AI Proxy</span><span id="svcAi" class="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-zinc-800 text-zinc-400 border-zinc-700">checking…</span></div>
           </div>
         </div>
@@ -184,7 +184,7 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
     <section class="space-y-3">
       <div class="flex items-center justify-between">
         <h2 class="text-[11px] font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5"><i class="bi bi-terminal text-amber-400"></i> Binaries & Core Dependencies</h2>
-        <span class="text-[10px] text-zinc-500" id="binCount">—</span>
+        <span class="text-[10px] text-zinc-500" id="binCount"> - </span>
       </div>
       <div class="card-panel overflow-hidden">
         <div class="overflow-x-auto">
@@ -215,7 +215,7 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
             <i class="bi bi-search absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500 text-xs"></i>
             <input id="pkgFilter" placeholder="Filter package…" class="pl-7 pr-3 py-1.5 bg-zinc-900 border border-zinc-700 rounded-lg text-xs text-white placeholder-zinc-500 focus:border-[var(--accent)] w-44">
           </div>
-          <span class="text-[10px] text-zinc-500" id="pkgCount">—</span>
+          <span class="text-[10px] text-zinc-500" id="pkgCount"> - </span>
         </div>
       </div>
       <div class="card-panel overflow-hidden">
@@ -261,7 +261,7 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
           </table>
         </div>
         <div class="px-4 py-2.5 bg-zinc-900/30 border-t border-zinc-800 text-[10px] text-zinc-500 flex items-center gap-1.5">
-          <i class="bi bi-info-circle"></i> Download berjalan di background — cek <a href="/tasks.html" class="text-[var(--accent)] hover:underline">Antrean Tasks</a> atau refresh tabel setelah selesai.
+          <i class="bi bi-info-circle"></i> Download berjalan di background  -  cek <a href="/tasks.html" class="text-[var(--accent)] hover:underline">Antrean Tasks</a> atau refresh tabel setelah selesai.
         </div>
       </div>
     </section>
@@ -272,13 +272,13 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
       <div class="card-panel p-4">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
           <div class="space-y-2">
-            <div class="flex justify-between"><span class="text-zinc-400">Base URL</span><span class="font-mono text-white truncate max-w-[200px]" id="aiUrl">—</span></div>
-            <div class="flex justify-between"><span class="text-zinc-400">Model</span><span class="font-mono text-white" id="aiModel">—</span></div>
-            <div class="flex justify-between"><span class="text-zinc-400">API Key</span><span class="font-mono text-zinc-400" id="aiKey">—</span></div>
+            <div class="flex justify-between"><span class="text-zinc-400">Base URL</span><span class="font-mono text-white truncate max-w-[200px]" id="aiUrl"> - </span></div>
+            <div class="flex justify-between"><span class="text-zinc-400">Model</span><span class="font-mono text-white" id="aiModel"> - </span></div>
+            <div class="flex justify-between"><span class="text-zinc-400">API Key</span><span class="font-mono text-zinc-400" id="aiKey"> - </span></div>
           </div>
           <div class="space-y-2">
             <div class="flex items-center justify-between"><span class="text-zinc-400">Status</span><span id="aiStatus" class="px-2.5 py-1 rounded-full text-[10px] font-bold border bg-zinc-800 text-zinc-400 border-zinc-700">checking…</span></div>
-            <div class="text-[10px] text-zinc-500" id="aiDetail">—</div>
+            <div class="text-[10px] text-zinc-500" id="aiDetail"> - </div>
             <div class="flex gap-2">
               <button onclick="testAiProxy()" class="px-3 py-1.5 bg-surface-2 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs font-semibold rounded-lg transition flex items-center gap-1"><i class="bi bi-lightning-charge"></i> Test Koneksi</button>
               <a href="/settings.html" class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 text-xs font-semibold rounded-lg transition">Buka Settings</a>
@@ -301,14 +301,14 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmtBytes = b => {
-  if (!b) return '—';
+  if (!b) return ' - ';
   const gb = b / (1024*1024*1024);
   if (gb >= 1) return gb.toFixed(1) + ' GB';
   const mb = b / (1024*1024);
   return mb.toFixed(1) + ' MB';
 };
 const fmtUptime = s => {
-  if (!s && s !== 0) return '—';
+  if (!s && s !== 0) return ' - ';
   const d = Math.floor(s/86400), h = Math.floor((s%86400)/3600), m = Math.floor((s%3600)/60);
   if (d) return d + 'd ' + h + 'h';
   if (h) return h + 'h ' + m + 'm';
@@ -328,20 +328,20 @@ async function loadSystem(){
   try{
     const r = await fetch('/api/system');
     const s = await r.json();
-    $('#sysHost').textContent = s.host || '—';
+    $('#sysHost').textContent = s.host || ' - ';
     $('#sysPlatform').textContent = (s.platform || '') + ' ' + (s.arch || '') + ' · ' + (s.release || '');
     $('#sysUptime').textContent = fmtUptime(s.uptime_s);
     $('#sysLoad').textContent = 'load ' + (s.loadavg||[]).map(v=>v.toFixed(2)).join(' · ');
     const memUsedPct = s.mem_total ? Math.round((s.mem_used/s.mem_total)*100) : 0;
     $('#sysMem').textContent = fmtBytes(s.mem_used) + ' / ' + fmtBytes(s.mem_total) + ' (' + memUsedPct + '%)';
     $('#sysMemDetail').textContent = 'free ' + fmtBytes(s.mem_free);
-    $('#sysCpu').textContent = s.cpu_model || '—';
+    $('#sysCpu').textContent = s.cpu_model || ' - ';
     $('#sysCpuCount').textContent = (s.cpu_count||0) + ' cores';
-    $('#sysNode').textContent = s.node || '—';
-    $('#sysPython').textContent = s.python || '—';
-    $('#sysPip').textContent = s.pip || '—';
+    $('#sysNode').textContent = s.node || ' - ';
+    $('#sysPython').textContent = s.python || ' - ';
+    $('#sysPip').textContent = s.pip || ' - ';
     $('#sysPip').title = s.pip || '';
-    $('#sysPyBin').textContent = s.py || '—';
+    $('#sysPyBin').textContent = s.py || ' - ';
     $('#sysPyBin').title = s.py || '';
     if(s.disk){
       const pct = s.disk.usedPercent || 0;
@@ -375,7 +375,9 @@ async function loadBinaries(){
       'ffmpeg': 'bi-camera-reels text-rose-400',
       'ffprobe': 'bi-film text-orange-400',
       'deno': 'bi-braces text-emerald-400',
+      'rclone': 'bi-cloud-arrow-down text-cyan-400',
       'yt-dlp': 'bi-download text-sky-400',
+      'gdown': 'bi-google text-yellow-400',
       'python': 'bi-code-slash text-amber-400',
       'node': 'bi-hexagon text-emerald-400',
       'mediapipe': 'bi-eye text-fuchsia-400'
@@ -383,7 +385,7 @@ async function loadBinaries(){
     $('#binBody').innerHTML = list.map(b => {
       const ic = iconMap[b.name] || 'bi-box text-zinc-400';
       const ver = esc(b.version || b.detail || '');
-      const pathVal = esc(b.path || (b.detail && b.detail.includes('/') ? b.detail : '—'));
+      const pathVal = esc(b.path || (b.detail && b.detail.includes('/') ? b.detail : ' - '));
       const isDL = ['ffmpeg','deno','mediapipe','yt-dlp'].includes(b.name);
       let act='';
       if (isDL) {
@@ -391,6 +393,10 @@ async function loadBinaries(){
         if (busy) act='<span class="inline-flex items-center gap-1 text-amber-400 text-xs"><i class="bi bi-hourglass-split animate-spin"></i> Running…</span>';
         else if (!b.ok) act='<button onclick="depInstall(\''+esc(b.name)+'\',this)" class="px-2.5 py-1 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text)] text-[11px] font-bold rounded-lg flex items-center gap-1"><i class="bi bi-download"></i> Download</button>';
         else act='<button onclick="depInstall(\''+esc(b.name)+'\',this)" class="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 text-[11px] font-semibold rounded-lg flex items-center gap-1"><i class="bi bi-arrow-repeat"></i> Update</button>';
+      } else if (b.name==='rclone' || b.name==='gdown') {
+        if (b.ok) act='<span class="text-[11px] text-emerald-400 font-semibold"><i class="bi bi-check-circle"></i> Siap fallback GDrive</span>';
+        else if (b.name==='rclone') act='<span class="text-[11px] text-zinc-400">apt install rclone</span>';
+        else act='<button onclick="depInstall(\'pip:gdown\',this)" class="px-2.5 py-1 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text)] text-[11px] font-bold rounded-lg flex items-center gap-1"><i class="bi bi-download"></i> pip install gdown</button>';
       }
       return '<tr class="hover:bg-zinc-800/30 transition">'
         + '<td class="py-2.5 px-4"><span class="inline-flex items-center gap-1.5">' + '<span class="w-2 h-2 rounded-full ' + dot(!!b.ok) + '"></span>' + badge(!!b.ok, 'Ready', 'Missing') + '</span></td>'
@@ -432,7 +438,7 @@ function renderPackages(){
     return '<tr class="hover:bg-zinc-800/30 transition">'
       + '<td class="py-2 px-4">' + badge(!!p.ok, 'Installed', 'Missing') + '</td>'
       + '<td class="py-2 px-4 font-mono text-white">' + esc(p.name) + '</td>'
-      + '<td class="py-2 px-4 font-mono text-zinc-300">' + esc(p.version || '—') + '</td>'
+      + '<td class="py-2 px-4 font-mono text-zinc-300">' + esc(p.version || ' - ') + '</td>'
       + '<td class="py-2 px-4 text-right"><div class="flex justify-end">' + act + '</div></td>'
       + '</tr>';
   }).join('');
@@ -445,7 +451,7 @@ async function loadWhisper(){
     const list = await r.json();
     $('#whisperBody').innerHTML = list.map(m => {
       const ok = !!m.installed;
-      const sizeLabel = m.mb || '—';
+      const sizeLabel = m.mb || ' - ';
       const target = 'whisper:'+m.size;
       const busyW = DEP_RUNNING && DEP_RUNNING[target];
       let btn='';
@@ -486,10 +492,10 @@ async function loadAiProxy(){
   try{
     const cfg = await (await fetch('/api/config')).json();
     const hf = (cfg.ai_providers && cfg.ai_providers.highlight_finder) || {};
-    $('#aiUrl').textContent = hf.base_url || cfg.server_url || cfg.base_url || '—';
-    $('#aiModel').textContent = hf.model || cfg.model || '—';
+    $('#aiUrl').textContent = hf.base_url || cfg.server_url || cfg.base_url || ' - ';
+    $('#aiModel').textContent = hf.model || cfg.model || ' - ';
     const hasKey = !!(hf.api_key || cfg.api_key);
-    $('#aiKey').textContent = hasKey ? '•••• tersimpan' : '— belum diatur';
+    $('#aiKey').textContent = hasKey ? '•••• tersimpan' : ' -  belum diatur';
     // test
     const testRes = await fetch('/api/test-llm', {
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -498,7 +504,7 @@ async function loadAiProxy(){
     const t = await testRes.json();
     const ok = !!t.ok;
     $('#aiStatus').outerHTML = '<span id="aiStatus" class="px-2.5 py-1 rounded-full text-[10px] font-bold border ' + (ok ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20') + '">' + (ok ? '<i class="bi bi-check-circle-fill"></i> Connected' : '<i class="bi bi-x-circle-fill"></i> Disconnected') + '</span>';
-    $('#aiDetail').textContent = ok ? 'AI Proxy siap — ' + (t.models ? (t.models.length + ' models') : 'ok') : (t.error || 'tidak terhubung');
+    $('#aiDetail').textContent = ok ? 'AI Proxy siap  -  ' + (t.models ? (t.models.length + ' models') : 'ok') : (t.error || 'tidak terhubung');
     // also update svcAi
     $('#svcAi').outerHTML = '<span id="svcAi" class="px-2 py-0.5 rounded-full text-[10px] font-bold border ' + (ok ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20') + '">' + (ok ? 'connected' : 'disconnected') + '</span>';
   }catch(e){
