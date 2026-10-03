@@ -1,3 +1,4 @@
+import pathlib
 #!/usr/bin/env python3
 """Re-render satu klip (dari landscape.mp4) dengan konfigurasi aktif.
 
@@ -94,7 +95,18 @@ def main():
     if str(opts.get("bgm_mood") or "").strip():
         core.auto_bgm_settings["mood"] = str(opts["bgm_mood"]).strip()
     if "bgm_path" in opts and str(opts.get("bgm_path") or "").strip():
+        core.auto_bgm_settings["enabled"] = True
         core.auto_bgm_settings["path"] = str(opts["bgm_path"]).strip()
+        core.auto_bgm_settings["mode"] = "ducking"
+        core.auto_bgm_settings["base_volume"] = 0.12
+    # env BGM_PATH fallback (for session render)
+    import os as _os
+    _bgm_env = _os.environ.get("BGM_PATH","").strip()
+    if _bgm_env and pathlib.Path(_bgm_env).exists():
+        core.auto_bgm_settings["enabled"] = True
+        core.auto_bgm_settings["path"] = str(pathlib.Path(_bgm_env).resolve())
+        core.auto_bgm_settings["mode"] = "ducking"
+        core.auto_bgm_settings["base_volume"] = 0.12
     if str(opts.get("broll_query") or "").strip():
         core.auto_broll_settings["query"] = str(opts["broll_query"]).strip()
     if "pexels_api_key" in opts and str(opts.get("pexels_api_key") or "").strip():

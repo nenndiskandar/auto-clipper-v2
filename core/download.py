@@ -8,6 +8,7 @@ import os
 import re
 import threading
 import json
+import shutil
 import cv2
 import numpy as np
 import tempfile
@@ -71,6 +72,80 @@ class DownloadMixin:
                     self.log("  ✓ File landscape.mp4 sudah ada, skip download/cut.")
                     return str(landscape_file), None, {"title": "Cached Video", "channel": "Cached"}
 
+            # GDrive: langsung rclone/gdown (primary) - lebih reliable daripada yt-dlp untuk file & folder private/public
+            if self._is_gdrive_url(url):
+                # jika folder, expand via gdown --json dulu lalu coba download file videonya
+                is_folder = bool(re.search(r'/drive/folders/', str(url or ''), re.I))
+                if is_folder:
+                    self.log(f"  GDrive folder terdeteksi - expand via gdown --json ...")
+                    gurls = self._expand_gdrive_folder(url)
+                    if gurls:
+                        self.log(f"  Folder expand {len(gurls)} files -> coba download satu per satu")
+                        for gurl in gurls:
+                            too2, sz2, pr2 = self._check_too_large(gurl, 500)
+                            if too2:
+                                self.log(f"  SKIP besar {pr2} >500 MB: {gurl[:70]}")
+                                continue
+                            fb = self.temp_dir / "source.mp4"
+                            try:
+                                if fb.exists() and fb.stat().st_size < 1024:
+                                    fb.unlink()
+                            except: pass
+                            if self._try_download_gdrive_fallback(gurl, fb):
+                                actual = None
+                                for cand in [fb, self.temp_dir / "source.mkv", self.temp_dir / "source.webm"]:
+                                    if cand.exists() and cand.stat().st_size > 1024:
+                                        actual = cand; break
+                                if actual is None:
+                                    cands = list(self.temp_dir.glob("source.*"))
+                                    cands = [c for c in cands if c.is_file() and c.stat().st_size > 1024 and c.suffix not in ('.srt','.vtt')]
+                                    if cands:
+                                        actual = sorted(cands, key=lambda p: p.stat().st_size, reverse=True)[0]
+                                if actual:
+                                    fid = self._extract_gdrive_id(gurl) or "gdrive"
+                                    video_info = {"title": f"GDrive {fid[:8]}", "channel": "Google Drive", "duration": 0, "description": ""}
+                                    srt_path = self.temp_dir / f"source.{self.subtitle_language}.srt"
+                                    if not srt_path.exists():
+                                        avail = list(self.temp_dir.glob("source.*.srt"))
+                                        srt_path = avail[0] if avail else None
+                                    if srt_path:
+                                        srt_path = self._relocate_srt(srt_path)
+                                    self.log(self.colorize(f"  GDrive folder fallback sukses -> {actual.name} ({self._human_bytes(actual.stat().st_size)})", "download"))
+                                    return str(actual), str(srt_path) if srt_path else None, video_info
+                        self.log("  GDrive folder expand gagal semua file, fallback ke yt-dlp ...")
+                    else:
+                        self.log("  GDrive folder expand kosong/private -> lanjut yt-dlp fallback ...")
+                else:
+                    # single file: coba rclone langsung tanpa yt-dlp dulu
+                    self.log(f"  GDrive file terdeteksi - coba rclone/gdown langsung ...")
+                    fb = self.temp_dir / "source.mp4"
+                    try:
+                        if fb.exists() and fb.stat().st_size < 1024:
+                            fb.unlink()
+                    except: pass
+                    if self._try_download_gdrive_fallback(url, fb):
+                        fid = self._extract_gdrive_id(url) or "gdrive"
+                        video_info = {"title": f"GDrive {fid[:8]}", "channel": "Google Drive", "duration": 0, "description": ""}
+                        actual = None
+                        for cand in [fb, self.temp_dir / "source.mkv", self.temp_dir / "source.webm"]:
+                            if cand.exists() and cand.stat().st_size > 1024:
+                                actual = cand; break
+                        if actual is None:
+                            cands = list(self.temp_dir.glob("source.*"))
+                            cands = [c for c in cands if c.is_file() and c.stat().st_size > 1024 and c.suffix not in ('.srt','.vtt')]
+                            if cands:
+                                actual = sorted(cands, key=lambda p: p.stat().st_size, reverse=True)[0]
+                        if actual:
+                            srt_path = self.temp_dir / f"source.{self.subtitle_language}.srt"
+                            if not srt_path.exists():
+                                avail = list(self.temp_dir.glob("source.*.srt"))
+                                srt_path = avail[0] if avail else None
+                            if srt_path:
+                                srt_path = self._relocate_srt(srt_path)
+                            self.log(self.colorize(f"  GDrive rclone sukses -> {actual.name} ({self._human_bytes(actual.stat().st_size)})", "download"))
+                            return str(actual), str(srt_path) if srt_path else None, video_info
+                    self.log("  GDrive direct rclone gagal -> lanjut yt-dlp ...")
+
             # Check if using yt-dlp module
             use_module = YTDLP_MODULE_AVAILABLE and self.ytdlp_path == "yt_dlp_module"
         
@@ -79,12 +154,354 @@ class DownloadMixin:
             else:
                 return self._download_video_subprocess(url)
 
+        def _is_gdrive_url(self, url: str) -> bool:
+            try:
+                return bool(re.search(r'drive\.google\.com|docs\.google\.com', str(url or ''), re.I))
+            except Exception:
+                return False
+
+        def _extract_gdrive_id(self, url: str):
+            try:
+                uu = str(url or '')
+                m = re.search(r'/d/([A-Za-z0-9_\-]{10,})', uu)
+                if m:
+                    return m.group(1)
+                m = re.search(r'[?&]id=([A-Za-z0-9_\-]{10,})', uu)
+                if m:
+                    return m.group(1)
+                return None
+            except Exception:
+                return None
+
+        def _gdrive_download_url(self, file_id: str) -> str:
+            return f"https://drive.google.com/uc?export=download&id={file_id}"
+
+        def _check_too_large(self, url: str, limit_mb: int = 500):
+            """Cek apakah file > limit_mb (default 500 MB). Return (too_large, size_bytes, pretty)."""
+            limit = limit_mb * 1024 * 1024
+            try:
+                fid = self._extract_gdrive_id(url)
+                # GDrive: HEAD ke uc?export=download
+                if fid and self._is_gdrive_url(url):
+                    gurl = self._gdrive_download_url(fid)
+                    # coba HEAD dulu (follow redirect, cek Content-Length)
+                    try:
+                        import requests as _rq
+                        # HEAD sering tidak kasih length karena redirect, coba HEAD + GET stream head
+                        head = _rq.head(gurl, allow_redirects=True, timeout=12, headers={'User-Agent': 'Mozilla/5.0'})
+                        clen = head.headers.get('Content-Length') or head.headers.get('content-length')
+                        if clen and str(clen).isdigit():
+                            sz = int(clen)
+                            if sz > limit:
+                                return True, sz, self._human_bytes(sz)
+                        # fallback: coba GET stream hanya header (tanpa download body)
+                        if not clen or int(clen or 0) == 0:
+                            # pakai yt-dlp dump-json sebagai penentu akurat jika HEAD tidak jelas
+                            pass
+                    except Exception:
+                        pass
+                    # cek via yt-dlp info (filesize)
+                    try:
+                        import yt_dlp as _yt
+                        from utils.helpers import get_app_dir as _gad
+                        opts = {'quiet': True, 'no_warnings': True, 'skip_download': True, 'noplaylist': True}
+                        # cookies jika ada
+                        try:
+                            _app2 = _gad()
+                            for _loc in [__import__('pathlib').Path('cookies.txt'), _app2 / 'cookies.txt']:
+                                if _loc.exists() and _loc.stat().st_size > 0:
+                                    opts['cookiefile'] = str(_loc)
+                                    break
+                        except Exception:
+                            pass
+                        with _yt.YoutubeDL(opts) as ydl:
+                            info = ydl.extract_info(url, download=False)
+                            sz = info.get('filesize') or info.get('filesize_approx')
+                            if not sz and isinstance(info.get('formats'), list):
+                                # ambil max filesize di formats
+                                try:
+                                    sz = max([f.get('filesize') or f.get('filesize_approx') or 0 for f in info.get('formats', [])])
+                                except Exception:
+                                    sz = 0
+                            if sz and sz > limit:
+                                return True, int(sz), self._human_bytes(int(sz))
+                    except Exception:
+                        pass
+                    return False, 0, ''
+                else:
+                    # non-GDrive (YouTube dkk): coba yt-dlp info
+                    try:
+                        import yt_dlp as _yt2
+                        from utils.helpers import get_app_dir as _gad2
+                        opts2 = {'quiet': True, 'no_warnings': True, 'skip_download': True, 'noplaylist': True}
+                        try:
+                            _app3 = _gad2()
+                            for _loc in [__import__('pathlib').Path('cookies.txt'), _app3 / 'cookies.txt']:
+                                if _loc.exists() and _loc.stat().st_size > 0:
+                                    opts2['cookiefile'] = str(_loc)
+                                    break
+                        except Exception:
+                            pass
+                        # deno jika ada (untuk youtube challenge)
+                        try:
+                            from utils.helpers import get_deno_path as _gdp
+                            _dp = _gdp()
+                            if _dp and __import__('pathlib').Path(_dp).exists():
+                                opts2['js_runtimes'] = {'deno': {'path': _dp}}
+                                opts2['remote_components'] = ['ejs:github']
+                        except Exception:
+                            pass
+                        with _yt2.YoutubeDL(opts2) as ydl2:
+                            info2 = ydl2.extract_info(url, download=False)
+                            sz2 = info2.get('filesize') or info2.get('filesize_approx')
+                            if not sz2 and isinstance(info2.get('formats'), list):
+                                try:
+                                    sz2 = max([f.get('filesize') or f.get('filesize_approx') or 0 for f in info2.get('formats', [])])
+                                except Exception:
+                                    sz2 = 0
+                            # YouTube durasi * bitrate kasar: kalau duration > 40 menit dan 1080p kemungkinan >500MB, tapi tetap cek sz
+                            if sz2 and sz2 > limit:
+                                return True, int(sz2), self._human_bytes(int(sz2))
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+            return False, 0, ''
+
+        def _try_rclone_gdrive(self, url: str, out_path: Path) -> bool:
+            """Fallback GDrive via rclone copyurl (tanpa remote). Return True jika sukses."""
+            try:
+                fid = self._extract_gdrive_id(url)
+                if not fid:
+                    return False
+                gurl = self._gdrive_download_url(fid)
+                rclone_bin = shutil.which('rclone') or '/usr/bin/rclone'
+                if not Path(rclone_bin).exists():
+                    # coba cari di PATH common
+                    for cand in ['/usr/bin/rclone', '/usr/local/bin/rclone']:
+                        if Path(cand).exists():
+                            rclone_bin = cand
+                            break
+                    else:
+                        self.log("  rclone tidak ditemukan di PATH, skip rclone fallback")
+                        return False
+                # pastikan dir ada
+                out_path = Path(out_path)
+                out_path.parent.mkdir(parents=True, exist_ok=True)
+                # rclone copyurl: rclone copyurl <url> <dest>
+                # handle large file abuse warning: drive memberi halaman confirm; rclone copyurl mengikuti redirect dengan benar untuk file public
+                self.log(f"  Fallback rclone: {rclone_bin} copyurl -> {out_path.name} ...")
+                cmd = [rclone_bin, 'copyurl', gurl, str(out_path)]
+                # timeout 300s untuk file besar (tapi guard sudah >500MB skip, jadi ini file <500MB)
+                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=310)
+                if proc.returncode == 0 and out_path.exists() and out_path.stat().st_size > 1024:
+                    self.log(f"  rclone sukses: {self._human_bytes(out_path.stat().st_size)}")
+                    return True
+                else:
+                    # coba dengan confirm flag (?export=download&confirm=t)
+                    gurl2 = gurl + "&confirm=t"
+                    cmd2 = [rclone_bin, 'copyurl', gurl2, str(out_path)]
+                    self.log(f"  rclone retry dengan confirm=t ...")
+                    proc2 = subprocess.run(cmd2, capture_output=True, text=True, timeout=310)
+                    if proc2.returncode == 0 and out_path.exists() and out_path.stat().st_size > 1024:
+                        # cegah file HTML error page (biasanya <100KB dan berisi html)
+                        try:
+                            head = out_path.read_bytes()[:512].decode(errors='ignore').lower()
+                            if '<html' in head and out_path.stat().st_size < 200*1024:
+                                self.log("  rclone hasil looks like HTML error page, fallback gagal")
+                                try: out_path.unlink()
+                                except Exception: pass
+                                return False
+                        except Exception:
+                            pass
+                        self.log(f"  rclone retry sukses: {self._human_bytes(out_path.stat().st_size)}")
+                        return True
+                    self.log(f"  rclone gagal: {(proc.stderr or proc.stdout or '')[:200]}")
+                    return False
+            except subprocess.TimeoutExpired:
+                self.log("  rclone timeout 310s, skip")
+                return False
+            except Exception as e:
+                self.log(f"  rclone exception: {str(e)[:180]}")
+                return False
+
+        def _try_gdown_gdrive(self, url: str, out_path: Path) -> bool:
+            """Fallback GDrive via gdown (pip). Jika tidak terinstall, skip."""
+            try:
+                fid = self._extract_gdrive_id(url)
+                if not fid:
+                    return False
+                # cek gdown tersedia
+                try:
+                    import gdown as _gd  # noqa
+                    has_gdown = True
+                except ImportError:
+                    has_gdown = shutil.which('gdown') is not None
+                    if not has_gdown:
+                        return False
+                out_path = Path(out_path)
+                out_path.parent.mkdir(parents=True, exist_ok=True)
+                self.log(f"  Fallback gdown --id {fid[:8]}... -> {out_path.name}")
+                # coba via python -m gdown --id
+                py = sys.executable
+                cmd = [py, '-m', 'gdown', '--id', fid, '-O', str(out_path)]
+                # alternatif: gdown binary
+                if shutil.which('gdown'):
+                    # jika gdown sebagai modul gagal, coba binary
+                    pass
+                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=310)
+                if proc.returncode == 0 and out_path.exists() and out_path.stat().st_size > 1024:
+                    self.log(f"  gdown sukses: {self._human_bytes(out_path.stat().st_size)}")
+                    return True
+                # coba binary gdown
+                if shutil.which('gdown'):
+                    cmd2 = ['gdown', '--id', fid, '-O', str(out_path)]
+                    proc2 = subprocess.run(cmd2, capture_output=True, text=True, timeout=310)
+                    if proc2.returncode == 0 and out_path.exists() and out_path.stat().st_size > 1024:
+                        self.log(f"  gdown (bin) sukses: {self._human_bytes(out_path.stat().st_size)}")
+                        return True
+                self.log(f"  gdown gagal")
+                return False
+            except subprocess.TimeoutExpired:
+                self.log("  gdown timeout, skip")
+                return False
+            except Exception as e:
+                self.log(f"  gdown exception: {str(e)[:180]}")
+                return False
+
+        def _try_requests_gdrive(self, url: str, out_path: Path) -> bool:
+            """Fallback paling akhir: requests streaming + handle confirm token."""
+            try:
+                import requests as _rq
+                fid = self._extract_gdrive_id(url)
+                if not fid:
+                    return False
+                gurl = self._gdrive_download_url(fid)
+                out_path = Path(out_path)
+                out_path.parent.mkdir(parents=True, exist_ok=True)
+                self.log(f"  Fallback requests streaming -> {out_path.name} ...")
+                sess = _rq.Session()
+                sess.headers.update({'User-Agent': 'Mozilla/5.0'})
+                resp = sess.get(gurl, stream=True, timeout=30, allow_redirects=True)
+                # handle large file confirm (drive menampilkan halaman warning dengan link export=download&confirm=xxx)
+                if resp.status_code == 200 and 'text/html' in (resp.headers.get('Content-Type') or ''):
+                    # parse confirm token dari html atau cookie
+                    html = resp.text[:8000]
+                    m = re.search(r'confirm=([A-Za-z0-9_\-]+)', html)
+                    token = None
+                    if m:
+                        token = m.group(1)
+                    else:
+                        # coba dari cookie
+                        for k, v in sess.cookies.items():
+                            if k.startswith('download_warning'):
+                                token = v
+                                break
+                    if token:
+                        gurl2 = gurl + f"&confirm={token}"
+                        resp.close()
+                        resp = sess.get(gurl2, stream=True, timeout=30, allow_redirects=True)
+                # jika masih html, gagal
+                ct = resp.headers.get('Content-Type') or ''
+                if 'text/html' in ct and int(resp.headers.get('Content-Length') or 0) < 500*1024:
+                    self.log("  requests dapat HTML bukan video, fallback gagal")
+                    resp.close()
+                    return False
+                total = 0
+                with open(out_path, 'wb') as fh:
+                    for chunk in resp.iter_content(chunk_size=8192):
+                        if chunk:
+                            fh.write(chunk)
+                            total += len(chunk)
+                            if total % (5*1024*1024) < 8192:
+                                # log tiap ~5MB
+                                pass
+                resp.close()
+                if out_path.exists() and out_path.stat().st_size > 1024:
+                    self.log(f"  requests sukses: {self._human_bytes(out_path.stat().st_size)}")
+                    return True
+                return False
+            except Exception as e:
+                self.log(f"  requests fallback exception: {str(e)[:180]}")
+                return False
+
+        def _expand_gdrive_folder(self, folder_url: str) -> list:
+            """Expand GDrive folder via gdown --json -> list uc?id=... video urls (pref mp4)."""
+            try:
+                import subprocess as _sp, json as _js
+                py = sys.executable
+                out = _sp.run([py, "-m", "gdown", "--json", str(folder_url)], capture_output=True, text=True, timeout=25)
+                if out.returncode != 0 or not out.stdout.strip():
+                    self.log(f"  gdown expand stderr: {(out.stderr or '')[:180]}")
+                    return []
+                arr = _js.loads(out.stdout)
+                if not isinstance(arr, list) or not arr:
+                    return []
+                def _is_video(pp):
+                    return bool(re.search(r'\.(mp4|mov|mkv|webm|avi|m4v|mpg|mpeg)$', str(pp or ''), re.I))
+                def _is_excluded(pp):
+                    pp = str(pp or '')
+                    if re.search(r'(^|/)\.DS_Store$', pp, re.I): return True
+                    if re.search(r'\.(zip|rar|7z|wav|mp3|aac|flac|docx?|pdf|xlsx?|pptx?|txt|html)$', pp, re.I): return True
+                    if re.search(r'poster|thumbnail|cover|image|foto|banner|sample|mockup', pp, re.I): return True
+                    return False
+                vids = [e for e in arr if _is_video(e.get("path")) and not _is_excluded(e.get("path"))]
+                if not vids:
+                    vids = [e for e in arr if not _is_excluded(e.get("path")) and not re.search(r'\.(docx|pdf|zip|wav|html)$', str(e.get("path") or ''), re.I)]
+                if not vids:
+                    vids = arr
+                # sort pref mp4 > mov
+                def _score(e):
+                    p = str(e.get("path") or "").lower()
+                    if p.endswith(".mp4"): return 100
+                    if p.endswith(".mov"): return 80
+                    if p.endswith(".mkv"): return 70
+                    if p.endswith(".webm"): return 60
+                    return 50
+                vids.sort(key=_score, reverse=True)
+                urls = [e.get("url") for e in vids if e.get("url")]
+                try:
+                    self.log(f"  gdown expand {str(folder_url)[:60]} -> {len(arr)} entries, video {len(urls)}")
+                except: pass
+                return urls
+            except Exception as e:
+                try: self.log(f"  gdown expand exception: {str(e)[:180]}")
+                except: pass
+                return []
+
+        def _try_download_gdrive_fallback(self, url: str, out_path: Path) -> bool:
+            """Coba rclone -> gdown -> requests secara berurutan untuk GDrive public."""
+            if not self._is_gdrive_url(url):
+                return False
+            # guard besar dulu: jangan download diam-diam file >500MB
+            too, sz, pretty = self._check_too_large(url, 500)
+            if too:
+                self.log(f"  SKIP file besar {pretty} (>500 MB) - diskusi dulu sebelum download: {url[:80]}")
+                return False
+            # urut: rclone dulu (sudah ada di VPS), gdown, lalu requests
+            if self._try_rclone_gdrive(url, out_path):
+                return True
+            if self._try_gdown_gdrive(url, out_path):
+                return True
+            if self._try_requests_gdrive(url, out_path):
+                return True
+            return False
+
         def _download_video_module(self, url: str) -> tuple:
             """Download video using yt-dlp Python module API"""
             self.log(f"  Using yt-dlp module v{yt_dlp.version.__version__}")
         
             video_info = {}
-        
+            # Guard: skip file besar >500 MB (diskusi dulu) - cek sebelum download
+            try:
+                too, sz2, pretty2 = self._check_too_large(url, 500)
+                if too:
+                    self.log(f"  SKIP file besar {pretty2} (>500 MB) - diskusi dulu: {url[:90]}")
+                    raise Exception(f"SKIP file besar {pretty2} (>500 MB). File mentahan terlalu besar - diskusi dulu sebelum download. URL: {url[:90]}")
+            except Exception as _ge:
+                if "SKIP file besar" in str(_ge):
+                    raise
+
             # Get FFmpeg and Deno paths
             ffmpeg_path = get_ffmpeg_path()
             deno_path = get_deno_path()
@@ -236,7 +653,44 @@ class DownloadMixin:
             except Exception as e:
                 last_error = str(e)
                 self.log(f"  ✗ Failed: {last_error[:100]}")
-            
+                # GDrive fallback via rclone/gdown/requests (t1) jika yt-dlp gagal
+                if self._is_gdrive_url(url):
+                    self.log("  yt-dlp gagal untuk GDrive, coba fallback rclone/gdown ...")
+                    fb_path = self.temp_dir / "source.mp4"
+                    # bersihkan file 0-byte sisa yt-dlp biar fallback bisa tulis
+                    try:
+                        if fb_path.exists() and fb_path.stat().st_size < 1024:
+                            fb_path.unlink()
+                    except Exception:
+                        pass
+                    if self._try_download_gdrive_fallback(url, fb_path):
+                        # fallback sukses - buat video_info minimal jika belum ada
+                        if not video_info or not video_info.get("title"):
+                            fid = self._extract_gdrive_id(url) or "gdrive"
+                            video_info = {"title": f"GDrive {fid[:8]}", "channel": "Google Drive", "duration": 0, "description": ""}
+                        # cari file aktual (fallback menulis source.mp4)
+                        actual = None
+                        for cand in [fb_path, self.temp_dir / "source.mkv", self.temp_dir / "source.webm"]:
+                            if cand.exists() and cand.stat().st_size > 1024:
+                                actual = cand
+                                break
+                        if actual is None:
+                            # cari source.* apapun
+                            cands = list(self.temp_dir.glob("source.*"))
+                            cands = [c for c in cands if c.is_file() and c.stat().st_size > 1024 and c.suffix not in ('.srt','.vtt')]
+                            if cands:
+                                actual = sorted(cands, key=lambda p: p.stat().st_size, reverse=True)[0]
+                        if actual:
+                            video_path = actual
+                            srt_path = self.temp_dir / f"source.{self.subtitle_language}.srt"
+                            if not srt_path.exists():
+                                avail = list(self.temp_dir.glob("source.*.srt"))
+                                srt_path = avail[0] if avail else None
+                            if srt_path:
+                                srt_path = self._relocate_srt(srt_path)
+                            self.log(self.colorize(f"  Fallback GDrive sukses -> {actual.name} ({self._human_bytes(actual.stat().st_size)})", "download"))
+                            return str(actual), str(srt_path) if srt_path else None, video_info
+
                 # Provide helpful error message for common issues
                 if "403" in last_error or "Forbidden" in last_error:
                     raise Exception(
@@ -295,7 +749,7 @@ class DownloadMixin:
                         "• IP/region lo bisa diblokir oleh TikTok\n"
                         "• Cookies login TikTok (sessionid) belum ada/expired\n\n"
                         "SOLUSI:\n"
-                        "1. Gunakan VPN — ganti region/IP sering langsung berhasil\n"
+                        "1. Gunakan VPN - ganti region/IP sering langsung berhasil\n"
                         "2. Export ulang cookies TikTok saat LOGIN & membuka halaman video di browser,\n"
                         "   pastikan ada `sessionid`/`sid_tt` (bukan cuma `tt_csrf_token`)\n"
                         "3. Upload cookies TikTok yang fresh via `/cookies`\n"
@@ -362,6 +816,16 @@ class DownloadMixin:
             except Exception:
                 pass
         
+            # Guard file besar >500MB - diskusi dulu
+            try:
+                tooS, szS, prettyS = self._check_too_large(url, 500)
+                if tooS:
+                    self.log(f"  SKIP file besar {prettyS} (>500 MB) - diskusi dulu: {url[:90]}")
+                    raise Exception(f"SKIP file besar {prettyS} (>500 MB). File mentahan terlalu besar - diskusi dulu sebelum download. URL: {url[:90]}")
+            except Exception as _ge2:
+                if "SKIP file besar" in str(_ge2):
+                    raise
+
             # Get video metadata
             self.log("  Fetching video info...")
             meta_cmd = [self.ytdlp_path, "--dump-json", "--no-download", *base_args, url]
@@ -502,6 +966,39 @@ class DownloadMixin:
                     # Continue to next strategy
                     continue
             else:
+                # All strategies failed - coba fallback GDrive (rclone/gdown/requests) sebelum error final
+                if self._is_gdrive_url(url):
+                    self.log("  yt-dlp subprocess gagal untuk GDrive, coba fallback rclone/gdown ...")
+                    fb2 = self.temp_dir / "source.mp4"
+                    try:
+                        if fb2.exists() and fb2.stat().st_size < 1024:
+                            fb2.unlink()
+                    except Exception:
+                        pass
+                    if self._try_download_gdrive_fallback(url, fb2):
+                        if not video_info or not video_info.get("title"):
+                            fid2 = self._extract_gdrive_id(url) or "gdrive"
+                            video_info = {"title": f"GDrive {fid2[:8]}", "channel": "Google Drive", "duration": 0, "description": ""}
+                        actual2 = None
+                        for cand2 in [fb2, self.temp_dir / "source.mkv", self.temp_dir / "source.webm"]:
+                            if cand2.exists() and cand2.stat().st_size > 1024:
+                                actual2 = cand2
+                                break
+                        if actual2 is None:
+                            cands2 = list(self.temp_dir.glob("source.*"))
+                            cands2 = [c for c in cands2 if c.is_file() and c.stat().st_size > 1024 and c.suffix not in ('.srt','.vtt')]
+                            if cands2:
+                                actual2 = sorted(cands2, key=lambda p: p.stat().st_size, reverse=True)[0]
+                        if actual2:
+                            video_path = actual2
+                            srt_path2 = self.temp_dir / f"source.{self.subtitle_language}.srt"
+                            if not srt_path2.exists():
+                                avail2 = list(self.temp_dir.glob("source.*.srt"))
+                                srt_path2 = avail2[0] if avail2 else None
+                            if srt_path2:
+                                srt_path2 = self._relocate_srt(srt_path2)
+                            self.log(self.colorize(f"  Fallback GDrive sukses -> {actual2.name} ({self._human_bytes(actual2.stat().st_size)})", "download"))
+                            return str(actual2), str(srt_path2) if srt_path2 else None, video_info
                 # All strategies failed - provide helpful error message
                 if last_error and ("403" in last_error or "Forbidden" in last_error):
                     raise Exception(
@@ -861,6 +1358,39 @@ class DownloadMixin:
 
         def _download_full_video(self, url: str, out_path: str):
             import yt_dlp
+            # GDrive early: rclone/gdown sebelum yt-dlp (handles [GoogleDrive:Folder] & file)
+            if self._is_gdrive_url(url):
+                # jika folder, expand dulu ambil 1 file
+                try:
+                    if '/drive/folders/' in url:
+                        gurls = self._expand_gdrive_folder(url)
+                        if gurls:
+                            for gurl in gurls:
+                                too2, sz2, pr2 = self._check_too_large(gurl, 500)
+                                if too2:
+                                    self.log(f"  SKIP besar {pr2} >500 MB: {gurl[:70]}")
+                                    continue
+                                fb = pathlib.Path(out_path)
+                                fb.parent.mkdir(parents=True, exist_ok=True)
+                                if self._try_download_gdrive_fallback(gurl, fb):
+                                    self.log(f"  GDrive folder full-download sukses via rclone/gdown")
+                                    return
+                                # try next url
+                            # semua gagal, lanjut ke yt-dlp fallback (akan error 400 tapi sudah di-log)
+                            self.log(f"  GDrive folder expand semua gagal, fallback yt-dlp ...")
+                        else:
+                            self.log(f"  GDrive folder expand kosong, fallback yt-dlp ...")
+                    else:
+                        fb = pathlib.Path(out_path)
+                        fb.parent.mkdir(parents=True, exist_ok=True)
+                        if self._try_download_gdrive_fallback(url, fb):
+                            if fb.exists() and fb.stat().st_size > 1024:
+                                self.log(f"  GDrive file full-download sukses via rclone/gdown ({self._human_bytes(fb.stat().st_size)})")
+                                return
+                except Exception as _ge:
+                    if "SKIP file besar" in str(_ge):
+                        raise
+                    self.log(f"  GDrive early fallback gagal: {str(_ge)[:180]}, lanjut yt-dlp ...")
             # cari cookies.txt (TikTok/FB sering butuh login cookie sessionid)
             _app = Path(self.output_dir).parent if getattr(self, 'output_dir', None) else Path.cwd()
             _cookies = None
@@ -882,14 +1412,66 @@ class DownloadMixin:
                     pass
             if 'tiktok.com' in url:
                 try:
-                    import curl_cffi
-                    ydl_opts['impersonate'] = 'chrome'
-                except Exception:
-                    pass
+                    from yt_dlp.networking.impersonate import ImpersonateTarget
+                    # cek available dulu biar tidak AssertionError di venv tanpa curl_cffi
+                    try:
+                        from yt_dlp import YoutubeDL as _YDLc
+                        _tmp = _YDLc({'quiet': True, 'no_warnings': True})
+                        if not _tmp._impersonate_target_available(ImpersonateTarget('chrome')):
+                            raise Exception('impersonate not available')
+                    except Exception as _chk:
+                        # jika tidak available, jangan set impersonate - fallback tanpa
+                        raise
+                    ydl_opts['impersonate'] = ImpersonateTarget('chrome')
+                    self.log(f"  TikTok impersonate: chrome via curl_cffi")
+                except Exception as _imp_pre:
+                    # fallback tanpa impersonate jika tidak available / import gagal
+                    if 'impersonate' in ydl_opts:
+                        ydl_opts.pop('impersonate', None)
+                    self.log(f"  TikTok impersonate skip ({str(_imp_pre)[:120]}), pakai tanpa impersonate")
             if _cookies:
                 ydl_opts['cookiefile'] = _cookies
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([url])
+            # download dengan fallback impersonate -> tanpa impersonate jika gagal
+            _last_err = None
+            for _try_imp in ([True] if 'impersonate' in ydl_opts else [False]) + ([False] if 'impersonate' in ydl_opts else []):
+                try:
+                    if not _try_imp and 'impersonate' in ydl_opts:
+                        ydl_opts.pop('impersonate', None)
+                        self.log(f"  retry tanpa impersonate ...")
+                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                        ydl.download([url])
+                    _last_err = None
+                    break
+                except AssertionError as _ae:
+                    _last_err = _ae
+                    self.log(f"  AssertionError impersonate ({str(_ae)[:150]}), fallback tanpa ...")
+                    if 'impersonate' in ydl_opts:
+                        ydl_opts.pop('impersonate', None)
+                    continue
+                except Exception as _e:
+                    msg = str(_e).lower()
+                    if 'impersonate' in msg and 'not available' in msg:
+                        _last_err = _e
+                        self.log(f"  impersonate not available ({str(_e)[:150]}), fallback tanpa ...")
+                        if 'impersonate' in ydl_opts:
+                            ydl_opts.pop('impersonate', None)
+                        continue
+                    # TikTok khusus: beri pesan jelas jika music page / app info broken
+                    if 'tiktok.com' in url and ('no working app info' in msg or 'tiktok:sound' in msg or 'music' in msg):
+                        raise Exception(
+                            f"TikTok download gagal: {str(_e)[:220]}\n"
+                            "Link ini terdeteksi sebagai halaman MUSIK TikTok (vm.tiktok -> tiktok:sound -> music/...) bukan video.\n"
+                            "Solusi: pakai link video format https://www.tiktok.com/@user/video/ID atau https://vt.tiktok.com/ yang redirect ke /@user/video/...\n"
+                            "Jika link memang video tapi tetap gagal, TikTok extractor yt-dlp sedang broken (ditandai yt-dlp) - coba update yt-dlp: pip install -U yt-dlp"
+                        )
+                    raise
+            if _last_err is not None:
+                # beri pesan ramah untuk TikTok music
+                if 'tiktok.com' in url:
+                    raise Exception(
+                        f"TikTok impersonate gagal ({str(_last_err)[:180]}). Link {url[:60]} mungkin halaman musik atau extractor broken. Coba pakai link video @user/video/ID."
+                    )
+                raise _last_err
             if not Path(out_path).exists():
                 # yt-dlp may add extension
                 for ext in ['.mp4','.mkv','.webm']:
@@ -1297,7 +1879,7 @@ class DownloadMixin:
             reports downloaded MB + speed to the UI.
 
             Some yt-dlp downloads (short clips via download_ranges) never emit
-            'downloading' progress events — only 'finished' — so polling the file
+            'downloading' progress events - only 'finished' - so polling the file
             size is the reliable way to show live progress.
 
             Returns a threading.Event used to stop the monitor.
@@ -1520,6 +2102,40 @@ class DownloadMixin:
             several seconds (or a hard timeout is exceeded) while yt-dlp is still
             running, the process is killed and the download is retried.
             """
+            # GDrive early: jangan pakai yt-dlp --download-sections untuk GDrive (error 400), pakai rclone/gdown + ffmpeg cut
+            if self._is_gdrive_url(url):
+                self.log(f"  GDrive section terdeteksi - pakai rclone/gdown + ffmpeg cut ...")
+                # reuse fallback full+cut logic
+                s_sec = self._srt_to_sec(start_time); e_sec = self._srt_to_sec(end_time)
+                dur = (e_sec - s_sec) if (e_sec > s_sec) else 60
+                tmp_full = str(pathlib.Path(output_path).parent / f"_full_gdrive_{pathlib.Path(output_path).stem}.mp4")
+                # jika folder, expand
+                if '/drive/folders/' in url:
+                    gurls = self._expand_gdrive_folder(url)
+                    picked = None
+                    for gurl in gurls:
+                        too2, sz2, pr2 = self._check_too_large(gurl, 500)
+                        if too2:
+                            self.log(f"  SKIP besar {pr2}: {gurl[:70]}")
+                            continue
+                        picked = gurl; break
+                    if not picked:
+                        raise Exception(f"GDrive folder kosong/private atau semua file >500MB: {url[:80]}")
+                    url = picked
+                    self.log(f"  GDrive folder picked: {url[:80]}")
+                # download full via rclone/gdown
+                fb = pathlib.Path(tmp_full)
+                fb.parent.mkdir(parents=True, exist_ok=True)
+                if not self._try_download_gdrive_fallback(url, fb):
+                    raise Exception(f"GDrive download gagal via rclone/gdown/requests: {url[:80]}")
+                # ffmpeg cut
+                cut_cmd = [self.ffmpeg_path, "-y", "-ss", str(max(0, s_sec)), "-i", str(fb), "-t", str(dur), "-c:v", "libx264", "-preset", "ultrafast", "-crf", "18", "-c:a", "aac", "-b:a", "128k", str(output_path)]
+                self.log(f"  Cutting {s_sec:.1f}s->{e_sec:.1f}s ({dur:.1f}s) -> {output_path}")
+                subprocess.run(cut_cmd, check=True, creationflags=SUBPROCESS_FLAGS, capture_output=True, text=True)
+                if pathlib.Path(output_path).exists() and pathlib.Path(output_path).stat().st_size > 1024:
+                    self.log(f"  GDrive section cut OK {dur:.1f}s")
+                    return str(output_path)
+                raise Exception(f"GDrive ffmpeg cut gagal: {output_path}")
             self.log(f"  Downloading section {start_time} → {end_time} ({resolution})...")
 
             target_h = self._resolve_target_height(url, resolution)

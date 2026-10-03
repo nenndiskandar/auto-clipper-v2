@@ -337,6 +337,78 @@ function readCampaignBrief(sd, data) {
   } catch {}
   return null;
 }
+function fmtRawSize(bytes) {
+  if (bytes == null || isNaN(bytes)) return '-';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+  if (bytes < 1024*1024*1024) return (bytes/1024/1024).toFixed(1) + ' MB';
+  return (bytes/1024/1024/1024).toFixed(2) + ' GB';
+}
+function listRawFiles(sessionDir) {
+  const out = [];
+  const bases = [path.join(sessionDir, '_temp'), path.join(sessionDir, '_temp_gdrive')];
+  for (const base of bases) {
+    try {
+      if (!fs.existsSync(base)) continue;
+      const stB = fs.statSync(base);
+      if (!stB.isDirectory()) continue;
+      const entries = fs.readdirSync(base);
+      for (const f of entries) {
+        const fp = path.join(base, f);
+        try {
+          const st = fs.statSync(fp);
+          if (!st.isFile()) continue;
+          if (st.size === 0) continue;
+          const ext = path.extname(f).toLowerCase();
+          const isVideo = /\.(mp4|mkv|webm|mov|avi|m4v|ts|m4a|mp3)$/i.test(f);
+          const isSrt = /\.srt$/i.test(f);
+          out.push({
+            name: f,
+            dir: path.basename(base),
+            rel: path.basename(base) + '/' + f,
+            size: st.size,
+            sizeFmt: fmtRawSize(st.size),
+            mtime: st.mtimeMs,
+            mtimeIso: st.mtime.toISOString(),
+            ext,
+            isVideo,
+            isSrt,
+          });
+        } catch {}
+      }
+    } catch {}
+  }
+  // root level source.* or *.mp4/*.srt yang ke-simpan di session folder langsung
+  try {
+    const rootEntries = fs.readdirSync(sessionDir);
+    for (const f of rootEntries) {
+      if (!/\.(mp4|mkv|webm|mov|avi|m4v|srt|vtt)$/i.test(f)) continue;
+      if (f.startsWith('.')) continue;
+      const fp = path.join(sessionDir, f);
+      try {
+        const st = fs.statSync(fp);
+        if (!st.isFile() || st.size === 0) continue;
+        // skip jika sudah ada di out dengan nama sama
+        if (out.some(o => o.name === f && o.dir === '.')) continue;
+        const ext = path.extname(f).toLowerCase();
+        out.push({
+          name: f,
+          dir: '.',
+          rel: f,
+          size: st.size,
+          sizeFmt: fmtRawSize(st.size),
+          mtime: st.mtimeMs,
+          mtimeIso: st.mtime.toISOString(),
+          ext,
+          isVideo: /\.(mp4|mkv|webm|mov|avi|m4v)$/i.test(f),
+          isSrt: /\.srt$/i.test(f),
+        });
+      } catch {}
+    }
+  } catch {}
+  out.sort((a,b) => (b.isVideo - a.isVideo) || (b.size - a.size) || (b.mtime - a.mtime));
+  return out;
+}
 function _listSessions() {
   return fs.readdirSync(SESSIONS)
     .filter(d => fs.existsSync(path.join(SESSIONS, d, 'session_data.json')))
@@ -623,6 +695,39 @@ const server = http.createServer((req, res) => {
       if (!clipDir.startsWith(ROOT) || !fs.existsSync(fp) || !fs.statSync(fp).isFile()) { res.writeHead(404, { 'Content-Type': 'video/mp4' }); return res.end(); }
       return sendFile(req, res, fp, false);
     }
+    // /raw/:session/:rel - stream file mentahan (_temp / _temp_gdrive / root mp4/srt) with range
+    const mRaw = p.match(/^\/raw\/([^/]+)\/(.+)$/);
+    if (mRaw) {
+      try {
+        const sess = safe(mRaw[1]);
+        const relRaw = decodeURIComponent(mRaw[2]);
+        // block traversal - only allow names without .. and restrict to known dirs
+        if (relRaw.includes('..') || relRaw.includes('\\')) return json(res, 400, { error: 'bad path' });
+        const cleanParts = relRaw.split('/').filter(Boolean).map(v => {
+          const d = decodeURIComponent(v);
+          if (d.includes('..') || d.includes('/') || d.includes('\\')) throw new Error('bad');
+          return d;
+        });
+        // allow _temp/xxx, _temp_gdrive/xxx, or root file xxx
+        if (cleanParts.length > 2) return json(res, 400, { error: 'bad path' });
+        if (cleanParts.length === 2 && !['_temp','_temp_gdrive'].includes(cleanParts[0])) return json(res, 400, { error: 'bad path' });
+        const fp = path.join(SESSIONS, sess, ...cleanParts);
+        if (!fp.startsWith(path.join(SESSIONS, sess) + path.sep) && fp !== path.join(SESSIONS, sess, cleanParts[0])) return json(res, 400, { error: 'bad path' });
+        if (!fs.existsSync(fp) || !fs.statSync(fp).isFile()) { res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('not found'); }
+        const isDl = u.searchParams.get('download') === '1';
+        // choose mime
+        const ext = path.extname(fp).toLowerCase();
+        let mime = 'application/octet-stream';
+        if (/\.(mp4|m4v|mov)$/i.test(ext)) mime = 'video/mp4';
+        else if (/\.webm$/i.test(ext)) mime = 'video/webm';
+        else if (/\.mkv$/i.test(ext)) mime = 'video/x-matroska';
+        else if (/\.mp3$/i.test(ext)) mime = 'audio/mpeg';
+        else if (/\.m4a$/i.test(ext)) mime = 'audio/mp4';
+        else if (ext === '.srt' || ext === '.vtt') mime = 'text/plain; charset=utf-8';
+        res.setHeader('Content-Type', mime);
+        return sendFile(req, res, fp, isDl);
+      } catch (e) { return json(res, 400, { error: 'bad path' }); }
+    }
 
     // --- Auth middleware ---
     const isLocal = isLocalRequest(req);
@@ -671,9 +776,11 @@ const server = http.createServer((req, res) => {
         const srtFile = fs.readdirSync(sd).find(f => f.endsWith('.srt'));
         let srtExists = !!srtFile, srtSize = 0;
         try { if (srtFile) srtSize = fs.statSync(path.join(sd, srtFile)).size; } catch {}
-        // file sumber original bila GDrive cache
+        // file sumber original bila GDrive cache + rawFiles mentahan
         let hasTempVideo = false;
-        try { hasTempVideo = fs.existsSync(path.join(sd, '_temp')) && fs.readdirSync(path.join(sd, '_temp')).some(f => /\.(mp4|mkv|webm)$/i.test(f)); } catch {}
+        let rawFiles = [];
+        try { rawFiles = listRawFiles(sd); hasTempVideo = rawFiles.some(f => f.isVideo); } catch {}
+        try { if (!hasTempVideo) hasTempVideo = fs.existsSync(path.join(sd, '_temp')) && fs.readdirSync(path.join(sd, '_temp')).some(f => /\.(mp4|mkv|webm)$/i.test(f)); } catch {}
         return json(res, 200, {
           id: sid,
           url: data.url || null,
@@ -690,6 +797,7 @@ const server = http.createServer((req, res) => {
           total_highlights: hlCount,
           highlights: data.highlights || [],
           clips,
+          rawFiles,
           campaign: campaign ? {
             campaign_id: campaign.campaign_id || campaign.public_id || sid.replace(/^tk_/, ''),
             public_id: campaign.public_id || campaign.campaign_id || sid.replace(/^tk_/, ''),
@@ -721,6 +829,7 @@ const server = http.createServer((req, res) => {
           has_campaign: !!campaign,
           srt_exists: srtExists, srt_size: srtSize,
           has_temp_video: hasTempVideo,
+          rawFiles,
           logs: { process: procLog.slice(-4000), refind: refindLog.slice(-3000), campaign: campaignLog.slice(-4000) },
         });
       } catch (e) { return json(res, 500, { error: 'read error: ' + String(e.message || e) }); }
@@ -767,8 +876,8 @@ const server = http.createServer((req, res) => {
       });
       return;
     }
-    // POST /api/campaign/auto/:id - One-click TernakKlip -> campaign + highlight + auto-render (1b)
-    if (p.startsWith('/api/campaign/auto/') && req.method === 'POST' && !p.includes('/status') && !p.includes('/cancel')) {
+    // POST /api/campaign/auto/:id + alias /api/campaign/ai-create/:id - One-click TernakKlip -> brief AI + highlight + auto-render (1b)
+    if ((p.startsWith('/api/campaign/auto/') || p.startsWith('/api/campaign/ai-create/')) && req.method === 'POST' && !p.includes('/status') && !p.includes('/cancel')) {
       const segs = p.split('/').filter(Boolean);
       const campId = segs[3]; // api/campaign/auto/:id
       if (!campId) return json(res, 400, { error: 'campaign id required' });
@@ -839,14 +948,98 @@ const server = http.createServer((req, res) => {
           }
           const sessionId = j.session_id || `tk_${campId}`;
           const sessionDir = path.join(SESSIONS, sessionId);
-          job.session_id = sessionId; job.sessionDir = sessionDir; job.stage = 'highlight';
+          job.session_id = sessionId; job.sessionDir = sessionDir; job.stage = 'brief';
+          // --- Brief AI: parse brief.pdf -> ai_brief.json (fallback deskripsi) ---
+          let aiBrief = null;
+          let bgmPath = null;
+          try {
+            try { fs.appendFileSync(logPath, `[INFO] Brief AI parsing (brief.pdf -> AI highlights/hashtag/durasi)...\n`); } catch {}
+            const briefOut = require('child_process').execFileSync(PY, [path.join(__dirname, 'brief_processor.py'), sessionDir], { encoding: 'utf-8', timeout: 180000, maxBuffer: 1024*1024*4 });
+            try { fs.appendFileSync(logPath, `[INFO] Brief AI out: ${String(briefOut).slice(0, 600)}\n`); } catch {}
+            try { aiBrief = JSON.parse(fs.readFileSync(path.join(sessionDir, 'ai_brief.json'), 'utf8')); } catch {}
+            if (aiBrief) {
+              try { fs.appendFileSync(logPath, `[INFO] Brief AI ok dur=${aiBrief.duration_min}-${aiBrief.duration_max} req=${(aiBrief.hashtags_required||[]).join(' ')} sug=${(aiBrief.hashtags_suggested||[]).join(' ')} music=${aiBrief.music_url || aiBrief.music_query || '-'} hook=${(aiBrief.hook_wajib||'').slice(0,40) || '-'} source=${aiBrief.brief_source||'-'}\n`); } catch {}
+            }
+          } catch (e) {
+            try { fs.appendFileSync(logPath, `[WARN] Brief AI gagal: ${String(e.message||e).slice(0, 300)}\n`); } catch {}
+            try { aiBrief = JSON.parse(fs.readFileSync(path.join(sessionDir, 'ai_brief.json'), 'utf8')); } catch {}
+          }
+          // --- Backsound: download mp3 TikTok/YouTube sesuai brief (yt-dlp -x) ---
+          try {
+            const musicUrl = aiBrief && (aiBrief.music_url || null);
+            const musicQuery = aiBrief && (aiBrief.music_query || null);
+            const targetMp3 = path.join(sessionDir, '_temp', 'music.mp3');
+            const ytdlp = (() => { try { return require('child_process').execFileSync(PY, ['-m','yt_dlp','--version'], {encoding:'utf-8', timeout:4000}).trim() ? PY : null; } catch { return null; } })();
+            const cookiesCandidates = [path.join(ROOT,'cookies.txt'), path.join(ROOT,'output','cookies.txt')];
+            let cookiesPath = null; for (const c of cookiesCandidates) { try { if (fs.existsSync(c) && fs.statSync(c).size>0) { cookiesPath=c; break; } } catch {} }
+            const ensureTemp = () => { try { fs.mkdirSync(path.join(sessionDir,'_temp'), {recursive:true}); } catch {} };
+            if (musicUrl) {
+              try { fs.appendFileSync(logPath, `[INFO] Backsound download dari music_url: ${String(musicUrl).slice(0, 80)}\n`); } catch {}
+              ensureTemp();
+              const args = ['-m','yt_dlp','-x','--audio-format','mp3','--audio-quality','0','--no-playlist','--no-warnings','-o', targetMp3.replace(/\.mp3$/,'.%(ext)s'), String(musicUrl)];
+              if (cookiesPath) { args.splice(args.length-1, 0, '--cookies', cookiesPath); }
+              try { const dp = require('child_process').execFileSync(PY, ['-c','from utils.helpers import get_deno_path;import pathlib;print(get_deno_path() or "")'], {encoding:'utf-8', timeout:4000, cwd: ROOT}).trim(); if (dp && fs.existsSync(dp)) { args.splice(args.length-1, 0, '--js-runtimes', `deno:${dp}`); } } catch {}
+              try {
+                require('child_process').execFileSync(PY, args, {encoding:'utf-8', timeout:60000, maxBuffer:1024*1024*4});
+                if (fs.existsSync(targetMp3) && fs.statSync(targetMp3).size>1000) { bgmPath = targetMp3; }
+                else {
+                  try { const files = fs.readdirSync(path.join(sessionDir,'_temp')); const cand = files.find(f=> f.startsWith('music.') && fs.statSync(path.join(sessionDir,'_temp',f)).size>1000); if (cand) bgmPath = path.join(sessionDir,'_temp',cand); } catch {}
+                }
+                if (bgmPath) try { fs.appendFileSync(logPath, `[INFO] Backsound OK ${bgmPath} ${(fs.statSync(bgmPath).size/1024).toFixed(0)}KB\n`); } catch {}
+                else try { fs.appendFileSync(logPath, `[WARN] Backsound download selesai tapi file tidak ditemukan\n`); } catch {}
+              } catch(e) { try { fs.appendFileSync(logPath, `[WARN] Backsound gagal (music_url): ${String(e.message||e).slice(0, 250)}\n`); } catch {} }
+            } else if (musicQuery) {
+              try { fs.appendFileSync(logPath, `[INFO] Backsound search query: ${String(musicQuery).slice(0, 80)}\n`); } catch {}
+              ensureTemp();
+              const searchUrl = `ytsearch1:${String(musicQuery).slice(0, 80)}`;
+              const args2 = ['-m','yt_dlp','-x','--audio-format','mp3','--audio-quality','0','--no-playlist','--no-warnings','-o', targetMp3.replace(/\.mp3$/,'.%(ext)s'), searchUrl];
+              if (cookiesPath) { args2.splice(args2.length-1, 0, '--cookies', cookiesPath); }
+              try {
+                require('child_process').execFileSync(PY, args2, {encoding:'utf-8', timeout:60000, maxBuffer:1024*1024*4});
+                if (fs.existsSync(targetMp3) && fs.statSync(targetMp3).size>1000) bgmPath = targetMp3;
+                else { try { const files = fs.readdirSync(path.join(sessionDir,'_temp')); const cand = files.find(f=> f.startsWith('music.') && fs.statSync(path.join(sessionDir,'_temp',f)).size>1000); if (cand) bgmPath = path.join(sessionDir,'_temp',cand); } catch {} }
+                if (bgmPath) try { fs.appendFileSync(logPath, `[INFO] Backsound search OK ${bgmPath}\n`); } catch {}
+              } catch(e) { try { fs.appendFileSync(logPath, `[WARN] Backsound search gagal: ${String(e.message||e).slice(0, 250)}\n`); } catch {} }
+            } else {
+              try { fs.appendFileSync(logPath, `[INFO] Brief tidak minta backsound spesifik - skip download music\n`); } catch {}
+            }
+          } catch(e) { try { fs.appendFileSync(logPath, `[WARN] Backsound step error: ${String(e.message||e).slice(0,200)}\n`); } catch {} }
+          job.stage = 'highlight';
           let sourceUrl = '';
           let _allSources = [];
           const isGDriveFolder = (u)=> /\/drive\/folders\//.test(String(u));
           const isExcludedLabel = (lb)=> /poster|thumbnail|cover|image|foto|banner|sample|mockup/i.test(String(lb||'').toLowerCase());
           const isFileUrl = (u)=> !isGDriveFolder(u);
-          // helper: coba expand GDrive folder jadi daftar file video (flat-playlist) - pakai yt-dlp dry run
+          // helper: expand GDrive folder - PRIMARY gdown --json (rclone-friendly), fallback yt-dlp
+          // gdown --json bekerja untuk folder public bahkan saat yt-dlp 400 Private/Unavailable
           const tryExpandFolder = (folderUrl)=>{
+            // PRIMARY: gdown --json (rclone stack: gdown list + rclone/gdown download)
+            try {
+              const out = require('child_process').execFileSync(PY, ['-m','gdown','--json', String(folderUrl)], {encoding:'utf-8', timeout:25000, maxBuffer:1024*1024*8});
+              const arr = JSON.parse(out);
+              if (Array.isArray(arr) && arr.length) {
+                const isVideoPath = (pp)=> /\.(mp4|mov|mkv|webm|avi|m4v|mpg|mpeg)$/i.test(String(pp||''));
+                const isExcludedPath = (pp)=> /(^|\/)\.DS_Store$/i.test(String(pp)) || /\.(zip|rar|7z|wav|mp3|aac|flac|docx?|pdf|xlsx?|pptx?|txt|html)$/i.test(String(pp)) || isExcludedLabel(String(pp||''));
+                let videoUrls = arr.filter(e=> isVideoPath(e.path) && !isExcludedPath(e.path)).map(e=> e.url).filter(Boolean);
+                if (!videoUrls.length) {
+                  const fallback = arr.filter(e=> !isExcludedPath(e.path) && !/\.(docx|pdf|zip|wav|html)$/i.test(String(e.path||''))).map(e=> e.url).filter(Boolean);
+                  if (fallback.length) videoUrls = fallback;
+                }
+                // prefer mp4 > mov > mkv > webm (mp4 biasanya <500MB, mov raw besar)
+                if (videoUrls.length) {
+                  const urlToPath = new Map(arr.map(e=>[e.url, e.path]));
+                  const scoreExt = (u, pp)=>{ const p=String(pp||'').toLowerCase(); if (p.endsWith('.mp4')) return 100; if (p.endsWith('.mov')) return 80; if (p.endsWith('.mkv')) return 70; if (p.endsWith('.webm')) return 60; if (p.endsWith('.avi')) return 55; return 50; };
+                  videoUrls.sort((a,b)=> scoreExt(b, urlToPath.get(b)) - scoreExt(a, urlToPath.get(a)));
+                  try { fs.appendFileSync(logPath, `[INFO] gdown expand ${String(folderUrl).slice(0,60)} -> ${arr.length} entries, video ${videoUrls.length} (pref mp4)\n`); } catch {}
+                  return videoUrls;
+                }
+                const allUrls = arr.map(e=> e.url).filter(Boolean);
+                if (allUrls.length) { try { fs.appendFileSync(logPath, `[INFO] gdown expand ${String(folderUrl).slice(0,60)} -> ${arr.length} entries (no video filter, return all)\n`); } catch {} return allUrls; }
+              }
+            } catch (e) {
+              try { fs.appendFileSync(logPath, `[WARN] gdown expand gagal: ${String(folderUrl).slice(0,60)} -> ${String(e.message||e).slice(0,180)}\n`); } catch {}
+            }
+            // FALLBACK: yt-dlp --flat-playlist (legacy, sering 400 untuk private)
             try {
               const cookiesPath = (()=>{ const c1=path.join(ROOT,'cookies.txt'); if (fs.existsSync(c1)) return c1; const c2=path.join(ROOT,'output','cookies.txt'); if (fs.existsSync(c2)) return c2; return null; })();
               const args = ['-m','yt_dlp','--flat-playlist','--skip-download','-J', folderUrl];
@@ -854,16 +1047,13 @@ const server = http.createServer((req, res) => {
               const out = require('child_process').execFileSync(PY, args, {encoding:'utf-8', timeout:18000, maxBuffer:1024*1024*8});
               const j = JSON.parse(out);
               const entries = Array.isArray(j.entries) ? j.entries : (Array.isArray(j) ? j : []);
-              // entries: array of {id,title,ext,mimeType} - map ke file url
               const fileUrls = entries.map(e=>{
                 const id = e.id || e.url || '';
                 if (!id) return null;
-                // yt-dlp folder entries id adalah fileId GDrive
                 if (/^[\w-]{25,}/.test(String(id)) && !String(id).startsWith('http')) return `https://drive.google.com/file/d/${id}/view`;
                 if (String(id).startsWith('http')) return String(id);
                 return null;
               }).filter(Boolean);
-              // filter image by title/ext
               const isImageEntry = (e)=> /\.(jpg|jpeg|png|webp|gif|bmp|pdf)$/i.test(String(e.title||'')) || String(e.ext||'').match(/^(jpg|jpeg|png|webp|gif|bmp|pdf)$/i) || isExcludedLabel(String(e.title||''));
               const videoEntries = entries.filter(e=> !isImageEntry(e));
               const videoUrls = videoEntries.map(e=>{
@@ -873,7 +1063,7 @@ const server = http.createServer((req, res) => {
               }).filter(Boolean);
               return videoUrls.length ? videoUrls : fileUrls;
             } catch (e) {
-              try { fs.appendFileSync(logPath, `[WARN] Expand folder gagal: ${String(folderUrl).slice(0,60)} -> ${String(e.message||e).slice(0,180)}\n`); } catch {}
+              try { fs.appendFileSync(logPath, `[WARN] Expand folder yt-dlp fallback gagal: ${String(folderUrl).slice(0,60)} -> ${String(e.message||e).slice(0,180)}\n`); } catch {}
               return [];
             }
           };
@@ -897,24 +1087,75 @@ const server = http.createServer((req, res) => {
             };
             return candidates.map(o=> ({...o, _score: score(o)})).sort((a,b)=> b._score - a._score);
           };
+          const checkTooLarge = (url, limitMB=500)=>{
+            try {
+              const limit = limitMB*1024*1024;
+              // pakai yt-dlp --dump-json --skip-download untuk cek filesize; timeout 12s
+              const PY2 = process.env.PY || PY || 'python3';
+              // GDrive dan YouTube sama: coba dump-json
+              const args = ['-m','yt_dlp','--dump-json','--skip-download','--no-warnings','--no-playlist', url];
+              // tambah cookies jika ada
+              const cookCandidates = [require('path').join(ROOT,'cookies.txt'), require('path').join(ROOT,'output','cookies.txt')];
+              let cook = null; for (const c of cookCandidates) { try { if (require('fs').existsSync(c) && require('fs').statSync(c).size>0) { cook=c; break; } } catch{} }
+              if (cook) args.splice(args.length-1,0,'--cookies',cook);
+              // deno jika ada (untuk youtube)
+              try { const _dp = require('child_process').execFileSync(PY2, ['-c','from utils.helpers import get_deno_path;import pathlib;print(get_deno_path() or "")'], {encoding:'utf-8', timeout:4000, cwd: ROOT}).trim(); if (_dp) { /* js_runtimes handled via .netrc? yt-dlp auto? skip */ } } catch {}
+              const out = require('child_process').execFileSync(PY2, args, {encoding:'utf-8', timeout:12000, maxBuffer:1024*1024*4});
+              const info = JSON.parse(out);
+              let sz = info.filesize || info.filesize_approx || 0;
+              if (!sz && Array.isArray(info.formats)) {
+                try { sz = Math.max(...info.formats.map(f=> f.filesize || f.filesize_approx || 0)); } catch {}
+              }
+              if (sz && sz > limit) return { too:true, size: sz, pretty: (sz/1024/1024).toFixed(1)+' MB' };
+            } catch(e) {
+              // jika dump-json gagal (misal GDrive private), jangan blok - biarkan fallback handle, tapi coba HEAD untuk GDrive
+              try {
+                if (/drive\.google\.com/.test(String(url))) {
+                  // HEAD via python requests cepat (tanpa yt-dlp) - optional, skip jika gagal
+                }
+              } catch {}
+            }
+            return { too:false };
+          };
           try {
             const brief = JSON.parse(fs.readFileSync(path.join(sessionDir, 'campaign_brief.json'), 'utf8'));
             _allSources = (brief.source_links || []).map(s=> typeof s==='string' ? s : {url:s.url,label:s.label||''}).filter(x=> typeof x==='string' ? x : x.url);
             const ranked = getRanked(_allSources);
             if (ranked.length) {
               try { fs.appendFileSync(logPath, `[INFO] Sources ranked ${ranked.length}: ${ranked.map(r=> r.label||r.url.slice(0,40)+' score='+r._score).join(' | ').slice(0,400)}\n`); } catch {}
-              // coba dari skor tertinggi: kalau folder, expand dulu; kalau file, pakai langsung (skip poster)
+              // coba dari skor tertinggi: kalau folder, expand dulu; kalau file, pakai langsung (skip poster) + guard >500MB
               for (const cand of ranked) {
                 const u = cand.url;
+                // guard besar >500MB - diskusi dulu, cek hanya untuk GDrive (YouTube skip)
+                if (/drive\.google\.com/.test(String(u))) {
+                  try {
+                    const chk = checkTooLarge(u, 500);
+                    if (chk.too) { try { fs.appendFileSync(logPath, `[SKIP] File besar ${chk.pretty} (>500 MB) - diskusi dulu, skip: ${cand.label||''} ${u.slice(0,70)}\n`); } catch {} continue; }
+                  } catch {}
+                }
                 if (isGDriveFolder(u)) {
                   try { fs.appendFileSync(logPath, `[INFO] Folder detected, expanding: ${cand.label||''} ${u.slice(0,70)}\n`); } catch {}
                   const expanded = tryExpandFolder(u);
                   if (expanded.length) {
-                    // expanded dapat beberapa file - pilih pertama (yt-dlp folder sudah sortir natural)
-                    // filter image sudah di tryExpandFolder
-                    sourceUrl = expanded[0];
-                    try { fs.appendFileSync(logPath, `[INFO] Folder expanded ${expanded.length} files -> picked ${sourceUrl.slice(0,80)}\n`); } catch {}
-                    break;
+                    // filter expanded: skip file besar >500MB
+                    let picked = null;
+                    for (const eu of expanded) {
+                      if (/drive\.google\.com/.test(String(eu))) {
+                        try {
+                          const chk2 = checkTooLarge(eu, 500);
+                          if (chk2.too) { try { fs.appendFileSync(logPath, `[SKIP] Expanded file besar ${chk2.pretty} (>500 MB) skip: ${eu.slice(0,70)}\n`); } catch {} continue; }
+                        } catch {}
+                      }
+                      picked = eu; break;
+                    }
+                    if (picked) {
+                      sourceUrl = picked;
+                      try { fs.appendFileSync(logPath, `[INFO] Folder expanded ${expanded.length} files -> picked ${sourceUrl.slice(0,80)}\n`); } catch {}
+                      break;
+                    } else {
+                      try { fs.appendFileSync(logPath, `[WARN] Folder ${cand.label||u.slice(0,40)} semua file >500MB/kosong/private, coba sumber berikutnya\n`); } catch {}
+                      continue;
+                    }
                   } else {
                     try { fs.appendFileSync(logPath, `[WARN] Folder ${cand.label||u.slice(0,40)} kosong/private, coba sumber berikutnya\n`); } catch {}
                     continue;
@@ -927,10 +1168,18 @@ const server = http.createServer((req, res) => {
                   break;
                 }
               }
-              // fallback jika semua folder gagal dan tidak ada file terpilih
+              // fallback jika semua folder gagal dan tidak ada file terpilih - tetap guard besar
               if (!sourceUrl && ranked.length) {
-                const fallback = ranked.find(r=> isFileUrl(r.url) && !isExcludedLabel(r.label)) || ranked.find(r=> isFileUrl(r.url)) || ranked[0];
-                if (fallback) sourceUrl = fallback.url;
+                const candsF = ranked.filter(r=> isFileUrl(r.url) && !isExcludedLabel(r.label));
+                let pickedF = null;
+                for (const r of (candsF.length? candsF : ranked.filter(r=> isFileUrl(r.url)))) {
+                  if (/drive\.google\.com/.test(String(r.url))) {
+                    try { const chkF = checkTooLarge(r.url, 500); if (chkF.too) { try { fs.appendFileSync(logPath, `[SKIP] Fallback skip besar ${chkF.pretty}: ${r.url.slice(0,60)}\n`); } catch {} continue; } } catch {}
+                  }
+                  pickedF = r; break;
+                }
+                if (pickedF) sourceUrl = pickedF.url;
+                else if (ranked.length && !/drive\.google\.com/.test(String(ranked[0].url))) sourceUrl = ranked[0].url;
               }
             }
             if (!_allSources.length) sourceUrl = (brief.source_links && brief.source_links[0] && brief.source_links[0].url) || '';
@@ -944,9 +1193,22 @@ const server = http.createServer((req, res) => {
               if (ranked2.length) {
                 for (const cand of ranked2) {
                   const u = cand.url;
+                  if (/drive\.google\.com/.test(String(u))) {
+                    try { const chk = checkTooLarge(u, 500); if (chk.too) { try { fs.appendFileSync(logPath, `[SKIP] (campaign) File besar ${chk.pretty} skip: ${cand.label||''} ${u.slice(0,60)}\n`); } catch {} continue; } } catch {}
+                  }
                   if (isGDriveFolder(u)) {
                     const expanded2 = tryExpandFolder(u);
-                    if (expanded2.length) { sourceUrl = expanded2[0]; break; }
+                    if (expanded2.length) {
+                      let picked2=null;
+                      for (const eu2 of expanded2) {
+                        if (/drive\.google\.com/.test(String(eu2))) {
+                          try { const chk2=checkTooLarge(eu2,500); if (chk2.too) { try { fs.appendFileSync(logPath, `[SKIP] (campaign) Expanded besar ${chk2.pretty} skip ${eu2.slice(0,60)}\n`);} catch{} continue; } } catch{}
+                        }
+                        picked2=eu2; break;
+                      }
+                      if (picked2) { sourceUrl = picked2; break; }
+                      else continue;
+                    }
                     else continue;
                   } else {
                     if (isExcluded2(cand.label) && ranked2.length>1) continue;
@@ -954,8 +1216,16 @@ const server = http.createServer((req, res) => {
                   }
                 }
                 if (!sourceUrl && ranked2.length) {
-                  const fb2 = ranked2.find(r=> isFileUrl(r.url) && !isExcluded2(r.label)) || ranked2.find(r=> isFileUrl(r.url)) || ranked2[0];
-                  if (fb2) sourceUrl = fb2.url;
+                  let pickedF2=null;
+                  const cands2 = ranked2.filter(r=> isFileUrl(r.url) && !isExcluded2(r.label));
+                  for (const r of (cands2.length? cands2 : ranked2.filter(r=> isFileUrl(r.url)))) {
+                    if (/drive\.google\.com/.test(String(r.url))) {
+                      try { const chkF2=checkTooLarge(r.url,500); if (chkF2.too) continue; } catch{}
+                    }
+                    pickedF2=r; break;
+                  }
+                  if (pickedF2) sourceUrl = pickedF2.url;
+                  else if (ranked2.length && !/drive\.google\.com/.test(String(ranked2[0].url))) sourceUrl = ranked2[0].url;
                 }
               }
             }
@@ -1003,6 +1273,36 @@ const server = http.createServer((req, res) => {
             }
             const count = r2.count || 0;
             job.count = count;
+            // --- Hashtag/hook enrichment: inject hashtags_required + suggested ke session_data highlights captions ---
+            try {
+              if (aiBrief && (aiBrief.hashtags_required||aiBrief.hashtags_suggested)) {
+                const sdPath2 = path.join(sessionDir, 'session_data.json');
+                if (fs.existsSync(sdPath2)) {
+                  let sd2 = JSON.parse(fs.readFileSync(sdPath2, 'utf8'));
+                  const reqTags = (aiBrief.hashtags_required||[]).join(' ');
+                  const sugTags = (aiBrief.hashtags_suggested||[]).slice(0,3).join(' ');
+                  const allTags = [reqTags, sugTags].filter(Boolean).join(' ').trim();
+                  const hook = aiBrief.hook_wajib || '';
+                  if (sd2.highlights && Array.isArray(sd2.highlights)) {
+                    sd2.highlights.forEach(h=>{
+                      // simpan hashtag di highlight untuk sesi/session.html
+                      if (allTags) h.hashtags = allTags;
+                      if (hook && h.timed_title && !String(h.timed_title).toLowerCase().includes(String(hook).toLowerCase().slice(0,12))) {
+                        // jangan ubah timed_title paksa, cuma catat hook terpisah
+                        h.hook_wajib = hook;
+                      }
+                      h.brief_hashtags_required = aiBrief.hashtags_required||[];
+                      h.brief_hashtags_suggested = aiBrief.hashtags_suggested||[];
+                    });
+                    // also store at session top
+                    sd2.ai_brief = aiBrief;
+                    sd2.bgm_path = bgmPath || null;
+                    fs.writeFileSync(sdPath2, JSON.stringify(sd2, null, 2));
+                    try { fs.appendFileSync(logPath, `[INFO] Hashtags injected ke ${sd2.highlights.length} highlights: ${allTags.slice(0,100)}\n`); } catch {}
+                  }
+                }
+              }
+            } catch(e) { try { fs.appendFileSync(logPath, `[WARN] Hashtag inject gagal: ${String(e.message||e).slice(0,150)}\n`); } catch {} }
             if (!autoRender) {
               job.code = 0; job.finishedAt = Date.now(); job.stage = 'done';
               invalidateSessions();
@@ -1022,6 +1322,9 @@ const server = http.createServer((req, res) => {
             }
             const selStr = selIdx.join(',');
             const env = { ...process.env, SELECTED: selStr, ADD_HOOK: '1', ADD_CAPS: '1', PRESET: preset, PYTHONIOENCODING: 'utf-8' };
+            if (bgmPath && fs.existsSync(bgmPath)) { env.BGM_PATH = bgmPath; try { fs.appendFileSync(logPath, `[INFO] Render akan pakai backsound ${bgmPath}\n`); } catch {} }
+            // hashtags already injected into session_data.json (hashtags_all + brief_hashtags_*), env kept for future metadata hook
+            if (aiBrief && aiBrief.hashtags_required) { try { env.HASHTAGS_REQ = (aiBrief.hashtags_required||[]).join(' '); env.HASHTAGS_SUG = (aiBrief.hashtags_suggested||[]).join(' '); } catch {} }
             const renderLog = path.join(sessionDir, 'process.log');
             try { fs.mkdirSync(path.dirname(renderLog), { recursive: true }); } catch {}
             try { fs.appendFileSync(renderLog, `\n===== auto-render start ${new Date().toISOString()} preset=${preset} selected=${selStr} =====\n`); } catch {}
@@ -1057,8 +1360,8 @@ const server = http.createServer((req, res) => {
       });
       return;
     }
-    // GET /api/campaign/auto/status/:id
-    if (p.startsWith('/api/campaign/auto/status/') && req.method === 'GET') {
+    // GET /api/campaign/auto/status/:id (+ alias ai-create)
+    if ((p.startsWith('/api/campaign/auto/status/') || p.startsWith('/api/campaign/ai-create/status/')) && req.method === 'GET') {
       const campId = p.split('/').filter(Boolean).pop();
       const job = CAMPAIGN_JOBS.get(campId);
       if (!job) return json(res, 404, { error: 'no job', campId });
@@ -1067,8 +1370,8 @@ const server = http.createServer((req, res) => {
       const log = job.logPath ? tailFile(job.logPath, 12000) : '';
       return json(res, 200, { campId, stage: job.stage, running: job.code === undefined, code: job.code, startedAt: job.startedAt, finishedAt: job.finishedAt || null, elapsed_s: Math.round(((job.code !== undefined && job.finishedAt ? job.finishedAt : Date.now()) - job.startedAt) / 1000), count: job.count || 0, session_id: job.session_id, log, progress: parseOverall(log), result });
     }
-    // POST /api/campaign/auto/cancel/:id
-    if (p.startsWith('/api/campaign/auto/cancel/') && req.method === 'POST') {
+    // POST /api/campaign/auto/cancel/:id (+ alias ai-create)
+    if ((p.startsWith('/api/campaign/auto/cancel/') || p.startsWith('/api/campaign/ai-create/cancel/')) && req.method === 'POST') {
       const campId = p.split('/').filter(Boolean).pop();
       const job = CAMPAIGN_JOBS.get(campId);
       if (!job || job.code !== undefined) return json(res, 404, { error: 'Tidak ada job berjalan', campId });
@@ -1672,6 +1975,7 @@ print(json.dumps(out))`;
         { name: 'ffmpeg', ...findBin('ffmpeg', path.join(ROOT, 'ffmpeg', 'ffmpeg')) },
         { name: 'ffprobe', ...findBin('ffprobe', path.join(ROOT, 'ffmpeg', 'ffprobe')) },
         { name: 'deno', ...findBin('deno', path.join(ROOT, 'bin', 'deno')) },
+        { name: 'rclone', ...findBin('rclone', '/usr/bin/rclone') },
       ];
       // enrich with version strings (best-effort, never fail the endpoint)
       const verOf = (binPath, args) => new Promise(r => {
@@ -1686,8 +1990,10 @@ print(json.dumps(out))`;
         verOf(bin.find(b => b.name === 'ffmpeg')?.path, ['-version']),
         verOf(bin.find(b => b.name === 'ffprobe')?.path, ['-version']),
         verOf(bin.find(b => b.name === 'deno')?.path, ['--version']),
+        verOf(bin.find(b => b.name === 'rclone')?.path, ['version']),
         new Promise(r => execFile(PY, ['-c', 'import yt_dlp;print(yt_dlp.version.__version__)'], (e, so) => r(e ? '' : 'v' + (so || '').toString().trim()))),
         new Promise(r => execFile(PY, ['-c', 'import sys;print(sys.version.split()[0])'], (e, so) => r(e ? '' : (so || '').toString().trim()))),
+        new Promise(r => execFile(PY, ['-c', 'import importlib.metadata; print(importlib.metadata.version("gdown"))'], (e, so) => r(e ? '' : (so || '').toString().trim()))),
         new Promise(r => {
           const PYCHK = `from pathlib import Path;import sys;sys.path.insert(0, r'${ROOT.replace(/\\/g,'\\\\')}');from utils.dependency_manager import check_dependency;import json;app=Path(r'${ROOT.replace(/\\/g,'\\\\')}');print(json.dumps(check_dependency('mediapipe_model', app)))`;
           execFile(PY, ['-c', PYCHK], (e, so) => {
@@ -1695,11 +2001,12 @@ print(json.dumps(out))`;
             r(ok);
           });
         }),
-      ]).then(([ffVer, fpVer, denoVer, ytdlpVer, pyVer, mpOk]) => {
+      ]).then(([ffVer, fpVer, denoVer, rcloneVer, ytdlpVer, pyVer, gdownVer, mpOk]) => {
         const byName = Object.fromEntries(bin.map(b => [b.name, b]));
         if (byName.ffmpeg) byName.ffmpeg.version = ffVer || (byName.ffmpeg.ok ? byName.ffmpeg.detail : '');
         if (byName.ffprobe) byName.ffprobe.version = fpVer || (byName.ffprobe.ok ? byName.ffprobe.detail : '');
         if (byName.deno) byName.deno.version = denoVer ? denoVer.split('\n')[0] : (byName.deno.ok ? byName.deno.detail : '');
+        if (byName.rclone) byName.rclone.version = rcloneVer ? rcloneVer.split('\n')[0].slice(0,120) : (byName.rclone.ok ? byName.rclone.detail : '');
         // yt-dlp as module (not a binary file)
         const ytdlp = { name: 'yt-dlp', ok: !!ytdlpVer, detail: ytdlpVer ? ytdlpVer + ' (module)' : 'tidak terdeteksi', path: null, version: ytdlpVer || '' };
         const py = { name: 'python', ok: !!pyVer, detail: PY + (pyVer ? ' v' + pyVer : ''), path: PY, version: pyVer ? 'v' + pyVer : '' };
@@ -1708,7 +2015,8 @@ print(json.dumps(out))`;
         let mpPath = path.join(ROOT, 'bin', 'face_landmarker.task');
         try { const st = fs.statSync(mpPath); mpDetail = mpOk ? (st.size / 1048576).toFixed(1) + ' MB - ' + mpPath : 'tidak terdeteksi'; } catch { mpDetail = mpOk ? mpPath : 'tidak terdeteksi'; }
         const mp = { name: 'mediapipe', ok: !!mpOk, detail: mpDetail, path: mpOk ? mpPath : null, version: mpOk ? mpDetail : '' };
-        const out = [byName.ffmpeg, byName.ffprobe, byName.deno, ytdlp, py, node, mp].filter(Boolean);
+        const gdown = { name: 'gdown', ok: !!gdownVer, detail: gdownVer ? 'v' + gdownVer + ' (pip)' : 'tidak terdeteksi (pip install gdown)', path: null, version: gdownVer ? 'v' + gdownVer : '' };
+        const out = [byName.ffmpeg, byName.ffprobe, byName.deno, byName.rclone, ytdlp, gdown, py, node, mp].filter(Boolean);
         json(res, 200, out);
       }).catch(() => {
         // fallback minimal

@@ -63,7 +63,7 @@ class HighlightMixin:
         @staticmethod
         def get_default_prompt():
             """Get default system prompt for highlight detection"""
-            return """Kamu adalah asisten AI untuk menemukan highlight video. Tugasmu adalah memilih SEMUA momen terbaik dari transcript yang layak dijadikan klip viral — jumlahnya OTOMATIS, tentukan sendiri berdasarkan kualitas dan panjang video. Banyak momen bagus = tampilkan lebih banyak; sedikit momen bagus = tampilkan lebih sedikit. Jangan memaksa jumlah tertentu.
+            return """Kamu adalah asisten AI untuk menemukan highlight video. Tugasmu adalah memilih SEMUA momen terbaik dari transcript yang layak dijadikan klip viral  -  jumlahnya OTOMATIS, tentukan sendiri berdasarkan kualitas dan panjang video. Banyak momen bagus = tampilkan lebih banyak; sedikit momen bagus = tampilkan lebih sedikit. Jangan memaksa jumlah tertentu.
 
     SYARAT:
     1. Durasi tiap klip antara 60 hingga 120 detik (hitung dari timestamp).
@@ -270,7 +270,7 @@ class HighlightMixin:
                 # tidak cukup konten untuk AI highlight, lewati agar tidak hang / halu.
                 word_count = len((transcript or "").split())
                 if not transcript or word_count < 15:
-                    self.log(f"  Transkrip terlalu pendek ({word_count} kata) — tidak cukup konten untuk AI highlight.")
+                    self.log(f"  Transkrip terlalu pendek ({word_count} kata)  -  tidak cukup konten untuk AI highlight.")
                     raise ValueError("Transkrip terlalu pendek untuk AI highlight.")
 
                 # Step 2: Find highlights using the transcript
@@ -399,12 +399,50 @@ class HighlightMixin:
                 num_clips = val
                 request_clips = num_clips
 
+            # --- BRIEF AI (jika ada ai_brief.json di last_session_dir) ---
+            brief_context = ""
+            brief_dur_min = None
+            brief_dur_max = None
+            brief_hook = None
+            brief_hashtags_req = []
+            brief_hashtags_sug = []
+            try:
+                import json as _js
+                from pathlib import Path as _P
+                _sd = getattr(self, 'last_session_dir', None)
+                if _sd:
+                    _bf = _P(str(_sd)) / "ai_brief.json"
+                    if _bf.exists():
+                        _jb = _js.loads(_bf.read_text(encoding="utf-8"))
+                        bt = (_jb.get("brief_text") or "")[:1500]
+                        brief_dur_min = _jb.get("duration_min")
+                        brief_dur_max = _jb.get("duration_max")
+                        brief_hook = _jb.get("hook_wajib")
+                        brief_hashtags_req = _jb.get("hashtags_required") or []
+                        brief_hashtags_sug = _jb.get("hashtags_suggested") or []
+                        if bt:
+                            brief_context = f"""BRIEF CAMPAIGN (WAJIB IKUTI):
+{bt}
+Durasi wajib: {brief_dur_min or 15}-{brief_dur_max or 30} detik
+Hook wajib: {brief_hook or '-'}
+Hashtag wajib: {', '.join(brief_hashtags_req) or '-'}
+Hashtag tambahan relevansi: {', '.join(brief_hashtags_sug) or '-'}
+Aturan: pilih highlight yang paling sesuai brief di atas, prioritas momen yang mengandung hook/keyword brief. Durasi harus sesuai durasi wajib."""
+                            self.log(f"  [brief] injected {len(bt)} chars dur={brief_dur_min}-{brief_dur_max} hashtags={brief_hashtags_req[:3]}")
+            except Exception as _e:
+                try:
+                    self.log(f"  [brief] inject gagal {_e}")
+                except:
+                    pass
+
             video_context = ""
             if video_info:
                 video_context = f"""INFO VIDEO:
     - Judul: {video_info.get('title', 'Unknown')}
     - Channel: {video_info.get('channel', 'Unknown')}
     - Deskripsi: {video_info.get('description', '')[:500]}"""
+            if brief_context:
+                video_context = (video_context + "\n\n" + brief_context).strip()
 
             # Replace placeholders safely (avoid .format() which breaks on user's curly braces)
             prompt = self.system_prompt.replace("{num_clips}", str(request_clips))
@@ -435,7 +473,7 @@ class HighlightMixin:
                         )
                         if getattr(response, 'choices', None):
                             break
-                        self.log("  ⚠ Respons AI tanpa 'choices' — mengulang...")
+                        self.log("  ⚠ Respons AI tanpa 'choices'  -  mengulang...")
                     except Exception as attempt_err:
                         if attempt >= max_attempts:
                             raise
@@ -639,12 +677,21 @@ class HighlightMixin:
             
                 # Anti-gagal short video: kalau video <60s, izin klip sepanjang video (80% durasi)
                 _vid_dur = (video_info or {}).get('duration') or 0
-                _min_dur = 58
-                _max_dur = 120
-                if _vid_dur and _vid_dur < 60:
+                # jika ada brief durasi, pakai itu sebagai acuan utama (fallback ke default 58-120)
+                if brief_dur_min and brief_dur_max:
+                    try:
+                        _min_dur = max(8, int(brief_dur_min))
+                        _max_dur = max(_min_dur+5, int(brief_dur_max))
+                    except:
+                        _min_dur = 58; _max_dur = 120
+                else:
+                    _min_dur = 58
+                    _max_dur = 120
+                # short video override - hormati brief jika ada (jangan timpa durasi wajib 20-30)
+                if _vid_dur and _vid_dur < 60 and not (brief_dur_min and brief_dur_max):
                     _min_dur = max(12, int(_vid_dur * 0.8))
                     _max_dur = int(_vid_dur)
-                elif _vid_dur and _vid_dur < 90:
+                elif _vid_dur and _vid_dur < 90 and not (brief_dur_min and brief_dur_max):
                     _min_dur = 28
                     _max_dur = int(_vid_dur)
                 if _min_dur <= duration <= _max_dur:
@@ -666,7 +713,7 @@ class HighlightMixin:
                 self.log(f"   Consider using a better AI model or adjusting the prompt.")
         
             if auto_mode:
-                # Auto mode: AI decides the count — return every valid highlight found.
+                # Auto mode: AI decides the count  -  return every valid highlight found.
                 self.log(f"  🤖 Auto selesai: {len(valid)} highlight valid ditemukan (AI menentukan jumlah).")
                 return valid
             return valid[:num_clips]
@@ -780,7 +827,7 @@ class HighlightMixin:
                 source_video = self._find_source_video(session_dir)
                 if source_video:
                     try:
-                        self.log("  Non-YouTube + video sumber ditemukan — transkripsi Whisper + AI highlight.")
+                        self.log("  Non-YouTube + video sumber ditemukan  -  transkripsi Whisper + AI highlight.")
                         video_info = self._get_non_youtube_info(url, video_id)
                         sd = self.find_highlights_with_transcription(
                             str(source_video), video_info, num_clips, str(session_dir), url=url
@@ -792,7 +839,7 @@ class HighlightMixin:
                 # First run: download video lalu transkripsi lokal (anti-gagal 1b)
                 if FASTER_WHISPER_AVAILABLE:
                     try:
-                        self.log("  Non-YouTube URL — download video untuk transkripsi + AI highlight...")
+                        self.log("  Non-YouTube URL  -  download video untuk transkripsi + AI highlight...")
                         self.set_progress("Downloading video for transcription...", 0.2)
                         video_path_ny, _, vid_info_ny = self.download_video(url)
                         if video_path_ny and vid_info_ny:
@@ -807,10 +854,10 @@ class HighlightMixin:
                             if sd2 and sd2.get("highlights"):
                                 return sd2
                     except Exception as e:
-                        self.log(f"  Download/transkripsi non-YouTube gagal: {e} — fallback 1 klip")
+                        self.log(f"  Download/transkripsi non-YouTube gagal: {e}  -  fallback 1 klip")
 
                 # Fallback: 1 highlight full video (tanpa AI)
-                self.log("  Non-YouTube URL — fallback 1 highlight full video.")
+                self.log("  Non-YouTube URL  -  fallback 1 highlight full video.")
                 video_info = self._get_non_youtube_info(url, video_id)
                 dur = int(video_info.get('duration') or 60)
                 highlights=[{"start_time":"00:00:00,000","end_time": f"{dur//3600:02d}:{(dur%3600)//60:02d}:{dur%60:02d},000", "title": video_info["title"][:50], "description":"Full video (non-YouTube)", "virality_score": 8, "hook_text": video_info["title"][:40], "duration_seconds": dur, "transcript_text": ""}]
@@ -1026,7 +1073,7 @@ class HighlightMixin:
                     try:
                         if is_tiktok_fb:
                             # TikTok/FB: full res tanpa section, tanpa resolusi filter
-                            self.log(f"  TikTok/FB detected — full download tanpa section (auto res)")
+                            self.log(f"  TikTok/FB detected  -  full download tanpa section (auto res)")
                             full_tmp = str(session_dir / f"_full_{i}.mp4")
                             self._download_full_video(url, full_tmp)
                             s=self._srt_to_sec(highlight["start_time"]); ee=self._srt_to_sec(highlight["end_time"])
@@ -1044,7 +1091,8 @@ class HighlightMixin:
                             )
                     except Exception as e:
                         # Anti-gagal: semua sumber fallback ke full download + ffmpeg cut (YouTube n-challenge sering 403)
-                        self.log(f"  ⚠ Section download failed ({'YouTube' if is_youtube else 'non-YouTube'}), fallback full download + ffmpeg cut: {str(e)[:200]}")
+                        _e_msg = str(e)[:400] if str(e).strip() else f"{type(e).__name__} (no message)"
+                        self.log(f"  ⚠ Section download failed ({'YouTube' if is_youtube else 'non-YouTube'}), fallback full download + ffmpeg cut: {_e_msg[:200]}")
                         try:
                             full_tmp = str(session_dir / f"_full_{i}.mp4")
                             # pakai cache full video kalau sudah ada

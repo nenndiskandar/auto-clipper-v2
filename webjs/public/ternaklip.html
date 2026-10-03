@@ -230,7 +230,7 @@
           <ul class="space-y-2 text-xs leading-relaxed text-[var(--text-secondary)] list-disc pl-4">
             <li><b>Pencarian</b> langsung ke server (pakai <code class="px-1 py-0.5 rounded bg-[var(--bg-surface-2)] border border-[var(--border)] text-[11px]">search</code>), jadi total dan halaman ikut berubah.</li>
             <li><b>Filter chip</b> lokal di halaman ini saja, instan tanpa reload.</li>
-            <li>Klik <b>Detail</b> untuk baca brief PDF dan ambil link sumber, lalu <b>Buat Sesi</b> langsung jadi sesi clip.</li>
+            <li>Klik <b>Detail</b> lalu <b>Bikin Konten AI</b> - AI baca brief.pdf, cari highlight sesuai brief, render 9:16 langsung jadi sesi clip.</li>
             <li>Simpan dengan <i class="bi bi-bookmark"></i> untuk kumpulin campaign favorit, filter <b>Tersimpan</b> untuk fokus.</li>
           </ul>
           <div class="mt-3 grid grid-cols-2 gap-2">
@@ -493,7 +493,7 @@ function renderTK(items){
             </div>
             <div class="flex items-center gap-1.5">
               <button onclick="showDetail('${c.public_id}')" class="min-h-[36px] px-3 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] text-xs font-semibold hover:border-[var(--border-hover)]">Detail</button>
-              <button onclick="createFromTK('${c.public_id}', this)" class="min-h-[36px] px-3 rounded-lg bg-[var(--accent)] text-[var(--accent-text)] text-xs font-bold inline-flex items-center gap-1.5"><i class="bi bi-lightning-charge-fill"></i>Buat Sesi</button>
+              <button title="AI baca brief.pdf (durasi/hashtag/hook), cari highlight sesuai brief, ambil bahan video, download backsound TikTok/YouTube jika ada di brief, render 9:16" onclick="createFromTK('${c.public_id}', this)" class="min-h-[36px] px-3 rounded-lg bg-[var(--accent)] text-[var(--accent-text)] text-xs font-bold inline-flex items-center gap-1.5"><i class="bi bi-magic"></i>Bikin Konten AI</button>
             </div>
           </div>
         </div>
@@ -534,7 +534,7 @@ function renderTK(items){
         </div>
         <div class="mt-3 flex gap-1.5">
           <button onclick="event.stopPropagation(); showDetail('${c.public_id}')" class="flex-1 min-h-[36px] rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] text-xs font-semibold hover:bg-[var(--bg-surface-2)] transition">Detail</button>
-          <button onclick="event.stopPropagation(); createFromTK('${c.public_id}', this)" class="flex-1 min-h-[36px] rounded-lg bg-[var(--accent)] text-[var(--accent-text)] text-xs font-extrabold inline-flex items-center justify-center gap-1.5 hover:opacity-95 transition"><i class="bi bi-lightning-charge-fill"></i>Buat Sesi</button>
+          <button title="AI baca brief.pdf (durasi/hashtag/hook), cari highlight sesuai brief, ambil bahan video, download backsound TikTok/YouTube jika ada di brief, render 9:16" onclick="event.stopPropagation(); createFromTK('${c.public_id}', this)" class="flex-1 min-h-[36px] rounded-lg bg-[var(--accent)] text-[var(--accent-text)] text-xs font-extrabold inline-flex items-center justify-center gap-1.5 hover:opacity-95 transition"><i class="bi bi-magic"></i>Bikin Konten AI</button>
         </div>
       </div>
     </div>`;
@@ -827,8 +827,8 @@ async function showDetail(publicId){
           <div class="flex items-center gap-2">
             <span class="w-7 h-7 rounded-full bg-[var(--accent)] text-[var(--accent-text)] flex items-center justify-center"><i class="bi bi-lightning-charge-fill text-xs"></i></span>
             <div>
-              <div class="text-xs font-extrabold text-[var(--text-primary)]">Buat sesi clip dari campaign ini</div>
-              <div class="text-[11px] text-[var(--text-muted)]">Pakai template favoritmu, langsung masuk antrean.</div>
+              <div class="text-xs font-extrabold text-[var(--text-primary)]">Bikin konten AI sesuai brief</div>
+              <div class="text-[11px] text-[var(--text-muted)]">AI baca brief.pdf (durasi/hashtag/hook) + backsound jika ada di brief.</div>
             </div>
           </div>
           <div class="grid sm:grid-cols-[1.2fr_.8fr] gap-2">
@@ -848,7 +848,7 @@ async function showDetail(publicId){
             </label>
           </div>
           <div class="flex gap-2">
-            <button id="tkCreateBtn" onclick="createFromTK('${c.public_id}', this)" class="flex-1 min-h-[44px] rounded-xl bg-[var(--accent)] text-[var(--accent-text)] text-sm font-extrabold inline-flex items-center justify-center gap-2"><i class="bi bi-lightning-charge-fill"></i>Buat Sesi Sekarang</button>
+            <button id="tkCreateBtn" title="AI baca brief.pdf (durasi/hashtag/hook), cari highlight sesuai brief, ambil bahan video, download backsound TikTok/YouTube jika ada di brief, render 9:16" onclick="createFromTK('${c.public_id}', this)" class="flex-1 min-h-[44px] rounded-xl bg-[var(--accent)] text-[var(--accent-text)] text-sm font-extrabold inline-flex items-center justify-center gap-2"><i class="bi bi-magic"></i>Bikin Konten AI Sekarang</button>
             <button onclick="closeTkModal()" class="min-h-[44px] px-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] text-sm font-semibold">Nanti</button>
           </div>
           <div id="tkCreateStatus" class="text-xs text-[var(--text-muted)]"></div>
@@ -876,9 +876,9 @@ async function createFromTK(publicId, btn){
   const statusEl=$('#tkCreateStatus');
   const tkBtn=btn;
   let poll=null; let startMs=Date.now(); let curStage='campaign';
-  function stageLabel(s){ return {campaign:'Menyiapkan brief', highlight:'Analisis AI', render:'Render clip', done:'Selesai', failed:'Gagal', cancelled:'Dibatalkan'}[s]||s; }
+  function stageLabel(s){ return {campaign:'Menyiapkan brief', brief:'Baca brief AI (hashtag/durasi)', highlight:'Analisis AI (sesuai brief)', render:'Render clip + backsound', done:'Selesai', failed:'Gagal', cancelled:'Dibatalkan'}[s]||s; }
   function renderProgress(job){
-    const pct = job && job.progress!=null ? Math.round(job.progress) : (job.stage==='render'?85: job.stage==='highlight'?45: job.stage==='campaign'?10: 0);
+    const pct = job && job.progress!=null ? Math.round(job.progress) : (job.stage==='render'?85: job.stage==='highlight'?45: job.stage==='brief'?20: job.stage==='campaign'?10: 0);
     const stage = job.stage||curStage;
     const elapsed = job.elapsed_s!=null? job.elapsed_s : Math.round((Date.now()-startMs)/1000);
     const count = job.count||0;
@@ -899,12 +899,12 @@ async function createFromTK(publicId, btn){
           ${logTail? `<pre class="max-h-[96px] overflow-auto bg-black/40 border border-zinc-800 rounded-lg p-2 text-[10px] leading-tight text-zinc-300 whitespace-pre-wrap break-words">${esc(logTail)}</pre>`:''}
           <div class="flex gap-2">
             ${job.stage==='done' && job.result && job.result.ok ? `<a href="/session.html?id=${encodeURIComponent(job.session_id||publicId)}" class="flex-1 min-h-[40px] rounded-xl bg-emerald-600 text-white text-xs font-extrabold inline-flex items-center justify-center gap-2"><i class="bi bi-play-circle"></i>Lihat Sesi & Clip</a><a href="/tasks.html" class="min-h-[40px] px-3 rounded-xl border border-zinc-700 bg-zinc-900 text-xs font-semibold inline-flex items-center gap-1.5"><i class="bi bi-list-task"></i>Antrean</a>` : ''}
-            ${job.stage==='failed' ? `<button onclick="location.reload()" class="flex-1 min-h-[40px] rounded-xl bg-zinc-900 border border-zinc-700 text-xs font-bold">Tutup</button><button onclick="createFromTK('${publicId}', document.getElementById('tkCreateBtn'))" class="flex-1 min-h-[40px] rounded-xl bg-[var(--accent)] text-[var(--accent-text)] text-xs font-extrabold">Coba Lagi</button>` : ''}
+            ${job.stage==='failed' ? `<button onclick="location.reload()" class="flex-1 min-h-[40px] rounded-xl bg-zinc-900 border border-zinc-700 text-xs font-bold">Tutup</button><button title="AI baca brief.pdf (durasi/hashtag/hook), cari highlight sesuai brief, ambil bahan video, download backsound TikTok/YouTube jika ada di brief, render 9:16" onclick="createFromTK('${publicId}', document.getElementById('tkCreateBtn'))" class="flex-1 min-h-[40px] rounded-xl bg-[var(--accent)] text-[var(--accent-text)] text-xs font-extrabold">Coba Lagi</button>` : ''}
             ${isRunning ? `<button id="tkCancelBtn" class="w-full min-h-[36px] rounded-xl border border-red-500/30 bg-red-500/10 text-red-600 text-xs font-bold">Batalkan</button>` : ''}
           </div>
         </div>`;
       const cb=$('#tkCancelBtn');
-      if(cb) cb.onclick=async()=>{ try{ await fetch(`/api/campaign/auto/cancel/${encodeURIComponent(publicId)}`,{method:'POST'});}catch{} };
+      if(cb) cb.onclick=async()=>{ try{ await fetch(`/api/campaign/ai-create/cancel/${encodeURIComponent(publicId)}`,{method:'POST'});}catch{} };
     }
     if(tkBtn){
       if(job.stage==='done') { tkBtn.innerHTML='<i class="bi bi-check-circle-fill text-emerald-500"></i> Selesai'; tkBtn.disabled=true; tkBtn.classList.add('opacity-60','cursor-not-allowed'); }
@@ -919,7 +919,7 @@ async function createFromTK(publicId, btn){
   if(statusEl) statusEl.innerHTML='<div class="rounded-xl border border-[var(--accent)]/30 bg-[var(--accent-bg-subtle)] p-3 text-xs text-[var(--text-muted)]"><i class="bi bi-lightning-charge-fill"></i> Mengirim 1-click auto (brief + highlight + render 3 teratas)...</div>';
   tkBtn.disabled=true; tkBtn.innerHTML='<i class="bi bi-hourglass-split animate-pulse"></i> Mengirim...';
   try{
-    const r=await fetch(`/api/campaign/auto/${encodeURIComponent(publicId)}`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({preset, num_clips: numClips, auto_render: true, top_n: 3})});
+    const r=await fetch(`/api/campaign/ai-create/${encodeURIComponent(publicId)}`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({preset, num_clips: numClips, auto_render: true, top_n: 3})});
     let j; try{ j=await r.json(); }catch{ j={}; }
     if(!r.ok || !j.ok){
       // already running 409 -> poll instead
@@ -934,7 +934,7 @@ async function createFromTK(publicId, btn){
     // poll
     poll=setInterval(async()=>{
       try{
-        const pr=await fetch(`/api/campaign/auto/status/${encodeURIComponent(publicId)}`);
+        const pr=await fetch(`/api/campaign/ai-create/status/${encodeURIComponent(publicId)}`);
         const pj=await pr.json();
         if(!pr.ok){ return; }
         renderProgress(pj);
@@ -956,7 +956,7 @@ async function createFromTK(publicId, btn){
     // first tick immediately after 1s
     setTimeout(async()=>{
       try{
-        const pr=await fetch(`/api/campaign/auto/status/${encodeURIComponent(publicId)}`);
+        const pr=await fetch(`/api/campaign/ai-create/status/${encodeURIComponent(publicId)}`);
         const pj=await pr.json();
         if(pr.ok) renderProgress(pj);
       }catch{}
