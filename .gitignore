@@ -344,3 +344,6 @@ config - Copy.json
 
 # Whisper models (runtime download)
 faster_whisper_models/
+
+# local backups
+*.bak.*
