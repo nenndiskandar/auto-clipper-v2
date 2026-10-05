@@ -36,15 +36,24 @@ function showConfirm(title, message) {
         '</div></div>';
       document.body.appendChild(modal);
       modal.querySelector('.btn-cancel').addEventListener('click', () => {
-        modal.classList.remove('open'); resolve(false);
+        modal.classList.remove('open');
+        const r = modal._currentResolve; modal._currentResolve = null;
+        if (r) r(false);
       });
       modal.querySelector('.btn-confirm').addEventListener('click', () => {
-        modal.classList.remove('open'); resolve(true);
+        modal.classList.remove('open');
+        const r = modal._currentResolve; modal._currentResolve = null;
+        if (r) r(true);
       });
       modal.addEventListener('click', e => {
-        if (e.target === modal) { modal.classList.remove('open'); resolve(false); }
+        if (e.target === modal) {
+          modal.classList.remove('open');
+          const r = modal._currentResolve; modal._currentResolve = null;
+          if (r) r(false);
+        }
       });
     }
+    modal._currentResolve = resolve;
     modal.querySelector('.confirm-title').textContent = title;
     modal.querySelector('.confirm-msg').textContent = message;
     modal.classList.add('open');
