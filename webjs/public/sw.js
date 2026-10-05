@@ -1,4 +1,4 @@
-const CACHE_NAME = 'yt-clipper-v12';
+const CACHE_NAME = 'yt-clipper-v13';
 const ASSETS = [
   '/',
   '/index.html',

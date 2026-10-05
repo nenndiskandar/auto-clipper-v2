@@ -34,7 +34,7 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
 <script>
 // FORCE CACHE CLEAR AND SW UNREGISTER
 (async function() {
-  if (localStorage.getItem('force_cleared_v11')) return;
+  if (localStorage.getItem('force_cleared_v13')) return;
   try {
     if ('serviceWorker' in navigator) {
       const regs = await navigator.serviceWorker.getRegistrations();
@@ -44,7 +44,7 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
       const keys = await caches.keys();
       for (let k of keys) await caches.delete(k);
     }
-    localStorage.setItem('force_cleared_v11', '1');
+    localStorage.setItem('force_cleared_v13', '1');
     window.location.reload(true);
   } catch (e) {}
 })();
@@ -244,6 +244,6 @@ $('btnTest').addEventListener('click', async ()=>{
 load();
 </script>
 <script src="/engine_status.js"></script>
-<script src="/ui.js"></script>
+<script src="/ui.js?v=13"></script>
 </body>
 </html>

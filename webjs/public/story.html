@@ -51,7 +51,7 @@ textarea.in{font-family:ui-monospace,monospace}
 <script>
 // FORCE CACHE CLEAR AND SW UNREGISTER
 (async function() {
-  if (localStorage.getItem('force_cleared_v11')) return;
+  if (localStorage.getItem('force_cleared_v13')) return;
   try {
     if ('serviceWorker' in navigator) {
       const regs = await navigator.serviceWorker.getRegistrations();
@@ -61,7 +61,7 @@ textarea.in{font-family:ui-monospace,monospace}
       const keys = await caches.keys();
       for (let k of keys) await caches.delete(k);
     }
-    localStorage.setItem('force_cleared_v11', '1');
+    localStorage.setItem('force_cleared_v13', '1');
     window.location.reload(true);
   } catch (e) {}
 })();
@@ -457,6 +457,6 @@ fillFromConfig(); loadFromStorage(); loadOutputs();
 fetch('/api/me').then(r=>r.json()).then(u=>{ if(u && u.name){ $('whoami').textContent=u.name; } }).catch(()=>{});
 </script>
 <script src="/engine_status.js"></script>
-<script src="/ui.js"></script>
+<script src="/ui.js?v=13"></script>
 </body>
 </html>

@@ -38,7 +38,7 @@ label.fld{font-size:10px;color:#71717a;text-transform:uppercase;letter-spacing:.
 <script>
 // FORCE CACHE CLEAR AND SW UNREGISTER
 (async function() {
-  if (localStorage.getItem('force_cleared_v11')) return;
+  if (localStorage.getItem('force_cleared_v13')) return;
   try {
     if ('serviceWorker' in navigator) {
       const regs = await navigator.serviceWorker.getRegistrations();
@@ -48,7 +48,7 @@ label.fld{font-size:10px;color:#71717a;text-transform:uppercase;letter-spacing:.
       const keys = await caches.keys();
       for (let k of keys) await caches.delete(k);
     }
-    localStorage.setItem('force_cleared_v11', '1');
+    localStorage.setItem('force_cleared_v13', '1');
     window.location.reload(true);
   } catch (e) {}
 })();
@@ -263,6 +263,6 @@ loadCfg(); loadManifests();
 fetch('/api/me').then(r=>r.json()).then(u=>{ if(u&&u.name){ $('whoami').textContent=u.name; } }).catch(()=>{});
 </script>
 <script src="/engine_status.js"></script>
-<script src="/ui.js"></script>
+<script src="/ui.js?v=13"></script>
 </body>
 </html>
