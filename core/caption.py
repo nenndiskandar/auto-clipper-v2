@@ -1489,3 +1489,43 @@ class CaptionMixin:
 
             with open(clip_dir / "data.json", "w", encoding="utf-8") as f:
                 json.dump(metadata, f, ensure_ascii=False, indent=2)
+
+            # WORKFLOW Step7: manifest.json QC per-clip (keep-all, re-render tanpa download)
+            try:
+                _bgm_cfg = getattr(self, "auto_bgm_settings", {}) or {}
+                _bgm_path = _bgm_cfg.get("path") or ""
+                try:
+                    _sound_id = __import__("pathlib").Path(str(_bgm_path)).stem if _bgm_path else (highlight.get("sound_id") or "")
+                except Exception:
+                    _sound_id = highlight.get("sound_id") or ""
+                _res = str(getattr(self, "resolution", "auto") or "auto")
+                _manifest = {
+                    "clip_id": f"{index:02d}_{clip_title}",
+                    "clip_title": highlight.get("title", ""),
+                    "source": highlight.get("source_url") or getattr(self, "_last_source_url", "") or "",
+                    "start_time": highlight.get("start_time"),
+                    "end_time": highlight.get("end_time"),
+                    "duration_seconds": highlight.get("duration_seconds"),
+                    "sound_id": _sound_id,
+                    "resolution": _res,
+                    "aspect_ratio": getattr(self, "aspect_ratio", "9:16"),
+                    "portrait_mode": getattr(self, "portrait_mode", None),
+                    "has_captions": metadata.get("has_captions", False),
+                    "has_hook": bool(add_hook),
+                    "has_bgm": metadata.get("has_bgm", False),
+                    "has_broll": metadata.get("has_broll", False),
+                    "final_file": final_file.name if "final_file" in dir() else "",
+                    "virality_score": highlight.get("virality_score"),
+                    "rendered_at": __import__("datetime").datetime.now().isoformat(),
+                }
+                with open(clip_dir / "manifest.json", "w", encoding="utf-8") as _mf:
+                    __import__("json").dump(_manifest, _mf, ensure_ascii=False, indent=2)
+                try:
+                    self.log(f"  manifest.json tersimpan ({_manifest['clip_id']})")
+                except Exception:
+                    pass
+            except Exception as _e:
+                try:
+                    self.log(f"  gagal tulis manifest.json: {_e}")
+                except Exception:
+                    pass

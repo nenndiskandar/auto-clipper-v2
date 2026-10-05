@@ -111,6 +111,7 @@ class AutoClipperCore(SubtitleGeneratorMixin, DownloadMixin, TranscribeMixin, Hi
         portrait_mode: str = "crop",
         subtitle_style: str = "pop",
         aspect_ratio: str = "9:16",
+        resolution: str = "auto",
         mediapipe_settings: dict = None,
         ai_providers: dict = None,
         pro_settings: dict = None,
@@ -191,6 +192,7 @@ class AutoClipperCore(SubtitleGeneratorMixin, DownloadMixin, TranscribeMixin, Hi
         self.portrait_mode = portrait_mode
         self.subtitle_style = subtitle_style
         self.aspect_ratio = aspect_ratio
+        self.resolution = resolution if resolution is not None else "auto"
         self.mediapipe_settings = mediapipe_settings or {
             "lip_activity_threshold": 0.08,
             "switch_threshold": 0.18,

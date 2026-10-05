@@ -527,6 +527,7 @@ def get_core_instance(config_mgr: ConfigManager, log_cb=None, progress_cb=None) 
         portrait_mode=cfg.get("portrait_mode", "crop"),
         subtitle_style=cfg.get("subtitle_style", "pop"),
         aspect_ratio=cfg.get("aspect_ratio", "9:16"),
+        resolution=cfg.get("resolution", "auto"),
         mediapipe_settings=cfg.get("mediapipe_settings"),
         ai_providers=cfg.get("ai_providers"),
         pro_settings=cfg.get("pro_settings"),

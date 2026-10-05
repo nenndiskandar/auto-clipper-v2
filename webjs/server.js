@@ -964,30 +964,97 @@ const server = http.createServer((req, res) => {
             try { fs.appendFileSync(logPath, `[WARN] Brief AI gagal: ${String(e.message||e).slice(0, 300)}\n`); } catch {}
             try { aiBrief = JSON.parse(fs.readFileSync(path.join(sessionDir, 'ai_brief.json'), 'utf8')); } catch {}
           }
-          // --- Backsound: download mp3 TikTok/YouTube sesuai brief (yt-dlp -x) ---
+          // --- Backsound: TikTok sound cache (WORKFLOW step 3) ---
+          // TikTok sound_id -> output/bgm/<id>.mp3 cache, miss -> yt-dlp --cookies --impersonate chrome -x --audio-format mp3 <canonical>
           try {
             const musicUrl = aiBrief && (aiBrief.music_url || null);
             const musicQuery = aiBrief && (aiBrief.music_query || null);
             const targetMp3 = path.join(sessionDir, '_temp', 'music.mp3');
-            const ytdlp = (() => { try { return require('child_process').execFileSync(PY, ['-m','yt_dlp','--version'], {encoding:'utf-8', timeout:4000}).trim() ? PY : null; } catch { return null; } })();
-            const cookiesCandidates = [path.join(ROOT,'cookies.txt'), path.join(ROOT,'output','cookies.txt')];
+            const bgmCacheDir = path.join(ROOT, 'output', 'bgm');
+            const cookiesCandidates = [path.join(ROOT,'cookies.txt')];
             let cookiesPath = null; for (const c of cookiesCandidates) { try { if (fs.existsSync(c) && fs.statSync(c).size>0) { cookiesPath=c; break; } } catch {} }
             const ensureTemp = () => { try { fs.mkdirSync(path.join(sessionDir,'_temp'), {recursive:true}); } catch {} };
-            if (musicUrl) {
-              try { fs.appendFileSync(logPath, `[INFO] Backsound download dari music_url: ${String(musicUrl).slice(0, 80)}\n`); } catch {}
-              ensureTemp();
-              const args = ['-m','yt_dlp','-x','--audio-format','mp3','--audio-quality','0','--no-playlist','--no-warnings','-o', targetMp3.replace(/\.mp3$/,'.%(ext)s'), String(musicUrl)];
-              if (cookiesPath) { args.splice(args.length-1, 0, '--cookies', cookiesPath); }
-              try { const dp = require('child_process').execFileSync(PY, ['-c','from utils.helpers import get_deno_path;import pathlib;print(get_deno_path() or "")'], {encoding:'utf-8', timeout:4000, cwd: ROOT}).trim(); if (dp && fs.existsSync(dp)) { args.splice(args.length-1, 0, '--js-runtimes', `deno:${dp}`); } } catch {}
+            const ensureBgmCache = () => { try { fs.mkdirSync(bgmCacheDir, {recursive:true}); } catch {} };
+            const isTikTokUrl = (u)=> /tiktok\.com/i.test(String(u||'')) || /vt\.tiktok\.com|vm\.tiktok\.com/i.test(String(u||''));
+            const extractTikTokId = (u)=> { const m = String(u||'').match(/\/video\/(\d{8,})/); return m ? m[1] : null; };
+            const resolveTikTokCanonical = (shortUrl)=>{
               try {
-                require('child_process').execFileSync(PY, args, {encoding:'utf-8', timeout:60000, maxBuffer:1024*1024*4});
-                if (fs.existsSync(targetMp3) && fs.statSync(targetMp3).size>1000) { bgmPath = targetMp3; }
-                else {
-                  try { const files = fs.readdirSync(path.join(sessionDir,'_temp')); const cand = files.find(f=> f.startsWith('music.') && fs.statSync(path.join(sessionDir,'_temp',f)).size>1000); if (cand) bgmPath = path.join(sessionDir,'_temp',cand); } catch {}
+                const pyCode = "import sys, urllib.request\nurl=sys.argv[1]\ntry:\n  req=urllib.request.Request(url, headers={'User-Agent':'Mozilla/5.0'})\n  with urllib.request.urlopen(req, timeout=10) as r:\n    print(r.geturl())\nexcept Exception as e:\n  print(url)\n";
+                const out = require('child_process').execFileSync(PY, ['-c', pyCode, String(shortUrl)], {encoding:'utf-8', timeout:12000}).trim();
+                if (out && /tiktok\.com\/@[^\/]+\/video\/\d+/.test(out)) return out;
+                return out || shortUrl;
+              } catch { return shortUrl; }
+            };
+            if (musicUrl) {
+              const tikIdFromUrl = extractTikTokId(musicUrl);
+              const isTik = isTikTokUrl(musicUrl);
+              if (isTik) {
+                let cacheHit = null;
+                if (tikIdFromUrl) {
+                  const cached = path.join(bgmCacheDir, `${tikIdFromUrl}.mp3`);
+                  if (fs.existsSync(cached) && fs.statSync(cached).size>1000) cacheHit = cached;
                 }
-                if (bgmPath) try { fs.appendFileSync(logPath, `[INFO] Backsound OK ${bgmPath} ${(fs.statSync(bgmPath).size/1024).toFixed(0)}KB\n`); } catch {}
-                else try { fs.appendFileSync(logPath, `[WARN] Backsound download selesai tapi file tidak ditemukan\n`); } catch {}
-              } catch(e) { try { fs.appendFileSync(logPath, `[WARN] Backsound gagal (music_url): ${String(e.message||e).slice(0, 250)}\n`); } catch {} }
+                if (!cacheHit) {
+                  try {
+                    const canonicalPre = resolveTikTokCanonical(String(musicUrl));
+                    const preId = extractTikTokId(canonicalPre);
+                    if (preId) {
+                      const cached2 = path.join(bgmCacheDir, `${preId}.mp3`);
+                      if (fs.existsSync(cached2) && fs.statSync(cached2).size>1000) cacheHit = cached2;
+                    }
+                  } catch {}
+                }
+                if (cacheHit) {
+                  ensureTemp();
+                  try { fs.copyFileSync(cacheHit, targetMp3); bgmPath = targetMp3; } catch(e2) { try { fs.appendFileSync(logPath, `[WARN] Cache copy gagal: ${String(e2.message||e2).slice(0,120)}\n`);} catch{} }
+                  if (bgmPath) try { fs.appendFileSync(logPath, `[INFO] Backsound cache HIT ${cacheHit} -> ${targetMp3} ${(fs.statSync(bgmPath).size/1024).toFixed(0)}KB (reuse, no download)\n`);} catch{}
+                }
+                if (!bgmPath) {
+                  try { fs.appendFileSync(logPath, `[INFO] Backsound TikTok cache MISS, download music_url: ${String(musicUrl).slice(0,80)}\n`);} catch{}
+                  ensureTemp(); ensureBgmCache();
+                  let canonical = String(musicUrl);
+                  if (/vt\.tiktok\.com|vm\.tiktok\.com/i.test(canonical) || !/\/video\/\d+/.test(canonical)) {
+                    try { canonical = resolveTikTokCanonical(canonical); try{fs.appendFileSync(logPath, `[INFO] TikTok resolved canonical: ${canonical.slice(0,90)}\n`);}catch{} } catch{}
+                  }
+                  const idForCache = extractTikTokId(canonical) || tikIdFromUrl || 'tiktok_sound';
+                  const cacheOut = path.join(bgmCacheDir, `${idForCache}.mp3`);
+                  const args = ['-m','yt_dlp','-x','--audio-format','mp3','--audio-quality','0','--no-playlist','--no-warnings','--impersonate','chrome','-o', cacheOut.replace(/\.mp3$/,'.%(ext)s'), String(canonical)];
+                  if (cookiesPath) { args.splice(args.length-1, 0, '--cookies', cookiesPath); }
+                  try { const dp = require('child_process').execFileSync(PY, ['-c','from utils.helpers import get_deno_path;import pathlib;print(get_deno_path() or "")'], {encoding:'utf-8', timeout:4000, cwd: ROOT}).trim(); if (dp && fs.existsSync(dp)) { args.splice(args.length-1, 0, '--js-runtimes', `deno:${dp}`); } } catch {}
+                  try {
+                    require('child_process').execFileSync(PY, args, {encoding:'utf-8', timeout:90000, maxBuffer:1024*1024*8});
+                    let finalCache = null;
+                    if (fs.existsSync(cacheOut) && fs.statSync(cacheOut).size>1000) finalCache = cacheOut;
+                    else {
+                      try {
+                        const files = fs.readdirSync(bgmCacheDir).filter(f=> f.endsWith('.mp3') && fs.statSync(path.join(bgmCacheDir,f)).size>1000);
+                        const cand = files.find(f=> f.includes(idForCache)) || files.sort((a,b)=> fs.statSync(path.join(bgmCacheDir,b)).mtimeMs - fs.statSync(path.join(bgmCacheDir,a)).mtimeMs)[0];
+                        if (cand) finalCache = path.join(bgmCacheDir, cand);
+                      } catch {}
+                    }
+                    if (finalCache) {
+                      try { fs.copyFileSync(finalCache, targetMp3); bgmPath = targetMp3; } catch {}
+                      if (bgmPath) try{fs.appendFileSync(logPath, `[INFO] Backsound TikTok OK ${finalCache} ${(fs.statSync(finalCache).size/1024).toFixed(0)}KB -> ${targetMp3} (cached)\n`);}catch{}
+                      else try{fs.appendFileSync(logPath, `[WARN] Backsound TikTok download ok tapi copy ke ${targetMp3} gagal\n`);}catch{}
+                    } else try{fs.appendFileSync(logPath, `[WARN] Backsound TikTok download selesai tapi file tidak ditemukan di ${bgmCacheDir}\n`);}catch{}
+                  } catch(e3) { try{fs.appendFileSync(logPath, `[WARN] Backsound TikTok gagal: ${String(e3.message||e3).slice(0,350)}\n`);}catch{} }
+                }
+              } else {
+                try { fs.appendFileSync(logPath, `[INFO] Backsound download dari music_url: ${String(musicUrl).slice(0, 80)}\n`); } catch {}
+                ensureTemp();
+                const args = ['-m','yt_dlp','-x','--audio-format','mp3','--audio-quality','0','--no-playlist','--no-warnings','-o', targetMp3.replace(/\.mp3$/,'.%(ext)s'), String(musicUrl)];
+                if (cookiesPath) { args.splice(args.length-1, 0, '--cookies', cookiesPath); }
+                try { const dp = require('child_process').execFileSync(PY, ['-c','from utils.helpers import get_deno_path;import pathlib;print(get_deno_path() or "")'], {encoding:'utf-8', timeout:4000, cwd: ROOT}).trim(); if (dp && fs.existsSync(dp)) { args.splice(args.length-1, 0, '--js-runtimes', `deno:${dp}`); } } catch {}
+                try {
+                  require('child_process').execFileSync(PY, args, {encoding:'utf-8', timeout:60000, maxBuffer:1024*1024*4});
+                  if (fs.existsSync(targetMp3) && fs.statSync(targetMp3).size>1000) { bgmPath = targetMp3; }
+                  else {
+                    try { const files = fs.readdirSync(path.join(sessionDir,'_temp')); const cand = files.find(f=> f.startsWith('music.') && fs.statSync(path.join(sessionDir,'_temp',f)).size>1000); if (cand) bgmPath = path.join(sessionDir,'_temp',cand); } catch {}
+                  }
+                  if (bgmPath) try { fs.appendFileSync(logPath, `[INFO] Backsound OK ${bgmPath} ${(fs.statSync(bgmPath).size/1024).toFixed(0)}KB\n`); } catch {}
+                  else try { fs.appendFileSync(logPath, `[WARN] Backsound download selesai tapi file tidak ditemukan\n`); } catch {}
+                } catch(e4) { try { fs.appendFileSync(logPath, `[WARN] Backsound gagal (music_url): ${String(e4.message||e4).slice(0, 250)}\n`); } catch {} }
+              }
             } else if (musicQuery) {
               try { fs.appendFileSync(logPath, `[INFO] Backsound search query: ${String(musicQuery).slice(0, 80)}\n`); } catch {}
               ensureTemp();
@@ -999,11 +1066,12 @@ const server = http.createServer((req, res) => {
                 if (fs.existsSync(targetMp3) && fs.statSync(targetMp3).size>1000) bgmPath = targetMp3;
                 else { try { const files = fs.readdirSync(path.join(sessionDir,'_temp')); const cand = files.find(f=> f.startsWith('music.') && fs.statSync(path.join(sessionDir,'_temp',f)).size>1000); if (cand) bgmPath = path.join(sessionDir,'_temp',cand); } catch {} }
                 if (bgmPath) try { fs.appendFileSync(logPath, `[INFO] Backsound search OK ${bgmPath}\n`); } catch {}
-              } catch(e) { try { fs.appendFileSync(logPath, `[WARN] Backsound search gagal: ${String(e.message||e).slice(0, 250)}\n`); } catch {} }
+              } catch(e5) { try { fs.appendFileSync(logPath, `[WARN] Backsound search gagal: ${String(e5.message||e5).slice(0, 250)}\n`); } catch {} }
             } else {
               try { fs.appendFileSync(logPath, `[INFO] Brief tidak minta backsound spesifik - skip download music\n`); } catch {}
             }
           } catch(e) { try { fs.appendFileSync(logPath, `[WARN] Backsound step error: ${String(e.message||e).slice(0,200)}\n`); } catch {} }
+
           job.stage = 'highlight';
           let sourceUrl = '';
           let _allSources = [];

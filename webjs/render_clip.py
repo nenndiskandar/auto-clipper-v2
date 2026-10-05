@@ -81,6 +81,7 @@ def main():
         portrait_mode=str(opts.get("portrait_mode", cfg.get("portrait_mode", "crop"))),
         subtitle_style=str(opts.get("subtitle_style", cfg.get("subtitle_style", "pop"))),
         aspect_ratio=str(opts.get("aspect_ratio", cfg.get("aspect_ratio", "9:16"))),
+        resolution=str(opts.get("resolution", cfg.get("resolution", "auto"))),
         mediapipe_settings=mp,
         ai_providers=prov or None,
         pro_settings=cfg.get("pro_settings"),

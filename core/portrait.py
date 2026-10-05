@@ -210,7 +210,7 @@ class PortraitMixin:
         
             # Calculate crop dimensions
             crop_w, crop_h = self._get_crop_window(orig_w, orig_h)
-            out_w, out_h = self._get_ratio_dimensions()
+            out_w, out_h = self._get_ratio_dimensions(orig_w, orig_h)
         
             # Face detector
             face_cascade = cv2.CascadeClassifier(
@@ -390,7 +390,7 @@ class PortraitMixin:
             fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
             total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or 0
             crop_w, crop_h = self._get_crop_window(orig_w, orig_h)
-            out_w, out_h = self._get_ratio_dimensions()
+            out_w, out_h = self._get_ratio_dimensions(orig_w, orig_h)
             if total_frames == 0 or fps == 0:
                 cap.release()
                 raise Exception(f"Invalid video: {total_frames} frames, {fps} fps")
@@ -471,7 +471,7 @@ class PortraitMixin:
         
             # Calculate crop dimensions
             crop_w, crop_h = self._get_crop_window(orig_w, orig_h)
-            out_w, out_h = self._get_ratio_dimensions()
+            out_w, out_h = self._get_ratio_dimensions(orig_w, orig_h)
         
             # MediaPipe Face Mesh settings
             lip_threshold = self.mediapipe_settings.get("lip_activity_threshold", 0.08)
@@ -839,31 +839,119 @@ class PortraitMixin:
             except Exception:
                 pass
 
-        def _get_ratio_dimensions(self):
-            """Get (out_w, out_h) for the configured aspect ratio."""
-            # User kebijakan: 720p lebih cepat & cukup untuk sosial (lihat MEMORY.md).
-            # Map eksplisit agar tak tergantung resolution config yang tak konsisten
-            # antar jalur download/portrait. 9:16 -> 720x1280, dst.
-            _dims = {"9:16": (720, 1280), "1:1": (720, 720), "4:5": (720, 900),
-                     "3:4": (720, 960), "16:9": (1280, 720)}
-            return _dims.get(getattr(self, "aspect_ratio", "9:16"), (720, 1280))
+        def _probe_dimensions(self, input_path: str):
+            """Probe (w,h) sumber via ffprobe lalu fallback cv2; return (w,h) atau (None,None)."""
+            try:
+                from pathlib import Path as _P
+                import subprocess as _sp, json as _js
+                ff = getattr(self, "ffmpeg_path", None) or "ffmpeg"
+                probe = str(_P(ff).parent / "ffprobe.exe") if str(ff).lower().endswith(".exe") else str(_P(ff).parent / "ffprobe")
+                out = _sp.run([probe, "-v", "error", "-show_entries", "stream=width,height,codec_type", "-of", "json", input_path],
+                              capture_output=True, text=True, timeout=15)
+                data = _js.loads(out.stdout or "{}")
+                for s in data.get("streams", []):
+                    if s.get("codec_type") == "video":
+                        w = int(s.get("width", 0) or 0); h = int(s.get("height", 0) or 0)
+                        if w > 0 and h > 0:
+                            return w, h
+            except Exception:
+                pass
+            try:
+                cap = cv2.VideoCapture(input_path)
+                w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 0); h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
+                cap.release()
+                if w > 0 and h > 0:
+                    return w, h
+            except Exception:
+                pass
+            return None, None
 
-        def _get_crop_window(self, orig_w: int, orig_h: int, zoom_factor: float = 1.0):
-            """Compute (crop_w, crop_h) for the configured aspect ratio, clamped to the
-            source video dimensions so the crop never exceeds the frame.
+        @staticmethod
+        def _even(v) -> int:
+            v = int(v)
+            v -= v % 2
+            return max(2, v)
 
-            ``zoom_factor`` (0..1] makes the crop window smaller than the full frame
-            (zoom-in) so the tracked face can be centered on BOTH axes (X + Y) and
-            follow micro-movement without vertical clipping. 1.0 = full frame (legacy).
-            """
-            out_w, out_h = self._get_ratio_dimensions()
-            target_ratio = out_w / out_h
-            crop_h = int(orig_h * zoom_factor)
+        def _target_ratio(self) -> float:
+            try:
+                aw, ah = str(getattr(self, "aspect_ratio", "9:16")).split(":")
+                return float(aw) / float(ah)
+            except Exception:
+                return 9.0 / 16.0
+
+        def _resolution_mode(self):
+            """Return ('auto', None) atau ('fixed', short_side_px)."""
+            res = getattr(self, "resolution", "auto")
+            if res is None:
+                return "auto", None
+            s = str(res).strip().lower()
+            if s in ("auto", "", "best", "max"):
+                return "auto", None
+            try:
+                return "fixed", int(float(s.rstrip("p").strip()))
+            except Exception:
+                return "auto", None
+
+        @staticmethod
+        def _base_dims(aspect: str):
+            return {"9:16": (720, 1280), "1:1": (720, 720), "4:5": (720, 900),
+                    "3:4": (720, 960), "16:9": (1280, 720)}.get(aspect, (720, 1280))
+
+        def _max_crop(self, orig_w: int, orig_h: int, zoom_factor: float = 1.0):
+            """Crop terbesar berasio target yang muat di source (tak pernah upscale)."""
+            target_ratio = self._target_ratio()
+            try:
+                zf = float(zoom_factor) if zoom_factor else 1.0
+            except Exception:
+                zf = 1.0
+            crop_h = int(orig_h * zf)
             crop_w = int(crop_h * target_ratio)
             if crop_w > orig_w:
                 crop_w = orig_w
                 crop_h = int(crop_w / target_ratio)
-            return crop_w, crop_h
+            return self._even(crop_w), self._even(crop_h)
+
+        def _get_crop_window(self, orig_w: int, orig_h: int, zoom_factor: float = 1.0):
+            """(crop_w, crop_h): auto = max crop sumber; fixed = max crop legacy (clamped)."""
+            return self._max_crop(orig_w, orig_h, zoom_factor)
+
+        def _get_ratio_dimensions(self, orig_w=None, orig_h=None, input_path=None, zoom_factor: float = 1.0):
+            """(out_w, out_h) untuk aspect_ratio terkonfigurasi.
+
+            - ``resolution='auto'`` (default) → auto = max source: out = crop itu
+              sendiri (bukan fixed). Cth: 1920x1080 + 9:16 → ~607x1080.
+              Bila orig tak diberikan tapi input_path ada → probe ffprobe/cv2.
+            - ``resolution`` int/str angka (720/1080/'720p') → fixed lama,
+              tapi DI-CAP ke max source agar tak upscale.
+            - Tanpa info source sama sekali → fallback map 720p lama.
+            """
+            aspect = str(getattr(self, "aspect_ratio", "9:16"))
+            target_ratio = self._target_ratio()
+            mode, fixed = self._resolution_mode()
+
+            src_w, src_h = orig_w, orig_h
+            if (not src_w or not src_h) and input_path:
+                pw, ph = self._probe_dimensions(input_path)
+                if pw and ph:
+                    src_w, src_h = pw, ph
+
+            if mode == "auto":
+                if src_w and src_h:
+                    out = self._max_crop(src_w, src_h, zoom_factor)
+                    return out
+                return self._base_dims(aspect)
+
+            # fixed lama, di-cap max source
+            base_w, base_h = self._base_dims(aspect)
+            base_short = min(base_w, base_h) or 720
+            scale = fixed / base_short if base_short else 1.0
+            fixed_w = self._even(base_w * scale)
+            fixed_h = self._even(base_h * scale)
+            if src_w and src_h:
+                max_w, max_h = self._max_crop(src_w, src_h, 1.0)
+                if fixed_w > max_w or fixed_h > max_h:
+                    return max_w, max_h
+            return fixed_w, fixed_h
 
         def _source_is_portrait(self, input_path: str) -> bool:
             """True bila video sumber sudah ~rasio portrait target (mis. 9:16).
@@ -899,7 +987,7 @@ class PortraitMixin:
             cap = cv2.VideoCapture(input_path)
             s_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)); s_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
             cap.release()
-            out_w, out_h = self._get_ratio_dimensions()
+            out_w, out_h = self._get_ratio_dimensions(s_w, s_h)
             if s_w == out_w and s_h == out_h:
                 self.log(f"  ✓ Lewati konversi portrait (stream copy, sudah {out_w}:{out_h})")
                 cmd = [self.ffmpeg_path, "-y", "-i", input_path, "-c", "copy", "-map", "0", output_path]
@@ -944,7 +1032,7 @@ class PortraitMixin:
 
         def convert_to_portrait_blur_with_progress(self, input_path: str, output_path: str, progress_callback):
             """Blurred-background conversion (no cropping) with progress."""
-            out_w, out_h = self._get_ratio_dimensions()
+            out_w, out_h = self._get_ratio_dimensions(input_path=input_path)
             fd, script_path = tempfile.mkstemp(suffix=".txt", prefix="portrait_blur_", text=True)
             try:
                 with os.fdopen(fd, "w", encoding="utf-8") as f:
@@ -1028,7 +1116,7 @@ class PortraitMixin:
         
             # Calculate crop dimensions
             crop_w, crop_h = self._get_crop_window(orig_w, orig_h)
-            out_w, out_h = self._get_ratio_dimensions()
+            out_w, out_h = self._get_ratio_dimensions(orig_w, orig_h)
         
             # Face detector
             face_cascade = cv2.CascadeClassifier(
@@ -1147,7 +1235,7 @@ class PortraitMixin:
             # Zoom-in: use 75% of height to allow vertical movement
             zoom_factor = 0.75
             crop_w, crop_h = self._get_crop_window(orig_w, orig_h, zoom_factor=zoom_factor)
-            out_w, out_h = self._get_ratio_dimensions()
+            out_w, out_h = self._get_ratio_dimensions(orig_w, orig_h, zoom_factor=zoom_factor)
             
             lip_threshold = self.mediapipe_settings.get("lip_activity_threshold", 0.08)
             center_weight = self.mediapipe_settings.get("center_weight", 0.15)

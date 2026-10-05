@@ -266,6 +266,22 @@ class HighlightMixin:
                     self._save_session_data(session_data_file, session_data)
                     return None
 
+                # WORKFLOW Step5: simpan transcript.json (faster-whisper) segera agar keep-all & re-render tanpa download ulang
+                try:
+                    _tp = session_dir / "transcript.json"
+                    # simpan juga versi plain transcript untuk trace
+                    _raw_segments = []
+                    # transcript adalah SRT-like lines "[HH:MM:SS - HH:MM:SS] text"
+                    for _ln in (transcript or "").splitlines():
+                        _ln = _ln.strip()
+                        if _ln:
+                            _raw_segments.append(_ln)
+                    with open(_tp, "w", encoding="utf-8") as _f:
+                        json.dump({"transcript": transcript, "lines": _raw_segments, "video_path": video_path}, _f, ensure_ascii=False, indent=2)
+                    self.log(f"  💾 transcript.json tersimpan ({len(_raw_segments)} lines)")
+                except Exception as _e:
+                    self.log(f"  ⚠ Gagal simpan transcript.json: {_e}")
+
                 # Transkrip terlalu pendek (mis. video tanpa speech / hanya tag) ->
                 # tidak cukup konten untuk AI highlight, lewati agar tidak hang / halu.
                 word_count = len((transcript or "").split())
@@ -276,6 +292,14 @@ class HighlightMixin:
                 # Step 2: Find highlights using the transcript
                 self.set_progress("Finding highlights with AI...", 0.6)
                 highlights = self.find_highlights(transcript, video_info, num_clips)
+                # WORKFLOW Step5: simpan highlights.json (sorted virality + overlap filtered oleh find_highlights)
+                try:
+                    _hp = session_dir / "highlights.json"
+                    with open(_hp, "w", encoding="utf-8") as _f:
+                        json.dump({"highlights": highlights, "video_info": video_info, "url": url}, _f, ensure_ascii=False, indent=2)
+                    self.log(f"  💾 highlights.json tersimpan ({len(highlights)} highlights)")
+                except Exception as _e:
+                    self.log(f"  ⚠ Gagal simpan highlights.json: {_e}")
             
                 if self.is_cancelled():
                     session_data["status"] = "cancelled"
@@ -638,7 +662,8 @@ Aturan: pilih highlight yang paling sesuai brief di atas, prioritas momen yang m
                     f"Unexpected AI response type: {type(highlights).__name__}"
                 )
         
-            # Filter by duration (min 58s, max 120s)
+            # WORKFLOW.md Step 5 filter: buang <15s / >90s (default),
+            # buang overlap (keep virality tertinggi), sort virality_score, limit top-N.
             valid = []
             for h in highlights:
                 # Fallback: convert "reason" to "description" if exists
@@ -675,24 +700,24 @@ Aturan: pilih highlight yang paling sesuai brief di atas, prioritas momen yang m
                     h["description"] = h.get("title", "No description")
                     self.log(f"  ⚠ Missing description for '{h.get('title', 'Unknown')}', using title")
             
-                # Anti-gagal short video: kalau video <60s, izin klip sepanjang video (80% durasi)
+                # WORKFLOW Step5: default 15s-90s (override oleh brief jika ada).
                 _vid_dur = (video_info or {}).get('duration') or 0
-                # jika ada brief durasi, pakai itu sebagai acuan utama (fallback ke default 58-120)
                 if brief_dur_min and brief_dur_max:
                     try:
                         _min_dur = max(8, int(brief_dur_min))
                         _max_dur = max(_min_dur+5, int(brief_dur_max))
                     except:
-                        _min_dur = 58; _max_dur = 120
+                        _min_dur = 15; _max_dur = 90
                 else:
-                    _min_dur = 58
-                    _max_dur = 120
-                # short video override - hormati brief jika ada (jangan timpa durasi wajib 20-30)
+                    _min_dur = 15
+                    _max_dur = 90
+                # short video override - hormati brief jika ada
                 if _vid_dur and _vid_dur < 60 and not (brief_dur_min and brief_dur_max):
-                    _min_dur = max(12, int(_vid_dur * 0.8))
+                    # video pendek <60s: izinkan klip sepanjang video (min 15s atau 80% durasi)
+                    _min_dur = max(15, int(_vid_dur * 0.5))
                     _max_dur = int(_vid_dur)
                 elif _vid_dur and _vid_dur < 90 and not (brief_dur_min and brief_dur_max):
-                    _min_dur = 28
+                    _min_dur = 15
                     _max_dur = int(_vid_dur)
                 if _min_dur <= duration <= _max_dur:
                     valid.append(h)
@@ -702,21 +727,44 @@ Aturan: pilih highlight yang paling sesuai brief di atas, prioritas momen yang m
                     self.log(f"  ✗ {h['title']} ({duration:.0f}s) - Too long (>{_max_dur}s), skipped")
                 elif duration < _min_dur:
                     self.log(f"  ✗ {h['title']} ({duration:.0f}s) - Too short (<{_min_dur}s), skipped")
-            
-                if not auto_mode and len(valid) >= num_clips:
-                    break
         
-            # If we don't have enough valid clips, warn user (manual mode only)
+            # --- WORKFLOW Step5 scoring/filter: sort virality_score, buang overlap, limit top-N ---
+            # Sort by virality_score desc before overlap handling (keep skor tertinggi)
+            valid.sort(key=lambda x: (x.get("virality_score", 0) or 0), reverse=True)
+            # Buang overlap: greedy keep highest virality, skip yg overlap dgn yg sudah kept
+            deduped = []
+            for h in valid:
+                try:
+                    s = self.parse_timestamp(h.get("start_time", "0"))
+                    e = self.parse_timestamp(h.get("end_time", "0"))
+                except Exception:
+                    continue
+                overlapped = False
+                for k in deduped:
+                    ks = self.parse_timestamp(k.get("start_time", "0"))
+                    ke = self.parse_timestamp(k.get("end_time", "0"))
+                    if max(s, ks) < min(e, ke):
+                        overlapped = True
+                        break
+                if overlapped:
+                    self.log(f"  ✗ {h.get('title','Unknown')} overlap dengan klip virality lebih tinggi, skipped")
+                    continue
+                deduped.append(h)
+            valid = deduped
+            # limit top-N setelah dedup & sort (auto = biarkan semua, manual = potong)
+            if not auto_mode and len(valid) > num_clips:
+                self.log(f"  ✂ Top-N limit: {len(valid)} -> {num_clips} (sorted by virality_score)")
+                valid = valid[:num_clips]
+            # warning jika kurang dari request (manual only)
             if not auto_mode and len(valid) < num_clips:
                 self.log(f"\n⚠️ WARNING: Only found {len(valid)} valid clips out of {num_clips} requested!")
-                self.log(f"   AI returned many segments that were too short (< 58s).")
+                self.log(f"   AI returned many segments that were too short/overlap (< {_min_dur}s or > {_max_dur}s).")
                 self.log(f"   Consider using a better AI model or adjusting the prompt.")
         
             if auto_mode:
-                # Auto mode: AI decides the count  -  return every valid highlight found.
-                self.log(f"  🤖 Auto selesai: {len(valid)} highlight valid ditemukan (AI menentukan jumlah).")
+                self.log(f"  🤖 Auto selesai: {len(valid)} highlight valid (sorted virality, overlap removed).")
                 return valid
-            return valid[:num_clips]
+            return valid
 
         def _get_non_youtube_info(self, url: str, video_id: str) -> dict:
             """Ambil metadata (title/channel/duration) untuk URL non-YouTube via yt-dlp."""

@@ -52,6 +52,130 @@ except ImportError:
     debug_log("Faster-Whisper not available. Install with: pip install faster-whisper")
 
 
+# --- TikTok sound helpers ---
+def _resolve_tiktok_canonical(short_url: str) -> str:
+    """Follow redirect for vt.tiktok.com / vm.tiktok.com to canonical URL.
+
+    Tries requests first (HEAD then GET), falls back to urllib. Returns
+    original URL on failure.
+    """
+    if not short_url:
+        return short_url
+    s = str(short_url).strip()
+    is_short = any(d in s for d in ("vt.tiktok.com", "vm.tiktok.com", "vm.tiktok", "vt.tiktok"))
+    if not is_short and "tiktok.com" in s and "/video/" in s:
+        return s
+    try:
+        import requests
+        sess = requests.Session()
+        sess.headers.update({"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"})
+        try:
+            r = sess.head(s, allow_redirects=True, timeout=10)
+            url = r.url
+            if url and url != s and "tiktok.com" in url:
+                return url
+        except Exception:
+            pass
+        try:
+            r2 = sess.get(s, allow_redirects=True, timeout=10, stream=True)
+            url2 = r2.url
+            try:
+                r2.close()
+            except Exception:
+                pass
+            if url2 and "tiktok.com" in url2:
+                return url2
+        except Exception:
+            pass
+    except Exception:
+        pass
+    try:
+        import urllib.request
+        req = urllib.request.Request(s, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            u = resp.geturl()
+            if u:
+                return u
+    except Exception:
+        pass
+    return s
+
+
+def _get_default_bgm_dir() -> Path:
+    """Return default BGM cache dir: output/bgm (absolute if possible)."""
+    try:
+        from utils.helpers import get_app_dir
+        app = Path(get_app_dir())
+        return app / "output" / "bgm"
+    except Exception:
+        return Path("output") / "bgm"
+
+
+def _extract_tiktok_id(canonical: str) -> str:
+    """Extract TikTok video/music id for cache filename."""
+    import hashlib
+    c = str(canonical)
+    m = re.search(r"/video/(\d+)", c)
+    if m:
+        return m.group(1)
+    m = re.search(r"/music/[^/]*-(\d+)", c)
+    if m:
+        return m.group(1)
+    m = re.search(r"[?&]id=(\d+)", c)
+    if m:
+        return m.group(1)
+    return hashlib.md5(c.encode()).hexdigest()[:12]
+
+
+def download_tiktok_sound(url: str, dest_dir=None) -> str:
+    """Download TikTok audio as mp3 with cache reuse.
+
+    Proven command:
+        /root/auto-clipper-v2/venv/bin/python -m yt_dlp --cookies /root/auto-clipper-v2/cookies.txt --impersonate chrome --no-playlist -x --audio-format mp3 <canonical>
+
+    Cache: output/bgm/<id>.mp3 \u2014 skip download if exists and >1KB.
+    Returns path to mp3.
+    """
+    from pathlib import Path as _Path
+    dest = _Path(dest_dir) if dest_dir else _get_default_bgm_dir()
+    dest.mkdir(parents=True, exist_ok=True)
+    canonical = _resolve_tiktok_canonical(url)
+    tid = _extract_tiktok_id(canonical)
+    out_file = dest / f"{tid}.mp3"
+    if out_file.exists() and out_file.stat().st_size > 1024:
+        return str(out_file)
+    cookies_path = None
+    candidates = []
+    try:
+        from utils.helpers import get_app_dir as _gad
+        _app = _Path(_gad())
+        candidates.append(_app / "cookies.txt")
+    except Exception:
+        pass
+    candidates.extend([_Path("/root/auto-clipper-v2/cookies.txt"), _Path("cookies.txt")])
+    for cand in candidates:
+        try:
+            if cand.exists() and cand.stat().st_size > 0:
+                cookies_path = cand
+                break
+        except Exception:
+            continue
+    py_bin = _Path("/root/auto-clipper-v2/venv/bin/python")
+    if not py_bin.exists():
+        py_bin = _Path(sys.executable)
+    cmd = [str(py_bin), "-m", "yt_dlp"]
+    if cookies_path and cookies_path.exists():
+        cmd.extend(["--cookies", str(cookies_path)])
+    cmd.extend(["--impersonate", "chrome", "--no-playlist", "-x", "--audio-format", "mp3", "-o", str(dest / f"{tid}.%(ext)s"), canonical])
+    subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=300)
+    if out_file.exists() and out_file.stat().st_size > 0:
+        return str(out_file)
+    for cand in dest.glob(f"{tid}.*"):
+        if cand.is_file() and cand.stat().st_size > 0:
+            return str(cand)
+    return str(out_file)
+
+
 # Hide console window on Windows
 SUBPROCESS_FLAGS = 0
 if sys.platform == "win32":
@@ -2426,11 +2550,9 @@ class DownloadMixin:
 
             self.log(f"  ✓ Section trimmed: {out_final}")
 
-            # Clean up full video
-            try:
-                full_path.unlink()
-            except Exception:
-                pass
+            # WORKFLOW Step7 keep-all: jangan hapus raw/_full_* (untuk QC + re-render tanpa download ulang)
+            # cleanup hanya manual via UI, bukan otomatis di sini.
+            # full_path KEEP on disk
 
             return str(out_final)
 
