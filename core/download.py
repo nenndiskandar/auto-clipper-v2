@@ -674,7 +674,7 @@ class DownloadMixin:
                     self.set_progress("Processing downloaded file...", 0.25)
         
             # High-quality format selector
-            format_selector = "bestvideo[height>=720][height<=2160]+bestaudio/best[height>=720][height<=2160]/bestvideo+bestaudio/best"
+            format_selector = "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best"
         
             # Base yt-dlp options
             ydl_opts = {
@@ -998,7 +998,7 @@ class DownloadMixin:
             ]
         
             # High-quality format selector (prioritize 720p+ with fallback)
-            format_selector = "bestvideo[height>=720][height<=2160]+bestaudio/best[height>=720][height<=2160]/bestvideo+bestaudio/best"
+            format_selector = "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best"
         
             last_error = None
             for strategy in download_strategies:
@@ -1990,7 +1990,7 @@ class DownloadMixin:
             if heights:
                 self.log(f"  Server offers: {', '.join(f'{h}p' for h in heights)}")
                 if is_auto:
-                    target_h = min(max(heights), 2160)
+                    target_h = min(max(heights), 1080)
                     self.log(f"  Auto resolution → {target_h}p (best available)")
                 elif target_h not in heights:
                     fallback = max([h for h in heights if h <= target_h] or [min(heights)])

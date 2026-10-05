@@ -8,8 +8,8 @@
 → pilih video_id(s) + sound_id
 
 ## 2. Klasifikasi per source
-- **YouTube** → GET highlight sections dari TernakKlip API
-- **Non-YouTube** → skip highlight
+- **YouTube** → highlight via `faster-whisper` + LLM (sama non-YouTube, bukan TernakKlip)
+- **Non-YouTube** → `faster-whisper` + LLM juga
   - GDrive FILE → siap rclone
   - GDrive FOLDER → gdown expand → picker file video → rclone per-file
 
@@ -19,16 +19,15 @@
 - reuse, jangan download ulang
 
 ## 4. Download
-- YouTube → `yt-dlp --download-sections` per slice highlight (hemat, nggak full)
-- Non-YouTube → `rclone copyurl` full download (file / per-file dari folder)
+- Semua source → full download dulu (`rclone`/`gdown` untuk GDrive, `yt-dlp` best untuk YouTube)
+- YouTube NOTE: sumber youtu.be/HV9X... keambil 4K 3840x2160 16Mbps → 691MB/345s boros kuota; perlu cap `bestvideo[height<=1080]` (~170MB)
 - simpan ke `output/sessions/<id>/raw/` + `downloaded.json`
 - kalau udah ada (cache), skip download
 
-## 5. Cari Highlight (HANYA non-YouTube)
+## 5. Cari Highlight (semua source)
 - `faster-whisper` → `transcript.json`
 - LLM sesuai brief campaign → `highlights.json`
 - scoring/filter: buang overlap, <15s / >90s, limit top-N
-- YouTube = SKIP (udah ada dari langkah 2)
 
 ## 6. Render portrait 9:16 — AUTO RESOLUSI = max source (tanpa upscale)
 - probe `ffprobe` dapet orig_w x orig_h
